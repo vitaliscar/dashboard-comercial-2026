@@ -21,6 +21,7 @@ interface AuthContextValue {
   profile: UserProfile | null;
   role: AppRole | null;
   loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -112,6 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     role,
     loading,
+    signIn: async (email: string, password: string) => {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error };
+      if (data.session?.user) {
+        setSession(data.session);
+        await loadProfile(data.session.user.id, data.session.user.email);
+      }
+      return { error: null };
+    },
     signOut: async () => {
       clearSharedFilters();
       await supabase.auth.signOut();

@@ -14,6 +14,8 @@ import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { scoped } from "@/lib/data-scope";
 import { canFilterSucursal, getAccessibleSucursales } from "@/lib/permissions";
 import { fetchAllRows } from "@/lib/fetch-all-rows";
+import { AlertCircle, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   getDateRangesForMonths,
   applyDateRangesToQuery,
@@ -103,8 +105,18 @@ function ResumenPage() {
   });
 
   // Fetch reference data
-  const { data: sucursales } = useSucursales();
-  const { data: unidades } = useUnidades();
+  const {
+    data: sucursales,
+    isLoading: isSucLoading,
+    isError: isSucError,
+    error: sucError,
+  } = useSucursales();
+  const {
+    data: unidades,
+    isLoading: isUnLoading,
+    isError: isUnError,
+    error: unError,
+  } = useUnidades();
 
   const selectedSucursalId = useMemo(() => {
     if (!filters.sucursal || !sucursales) return undefined;
@@ -160,7 +172,13 @@ function ResumenPage() {
     profile?.id,
   ];
 
-  const { data: rawData, isLoading } = useQuery({
+  const {
+    data: rawData,
+    isLoading: isDataLoading,
+    isError: isDataError,
+    error: dataError,
+    refetch,
+  } = useQuery({
     queryKey,
     queryFn: async () => {
       const buildCotQuery = () => {
@@ -633,7 +651,45 @@ function ResumenPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (isLoading || !resumenData) {
+  const isDataLoadingCombined =
+    isSucLoading || isUnLoading || (isDataLoading && !!unidades && !!sucursales);
+  const hasError = isSucError || isUnError || isDataError;
+  const firstError = sucError || unError || dataError;
+
+  if (!role) {
+    return (
+      <div className="card-elevated p-8 max-w-xl mx-auto my-12 text-center flex flex-col items-center gap-4">
+        <Shield className="size-10 text-muted-foreground" />
+        <h2 className="font-display text-xl font-bold">Usuario sin rol asignado</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Tu cuenta de usuario está activa pero no tiene un rol asignado en la base de datos
+          (Gerencia, Gerente Comercial, Coordinador o Asesor).
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Por favor, contacta al administrador del sistema para asignar tu perfil.
+        </p>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="card-elevated p-8 max-w-xl mx-auto my-12 text-center flex flex-col items-center gap-4">
+        <AlertCircle className="size-10 text-destructive" />
+        <h2 className="font-display text-xl font-bold">Error al cargar datos</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {firstError instanceof Error
+            ? firstError.message
+            : "No se pudieron obtener los datos comerciales desde la base de datos."}
+        </p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+
+  if (isDataLoadingCombined || !resumenData) {
     return <ResumenSkeleton />;
   }
 
