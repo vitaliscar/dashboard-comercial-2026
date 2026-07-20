@@ -1,0 +1,543 @@
+﻿<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Muestra UI/UX - 4 Direcciones Diferenciadas</title>
+    <style>
+      :root {
+        --base-black: #111111;
+        --base-white-opaque: #f6f6f3;
+        --base-orange: #f0a21d;
+        --base-light-gray: #d9d9d6;
+        --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+        --radius: 16px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        color: var(--base-black);
+        background: linear-gradient(150deg, #eeefed 0%, #e5e7e8 100%);
+      }
+
+      .top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(8px);
+        background: rgba(246, 246, 243, 0.86);
+        border-bottom: 1px solid rgba(17, 17, 17, 0.14);
+      }
+
+      .top-inner {
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 14px 20px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .top h1 {
+        margin: 0;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 1.02rem;
+        letter-spacing: 0.02em;
+      }
+
+      .top p {
+        margin: 0;
+        font-size: 0.82rem;
+        opacity: 0.82;
+      }
+
+      .forced-palette {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid rgba(17, 17, 17, 0.16);
+        padding: 5px 8px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        background: var(--base-white-opaque);
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 17, 17, 0.18);
+      }
+
+      .layout {
+        max-width: 1500px;
+        margin: 22px auto 34px;
+        padding: 0 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 18px;
+      }
+
+      .option {
+        min-height: 600px;
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid rgba(17, 17, 17, 0.14);
+        transition:
+          transform 220ms var(--ease-out),
+          box-shadow 220ms var(--ease-out);
+      }
+
+      .option:hover {
+        transform: translateY(-4px);
+      }
+
+      .head {
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .head h2 {
+        margin: 0;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 1rem;
+      }
+
+      .head p {
+        margin: 4px 0 0;
+        font-size: 0.8rem;
+        line-height: 1.35;
+        color: var(--muted-text);
+      }
+
+      .panel {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .tag {
+        font-size: 0.72rem;
+        padding: 4px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--surface-soft);
+      }
+
+      .btn {
+        border: none;
+        border-radius: 11px;
+        padding: 8px 11px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        transition:
+          transform 150ms var(--ease-out),
+          filter 150ms var(--ease-out);
+        cursor: pointer;
+      }
+
+      .btn:active {
+        transform: scale(0.97);
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .kpi {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 9px;
+        background: var(--surface);
+      }
+
+      .kpi small {
+        display: block;
+        font-size: 0.68rem;
+        opacity: 0.78;
+        margin-bottom: 4px;
+      }
+
+      .kpi strong {
+        font-size: 1.08rem;
+        line-height: 1;
+      }
+
+      .viz {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: var(--surface);
+      }
+
+      .bars {
+        display: grid;
+        gap: 7px;
+        margin-top: 8px;
+      }
+
+      .bar {
+        height: 11px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+      }
+
+      .bar > span {
+        display: block;
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        background: var(--accent);
+        animation: grow 760ms var(--ease-out) forwards;
+      }
+
+      .bar:nth-child(2) > span {
+        animation-delay: 70ms;
+      }
+      .bar:nth-child(3) > span {
+        animation-delay: 130ms;
+      }
+      .bar:nth-child(4) > span {
+        animation-delay: 190ms;
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 6px;
+      }
+
+      .swatches i {
+        display: block;
+        height: 16px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 17, 17, 0.14);
+      }
+
+      .note {
+        margin-top: 2px;
+        padding-top: 8px;
+        font-size: 0.72rem;
+        border-top: 1px dashed var(--line);
+        color: var(--muted-text);
+      }
+
+      .opt-a {
+        --bg: #f6f6f3;
+        --surface: #ffffff;
+        --surface-soft: #f4f4f2;
+        --line: rgba(17, 17, 17, 0.16);
+        --accent: #f0a21d;
+        --muted-text: #4f4f4f;
+        background: var(--bg);
+        box-shadow: 0 16px 34px -24px rgba(17, 17, 17, 0.42);
+      }
+
+      .opt-a .btn {
+        background: var(--base-black);
+        color: var(--base-white-opaque);
+      }
+
+      .opt-b {
+        --bg: #121212;
+        --surface: #1d1d1d;
+        --surface-soft: #242424;
+        --line: rgba(240, 162, 29, 0.34);
+        --accent: #f0a21d;
+        --muted-text: #bebeba;
+        color: #f6f6f3;
+        background:
+          linear-gradient(rgba(240, 162, 29, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(240, 162, 29, 0.08) 1px, transparent 1px), #121212;
+        background-size: 24px 24px;
+        box-shadow: 0 18px 34px -20px rgba(0, 0, 0, 0.7);
+      }
+
+      .opt-b .btn {
+        background: #f0a21d;
+        color: #111111;
+      }
+
+      .opt-b .kpi,
+      .opt-b .viz,
+      .opt-b .tag {
+        color: #f6f6f3;
+      }
+
+      .opt-c {
+        --bg: #f6f6f3;
+        --surface: #ffffff;
+        --surface-soft: #f2f2ee;
+        --line: rgba(17, 17, 17, 0.55);
+        --accent: #f0a21d;
+        --muted-text: #3f3f3f;
+        background: var(--bg);
+        border: 2px solid #111;
+        box-shadow: 7px 7px 0 #111;
+      }
+
+      .opt-c .head,
+      .opt-c .kpi,
+      .opt-c .viz,
+      .opt-c .tag {
+        border-width: 2px;
+      }
+
+      .opt-c .btn {
+        background: #f0a21d;
+        color: #111;
+        border: 2px solid #111;
+        box-shadow: 3px 3px 0 #111;
+      }
+
+      .opt-d {
+        --bg: #ececeb;
+        --surface: #f8f8f6;
+        --surface-soft: #efefec;
+        --line: rgba(17, 17, 17, 0.2);
+        --accent: #f0a21d;
+        --muted-text: #5f5f5a;
+        background:
+          radial-gradient(circle at 8% 0%, rgba(240, 162, 29, 0.22), transparent 34%),
+          radial-gradient(circle at 90% 100%, rgba(17, 17, 17, 0.1), transparent 30%), #ececeb;
+        box-shadow: 0 20px 38px -26px rgba(17, 17, 17, 0.45);
+      }
+
+      .opt-d .panel {
+        grid-template-columns: 1.1fr 0.9fr;
+      }
+
+      .opt-d .panel > .left,
+      .opt-d .panel > .right {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 9px;
+        background: var(--surface);
+      }
+
+      .opt-d .btn {
+        background: #111;
+        color: #f6f6f3;
+      }
+
+      @keyframes grow {
+        from {
+          width: 0;
+        }
+        to {
+          width: var(--w);
+        }
+      }
+
+      @media (max-width: 880px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .opt-d .panel {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <div class="top-inner">
+        <h1>Muestra UI/UX diferenciada - 4 opciones</h1>
+        <div class="forced-palette">
+          <span class="chip"><span class="dot" style="background: #111111"></span>Negro</span>
+          <span class="chip"
+            ><span class="dot" style="background: #f6f6f3"></span>Blanco opaco</span
+          >
+          <span class="chip"><span class="dot" style="background: #f0a21d"></span>f0a21d</span>
+          <span class="chip"><span class="dot" style="background: #d9d9d6"></span>Gris claro</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="option opt-a">
+        <div class="head">
+          <h2>Opción A · Swiss Operativo</h2>
+          <p>Minimalismo de alta lectura, tablas limpias, jerarquía tipográfica sobria.</p>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <span class="tag">Resumen nacional</span><button class="btn">Exportar PDF</button>
+          </div>
+          <div class="kpis">
+            <article class="kpi"><small>Facturado YTD</small><strong>$1.29M</strong></article>
+            <article class="kpi"><small>Cumplimiento</small><strong>91.8%</strong></article>
+            <article class="kpi"><small>Cartera</small><strong>$342K</strong></article>
+            <article class="kpi"><small>Clientes activos</small><strong>401</strong></article>
+          </div>
+          <div class="viz">
+            <small>Rendimiento por unidad</small>
+            <div class="bars">
+              <div class="bar"><span style="--w: 78%"></span></div>
+              <div class="bar"><span style="--w: 64%"></span></div>
+              <div class="bar"><span style="--w: 88%"></span></div>
+              <div class="bar"><span style="--w: 70%"></span></div>
+            </div>
+          </div>
+          <div class="swatches">
+            <i style="background: #111111"></i><i style="background: #f6f6f3"></i
+            ><i style="background: #f0a21d"></i><i style="background: #d9d9d6"></i
+            ><i style="background: #bfbfba"></i><i style="background: #ffffff"></i>
+          </div>
+          <p class="note">Motion: Fade in breve, stagger corto en KPIs, transiciones 150-220ms.</p>
+        </div>
+      </section>
+
+      <section class="option opt-b">
+        <div class="head">
+          <h2>Opción B · Noir Analítico</h2>
+          <p>Modo oscuro técnico con retícula visible, foco en alertas y señales de negocio.</p>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <span class="tag">Control operativo</span><button class="btn">Aplicar filtros</button>
+          </div>
+          <div class="kpis">
+            <article class="kpi"><small>Pipeline</small><strong>$812K</strong></article>
+            <article class="kpi"><small>Riesgos</small><strong>18</strong></article>
+            <article class="kpi"><small>Alertas hoy</small><strong>06</strong></article>
+            <article class="kpi"><small>Meta semanal</small><strong>87.2%</strong></article>
+          </div>
+          <div class="viz">
+            <small>Tráfico comercial por canal</small>
+            <div class="bars">
+              <div class="bar"><span style="--w: 82%"></span></div>
+              <div class="bar"><span style="--w: 59%"></span></div>
+              <div class="bar"><span style="--w: 66%"></span></div>
+              <div class="bar"><span style="--w: 74%"></span></div>
+            </div>
+          </div>
+          <div class="swatches">
+            <i style="background: #111111"></i><i style="background: #f6f6f3"></i
+            ><i style="background: #f0a21d"></i><i style="background: #d9d9d6"></i
+            ><i style="background: #1d1d1d"></i><i style="background: #2b2b2b"></i>
+          </div>
+          <p class="note">
+            Motion: Crossfade y direction-aware transitions, cero animación decorativa.
+          </p>
+        </div>
+      </section>
+
+      <section class="option opt-c">
+        <div class="head">
+          <h2>Opción C · Brutalista Comercial</h2>
+          <p>Golpe visual, bordes contundentes y acciones muy visibles para operación rápida.</p>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <span class="tag">Panel de acción</span><button class="btn">Subir Excel</button>
+          </div>
+          <div class="kpis">
+            <article class="kpi"><small>Ventas cierre</small><strong>$1.18M</strong></article>
+            <article class="kpi"><small>Proyección</small><strong>94.4%</strong></article>
+            <article class="kpi"><small>Cotizaciones</small><strong>127</strong></article>
+            <article class="kpi"><small>Pareto</small><strong>80/20</strong></article>
+          </div>
+          <div class="viz">
+            <small>Meta vs real por sucursal</small>
+            <div class="bars">
+              <div class="bar"><span style="--w: 90%"></span></div>
+              <div class="bar"><span style="--w: 72%"></span></div>
+              <div class="bar"><span style="--w: 68%"></span></div>
+              <div class="bar"><span style="--w: 83%"></span></div>
+            </div>
+          </div>
+          <div class="swatches">
+            <i style="background: #111111"></i><i style="background: #f6f6f3"></i
+            ><i style="background: #f0a21d"></i><i style="background: #d9d9d6"></i
+            ><i style="background: #ffffff"></i><i style="background: #8f8f8f"></i>
+          </div>
+          <p class="note">
+            Motion: Press feedback físico, pop in suave en paneles, timings 140-200ms.
+          </p>
+        </div>
+      </section>
+
+      <section class="option opt-d">
+        <div class="head">
+          <h2>Opción D · Atelier Ejecutivo</h2>
+          <p>Composición asimétrica tipo sala de control editorial, sin parecer plantilla SaaS.</p>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <span class="tag">Gerencia nacional</span><button class="btn">Ver detalle</button>
+          </div>
+          <div class="kpis">
+            <article class="kpi"><small>Ingresos</small><strong>$1.35M</strong></article>
+            <article class="kpi"><small>Rentabilidad</small><strong>23.7%</strong></article>
+            <article class="kpi"><small>Recuperación</small><strong>86.1%</strong></article>
+            <article class="kpi"><small>Unidades</small><strong>04</strong></article>
+          </div>
+          <div class="panel">
+            <div class="left">
+              <small>Composición comparativa</small>
+              <div class="bars">
+                <div class="bar"><span style="--w: 76%"></span></div>
+                <div class="bar"><span style="--w: 84%"></span></div>
+                <div class="bar"><span style="--w: 58%"></span></div>
+                <div class="bar"><span style="--w: 69%"></span></div>
+              </div>
+            </div>
+            <div class="right">
+              <small>Insight</small>
+              <p
+                style="
+                  margin: 8px 0 0;
+                  font-size: 0.84rem;
+                  line-height: 1.45;
+                  color: var(--muted-text);
+                "
+              >
+                El peso de servicios crece por tercer mes, pero equipos mantiene mejor margen neto.
+              </p>
+            </div>
+          </div>
+          <div class="swatches">
+            <i style="background: #111111"></i><i style="background: #f6f6f3"></i
+            ><i style="background: #f0a21d"></i><i style="background: #d9d9d6"></i
+            ><i style="background: #ececeb"></i><i style="background: #c9c9c4"></i>
+          </div>
+          <p class="note">
+            Motion: Layout animation por bloques y continuidad entre estados de filtro.
+          </p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

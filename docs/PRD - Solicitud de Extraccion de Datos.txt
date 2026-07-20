@@ -1,0 +1,318 @@
+================================================================================
+PRODUCT REQUIREMENT DOCUMENT (PRD) - ESPECIFICACIÓN DE EXTRACCIÓN DE DATOS
+PROCESO GERENCIAL CCV 2026
+================================================================================
+
+Documento: Especificación de Requerimientos para Extracción y Consolidación de Datos
+Origen de Datos: Libro de Trabajo Excel (.xlsx) - Múltiples Hojas
+Objetivo: Definir las reglas de negocio, filtros, unificación de sedes y lógica
+           de cruce de datos para migrar la lógica del backend del Dashboard CCV
+           a un entorno Excel/SQL.
+
+--------------------------------------------------------------------------------
+1. REGLAS GLOBALES Y NORMALIZACIÓN DE CATÁLOGOS
+--------------------------------------------------------------------------------
+
+Antes de procesar cualquier transacción o fila de datos en cualquiera de las 
+hojas, se deben aplicar las siguientes reglas globales de limpieza y homologación:
+
+1.1. Exclusión Global de Sucursal
+  * Se debe excluir por completo la sucursal "Machine Shop" de todos los cálculos, 
+    gráficos, KPIs y listados. Si una fila pertenece a esta sede, se descarta.
+
+1.2. Homologación de Sucursales (Sucursales Canónicas)
+  * Para evitar duplicados por diferencias en acentuación, mayúsculas/minúsculas 
+    o sub-sedes, se aplica el siguiente mapeo canónico (en minúsculas y sin acentos):
+    - "los ruices", "caracas"          => "Caracas"
+    - "fmo piar"                       => "FMO Piar"
+    - "puerto ordaz"                   => "Puerto Ordaz"
+    - "puerto la cruz"                 => "Puerto La Cruz"
+    - "barquisimeto"                   => "Barquisimeto"
+    - "valencia"                       => "Valencia"
+    - "maracaibo"                      => "Maracaibo"
+    - "punto fijo"                     => "Punto Fijo"
+    - "maturin", "maturín"             => "Maturín"
+    - "direccion general"              => "Dirección General"
+    - Otras sucursales no listadas     => Mantener nombre original limpio.
+
+1.3. Unidades de Negocio Estándar (UN)
+  * La clasificación interna y del dashboard reconoce cinco unidades canónicas:
+    - repuestos
+    - lubFiltros (Lubricantes y Filtros)
+    - servicios
+    - equipos
+    - alquiler
+
+--------------------------------------------------------------------------------
+2. ESPECIFICACIÓN DETALLADA POR HOJA DEL ARCHIVO EXCEL
+--------------------------------------------------------------------------------
+
+A continuación se detallan los requisitos de extracción para cada pestaña del Excel:
+
+================================================================================
+A. Hoja: "Usuarios"
+================================================================================
+* Propósito: Definir credenciales de acceso, rol y el alcance geográfico/de negocio.
+* Campos a extraer:
+  - [Sucursal] (Normalizada bajo reglas globales)
+  - [Nombre] (Nombre del empleado/asesor)
+  - [Rol] (Ej: "Gerencia", "Coordinador", "Asesor")
+  - [Email]
+  - [Codigo] (Código único del asesor)
+  - [AsesoresAsignados] (Lista separada por comas de códigos de asesores supervisados por un Coordinador)
+  - [UnidadesNegocio] (Lista separada por comas de unidades a las que tiene acceso. Ej: "repuestos, lubFiltros")
+  - [Contraseña]
+
+================================================================================
+B. Hoja: "Oportunidades"
+================================================================================
+* Propósito: Controlar cotizaciones y oportunidades de negocio generales.
+* Condiciones de extracción:
+  - Filtrar por [Mes Detectada] y [Año Detectada].
+  - Excluir filas donde [Sucursal] sea "Machine Shop".
+* Campos a extraer y reglas:
+  - [Compañia] (CCV, Xibi, etc.)
+  - [Sucursal] (Normalizada)
+  - [Código Asesor]
+  - [Etapa de Ventas]
+  - [Ingresos Esperados Base] (Monto Cotizado)
+  - [Monto Total Facturado Base] (Monto Facturado)
+  - [Monto Venta Perdida Base] (Monto Perdida)
+  - [Tipo de Negocio] (Mapeado a las Unidades de Negocio Estándar)
+  - [Cliente] -> Determinado por la siguiente lógica condicional:
+    * Si [Cód. Cuenta] y [Nombre de Cuenta] están vacíos:
+      - Usar [Nombre de Cliente Potencial]. Si está vacío, usar "Cliente S/N".
+    * De lo contrario:
+      - Usar [Nombre de Cuenta]. Si está vacío, usar [Cód. Cuenta].
+
+================================================================================
+C. Hoja: "Oportunidades Lub/Filtros"
+================================================================================
+* Propósito: Almacenar cotizaciones de lubricantes y filtros (detalle por pieza).
+* Condiciones de extracción y agrupación:
+  - La fecha origen en [Fecha Cotización] debe ser parseada para extraer mes y año.
+  - Excluir filas donde [Nom. Sucursal] (columna U / índice 20) sea "Machine Shop".
+  - **REGLA DE AGRUPACIÓN (Crítica)**: Debido a que la hoja contiene líneas individuales 
+    de piezas, se debe agrupar por [Nro. Cotización] (Columna G) sumando la columna 
+    [Monto Cotizado] para obtener un único monto total por cotización.
+* Mapeo de Estatus de Cotización a Etapa de Ventas:
+  - "Re-Impresa", "Impresa", "Activa" => "Desarrollo"
+  - "Convertida en Orden"             => "Propuesta-Negociación"
+  - "Venta Perdida", "Cerrada"        => "Venta Perdida"
+  - "Expirada"                        => "Desconocido"
+  - Cualquier otro estatus no mapeado debe descartarse.
+* Lógica del Cliente:
+  - Si [Nombre del Cliente] viene vacío en el grupo, usar "Cliente Rapido " concatenado 
+    con el valor del índice 15 ([Cliente Rápido] / Columna P).
+
+================================================================================
+D. Hoja: "Cumplimiento_Base"
+================================================================================
+* Propósito: Obtener presupuestos y metas consolidadas por sucursal.
+* Condiciones de extracción:
+  - Filtrar por [Mes] (admite número o celda de fecha) y [Año].
+  - Excluir filas donde [Sucursal] (Columna A) sea "Machine Shop".
+* Campos a extraer y cálculos:
+  - [Sucursal] (Normalizada)
+  - [Mes] / [Año]
+  - [Presupuesto]
+  - [U/N] (Mapeado a Unidad de Negocio Estándar)
+  - [Ventas CCV], [Ventas Xibi], [Ventas Estrategicas] (Soportar nombres con o sin guión bajo)
+  - **Cálculo de Venta Real Realizada**: 
+    [Monto Real Venta] = [Ventas CCV] + [Ventas Xibi] + [Ventas Estrategicas]
+
+================================================================================
+E. Hoja: "Cuentas por Cobrar"
+================================================================================
+* Propósito: Analizar la cartera de clientes vencida y días de mora.
+* Campos a extraer:
+  - [Sucursal Venta] (Normalizada)
+  - [Nombre Cliente]
+  - [TOTAL $]
+  - [DIAS VENCIDO]
+  - [Unidad de Negocio] -> Normalizado bajo la siguiente regla de textos:
+    * Contiene "repuesto"                  => "repuestos"
+    * Contiene "lubricante" o "filtro"     => "lubFiltros"
+    * Contiene "servicio"                  => "servicios"
+    * Contiene "alquiler"                  => "alquiler"
+    * Contiene "equipo"                    => "equipos"
+    * Si no coincide                       => Clasificar como NULL (se descarta)
+
+================================================================================
+F. Hoja: "Detalles de Ventas Repuestos"
+================================================================================
+* Propósito: Detalle consolidado nacional de ventas de repuestos por marca.
+* Condiciones de extracción:
+  - Filtrar por [Mes].
+* Particularidades: 
+  - Esta hoja no posee columna de sucursal ni de año. Representa la venta nacional 
+    acumulada del año en curso. No se ve afectada por filtros geográficos.
+* Campos a extraer:
+  - [Marcas] (Nombre de la marca)
+  - [Consorcio Cogestion Venequip] (Monto de venta CCV)
+  - [Xibi B.V.] (Monto de venta Xibi)
+  - [Monto Total] (Suma total)
+
+================================================================================
+G. Hoja: "Ventas Perdidas"
+================================================================================
+* Propósito: Medir las oportunidades perdidas y sus motivos.
+* Condiciones de extracción:
+  - Filtrar por [Mes VP] y [Año VP].
+  - Excluir filas donde [Nombre Sucursal] sea "Machine Shop".
+  - Excluir filas donde [Monto Venta Perdidas] sea igual a 0.
+* Clasificación de Unidad de Negocio en Base al Área y Suplidor:
+  - Si [Área] (Columna C) contiene "repuesto":
+    * Verificar si [Supl] (Suplidor, Columna I) pertenece al listado:
+      ["CO", "DN", "D1", "NC", "GF"].
+    * De ser así, clasificar como "lubFiltros".
+    * De lo contrario, clasificar como "repuestos".
+  - Si contiene "servicio" => "servicios".
+  - Si contiene "equipo"   => "equipos".
+  - Si contiene "alquiler" => "alquiler".
+* Campos a extraer:
+  - [Asesor] / [Nombre Asesor]
+  - [Nombre Cliente]
+  - [Nombre de Razón] (Causa de la pérdida)
+  - [Monto Venta Perdidas]
+  - [Nro. Documento] (Identificador de documento)
+
+================================================================================
+H. Hoja: "Facturacion"
+================================================================================
+* Propósito: Detallar todas las transacciones facturadas.
+* Condiciones de extracción:
+  - Filtrar por [Mes Cierre]. Excluye filtro de año ya que representa el año actual.
+* Campos a extraer:
+  - [Sucursal] (Normalizada)
+  - [Nombre de Cuenta] (Cliente)
+  - [Código Asesor] / [Nombre Asesor]
+  - [Nro. Documento] (Cotización original)
+  - Cruce de variables de cálculo:
+    * esOtraEmpresa = TRUE si [Compañia] es "Otra Empresa"
+
+================================================================================
+I. Hoja: "Servicios"
+================================================================================
+* Propósito: Registrar facturación real de servicios externos.
+* Condiciones de extracción:
+  - Filtrar por [Mes Contable].
+  - Filtrar por [Tipo Cliente] que sea exactamente "EXTERNO".
+  - Excluir si [Nombre Sucursal] es "Machine Shop".
+* Agrupación obligatoria:
+  - Agrupar por [Numero Factura] sumando [Monto Venta $].
+
+================================================================================
+J. Hoja: "Lubricantes/Filtros"
+================================================================================
+* Propósito: Detalle de facturación real para lubricantes y filtros.
+* Condiciones de extracción:
+  - Filtrar por [Mes] y [Año].
+  - Excluir si [Sucursal] (Columna D) es "Machine Shop".
+* Determinación de Vendedor (Asesor):
+  - Si [Cód. Vendedor] es igual a "99999", usar [Cód.Vend.OV] como código del vendedor 
+    y [Nombre Vendedor OV] como nombre del vendedor.
+  - En caso contrario, usar [Cód. Vendedor] y [Vendedor].
+* Campos a extraer:
+  - [P.V.P. Total $ Extendido] (Monto real facturado)
+  - [Cliente VNQ]
+  - [Cód. Cliente] (Nro. de Cotización/Venta)
+
+================================================================================
+K. Hoja: "Cumplimiento_Asesores_Base"
+================================================================================
+* Propósito: Medir metas vs ventas reales por asesor individual.
+* Condiciones de extracción:
+  - Filtrar por [Mes] y [Año].
+  - Excluir si [Sucursal] (Columna A) es "Machine Shop".
+* Campos a extraer:
+  - [Cod. Asesor] / [Asesor]
+  - [U/N]
+  - [Monto] (Presupuesto meta individual)
+  - [CUMPLIMIENTO] (Venta individual real lograda)
+
+--------------------------------------------------------------------------------
+3. REGLAS DE MEZCLA Y CRUCE DE INFORMACIÓN MULTI-HOJA
+--------------------------------------------------------------------------------
+
+3.1. KPIs Macros de Oportunidades
+  * El cálculo del total COTIZADO (monto estimado) para la unidad "repuestos" requiere 
+    restar el total acumulado cotizado de "lubFiltros" de su propio acumulado:
+    [Cotizado Neto Repuestos] = [Subtotal Oportunidades Repuestos] - [Total Oportunidades Lub/Filtros]
+
+3.2. Top 10 Clientes por Facturación (Cruce de Facturacion, Servicios y Lub/Filtros)
+  * Para armar el listado unificado de los clientes que más facturaron en el período, 
+    se deben recopilar los montos de las siguientes fuentes y sumarlos por cliente:
+    
+    1. Desde Hoja "Facturacion" (Según el campo [Tipo de Negocio]):
+       - Si es "Repuestos": 
+         * Si es "Otra Empresa" => Tomar [Ingresos Esperados Base] (Col. N).
+         * Si NO es "Otra Empresa" => Tomar [Monto Efectivo Ventas detallado] (Col. BR).
+         * Asignar a la unidad: "repuestos".
+       - Si es "Servicios":
+         * Tomar [Total Facturado Rptos Base] (Col. BC) y asignarlo a "repuestos" 
+           (ya que son los repuestos consumidos en el taller).
+         * Adicionalmente, si es "Otra Empresa" => Tomar [Ingresos Esperados Base] 
+           (Col. N) y asignarlo a la unidad "servicios".
+       - Si es "Lub / Filtros":
+         * Si es "Otra Empresa" => Tomar [Ingresos Esperados Base] (Col. N).
+         * Si NO es "Otra Empresa" => Tomar [Monto Efectivo Ventas detallado] (Col. BR).
+         * Asignar a la unidad: "lubFiltros".
+       - Si es "Equipos" => Tomar [Ingresos Esperados Base] (Col. N) y asignar a "equipos".
+       - Si es "Alquiler" => Tomar [Ingresos Esperados Base] (Col. N) y asignar a "alquiler".
+       
+    2. Desde Hoja "Servicios":
+       - Tomar los montos consolidados por factura/cliente y sumarlos a "servicios".
+       
+    3. Desde Hoja "Lubricantes/Filtros":
+       - Tomar los montos [P.V.P. Total $ Extendido] y sumarlos a "lubFiltros".
+
+    * Nota de Negocio Global (Resta de Repuestos y Lubricantes en KPI):
+      Al calcular los totales generales netos facturados:
+      [Repuestos Neto Facturado] = max(0, Subtotal Repuestos - Total Lub/Filtros) 
+                                   + Repuestos de "Otra Empresa"
+
+3.3. Margen Estimado por Unidad de Negocio
+  * El cálculo del margen $ estimado se efectúa aplicando un multiplicador fijo 
+    sobre el monto facturado acumulado (obtenido de [Ventas CCV] + [Ventas Xibi] 
+    + [Ventas Estrategicas] de la hoja "Cumplimiento_Base"):
+    - Repuestos: 28% (0.28)
+    - Lubricantes/Filtros: 22% (0.22)
+    - Servicios: 40% (0.40)
+    - Equipos: 30% (0.30)
+    - Alquiler: 45% (0.45)
+  * Nota: El acceso a la visualización de márgenes y porcentajes está reservado 
+    únicamente para Gerencia Nacional y Gerentes de Unidad.
+
+3.4. Consolidado Anual e Inactividad de Clientes (Frecuencia de Compra)
+  * Se cruzan las transacciones de un cliente en "Facturacion", "Servicios" y 
+    "Lubricantes/Filtros" a lo largo de un período de 12 meses.
+  * Para determinar si un cliente está "Activo" o "Inactivo":
+    - Se identifica el mes de su última compra (mes máximo activo).
+    - Si el [Mes de Consulta o Mes Actual] menos el [Último Mes de Compra] es menor 
+      o igual a 3 meses, se etiqueta como "Activo".
+    - De lo contrario, se clasifica como "Inactivo".
+
+--------------------------------------------------------------------------------
+4. RESTRICCIONES DE ACCESO POR ROL Y FILTRADO DE FILAS
+--------------------------------------------------------------------------------
+
+Para garantizar que los usuarios solo vean los datos que corresponden a su jerarquía, 
+se deben aplicar filtros a nivel de fila antes de consolidar el conjunto de datos:
+
+4.1. Gerencia Nacional y Gerentes Comerciales de Unidad (GC / ES)
+  * Tienen alcance nacional. No se les restringen filas por Sucursal.
+  * Los Gerentes/Especialistas de Unidad ven restringido el resultado a nivel de 
+    columna/superficie, mostrando únicamente las unidades que coinciden con su 
+    [UnidadesNegocio] (ej: repuestos, lubFiltros).
+
+4.2. Coordinador de Sucursal
+  * Solo puede visualizar información de su sucursal asignada.
+  * Los datos transaccionales se filtran comparando el código del vendedor/asesor 
+    de la fila con su lista de [AsesoresAsignados] registrados en la hoja de "Usuarios".
+
+4.3. Asesor (Vendedor)
+  * Solo puede ver su propia información.
+  * Todas las filas transaccionales extraídas de las hojas deben filtrarse comparando 
+    el código de asesor con su código único de usuario ([Codigo]).
+================================================================================

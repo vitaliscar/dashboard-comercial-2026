@@ -1,0 +1,53 @@
+name: Weekly Excel Load to Supabase
+on:
+  schedule:
+    # Friday 5 AM America/Caracas time
+    # UTC-4: 5 AM Caracas = 9 AM UTC
+    - cron: "0 9 * * 5"
+  workflow_dispatch:
+
+jobs:
+  load-excel:
+    runs-on: ubuntu-latest
+    name: Load Excel data to Supabase
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          npm install -g bun
+          bun install
+
+      - name: Download Excel file
+        env:
+          EXCEL_URL: ${{ secrets.EXCEL_FILE_URL }}
+        run: |
+          if [ -z "$EXCEL_URL" ]; then
+            echo "EXCEL_URL not configured. Using local file if available."
+            ls -la | grep -i "CCV Rendimiento" || echo "No Excel file found"
+          else
+            curl -L "$EXCEL_URL" -o "CCV Rendimiento.xlsx"
+          fi
+
+      - name: Load Excel to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: bun src/integrations/supabase/load-excel.ts
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Excel load failed on Friday. Check workflow logs.'
+            })
