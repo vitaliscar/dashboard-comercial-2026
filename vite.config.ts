@@ -37,11 +37,14 @@ export default defineConfig({
   server: {
     watch: {
       ignored: [
+        "**/.git/**",
         "**/graphify-out/**",
         "**/.output/**",
         "**/dist/**",
         "**/.tanstack/**",
-        "**/CCV Rendimiento.xlsx",
+        "**/supabase/.temp/**",
+        "**/*.xlsx",
+        "**/*.glb",
         "**/node_modules/**",
       ],
     },
@@ -57,12 +60,13 @@ export default defineConfig({
     serveLogoGlb(),
   ],
   optimizeDeps: {
-    entries: ["index.html"],
+    entries: ["src/start.ts", "src/router.tsx", "src/routes/__root.tsx"],
     include: [
       "react",
       "react-dom",
       "react-dom/client",
       "scheduler",
+      "@tanstack/react-router",
       "@tanstack/react-query",
       "@supabase/supabase-js",
       "lucide-react",
