@@ -77,6 +77,7 @@ export default defineConfig({
     exclude: ["three", "xlsx", "@react-three/fiber", "@react-three/drei"],
   },
   ssr: {
+    external: ["three", "@react-three/fiber", "@react-three/drei", "xlsx"],
     noExternal: ["use-sync-external-store"],
   },
 });
