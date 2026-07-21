@@ -31,9 +31,7 @@ function serveLogoGlb(): Plugin {
 }
 
 export default defineConfig({
-  resolve: {
-    tsconfigPaths: true,
-  },
+  resolve: { tsconfigPaths: true },
   server: {
     watch: {
       ignored: [
@@ -52,19 +50,14 @@ export default defineConfig({
       ],
     },
   },
-  plugins: [
-    tailwindcss(),
-    tanstackStart({
-      server: { entry: "server" },
-      // @ts-expect-error target option is passed to Nitro dynamically
-      target: "node-server",
-    }),
-    viteReact(),
-    serveLogoGlb(),
-  ],
+  plugins: [tailwindcss(), tanstackStart(), viteReact(), serveLogoGlb()],
   optimizeDeps: {
-    noDiscovery: true,
-    entries: ["src/router.tsx", "src/start.ts"],
+    // These CJS packages need Vite's optimizer to convert them to ESM with a proper
+    // default export — without an explicit include, esbuild's auto-discovery misses
+    // these subpaths and React/Zustand/@tanstack/react-store's internals crash with
+    // "does not provide an export named 'default'". (NOTE: deliberately no
+    // `noDiscovery`/`entries` here — that combination previously broke TanStack
+    // Start's dev-mode client-entry script injection into the SSR HTML.)
     include: [
       "react",
       "react-dom",

@@ -55,8 +55,8 @@
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.101.1",
-    "@tanstack/react-router": "1.168.26",
-    "@tanstack/react-start": "1.168.26",
+    "@tanstack/react-router": "1.170.18",
+    "@tanstack/react-start": "1.168.32",
     "@tanstack/router-plugin": "1.168.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -89,7 +89,7 @@
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
@@ -101,7 +101,7 @@
     "supabase": "^2.109.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^8.0.16",
+    "vite": "^8.1.5",
     "vitest": "^3.2.7"
   }
 }
