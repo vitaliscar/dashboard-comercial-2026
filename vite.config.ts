@@ -52,6 +52,25 @@ export default defineConfig({
   },
   plugins: [tailwindcss(), tanstackStart(), viteReact(), serveLogoGlb()],
   optimizeDeps: {
+    // Packages in `include` (notably @tanstack/react-start) get their `node:async_hooks`
+    // import externalized to an empty stub by the dep pre-bundler — `new AsyncLocalStorage()`
+    // then throws "is not a constructor" in the browser and silently kills React hydration
+    // (no 3D logo, login form falls back to a native POST). This Rolldown plugin redirects
+    // that import to our sync browser shim at pre-bundle time. optimizeDeps only runs for the
+    // client/browser environment, so the server keeps Node's real, reentrant AsyncLocalStorage.
+    rolldownOptions: {
+      plugins: [
+        {
+          name: "shim-node-async-hooks",
+          resolveId(id) {
+            if (/^(node:)?async_hooks$/.test(id)) {
+              return path.resolve(__dirname, "src/shims/async-hooks-browser.ts");
+            }
+            return null;
+          },
+        },
+      ],
+    },
     // These CJS packages need Vite's optimizer to convert them to ESM with a proper
     // default export — without an explicit include, esbuild's auto-discovery misses
     // these subpaths and React/Zustand/@tanstack/react-store's internals crash with
