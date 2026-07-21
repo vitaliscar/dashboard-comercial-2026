@@ -1,24 +1,27 @@
+// Cache formatters at module level for performance
 const nfMoney = new Intl.NumberFormat("es-VE", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
 const nfInt = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 0 });
 
-export function money(n: number | null | undefined) {
-  const v = Number(n ?? 0);
-  return `$${nfMoney.format(v)}`;
+export function money(n: number | null | undefined): string {
+  return `$${nfMoney.format(Number(n ?? 0))}`;
 }
-export function moneyShort(n: number | null | undefined) {
+
+export function moneyShort(n: number | null | undefined): string {
   const v = Number(n ?? 0);
-  if (Math.abs(v) >= 1_000_000) return `$${nfInt.format(v / 1_000_000)}M`;
-  if (Math.abs(v) >= 1_000) return `$${nfInt.format(v / 1_000)}k`;
+  const absVal = Math.abs(v);
+  if (absVal >= 1_000_000) return `$${nfInt.format(v / 1_000_000)}M`;
+  if (absVal >= 1_000) return `$${nfInt.format(v / 1_000)}k`;
   return `$${nfInt.format(v)}`;
 }
-export function pct(n: number | null | undefined, digits = 1) {
-  const v = Number(n ?? 0);
-  return `${v.toFixed(digits)}%`;
+
+export function pct(n: number | null | undefined, digits = 1): string {
+  return `${(Number(n ?? 0)).toFixed(digits)}%`;
 }
-export function int(n: number | null | undefined) {
+
+export function int(n: number | null | undefined): string {
   return nfInt.format(Number(n ?? 0));
 }
 
@@ -71,17 +74,30 @@ export function roleLabel(r?: string | null): string {
   }
 }
 
+// Cache normalized city names for faster lookups
+const SUCURSAL_MAP: Record<string, string> = {
+  "puerto ordaz": "PZO",
+  "pzo": "PZO",
+  "puerto la cruz": "PLC",
+  "plc": "PLC",
+  "barquisimeto": "BQT",
+  "bqt": "BQT",
+  "valencia": "VAL",
+  "val": "VAL",
+  "caracas": "CCS",
+  "ccs": "CCS",
+  "maracaibo": "MCB",
+  "mcb": "MCB",
+  "punto fijo": "PF",
+  "pf": "PF",
+  "fmo piar": "PIAR",
+  "piar": "PIAR",
+  "maturin": "MAT",
+  "mat": "MAT",
+};
+
 export function abbreviateSucursal(name: string | null | undefined): string {
   if (!name) return "";
-  const n = name.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  if (n.includes("puerto ordaz") || n === "pzo") return "PZO";
-  if (n.includes("puerto la cruz") || n === "plc") return "PLC";
-  if (n.includes("barquisimeto") || n === "bqt") return "BQT";
-  if (n.includes("valencia") || n === "val") return "VAL";
-  if (n.includes("caracas") || n === "ccs") return "CCS";
-  if (n.includes("maracaibo") || n === "mcb") return "MCB";
-  if (n.includes("punto fijo") || n === "pf") return "PF";
-  if (n.includes("fmo piar") || n === "piar") return "PIAR";
-  if (n.includes("maturin") || n === "mat") return "MAT";
-  return name.slice(0, 3).toUpperCase();
+  const normalized = name.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return SUCURSAL_MAP[normalized] ?? name.slice(0, 3).toUpperCase();
 }
