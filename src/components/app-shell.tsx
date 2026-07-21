@@ -153,7 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (role === "coordinador") return true;
     // GC only sees routes for their assigned units
     if (role === "gerente_comercial") {
-      const unitId = UNIT_ROUTE_MAP[item.to];
+      const unitId = UNIT_ROUTE_MAP[item.to as keyof typeof UNIT_ROUTE_MAP];
       return unitId ? assignedUnitIds.includes(unitId) : false;
     }
     return false;

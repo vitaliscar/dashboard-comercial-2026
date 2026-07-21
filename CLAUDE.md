@@ -141,11 +141,12 @@ hook. Si se agrega una ruta nueva con guard de rol, seguir este mismo orden.
   La lógica de agregación y cálculo de KPIs vive en `src/lib/analytics/asesores.ts` con sus tests.
 
   Alcance por Rol en el Módulo de Asesores:
-  | Rol (`AppRole`) | Alcance / Scoping de Datos |
-  |---|---|
-  | `gerencia` | Nacional: ve todas las sucursales y unidades de negocio (multi-select habilitado) |
-  | `gerente_comercial` | Unidad: restringido a su unidad de negocio asignada |
-  | `coordinador` | Sucursal: restringido a su sucursal asignada (filtro bloqueado a sucursal propia) |
+
+  | Rol (`AppRole`)     | Alcance / Scoping de Datos                                                        |
+  | ------------------- | --------------------------------------------------------------------------------- |
+  | `gerencia`          | Nacional: ve todas las sucursales y unidades de negocio (multi-select habilitado) |
+  | `gerente_comercial` | Unidad: restringido a su unidad de negocio asignada                               |
+  | `coordinador`       | Sucursal: restringido a su sucursal asignada (filtro bloqueado a sucursal propia) |
 
 ### Variables de entorno
 
