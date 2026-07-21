@@ -9,144 +9,49 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppUsuariosRouteImport } from './routes/_app/usuarios'
-import { Route as AppSucursalRouteImport } from './routes/_app/sucursal'
-import { Route as AppSimuladorRouteImport } from './routes/_app/simulador'
-import { Route as AppServiciosRouteImport } from './routes/_app/servicios'
-import { Route as AppResumenRouteImport } from './routes/_app/resumen'
-import { Route as AppRepuestosRouteImport } from './routes/_app/repuestos'
-import { Route as AppParetoRouteImport } from './routes/_app/pareto'
-import { Route as AppMinutasRouteImport } from './routes/_app/minutas'
-import { Route as AppLubfiltrosRouteImport } from './routes/_app/lubfiltros'
-import { Route as AppGerenciaNacionalRouteImport } from './routes/_app/gerencia-nacional'
-import { Route as AppEquiposRouteImport } from './routes/_app/equipos'
-import { Route as AppEmbudoRouteImport } from './routes/_app/embudo'
-import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
-import { Route as AppCoordinadorRouteImport } from './routes/_app/coordinador'
-import { Route as AppComisionesRouteImport } from './routes/_app/comisiones'
-import { Route as AppCobranzasRouteImport } from './routes/_app/cobranzas'
-import { Route as AppCliente360RouteImport } from './routes/_app/cliente-360'
-import { Route as AppCargaRouteImport } from './routes/_app/carga'
-import { Route as AppAsesoresRouteImport } from './routes/_app/asesores'
-import { Route as AppAsesorRouteImport } from './routes/_app/asesor'
-import { Route as AppAlquilerRouteImport } from './routes/_app/alquiler'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppAlertasRouteImport } from './routes/_app/alertas'
+import { Route as AppAlquilerRouteImport } from './routes/_app/alquiler'
+import { Route as AppAsesorRouteImport } from './routes/_app/asesor'
+import { Route as AppAsesoresRouteImport } from './routes/_app/asesores'
+import { Route as AppCargaRouteImport } from './routes/_app/carga'
+import { Route as AppCliente360RouteImport } from './routes/_app/cliente-360'
+import { Route as AppCobranzasRouteImport } from './routes/_app/cobranzas'
+import { Route as AppComisionesRouteImport } from './routes/_app/comisiones'
+import { Route as AppCoordinadorRouteImport } from './routes/_app/coordinador'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppEmbudoRouteImport } from './routes/_app/embudo'
+import { Route as AppEquiposRouteImport } from './routes/_app/equipos'
+import { Route as AppGerenciaNacionalRouteImport } from './routes/_app/gerencia-nacional'
+import { Route as AppLubfiltrosRouteImport } from './routes/_app/lubfiltros'
+import { Route as AppMinutasRouteImport } from './routes/_app/minutas'
+import { Route as AppParetoRouteImport } from './routes/_app/pareto'
+import { Route as AppRepuestosRouteImport } from './routes/_app/repuestos'
+import { Route as AppResumenRouteImport } from './routes/_app/resumen'
+import { Route as AppServiciosRouteImport } from './routes/_app/servicios'
+import { Route as AppSimuladorRouteImport } from './routes/_app/simulador'
+import { Route as AppSucursalRouteImport } from './routes/_app/sucursal'
+import { Route as AppUsuariosRouteImport } from './routes/_app/usuarios'
 
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppUsuariosRoute = AppUsuariosRouteImport.update({
-  id: '/usuarios',
-  path: '/usuarios',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSucursalRoute = AppSucursalRouteImport.update({
-  id: '/sucursal',
-  path: '/sucursal',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSimuladorRoute = AppSimuladorRouteImport.update({
-  id: '/simulador',
-  path: '/simulador',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppServiciosRoute = AppServiciosRouteImport.update({
-  id: '/servicios',
-  path: '/servicios',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppResumenRoute = AppResumenRouteImport.update({
-  id: '/resumen',
-  path: '/resumen',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRepuestosRoute = AppRepuestosRouteImport.update({
-  id: '/repuestos',
-  path: '/repuestos',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppParetoRoute = AppParetoRouteImport.update({
-  id: '/pareto',
-  path: '/pareto',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMinutasRoute = AppMinutasRouteImport.update({
-  id: '/minutas',
-  path: '/minutas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLubfiltrosRoute = AppLubfiltrosRouteImport.update({
-  id: '/lubfiltros',
-  path: '/lubfiltros',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGerenciaNacionalRoute = AppGerenciaNacionalRouteImport.update({
-  id: '/gerencia-nacional',
-  path: '/gerencia-nacional',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEquiposRoute = AppEquiposRouteImport.update({
-  id: '/equipos',
-  path: '/equipos',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEmbudoRoute = AppEmbudoRouteImport.update({
-  id: '/embudo',
-  path: '/embudo',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCoordinadorRoute = AppCoordinadorRouteImport.update({
-  id: '/coordinador',
-  path: '/coordinador',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComisionesRoute = AppComisionesRouteImport.update({
-  id: '/comisiones',
-  path: '/comisiones',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCobranzasRoute = AppCobranzasRouteImport.update({
-  id: '/cobranzas',
-  path: '/cobranzas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCliente360Route = AppCliente360RouteImport.update({
-  id: '/cliente-360',
-  path: '/cliente-360',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCargaRoute = AppCargaRouteImport.update({
-  id: '/carga',
-  path: '/carga',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAsesoresRoute = AppAsesoresRouteImport.update({
-  id: '/asesores',
-  path: '/asesores',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAsesorRoute = AppAsesorRouteImport.update({
-  id: '/asesor',
-  path: '/asesor',
+const AppAlertasRoute = AppAlertasRouteImport.update({
+  id: '/alertas',
+  path: '/alertas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAlquilerRoute = AppAlquilerRouteImport.update({
@@ -154,9 +59,104 @@ const AppAlquilerRoute = AppAlquilerRouteImport.update({
   path: '/alquiler',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAlertasRoute = AppAlertasRouteImport.update({
-  id: '/alertas',
-  path: '/alertas',
+const AppAsesorRoute = AppAsesorRouteImport.update({
+  id: '/asesor',
+  path: '/asesor',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAsesoresRoute = AppAsesoresRouteImport.update({
+  id: '/asesores',
+  path: '/asesores',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCargaRoute = AppCargaRouteImport.update({
+  id: '/carga',
+  path: '/carga',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCliente360Route = AppCliente360RouteImport.update({
+  id: '/cliente-360',
+  path: '/cliente-360',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCobranzasRoute = AppCobranzasRouteImport.update({
+  id: '/cobranzas',
+  path: '/cobranzas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComisionesRoute = AppComisionesRouteImport.update({
+  id: '/comisiones',
+  path: '/comisiones',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCoordinadorRoute = AppCoordinadorRouteImport.update({
+  id: '/coordinador',
+  path: '/coordinador',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmbudoRoute = AppEmbudoRouteImport.update({
+  id: '/embudo',
+  path: '/embudo',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEquiposRoute = AppEquiposRouteImport.update({
+  id: '/equipos',
+  path: '/equipos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGerenciaNacionalRoute = AppGerenciaNacionalRouteImport.update({
+  id: '/gerencia-nacional',
+  path: '/gerencia-nacional',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLubfiltrosRoute = AppLubfiltrosRouteImport.update({
+  id: '/lubfiltros',
+  path: '/lubfiltros',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMinutasRoute = AppMinutasRouteImport.update({
+  id: '/minutas',
+  path: '/minutas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppParetoRoute = AppParetoRouteImport.update({
+  id: '/pareto',
+  path: '/pareto',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRepuestosRoute = AppRepuestosRouteImport.update({
+  id: '/repuestos',
+  path: '/repuestos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppResumenRoute = AppResumenRouteImport.update({
+  id: '/resumen',
+  path: '/resumen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppServiciosRoute = AppServiciosRouteImport.update({
+  id: '/servicios',
+  path: '/servicios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSimuladorRoute = AppSimuladorRouteImport.update({
+  id: '/simulador',
+  path: '/simulador',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSucursalRoute = AppSucursalRouteImport.update({
+  id: '/sucursal',
+  path: '/sucursal',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsuariosRoute = AppUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -330,11 +330,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -344,151 +344,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/usuarios': {
-      id: '/_app/usuarios'
-      path: '/usuarios'
-      fullPath: '/usuarios'
-      preLoaderRoute: typeof AppUsuariosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/sucursal': {
-      id: '/_app/sucursal'
-      path: '/sucursal'
-      fullPath: '/sucursal'
-      preLoaderRoute: typeof AppSucursalRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/simulador': {
-      id: '/_app/simulador'
-      path: '/simulador'
-      fullPath: '/simulador'
-      preLoaderRoute: typeof AppSimuladorRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/servicios': {
-      id: '/_app/servicios'
-      path: '/servicios'
-      fullPath: '/servicios'
-      preLoaderRoute: typeof AppServiciosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/resumen': {
-      id: '/_app/resumen'
-      path: '/resumen'
-      fullPath: '/resumen'
-      preLoaderRoute: typeof AppResumenRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/repuestos': {
-      id: '/_app/repuestos'
-      path: '/repuestos'
-      fullPath: '/repuestos'
-      preLoaderRoute: typeof AppRepuestosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/pareto': {
-      id: '/_app/pareto'
-      path: '/pareto'
-      fullPath: '/pareto'
-      preLoaderRoute: typeof AppParetoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/minutas': {
-      id: '/_app/minutas'
-      path: '/minutas'
-      fullPath: '/minutas'
-      preLoaderRoute: typeof AppMinutasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/lubfiltros': {
-      id: '/_app/lubfiltros'
-      path: '/lubfiltros'
-      fullPath: '/lubfiltros'
-      preLoaderRoute: typeof AppLubfiltrosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/gerencia-nacional': {
-      id: '/_app/gerencia-nacional'
-      path: '/gerencia-nacional'
-      fullPath: '/gerencia-nacional'
-      preLoaderRoute: typeof AppGerenciaNacionalRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/equipos': {
-      id: '/_app/equipos'
-      path: '/equipos'
-      fullPath: '/equipos'
-      preLoaderRoute: typeof AppEquiposRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/embudo': {
-      id: '/_app/embudo'
-      path: '/embudo'
-      fullPath: '/embudo'
-      preLoaderRoute: typeof AppEmbudoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/coordinador': {
-      id: '/_app/coordinador'
-      path: '/coordinador'
-      fullPath: '/coordinador'
-      preLoaderRoute: typeof AppCoordinadorRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/comisiones': {
-      id: '/_app/comisiones'
-      path: '/comisiones'
-      fullPath: '/comisiones'
-      preLoaderRoute: typeof AppComisionesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cobranzas': {
-      id: '/_app/cobranzas'
-      path: '/cobranzas'
-      fullPath: '/cobranzas'
-      preLoaderRoute: typeof AppCobranzasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cliente-360': {
-      id: '/_app/cliente-360'
-      path: '/cliente-360'
-      fullPath: '/cliente-360'
-      preLoaderRoute: typeof AppCliente360RouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/carga': {
-      id: '/_app/carga'
-      path: '/carga'
-      fullPath: '/carga'
-      preLoaderRoute: typeof AppCargaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/asesores': {
-      id: '/_app/asesores'
-      path: '/asesores'
-      fullPath: '/asesores'
-      preLoaderRoute: typeof AppAsesoresRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/asesor': {
-      id: '/_app/asesor'
-      path: '/asesor'
-      fullPath: '/asesor'
-      preLoaderRoute: typeof AppAsesorRouteImport
+    '/_app/alertas': {
+      id: '/_app/alertas'
+      path: '/alertas'
+      fullPath: '/alertas'
+      preLoaderRoute: typeof AppAlertasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/alquiler': {
@@ -498,11 +365,144 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAlquilerRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/alertas': {
-      id: '/_app/alertas'
-      path: '/alertas'
-      fullPath: '/alertas'
-      preLoaderRoute: typeof AppAlertasRouteImport
+    '/_app/asesor': {
+      id: '/_app/asesor'
+      path: '/asesor'
+      fullPath: '/asesor'
+      preLoaderRoute: typeof AppAsesorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/asesores': {
+      id: '/_app/asesores'
+      path: '/asesores'
+      fullPath: '/asesores'
+      preLoaderRoute: typeof AppAsesoresRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/carga': {
+      id: '/_app/carga'
+      path: '/carga'
+      fullPath: '/carga'
+      preLoaderRoute: typeof AppCargaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cliente-360': {
+      id: '/_app/cliente-360'
+      path: '/cliente-360'
+      fullPath: '/cliente-360'
+      preLoaderRoute: typeof AppCliente360RouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cobranzas': {
+      id: '/_app/cobranzas'
+      path: '/cobranzas'
+      fullPath: '/cobranzas'
+      preLoaderRoute: typeof AppCobranzasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comisiones': {
+      id: '/_app/comisiones'
+      path: '/comisiones'
+      fullPath: '/comisiones'
+      preLoaderRoute: typeof AppComisionesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/coordinador': {
+      id: '/_app/coordinador'
+      path: '/coordinador'
+      fullPath: '/coordinador'
+      preLoaderRoute: typeof AppCoordinadorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/embudo': {
+      id: '/_app/embudo'
+      path: '/embudo'
+      fullPath: '/embudo'
+      preLoaderRoute: typeof AppEmbudoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/equipos': {
+      id: '/_app/equipos'
+      path: '/equipos'
+      fullPath: '/equipos'
+      preLoaderRoute: typeof AppEquiposRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/gerencia-nacional': {
+      id: '/_app/gerencia-nacional'
+      path: '/gerencia-nacional'
+      fullPath: '/gerencia-nacional'
+      preLoaderRoute: typeof AppGerenciaNacionalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lubfiltros': {
+      id: '/_app/lubfiltros'
+      path: '/lubfiltros'
+      fullPath: '/lubfiltros'
+      preLoaderRoute: typeof AppLubfiltrosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/minutas': {
+      id: '/_app/minutas'
+      path: '/minutas'
+      fullPath: '/minutas'
+      preLoaderRoute: typeof AppMinutasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pareto': {
+      id: '/_app/pareto'
+      path: '/pareto'
+      fullPath: '/pareto'
+      preLoaderRoute: typeof AppParetoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/repuestos': {
+      id: '/_app/repuestos'
+      path: '/repuestos'
+      fullPath: '/repuestos'
+      preLoaderRoute: typeof AppRepuestosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/resumen': {
+      id: '/_app/resumen'
+      path: '/resumen'
+      fullPath: '/resumen'
+      preLoaderRoute: typeof AppResumenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/servicios': {
+      id: '/_app/servicios'
+      path: '/servicios'
+      fullPath: '/servicios'
+      preLoaderRoute: typeof AppServiciosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/simulador': {
+      id: '/_app/simulador'
+      path: '/simulador'
+      fullPath: '/simulador'
+      preLoaderRoute: typeof AppSimuladorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sucursal': {
+      id: '/_app/sucursal'
+      path: '/sucursal'
+      fullPath: '/sucursal'
+      preLoaderRoute: typeof AppSucursalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/usuarios': {
+      id: '/_app/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AppUsuariosRouteImport
       parentRoute: typeof AppRoute
     }
   }
