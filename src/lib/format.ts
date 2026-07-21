@@ -18,7 +18,7 @@ export function moneyShort(n: number | null | undefined): string {
 }
 
 export function pct(n: number | null | undefined, digits = 1): string {
-  return `${(Number(n ?? 0)).toFixed(digits)}%`;
+  return `${Number(n ?? 0).toFixed(digits)}%`;
 }
 
 export function int(n: number | null | undefined): string {
@@ -77,23 +77,23 @@ export function roleLabel(r?: string | null): string {
 // Cache normalized city names for faster lookups
 const SUCURSAL_MAP: Record<string, string> = {
   "puerto ordaz": "PZO",
-  "pzo": "PZO",
+  pzo: "PZO",
   "puerto la cruz": "PLC",
-  "plc": "PLC",
-  "barquisimeto": "BQT",
-  "bqt": "BQT",
-  "valencia": "VAL",
-  "val": "VAL",
-  "caracas": "CCS",
-  "ccs": "CCS",
-  "maracaibo": "MCB",
-  "mcb": "MCB",
+  plc: "PLC",
+  barquisimeto: "BQT",
+  bqt: "BQT",
+  valencia: "VAL",
+  val: "VAL",
+  caracas: "CCS",
+  ccs: "CCS",
+  maracaibo: "MCB",
+  mcb: "MCB",
   "punto fijo": "PF",
-  "pf": "PF",
+  pf: "PF",
   "fmo piar": "PIAR",
-  "piar": "PIAR",
-  "maturin": "MAT",
-  "mat": "MAT",
+  piar: "PIAR",
+  maturin: "MAT",
+  mat: "MAT",
 };
 
 export function abbreviateSucursal(name: string | null | undefined): string {
