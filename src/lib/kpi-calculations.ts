@@ -111,37 +111,34 @@ export function calcularPareto<T extends Record<string, unknown>>(
 ): ParetoItem<T>[] {
   if (!datos || datos.length === 0) return [];
 
-  // Validate that all items have the field
-  const valoresValidos = datos.map((item) => {
-    const valor = item[campo] as number;
-    return typeof valor === "number" && !Number.isNaN(valor) ? valor : 0;
-  });
+  // Extract and validate values in single pass
+  const itemsConValores = datos
+    .map((item, idx) => ({
+      item,
+      valor: (item[campo] as number) ?? 0,
+      idx,
+    }))
+    .filter(({ valor }) => typeof valor === "number" && !Number.isNaN(valor));
 
-  const total = valoresValidos.reduce((sum, val) => sum + val, 0);
+  if (itemsConValores.length === 0) return [];
 
+  const total = itemsConValores.reduce((sum, { valor }) => sum + valor, 0);
   if (total === 0) return [];
 
-  // Sort descending and calculate cumulative percentages
-  const conIndices = datos.map((item, idx) => ({
-    item,
-    valor: valoresValidos[idx],
-    indiceOriginal: idx,
-  }));
+  // Sort descending and calculate cumulative percentages in single pass
+  itemsConValores.sort((a, b) => b.valor - a.valor);
 
-  const ordenado = conIndices.sort((a, b) => b.valor - a.valor);
-
-  let acumulado = 0;
   const resultado: ParetoItem<T>[] = [];
+  let acumulado = 0;
 
-  for (const { item, valor } of ordenado) {
+  for (const { item, valor } of itemsConValores) {
     acumulado += valor;
-    const porcentajeValor = (valor / total) * 100;
     const porcentajeAcumulado = (acumulado / total) * 100;
 
     resultado.push({
       item,
       valor,
-      porcentajeValor: Math.round(porcentajeValor * 100) / 100,
+      porcentajeValor: Math.round((valor / total) * 10000) / 100,
       porcentajeAcumulado: Math.round(porcentajeAcumulado * 100) / 100,
       esTop80: porcentajeAcumulado <= 80,
     });
@@ -176,13 +173,13 @@ export function agruparPorSucursal<T extends Record<string, unknown>>(
   for (const item of datos) {
     const clave = String(item[campo] ?? "Sin asignar");
     const valor = campoValor
-      ? (item[campoValor] as number)
+      ? ((item[campoValor] as number) ?? 0)
       : Object.values(item).reduce(
           (sum: number, val) => sum + (typeof val === "number" ? val : 0),
           0,
         );
 
-    if (!Number.isNaN(valor) && typeof valor === "number") {
+    if (typeof valor === "number" && !Number.isNaN(valor)) {
       const actual = grupos.get(clave) ?? { total: 0, cantidad: 0 };
       grupos.set(clave, {
         total: actual.total + valor,
@@ -191,16 +188,17 @@ export function agruparPorSucursal<T extends Record<string, unknown>>(
     }
   }
 
-  const resultado: GroupedResult[] = Array.from(grupos.entries()).map(
-    ([nombre, { total, cantidad }]) => ({
+  // Sort while building result to avoid extra pass
+  const resultado: GroupedResult[] = Array.from(grupos.entries())
+    .map(([nombre, { total, cantidad }]) => ({
       nombre,
       total,
       cantidad,
       promedio: Math.round((total / cantidad) * 100) / 100,
-    }),
-  );
+    }))
+    .sort((a, b) => b.total - a.total);
 
-  return resultado.sort((a, b) => b.total - a.total);
+  return resultado;
 }
 
 /**
@@ -324,23 +322,20 @@ export function carteraVencida<T extends Record<string, unknown>>(
 ): CuentaVencida[] {
   if (!cuentas || cuentas.length === 0) return [];
 
-  const resultado: CuentaVencida[] = cuentas
+  // Filter and transform in single pass, then sort
+  return cuentas
     .map((cuenta) => {
       const diasVencimiento = (cuenta[campDias] as number) ?? 0;
-      const monto = (cuenta[campMonto] as number) ?? 0;
-
       return {
         id: String(cuenta[campId] ?? ""),
         nombre: String(cuenta[campNombre] ?? "Sin nombre"),
         diasVencimiento,
-        monto,
+        monto: (cuenta[campMonto] as number) ?? 0,
         vencida: diasVencimiento > dias,
       };
     })
     .filter((cuenta) => cuenta.vencida)
     .sort((a, b) => b.diasVencimiento - a.diasVencimiento);
-
-  return resultado;
 }
 
 /**
@@ -368,11 +363,21 @@ export function calcularEstadisticas(valores: number[]): {
     return { min: 0, max: 0, promedio: 0, total: 0, cantidad: 0 };
   }
 
-  const total = valoresValidos.reduce((sum, val) => sum + val, 0);
+  // Single pass calculation for min, max, and sum
+  let min = valoresValidos[0];
+  let max = valoresValidos[0];
+  let total = 0;
+
+  for (let i = 0; i < valoresValidos.length; i++) {
+    const val = valoresValidos[i];
+    total += val;
+    if (val < min) min = val;
+    if (val > max) max = val;
+  }
 
   return {
-    min: Math.min(...valoresValidos),
-    max: Math.max(...valoresValidos),
+    min,
+    max,
     promedio: Math.round((total / valoresValidos.length) * 100) / 100,
     total,
     cantidad: valoresValidos.length,

@@ -37,6 +37,7 @@ interface NavItem {
   module: ModuleKey;
 }
 
+// Memoized navigation items
 const NAV: NavItem[] = [
   { to: "/resumen", label: "Resumen", icon: LayoutDashboard, module: "resumen" },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" },
@@ -51,42 +52,46 @@ const NAV: NavItem[] = [
   { to: "/alertas", label: "Alertas", icon: BellRing, module: "alertas" },
   { to: "/carga", label: "Cargar Excel", icon: Upload, module: "carga" },
   { to: "/usuarios", label: "Usuarios", icon: Users, module: "usuarios" },
-];
+] as const;
 
-// Unit-specific routes visible only when the GC has that unit assigned.
-// Repuestos has no dedicated nav entry/route — it's handled inside the general
-// dashboard (/gerencia-nacional) filtered by unit, like any multi-unit GC would see it.
 // Map route path -> canonical unidad_negocio_id
-const UNIT_ROUTE_MAP: Record<string, string> = {
+const UNIT_ROUTE_MAP = {
   "/servicios": "9c322ad9-75af-4f88-912e-182e708264d3",
   "/lubfiltros": "bd01d86c-c8a5-488a-9afc-141d242b9325",
   "/equipos": "78e09e03-c1aa-4ed5-8755-8310102f5220",
   "/alquiler": "825146fc-ab6d-4f9c-97d4-2078f3e67549",
-};
+} as const;
 
 const UNIT_NAV: NavItem[] = [
   { to: "/servicios", label: "Servicios", icon: Wrench, module: "servicios" },
   { to: "/lubfiltros", label: "Lub / Filtros", icon: Wrench, module: "lubfiltros" },
   { to: "/equipos", label: "Equipos", icon: Wrench, module: "equipos" },
   { to: "/alquiler", label: "Alquiler", icon: Wrench, module: "alquiler" },
-];
+] as const;
 
-const NAV_ACTIVE_ALIASES: Record<string, string[]> = {
+const NAV_ACTIVE_ALIASES = {
   "/dashboard": ["/gerencia-nacional", "/coordinador", "/sucursal", "/asesor"],
-};
+} as const;
 
 function isNavItemActive(currentPath: string, itemPath: string): boolean {
-  if (currentPath === itemPath || currentPath.startsWith(itemPath + "/")) {
-    return true;
-  }
+  // Direct match or subpath
+  if (currentPath === itemPath) return true;
+  if (currentPath.startsWith(itemPath + "/")) return true;
 
-  const aliases = NAV_ACTIVE_ALIASES[itemPath] ?? [];
-  return aliases.some(
-    (aliasPath) => currentPath === aliasPath || currentPath.startsWith(aliasPath + "/"),
-  );
+  // Check aliases with early exit
+  const aliases = NAV_ACTIVE_ALIASES[itemPath as keyof typeof NAV_ACTIVE_ALIASES];
+  if (!aliases) return false;
+
+  for (const aliasPath of aliases) {
+    if (currentPath === aliasPath || currentPath.startsWith(aliasPath + "/")) {
+      return true;
+    }
+  }
+  return false;
 }
 
-const PAGE_TITLES: Record<string, string> = {
+// Memoized page titles with fallback
+const PAGE_TITLES = {
   "/resumen": "Resumen",
   "/dashboard": "Dashboard",
   "/gerencia-nacional": "Dashboard Comercial",
@@ -109,10 +114,10 @@ const PAGE_TITLES: Record<string, string> = {
   "/cliente-360": "Cliente 360°",
   "/comisiones": "Comisiones Proyectadas",
   "/simulador": "Simulador de Presupuesto",
-};
+} as const;
 
 function pageTitle(pathname: string): string {
-  return PAGE_TITLES[pathname] ?? "Dashboard";
+  return PAGE_TITLES[pathname as keyof typeof PAGE_TITLES] ?? "Dashboard";
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -148,7 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (role === "coordinador") return true;
     // GC only sees routes for their assigned units
     if (role === "gerente_comercial") {
-      const unitId = UNIT_ROUTE_MAP[item.to];
+      const unitId = UNIT_ROUTE_MAP[item.to as keyof typeof UNIT_ROUTE_MAP];
       return unitId ? assignedUnitIds.includes(unitId) : false;
     }
     return false;
