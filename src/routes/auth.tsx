@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useState, lazy, Suspense } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { meFn } from "@/lib/server/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +12,8 @@ const SVG3DLogo = lazy(() => import("@/components/svg-3d-logo"));
 
 export const Route = createFileRoute("/auth")({
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/resumen" });
+    const me = await meFn();
+    if (me) throw redirect({ to: "/resumen" });
   },
   component: AuthPage,
 });
@@ -65,7 +65,7 @@ function AuthPage() {
           "Acceso temporalmente bloqueado por 15 minutos debido a demasiados intentos fallidos.",
         );
       } else {
-        toast.error(loginErrorMessage(error.message) + ` (Intento ${newAttempts}/5)`);
+        toast.error(error.message + ` (Intento ${newAttempts}/5)`);
       }
       return;
     }
@@ -79,51 +79,77 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] bg-background">
-      {/* Panel izquierdo — branding */}
-      <div className="hidden lg:flex flex-col items-center justify-center relative overflow-hidden bg-sidebar border-r border-border">
-        {/* Gradiente ambiental sutil */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 60% at 50% 40%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 70%)",
-          }}
+      {/* Panel izquierdo — branding "Continuidad" */}
+      <div
+        className="hidden lg:flex flex-col justify-center relative overflow-hidden px-14 py-12"
+        style={{ background: "linear-gradient(165deg, #0b1830 0%, #0e2040 60%, #10213e 100%)" }}
+      >
+        {/* Motivo de línea de transmisión eléctrica */}
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-60"
+          viewBox="0 0 400 400"
+          preserveAspectRatio="none"
           aria-hidden="true"
-        />
-        {/* Grid sutil */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.05]"
-          style={{
-            backgroundImage:
-              "linear-gradient(var(--primary) 1px, transparent 1px), linear-gradient(90deg, var(--primary) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-          aria-hidden="true"
-        />
+        >
+          <path
+            d="M0 320 L120 320 L140 280 L180 280 L200 340 L400 340"
+            stroke="#22406e"
+            strokeWidth="1.5"
+            fill="none"
+          />
+          <path d="M0 220 L90 220 L110 180 L400 180" stroke="#1a3358" strokeWidth="1" fill="none" />
+          <circle cx="120" cy="320" r="3" fill="#f9ca0e" />
+          <circle cx="200" cy="340" r="3" fill="#f9ca0e" />
+        </svg>
 
-        <div className="relative z-10 flex flex-col items-center gap-6 px-12">
+        <div className="relative z-10 flex flex-col gap-8 max-w-md">
           <Suspense
-            fallback={
-              <div className="size-[200px] rounded-full bg-sidebar-accent/40 animate-pulse" />
-            }
+            fallback={<div className="size-[140px] rounded-full bg-white/5 animate-pulse" />}
           >
-            <SVG3DLogo size={200} showLabel={false} />
+            <SVG3DLogo size={140} showLabel={false} />
           </Suspense>
-          <div className="text-center space-y-2">
-            <p className="text-[10px] tracking-widest font-display text-primary font-semibold">
-              CCV Industrial
+
+          <div className="space-y-4">
+            <p className="text-[11px] tracking-[0.14em] uppercase font-display text-[#f9ca0e] font-semibold">
+              Consorcio de Cogestión Venequip
             </p>
-            <h1 className="font-display text-2xl font-bold tracking-tight text-sidebar-foreground">
-              Gestión Comercial CCV
+            <h1 className="font-display text-[34px] font-light leading-[1.14] text-[#eef2fb]">
+              La continuidad de su <b className="font-bold text-[#f9ca0e]">operación</b>,
+              garantizada.
             </h1>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-              Cotizaciones, facturación, cobranzas y análisis comercial en tiempo real.
+            <p className="text-sm leading-relaxed text-[#93a2c2] max-w-[36ch]">
+              Distribuidores autorizados Generac y Donaldson. Maquinaria Cat, Cummins, JLG, Sullair,
+              Bomag y Wacker Neuson para todo el país.
             </p>
+          </div>
+
+          <ul className="space-y-2.5">
+            {[
+              "Servicio técnico posventa especializado",
+              "Repuestos originales en stock nacional",
+              "Cobertura Barquisimeto y todo el territorio",
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2.5 text-[13px] text-[#cfd7e8]">
+                <span className="mt-[6px] size-[6px] rounded-full bg-[#f9ca0e] flex-shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-wrap gap-2.5">
+            {["Generac", "Donaldson", "Blumaq"].map((brand) => (
+              <span
+                key={brand}
+                className="text-[11px] px-3 py-1.5 rounded-full border border-[#2c3e63] text-[#a9b6d4]"
+              >
+                {brand}
+              </span>
+            ))}
           </div>
         </div>
 
         {/* Footer decorativo */}
-        <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between text-[11px] font-display tracking-wider text-muted-foreground">
+        <div className="absolute bottom-6 left-14 right-14 flex items-center justify-between text-[11px] font-display tracking-wider text-[#6d7ea3]">
           <span>Dashboard Comercial 2026</span>
           <span>CCV · Todos los derechos reservados</span>
         </div>
@@ -206,10 +232,4 @@ function AuthPage() {
       </div>
     </div>
   );
-}
-
-function loginErrorMessage(message: string): string {
-  if (/invalid login credentials/i.test(message)) return "Correo o contraseña incorrectos.";
-  if (/email not confirmed/i.test(message)) return "Debes confirmar tu correo antes de ingresar.";
-  return "No se pudo iniciar sesión. Intenta nuevamente.";
 }
