@@ -11,17 +11,11 @@ import {
   DollarSign,
   Target,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { getAlertasSourcesFn } from "@/lib/server/alertas";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useUnidades } from "@/hooks/use-catalogos";
-import { scoped } from "@/lib/data-scope";
-import { money, pct } from "@/lib/format";
-import {
-  getDateRangesForMonths,
-  applyDateRangesToQuery,
-  applyMonthFilterToQuery,
-} from "@/lib/date-range";
+import { money } from "@/lib/format";
+import { getDateRangesForMonths } from "@/lib/date-range";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
 import {
   Table,
@@ -63,7 +57,6 @@ export const Route = createFileRoute("/_app/alertas")({
 });
 
 function AlertasPage() {
-  const { role, profile } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses, unidades: selectedUnidades } = filters;
 
@@ -80,115 +73,11 @@ function AlertasPage() {
   const { data: unidades } = useUnidades();
 
   const { data: sources, isLoading } = useQuery({
-    queryKey: ["alertas-sources", anio, JSON.stringify(meses), selectedUnidades, profile?.id],
-    queryFn: async () => {
-      const now = new Date();
-      const today = now.toISOString().slice(0, 10);
-      const next7 = new Date();
-      next7.setDate(now.getDate() + 7);
-      const from60 = new Date();
-      from60.setDate(now.getDate() - 60);
-      const from30 = new Date();
-      from30.setDate(now.getDate() - 30);
-
-      // Expected run rate based on day of month
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const expectedRunRate = (now.getDate() / daysInMonth) * 100;
-
-      // Cobranzas vencidas y por vencer
-      let cq = scoped(
-        supabase
-          .from("cobranzas")
-          .select("id, cliente, factura_numero, fecha_vencimiento, saldo, unidad_negocio_id"),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id" },
-      ).gt("saldo", 0);
-
-      // Ventas perdidas (últimos 60 días)
-      let vq = scoped(
-        supabase
-          .from("ventas_perdidas")
-          .select("id, cliente, fecha, monto, asesor, unidad_negocio_id")
-          .gte("fecha", from60.toISOString().slice(0, 10)),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id", asesor: "asesor_id" },
-      );
-
-      // Minutas vencidas
-      let mq = scoped(
-        supabase
-          .from("minutas")
-          .select("id, cliente, descripcion, fecha_limite, estado, responsable, unidad_negocio_id"),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id", asesor: "responsable_id" },
-      );
-
-      // Cumplimiento de asesores
-      let aq = scoped(
-        supabase
-          .from("cumplimiento_asesores")
-          .select(
-            "id, asesor, codigo_asesor, pct_cumplimiento, venta, presupuesto, unidad_negocio_id",
-          )
-          .eq("anio", anio),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id", asesor: "asesor_id" },
-      );
-      aq = applyMonthFilterToQuery(aq, meses, anio);
-
-      // Cotizaciones (para tasa de conversión y envejecidas)
-      let cotq = scoped(
-        supabase
-          .from("cotizaciones")
-          .select("id, cliente, asesor_codigo, etapa, monto, fecha, unidad_negocio_id"),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id", asesor: "asesor_id" },
-      );
-      cotq = applyDateRangesToQuery(cotq, dateRanges);
-
-      // Facturas (para tasa de conversión)
-      let facq = scoped(
-        supabase.from("facturas").select("id, cliente, asesor, monto, unidad_negocio_id"),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id", asesor: "asesor_id" },
-      );
-      facq = applyDateRangesToQuery(facq, dateRanges);
-
-      if (selectedUnidades.length > 0) {
-        cq = cq.in("unidad_negocio_id", selectedUnidades);
-        vq = vq.in("unidad_negocio_id", selectedUnidades);
-        mq = mq.in("unidad_negocio_id", selectedUnidades);
-        aq = aq.in("unidad_negocio_id", selectedUnidades);
-        cotq = cotq.in("unidad_negocio_id", selectedUnidades);
-        facq = facq.in("unidad_negocio_id", selectedUnidades);
-      }
-
-      const [c, v, m, a, cot, fac] = await Promise.all([cq, vq, mq, aq, cotq, facq]);
-
-      return {
-        expectedRunRate,
-        today,
-        next7: next7.toISOString().slice(0, 10),
-        cobranzas: c.data ?? [],
-        perdidas: v.data ?? [],
-        minutas: m.data ?? [],
-        asesores: a.data ?? [],
-        cotizaciones: cot.data ?? [],
-        facturas: fac.data ?? [],
-      };
-    },
+    queryKey: ["alertas-sources", anio, JSON.stringify(meses), selectedUnidades],
+    queryFn: () =>
+      getAlertasSourcesFn({
+        data: { anio, meses, unidades: selectedUnidades, ranges: dateRanges },
+      }),
   });
 
   const alertas = useMemo<AlertRow[]>(() => {
@@ -196,9 +85,9 @@ function AlertasPage() {
     const rows: AlertRow[] = [];
 
     // 1. COBRANZAS: Clientes con facturas vencidas
-    const cobranzasVencidas = sources.cobranzas.filter((r) => r.fecha_vencimiento < sources.today);
+    const cobranzasVencidas = sources.cobranzas.filter((r) => r.fechaVencimiento < sources.today);
     const cobranzasPorVencer = sources.cobranzas.filter(
-      (r) => r.fecha_vencimiento >= sources.today && r.fecha_vencimiento <= sources.next7,
+      (r) => r.fechaVencimiento >= sources.today && r.fechaVencimiento <= sources.next7,
     );
 
     // Agrupar cobranzas vencidas por cliente
@@ -232,8 +121,8 @@ function AlertasPage() {
         id: `cx-prox-${r.id}`,
         tipo: "cobranzas",
         severidad: "media",
-        titulo: `Factura por vencer: ${r.factura_numero ?? "s/n"}`,
-        detalle: `${r.cliente} vence el ${r.fecha_vencimiento}`,
+        titulo: `Factura por vencer: ${r.facturaNumero ?? "s/n"}`,
+        detalle: `${r.cliente} vence el ${r.fechaVencimiento}`,
         monto: Number(r.saldo ?? 0),
         accion: "Recordar pago",
       });
@@ -247,7 +136,7 @@ function AlertasPage() {
     const asesorAliases = new Map<string, string>();
     sources.asesores.forEach((r) => {
       const normName = normalizarNombre(r.asesor ?? "");
-      const code = String(r.codigo_asesor ?? "").trim();
+      const code = String(r.codigoAsesor ?? "").trim();
       if (normName && code) asesorAliases.set(normName, code);
     });
 
@@ -292,8 +181,8 @@ function AlertasPage() {
 
     // 3. MINUTAS: Compromisos vencidos sin cerrar
     sources.minutas.forEach((r) => {
-      if (!r.fecha_limite || r.estado === "cumplido") return;
-      if (r.fecha_limite < sources.today) {
+      if (!r.fechaLimite || r.estado === "cumplido") return;
+      if (r.fechaLimite < sources.today) {
         rows.push({
           id: `min-${r.id}`,
           tipo: "minutas",
@@ -307,9 +196,9 @@ function AlertasPage() {
 
     // 4. CUMPLIMIENTO: Asesores que van atrasados en su meta
     sources.asesores.forEach((r) => {
-      const resolved = resolverAsesor({ codigo: r.codigo_asesor, nombre: r.asesor }, asesorAliases);
+      const resolved = resolverAsesor({ codigo: r.codigoAsesor, nombre: r.asesor }, asesorAliases);
       if (resolved.codigo === VENTAS_CASA.codigo) return;
-      const cumplimiento = Number(r.pct_cumplimiento ?? 0);
+      const cumplimiento = Number(r.pctCumplimiento ?? 0);
       const gap = sources.expectedRunRate - cumplimiento;
       if (gap >= 20) {
         rows.push({

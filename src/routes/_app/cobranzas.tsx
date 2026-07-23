@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { scoped } from "@/lib/data-scope";
+import { getCobranzasFn } from "@/lib/server/cobranzas";
 import { KpiCard } from "@/components/kpi-card";
 import { StatusPill } from "@/components/status-pill";
 import { money } from "@/lib/format";
@@ -36,16 +34,6 @@ export const Route = createFileRoute("/_app/cobranzas")({
   component: Cobranzas,
 });
 
-interface Cobranza {
-  id: string;
-  cliente: string;
-  monto: number;
-  saldo: number;
-  fecha_vencimiento: string;
-  factura_numero: string | null;
-  sucursal_id: string | null;
-}
-
 function bucket(days: number) {
   if (days <= 0) return "Vigente";
   if (days <= 30) return "1-30 días";
@@ -61,28 +49,17 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 }
 
 function Cobranzas() {
-  const { role, profile } = useAuth();
   const [q, setQ] = useState("");
   const { data, isLoading } = useQuery({
-    queryKey: ["cobranzas", role, profile?.id],
-    queryFn: async () => {
-      const q = scoped(
-        supabase.from("cobranzas").select("*").gt("saldo", 0).order("fecha_vencimiento"),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id" },
-      );
-      const { data } = await q;
-      return (data ?? []) as Cobranza[];
-    },
+    queryKey: ["cobranzas"],
+    queryFn: () => getCobranzasFn(),
   });
 
   const enriched = useMemo(() => {
     const today = new Date();
     return (data ?? []).map((c) => {
       const days = Math.floor(
-        (today.getTime() - new Date(c.fecha_vencimiento).getTime()) / 86400000,
+        (today.getTime() - new Date(c.fechaVencimiento).getTime()) / 86400000,
       );
       return { ...c, dias: days, cubo: bucket(days) };
     });
@@ -92,7 +69,7 @@ function Cobranzas() {
     const s = q.toLowerCase();
     return enriched.filter(
       (r) =>
-        r.cliente.toLowerCase().includes(s) || (r.factura_numero ?? "").toLowerCase().includes(s),
+        r.cliente.toLowerCase().includes(s) || (r.facturaNumero ?? "").toLowerCase().includes(s),
     );
   }, [enriched, q]);
 
@@ -262,10 +239,10 @@ function Cobranzas() {
                   >
                     <TableCell className="px-4 py-3 font-medium">{r.cliente}</TableCell>
                     <TableCell className="px-4 py-3 text-muted-foreground">
-                      {r.factura_numero ?? "—"}
+                      {r.facturaNumero ?? "—"}
                     </TableCell>
                     <TableCell className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {r.fecha_vencimiento}
+                      {r.fechaVencimiento}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-right tabular-nums">{r.dias}</TableCell>
                     <TableCell className="px-4 py-3 text-right tabular-nums font-medium">
