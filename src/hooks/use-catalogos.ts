@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getSucursalesFn, getUnidadesFn } from "@/lib/server/catalogos";
 
 /**
  * Catálogos casi inmutables (solo cambian vía /carga o /usuarios). staleTime
@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 export function useSucursales() {
   return useQuery({
     queryKey: ["sucursales"],
-    queryFn: async () => (await supabase.from("sucursales").select("*").order("nombre")).data ?? [],
+    queryFn: () => getSucursalesFn(),
     staleTime: Infinity,
   });
 }
@@ -23,8 +23,7 @@ export function useSucursales() {
 export function useUnidades() {
   return useQuery({
     queryKey: ["unidades"],
-    queryFn: async () =>
-      (await supabase.from("unidades_negocio").select("*").order("nombre")).data ?? [],
+    queryFn: () => getUnidadesFn(),
     staleTime: Infinity,
   });
 }

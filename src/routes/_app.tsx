@@ -1,5 +1,6 @@
-import { createFileRoute, useNavigate, Outlet } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
+import { meFn } from "@/lib/server/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -131,5 +132,9 @@ function ProtectedAppShell() {
 }
 
 export const Route = createFileRoute("/_app")({
+  beforeLoad: async () => {
+    const me = await meFn();
+    if (!me) throw redirect({ to: "/auth" });
+  },
   component: ProtectedAppShell,
 });

@@ -46,4 +46,7 @@ supabase/.temp
 powershell.cmd
 *.xlsx
 
+# graphify knowledge-graph output (regenerable, not source)
+graphify-out/
+
 
