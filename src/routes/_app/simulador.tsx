@@ -1,15 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { getCumplimientoFn } from "@/lib/server/simulador";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useUnidades } from "@/hooks/use-catalogos";
-import { scoped } from "@/lib/data-scope";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { money, pct } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { fetchAllRows } from "@/lib/fetch-all-rows";
 import { useMemo, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -20,18 +17,7 @@ export const Route = createFileRoute("/_app/simulador")({
   component: SimuladorPage,
 });
 
-interface SimRow {
-  id: string;
-  anio: number;
-  mes: number;
-  venta: number;
-  presupuesto: number;
-  unidad_negocio_id: string | null;
-  sucursal_id: string | null;
-}
-
 function SimuladorPage() {
-  const { role, profile, user } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses, unidades: selectedUnidades } = filters;
 
@@ -49,32 +35,13 @@ function SimuladorPage() {
   };
 
   const { data: rows } = useQuery({
-    queryKey: ["simulador", "cumplimiento", role, profile?.id, anio, meses, selectedUnidades],
-    queryFn: async () => {
-      let q = supabase.from("cumplimiento_asesores").select("*").eq("anio", anio);
-
-      if (meses !== "all") {
-        q = q.in("mes", meses);
-      }
-
-      if (selectedUnidades && selectedUnidades.length > 0) {
-        q = q.in("unidad_negocio_id", selectedUnidades);
-      }
-
-      q = scoped(q, role, profile, user?.id, {
-        sucursal: "sucursal_id",
-        unidad: "unidad_negocio_id",
-        asesor: "asesor_id",
-      });
-
-      const data = await fetchAllRows<SimRow>(() => q);
-      return data ?? [];
-    },
+    queryKey: ["simulador", "cumplimiento", anio, meses, selectedUnidades],
+    queryFn: () => getCumplimientoFn({ data: { anio, meses, unidades: selectedUnidades ?? [] } }),
   });
 
   const base = useMemo(() => {
-    const venta = (rows ?? []).reduce((acc, r) => acc + r.venta, 0);
-    const presupuesto = (rows ?? []).reduce((acc, r) => acc + r.presupuesto, 0);
+    const venta = (rows ?? []).reduce((acc, r) => acc + Number(r.venta), 0);
+    const presupuesto = (rows ?? []).reduce((acc, r) => acc + Number(r.presupuesto), 0);
     const cumplimiento = presupuesto > 0 ? venta / presupuesto : 0;
     return { venta, presupuesto, cumplimiento };
   }, [rows]);

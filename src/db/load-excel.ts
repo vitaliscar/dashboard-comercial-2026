@@ -184,7 +184,7 @@ const normalizeName = (s: string): string =>
     .trim();
 
 /** Carga completa del Excel a Postgres local (esquema Drizzle, Fase 2). */
-export async function loadExcelToPostgres(excelPath: string): Promise<LoadResult> {
+export async function loadExcelToPostgres(excelSource: string | Buffer): Promise<LoadResult> {
   const result: LoadResult = {
     success: false,
     timestamp: new Date().toISOString(),
@@ -194,7 +194,7 @@ export async function loadExcelToPostgres(excelPath: string): Promise<LoadResult
 
   try {
     console.log("📊 Iniciando carga de Excel a Postgres local...");
-    const parser = new ExcelParser(excelPath);
+    const parser = new ExcelParser(excelSource);
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
 
