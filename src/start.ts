@@ -1,7 +1,6 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -18,7 +17,8 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
   }
 });
 
+// La cookie httpOnly de sesión viaja sola con cada request SSR/RPC — ya no
+// hace falta adjuntar un Bearer manualmente (ver src/lib/server/auth.ts).
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
   requestMiddleware: [errorMiddleware],
 }));
