@@ -1,7 +1,7 @@
 import { createServerFn, createMiddleware } from "@tanstack/react-start";
 import { getCookie, setCookie, deleteCookie } from "@tanstack/react-start/server";
-import { eq } from "drizzle-orm";
-import { dbAdmin } from "@/db";
+import { eq, sql } from "drizzle-orm";
+import { dbAdmin, db } from "@/db";
 import { users, sessions, profiles, userRoles, profileUnidadesNegocio } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { sessionExpiryDate, isSessionExpired, SESSION_COOKIE_NAME } from "@/lib/auth/session";
@@ -57,7 +57,13 @@ async function loadAuthPayload(userId: string) {
   return { profile: { ...profile, unidadesNegocioIds }, role };
 }
 
-/** Middleware que reemplaza `requireSupabaseAuth` — valida la cookie de sesión. */
+/**
+ * Middleware que reemplaza `requireSupabaseAuth` — valida la cookie de
+ * sesión y abre una transacción con `SET LOCAL app.current_*` (rol
+ * `app_user`, sin BYPASSRLS) para que las policies RLS (Fase 4) apliquen.
+ * Los server functions de datos (Fase 5) deben usar `context.tx`, nunca
+ * `dbAdmin`, para heredar el scope.
+ */
 export const requireAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
   const sessionId = getCookie(SESSION_COOKIE_NAME);
   if (!sessionId) throw new Error("Unauthorized: no session cookie");
@@ -76,8 +82,15 @@ export const requireAuth = createMiddleware({ type: "function" }).server(async (
   const payload = await loadAuthPayload(session.userId);
   if (!payload) throw new Error("Unauthorized: profile not found");
 
-  return next({
-    context: { userId: session.userId, role: payload.role, profile: payload.profile },
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('app.current_role', ${payload.role ?? ""}, true)`);
+    await tx.execute(sql`SELECT set_config('app.current_user_id', ${session.userId}, true)`);
+    await tx.execute(
+      sql`SELECT set_config('app.current_sucursal_id', ${payload.profile.sucursalId ?? ""}, true)`,
+    );
+    return next({
+      context: { tx, userId: session.userId, role: payload.role, profile: payload.profile },
+    });
   });
 });
 
