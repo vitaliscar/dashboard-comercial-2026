@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getResumenMensualFn } from "@/lib/server/gerencia-nacional";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
@@ -63,11 +63,7 @@ function GerenciaNacional() {
   const { data: resumenAnual, isLoading } = useQuery({
     queryKey: ["gerencia-nacional-resumen", anio],
     enabled: canView,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rpc_resumen_mensual", { _anio: anio });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => getResumenMensualFn({ data: { anio } }),
   });
 
   const allowedMonths = useMemo(() => getAllowedMonths(anio, meses), [anio, meses]);
@@ -79,9 +75,9 @@ function GerenciaNacional() {
       (r) =>
         allowedMonths.includes(r.mes) &&
         (selectedSucursales.length === 0 ||
-          (r.sucursal_id && selectedSucursales.includes(r.sucursal_id))) &&
+          (r.sucursalId && selectedSucursales.includes(r.sucursalId))) &&
         (selectedUnidades.length === 0 ||
-          (r.unidad_negocio_id && selectedUnidades.includes(r.unidad_negocio_id))),
+          (r.unidadNegocioId && selectedUnidades.includes(r.unidadNegocioId))),
     );
     return { presupuestos: rows };
   }, [resumenAnual, allowedMonths, selectedSucursales, selectedUnidades]);
@@ -93,7 +89,7 @@ function GerenciaNacional() {
       (r) =>
         allowedMonths.includes(r.mes) &&
         (selectedSucursales.length === 0 ||
-          (r.sucursal_id && selectedSucursales.includes(r.sucursal_id))),
+          (r.sucursalId && selectedSucursales.includes(r.sucursalId))),
     );
     return { presupuestos: rows };
   }, [resumenAnual, allowedMonths, selectedSucursales]);
@@ -113,23 +109,23 @@ function GerenciaNacional() {
     };
 
     crossRaw.presupuestos.forEach((r) => {
-      if (!r.sucursal_id || !r.unidad_negocio_id) return;
+      if (!r.sucursalId || !r.unidadNegocioId) return;
       const meta = Number(r.meta ?? 0);
       const facturado = Number(r.facturado ?? 0);
       // unitAcc always sees every row: the donut/meta-vs-venta chart must keep showing
       // every unit (dimmed via selectedIds), never drop one from the visualization.
-      bump(unitAcc, r.unidad_negocio_id, "meta", meta);
-      bump(unitAcc, r.unidad_negocio_id, "facturado", facturado);
+      bump(unitAcc, r.unidadNegocioId, "meta", meta);
+      bump(unitAcc, r.unidadNegocioId, "facturado", facturado);
       // branchAcc feeds"Resumen por sucursal"/"Cumplimiento por sucursal", which the
       // unit chips should actually scope — skip rows outside the current unit selection.
-      if (selectedUnidades.length === 0 || selectedUnidades.includes(r.unidad_negocio_id)) {
-        bump(branchAcc, r.sucursal_id, "meta", meta);
-        bump(branchAcc, r.sucursal_id, "facturado", facturado);
+      if (selectedUnidades.length === 0 || selectedUnidades.includes(r.unidadNegocioId)) {
+        bump(branchAcc, r.sucursalId, "meta", meta);
+        bump(branchAcc, r.sucursalId, "facturado", facturado);
       }
-      if (!matrixAcc.has(r.sucursal_id)) matrixAcc.set(r.sucursal_id, new Map());
-      const cell = matrixAcc.get(r.sucursal_id)!;
-      bump(cell, r.unidad_negocio_id, "meta", meta);
-      bump(cell, r.unidad_negocio_id, "facturado", facturado);
+      if (!matrixAcc.has(r.sucursalId)) matrixAcc.set(r.sucursalId, new Map());
+      const cell = matrixAcc.get(r.sucursalId)!;
+      bump(cell, r.unidadNegocioId, "meta", meta);
+      bump(cell, r.unidadNegocioId, "facturado", facturado);
     });
 
     const branchRows: BranchSummaryRow[] = sucursalesData

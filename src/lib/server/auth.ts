@@ -3,7 +3,7 @@ import { getCookie, setCookie, deleteCookie } from "@tanstack/react-start/server
 import { eq, sql } from "drizzle-orm";
 import { dbAdmin, db } from "@/db";
 import { users, sessions, profiles, userRoles, profileUnidadesNegocio } from "@/db/schema";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { verifyPassword } from "@/lib/auth/password";
 import { sessionExpiryDate, isSessionExpired, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 
 export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
@@ -149,14 +149,3 @@ export const meFn = createServerFn({ method: "GET" }).handler(async () => {
 
   return { user: { id: user.id, email: user.email }, ...payload };
 });
-
-/**
- * Crea un usuario nuevo (usado por seeding/`/usuarios`, no expuesto en el
- * login). Hashea el password con argon2id.
- */
-export async function createUserWithPassword(email: string, password: string) {
-  const passwordHash = await hashPassword(password);
-  const [user] = await dbAdmin.insert(users).values({ email, passwordHash }).returning();
-  await dbAdmin.insert(profiles).values({ id: user.id, email });
-  return user;
-}

@@ -3,11 +3,13 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, FileText, Receipt, Wallet } from "lucide-react";
 import { CartesianGrid, XAxis, YAxis, ComposedChart, Line } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import {
+  getEmbudoCotizacionesAnioFn,
+  getEmbudoPresupuestosAnioFn,
+  getEmbudoTotalesFn,
+} from "@/lib/server/embudo";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useUnidades } from "@/hooks/use-catalogos";
-import { scoped } from "@/lib/data-scope";
 import { money, pct, MESES } from "@/lib/format";
 import { getAllMonthsCap, getAllowedMonths } from "@/lib/date-range";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
@@ -34,7 +36,6 @@ export const Route = createFileRoute("/_app/embudo")({
 });
 
 function EmbudoPage() {
-  const { role, profile } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses, unidades: selectedUnidades } = filters;
 
@@ -52,63 +53,25 @@ function EmbudoPage() {
   // completo (no solo los meses filtrados) porque el gráfico de tendencia siempre muestra
   // los 12 meses, resaltando visualmente los seleccionados en vez de recortar la serie.
   const { data: cotizacionesAnio } = useQuery({
-    queryKey: ["embudo-cotizaciones-anio", anio, selectedUnidades, profile?.id],
-    queryFn: async () => {
-      let q = scoped(
-        supabase
-          .from("cotizaciones")
-          .select("id, unidad_negocio_id, monto, fecha")
-          .gte("fecha", `${anio}-01-01`)
-          .lt("fecha", `${anio + 1}-01-01`),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id", asesor: "asesor_id" },
-      );
-      if (selectedUnidades.length > 0) {
-        q = q.in("unidad_negocio_id", selectedUnidades);
-      }
-      const { data } = await q;
-      return data ?? [];
-    },
+    queryKey: ["embudo-cotizaciones-anio", anio, selectedUnidades],
+    queryFn: () => getEmbudoCotizacionesAnioFn({ data: { anio, unidades: selectedUnidades } }),
   });
 
   // Facturado: presupuestos (ventas_ccv + ventas_xibi + ventas_estrategicas), año completo.
   const { data: presupuestosAnio } = useQuery({
-    queryKey: ["embudo-presupuestos-anio", anio, selectedUnidades, profile?.id],
-    queryFn: async () => {
-      let q = scoped(
-        supabase
-          .from("presupuestos")
-          .select("id, mes, unidad_negocio_id, ventas_ccv, ventas_xibi, ventas_estrategicas")
-          .eq("anio", anio),
-        role,
-        profile,
-        profile?.id,
-        { sucursal: "sucursal_id", unidad: "unidad_negocio_id" },
-      );
-      if (selectedUnidades.length > 0) {
-        q = q.in("unidad_negocio_id", selectedUnidades);
-      }
-      const { data } = await q;
-      return data ?? [];
-    },
+    queryKey: ["embudo-presupuestos-anio", anio, selectedUnidades],
+    queryFn: () => getEmbudoPresupuestosAnioFn({ data: { anio, unidades: selectedUnidades } }),
   });
 
-  // Totales del embudo (KPIs del hero) — un solo RPC ya scopeado server-side por
-  // can_read_row, con el mismo criterio de "meses" (YTD/año completo) que el
-  // resto de la app vía getAllowedMonths.
+  // Totales del embudo (KPIs del hero) — mismo criterio de "meses" (YTD/año completo)
+  // que el resto de la app vía getAllowedMonths.
   const { data: funnelTotalsRaw } = useQuery({
     queryKey: ["embudo-totales", anio, JSON.stringify(meses), selectedUnidades],
-    queryFn: async () => {
+    queryFn: () => {
       const allowedMonths = getAllowedMonths(anio, meses);
-      const { data, error } = await supabase.rpc("rpc_embudo_totales", {
-        _anio: anio,
-        _meses: allowedMonths,
-        _unidades: selectedUnidades.length > 0 ? selectedUnidades : null,
+      return getEmbudoTotalesFn({
+        data: { anio, meses: allowedMonths, unidades: selectedUnidades },
       });
-      if (error) throw error;
-      return data?.[0] ?? { cotizado: 0, facturado: 0, cobrado: 0 };
     },
   });
 
@@ -155,9 +118,7 @@ function EmbudoPage() {
     (presupuestosAnio ?? []).forEach((p) => {
       if (p.mes >= 1 && p.mes <= 12) {
         monthly[p.mes - 1].facturado +=
-          Number(p.ventas_ccv ?? 0) +
-          Number(p.ventas_xibi ?? 0) +
-          Number(p.ventas_estrategicas ?? 0);
+          Number(p.ventasCcv ?? 0) + Number(p.ventasXibi ?? 0) + Number(p.ventasEstrategicas ?? 0);
       }
     });
 

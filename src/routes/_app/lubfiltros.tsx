@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getLubfiltrosMetricsFn, getLubfiltrosTrendFn } from "@/lib/server/lubfiltros";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales } from "@/hooks/use-catalogos";
-import { scoped } from "@/lib/data-scope";
 import { KpiCard } from "@/components/kpi-card";
 import { StatusPill } from "@/components/status-pill";
 import { money, pct, statusFromPct, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getDateRangesForMonths, applyDateRangesToQuery, getAllMonthsCap } from "@/lib/date-range";
+import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
 import {
   Table,
   TableHeader,
@@ -44,13 +43,9 @@ export const Route = createFileRoute("/_app/lubfiltros")({
 });
 
 function LubFiltros() {
-  const { role, profile, user } = useAuth();
+  const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses } = filters;
-
-  // GC can only see their own unit, no filter selector
-  const isGC = role === "gerente_comercial";
-  const unitId = isGC ? profile?.unidad_negocio_id : "all";
 
   const { data: sucursales } = useSucursales();
 
@@ -58,54 +53,29 @@ function LubFiltros() {
     return getDateRangesForMonths(anio, meses);
   }, [anio, meses]);
 
-  const queryFilters = { anio, meses, unitId };
-  const filterKey = JSON.stringify(queryFilters);
-
   const handleApplyFilters = (f: FilterState) => {
     setFilters({ anio: f.anio, meses: f.meses });
   };
 
   // Fetch facturación data for Lubfiltros
   const { data: metricsData, isLoading } = useQuery({
-    queryKey: ["lubfiltros-metrics", filterKey, role, profile?.id],
+    queryKey: ["lubfiltros-metrics", JSON.stringify(dateRanges)],
     queryFn: async () => {
-      let fq = supabase
-        .from("facturas")
-        .select("monto, unidad_negocio_id, sucursal_id, cliente, fecha");
-      fq = applyDateRangesToQuery(fq, dateRanges);
-      if (unitId && unitId !== "all") fq = fq.eq("unidad_negocio_id", unitId);
-
-      fq = scoped(fq, role, profile, user?.id, {
-        sucursal: "sucursal_id",
-        unidad: "unidad_negocio_id",
-      });
-
-      const { data } = await fq;
-      return { facturas: data ?? [] };
+      const data = await getLubfiltrosMetricsFn({ data: { ranges: dateRanges } });
+      return { facturas: data };
     },
   });
 
   // Fetch monthly trends
   const { data: trendData } = useQuery({
-    queryKey: ["lubfiltros-trend", anio, unitId, JSON.stringify(meses), role, profile?.id],
+    queryKey: ["lubfiltros-trend", anio, JSON.stringify(meses)],
     queryFn: async () => {
-      let fq = supabase
-        .from("facturas")
-        .select("monto, fecha")
-        .gte("fecha", `${anio}-01-01`)
-        .lt("fecha", `${anio + 1}-01-01`);
-      if (unitId && unitId !== "all") fq = fq.eq("unidad_negocio_id", unitId);
-
-      fq = scoped(fq, role, profile, user?.id, {
-        unidad: "unidad_negocio_id",
-      });
-
-      const { data } = await fq;
+      const data = await getLubfiltrosTrendFn({ data: { anio } });
       const byMonth = Array.from({ length: 12 }, (_, i) => ({
         mes: MESES[i].slice(0, 3),
         ventas: 0,
       }));
-      (data ?? []).forEach((r) => {
+      data.forEach((r) => {
         const m = new Date(r.fecha).getMonth();
         byMonth[m].ventas += Number(r.monto);
       });
@@ -131,8 +101,8 @@ function LubFiltros() {
     const map = new Map<string, { nombre: string; monto: number }>();
     sucursales.forEach((s) => map.set(s.id, { nombre: s.nombre, monto: 0 }));
     metricsData.facturas.forEach((r) => {
-      if (r.sucursal_id && map.has(r.sucursal_id)) {
-        map.get(r.sucursal_id)!.monto += Number(r.monto);
+      if (r.sucursalId && map.has(r.sucursalId)) {
+        map.get(r.sucursalId)!.monto += Number(r.monto);
       }
     });
     return Array.from(map.values())
