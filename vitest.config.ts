@@ -16,6 +16,7 @@ export default defineConfig({
       "**/.output/**",
       "**/dist/**",
       "src/tests/excel.test.ts",
+      "e2e/**",
     ],
   },
 });
