@@ -107,8 +107,7 @@ export default function SucursalPage() {
 
   // Compute KPI totals
   const kpis = useMemo(() => {
-    const totalFacturado =
-      metrics?.facturacion.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
+    const totalFacturado = metrics?.facturacion.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
     const totalPresupuesto =
       metrics?.presupuestos.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
     const totalPerdido = metrics?.perdidas.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;

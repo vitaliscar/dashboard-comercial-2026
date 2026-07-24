@@ -5,6 +5,7 @@
 ---
 
 ## 1. Fase Pre-Lanzamiento (Pre-Deploy)
+
 - [x] **Pruebas Unitarias y E2E:** 100% pasadas en CI/CD (`bun test` + Playwright).
 - [x] **Pruebas de Carga:** Simulación de 100 usuarios concurrentes validada sin fallos.
 - [x] **Observabilidad Configurada:** Logger Pino, salud `/api/health`, métricas `/api/metrics` activos.
@@ -15,6 +16,7 @@
 ---
 
 ## 2. Fase Durante el Lanzamiento (Go-Live)
+
 - [ ] Ejecutar backup preventivo de base de datos PostgreSQL.
 - [ ] Ejecutar `git pull origin main` en servidor VPS.
 - [ ] Ejecutar `bun run build` y verificar compilar exitosa sin advertencias.
@@ -24,6 +26,7 @@
 ---
 
 ## 3. Fase Post-Lanzamiento (Post-Deploy 24/7)
+
 - [ ] Monitorear la tasa de errores en `/api/health` durante las primeras 24 horas.
 - [ ] Mantener equipo On-Call atento a notificaciones en el canal de alertas.
 - [ ] Recopilar feedback inicial de los gerentes y coordinadores.

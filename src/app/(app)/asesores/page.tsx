@@ -64,10 +64,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  getAsesoresRawDataAction,
-  getAsesoresDrilldownAction,
-} from "@/lib/actions/asesores";
+import { getAsesoresRawDataAction, getAsesoresDrilldownAction } from "@/lib/actions/asesores";
 
 const MESES = [
   "Enero",

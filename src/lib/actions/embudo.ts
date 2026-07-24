@@ -8,10 +8,7 @@ function unitCond(col: SQLWrapper, unidades: string[]) {
   return unidades.length > 0 ? inArray(col, unidades) : undefined;
 }
 
-export async function getEmbudoCotizacionesAnioAction(data: {
-  anio: number;
-  unidades: string[];
-}) {
+export async function getEmbudoCotizacionesAnioAction(data: { anio: number; unidades: string[] }) {
   return withAuth(({ tx }) => {
     return tx
       .select({
@@ -31,10 +28,7 @@ export async function getEmbudoCotizacionesAnioAction(data: {
   });
 }
 
-export async function getEmbudoPresupuestosAnioAction(data: {
-  anio: number;
-  unidades: string[];
-}) {
+export async function getEmbudoPresupuestosAnioAction(data: { anio: number; unidades: string[] }) {
   return withAuth(({ tx }) => {
     return tx
       .select({

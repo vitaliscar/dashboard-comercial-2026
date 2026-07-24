@@ -13,7 +13,12 @@ function inCond(col: SQLWrapper, values: string[]) {
 function mesCond(col: SQLWrapper, meses: MonthFilter, anio: number) {
   if (meses === "all") {
     const cap = getAllMonthsCap(anio);
-    return cap === 12 ? undefined : inArray(col, Array.from({ length: cap }, (_, i) => i + 1));
+    return cap === 12
+      ? undefined
+      : inArray(
+          col,
+          Array.from({ length: cap }, (_, i) => i + 1),
+        );
   }
   return inArray(col, meses);
 }
@@ -31,18 +36,29 @@ export async function getAsesorMetricsAction(data: {
       tx
         .select()
         .from(facturas)
-        .where(and(dateRangeCondition(facturas.fecha, ranges), inCond(facturas.unidadNegocioId, unidades))),
+        .where(
+          and(
+            dateRangeCondition(facturas.fecha, ranges),
+            inCond(facturas.unidadNegocioId, unidades),
+          ),
+        ),
       tx
         .select()
         .from(ventasPerdidas)
         .where(
-          and(dateRangeCondition(ventasPerdidas.fecha, ranges), inCond(ventasPerdidas.unidadNegocioId, unidades)),
+          and(
+            dateRangeCondition(ventasPerdidas.fecha, ranges),
+            inCond(ventasPerdidas.unidadNegocioId, unidades),
+          ),
         ),
       tx
         .select({ id: cotizaciones.id, monto: cotizaciones.monto })
         .from(cotizaciones)
         .where(
-          and(dateRangeCondition(cotizaciones.fecha, ranges), inCond(cotizaciones.unidadNegocioId, unidades)),
+          and(
+            dateRangeCondition(cotizaciones.fecha, ranges),
+            inCond(cotizaciones.unidadNegocioId, unidades),
+          ),
         ),
       tx
         .select({
@@ -66,7 +82,9 @@ export async function getAsesorMetricsAction(data: {
           responsableId: minutas.responsableId,
         })
         .from(minutas)
-        .where(and(dateRangeCondition(minutas.fecha, ranges), inCond(minutas.unidadNegocioId, unidades))),
+        .where(
+          and(dateRangeCondition(minutas.fecha, ranges), inCond(minutas.unidadNegocioId, unidades)),
+        ),
     ]);
 
     return {

@@ -37,20 +37,28 @@ export default function GerenciaNacionalPage() {
   const canView = canAccessModule(role, "gerencia_nacional");
 
   const { filters, setFilters } = useSharedFilters();
-  const { anio, meses, sucursales: selectedSucursales = [], unidades: selectedUnidades = [] } = filters;
+  const {
+    anio,
+    meses,
+    sucursales: selectedSucursales = [],
+    unidades: selectedUnidades = [],
+  } = filters;
 
   // Fetch reference data
   const { data: sucursalesData } = useSucursales();
   const { data: unidades } = useUnidades();
 
-  const handleApplyFilters = useCallback((f: FilterState) => {
-    setFilters({
-      anio: f.anio,
-      meses: f.meses,
-      sucursales: f.sucursales ?? [],
-      unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
-    });
-  }, [setFilters]);
+  const handleApplyFilters = useCallback(
+    (f: FilterState) => {
+      setFilters({
+        anio: f.anio,
+        meses: f.meses,
+        sucursales: f.sucursales ?? [],
+        unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
+      });
+    },
+    [setFilters],
+  );
 
   // Un solo fetch por año (ya scopeado server-side vía RLS, agregado por Postgres desde
   // presupuestos). Se cachea por `anio` solamente — el filtrado por mes/sucursal/unidad

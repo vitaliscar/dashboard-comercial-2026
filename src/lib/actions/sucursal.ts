@@ -13,7 +13,12 @@ function inCond(col: SQLWrapper, values: string[]) {
 function mesCond(col: SQLWrapper, meses: MonthFilter, anio: number) {
   if (meses === "all") {
     const cap = getAllMonthsCap(anio);
-    return cap === 12 ? undefined : inArray(col, Array.from({ length: cap }, (_, i) => i + 1));
+    return cap === 12
+      ? undefined
+      : inArray(
+          col,
+          Array.from({ length: cap }, (_, i) => i + 1),
+        );
   }
   return inArray(col, meses);
 }

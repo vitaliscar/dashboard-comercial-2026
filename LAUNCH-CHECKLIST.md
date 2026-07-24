@@ -1,4 +1,5 @@
 # Checklist Oficial de Lanzamiento a Producción (Go-Live)
+
 **Proyecto**: `dashboard-comercial-2026`
 
 Lista de verificación obligatoria previa y posterior al lanzamiento.

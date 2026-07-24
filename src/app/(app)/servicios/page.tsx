@@ -215,7 +215,8 @@ export default function ServiciosPage() {
     if (!cobranzasData) return [];
     const s = searchQ.toLowerCase();
     return cobranzasData.filter(
-      (r) => r.cliente.toLowerCase().includes(s) || (r.facturaNumero ?? "").toLowerCase().includes(s),
+      (r) =>
+        r.cliente.toLowerCase().includes(s) || (r.facturaNumero ?? "").toLowerCase().includes(s),
     );
   }, [cobranzasData, searchQ]);
 

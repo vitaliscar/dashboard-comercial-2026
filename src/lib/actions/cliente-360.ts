@@ -13,9 +13,15 @@ export async function getCliente360DataAction() {
     const hace90dStr = hace90d.toISOString().slice(0, 10);
 
     const [facturasRows, ventasPerdidasRows, cobranzasRows] = await Promise.all([
-      tx.select({ cliente: facturas.cliente, fecha: facturas.fecha, monto: facturas.monto }).from(facturas),
       tx
-        .select({ cliente: ventasPerdidas.cliente, fecha: ventasPerdidas.fecha, monto: ventasPerdidas.monto })
+        .select({ cliente: facturas.cliente, fecha: facturas.fecha, monto: facturas.monto })
+        .from(facturas),
+      tx
+        .select({
+          cliente: ventasPerdidas.cliente,
+          fecha: ventasPerdidas.fecha,
+          monto: ventasPerdidas.monto,
+        })
         .from(ventasPerdidas)
         .where(gte(ventasPerdidas.fecha, hace90dStr)),
       tx

@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { sql } from 'drizzle-orm';
-import os from 'os';
+import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { sql } from "drizzle-orm";
+import os from "os";
 
 export async function GET() {
   const startTime = Date.now();
-  let dbStatus = 'healthy';
+  let dbStatus = "healthy";
   let dbLatencyMs = 0;
 
   try {
@@ -21,12 +21,12 @@ export async function GET() {
   const freeMem = os.freemem();
   const cpuLoad = os.loadavg();
 
-  const isHealthy = dbStatus === 'healthy';
+  const isHealthy = dbStatus === "healthy";
   const statusCode = isHealthy ? 200 : 503;
 
   return NextResponse.json(
     {
-      status: isHealthy ? 'ok' : 'error',
+      status: isHealthy ? "ok" : "error",
       timestamp: new Date().toISOString(),
       uptimeSeconds: Math.floor(process.uptime()),
       latencyMs: Date.now() - startTime,
@@ -50,6 +50,6 @@ export async function GET() {
         },
       },
     },
-    { status: statusCode }
+    { status: statusCode },
   );
 }

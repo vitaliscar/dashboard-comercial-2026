@@ -24,10 +24,19 @@ export async function getResumenDataAction(data: {
     const sucCond = <T extends { sucursalId: unknown }>(col: T["sucursalId"]) =>
       sucursalId ? eq(col as never, sucursalId) : undefined;
 
-    const cotCond = and(dateRangeCondition(cotizaciones.fecha, ranges), sucCond(cotizaciones.sucursalId));
+    const cotCond = and(
+      dateRangeCondition(cotizaciones.fecha, ranges),
+      sucCond(cotizaciones.sucursalId),
+    );
     const facCond = and(dateRangeCondition(facturas.fecha, ranges), sucCond(facturas.sucursalId));
-    const vpCond = and(dateRangeCondition(ventasPerdidas.fecha, ranges), sucCond(ventasPerdidas.sucursalId));
-    const servCond = and(dateRangeCondition(servicios.fecha, ranges), sucCond(servicios.sucursalId));
+    const vpCond = and(
+      dateRangeCondition(ventasPerdidas.fecha, ranges),
+      sucCond(ventasPerdidas.sucursalId),
+    );
+    const servCond = and(
+      dateRangeCondition(servicios.fecha, ranges),
+      sucCond(servicios.sucursalId),
+    );
 
     const mesCond =
       meses === "all"

@@ -42,7 +42,10 @@ export async function setUserRoleAction(data: { userId: string; newRole: AppRole
   });
 }
 
-export async function setProfileSucursalAction(data: { userId: string; sucursalId: string | null }) {
+export async function setProfileSucursalAction(data: {
+  userId: string;
+  sucursalId: string | null;
+}) {
   return withAuth(async ({ tx, role }) => {
     if (role !== "gerencia") {
       throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar sucursales");
@@ -57,7 +60,10 @@ export async function setProfileSucursalAction(data: { userId: string; sucursalI
   });
 }
 
-export async function setProfileUnidadAction(data: { userId: string; unidadNegocioId: string | null }) {
+export async function setProfileUnidadAction(data: {
+  userId: string;
+  unidadNegocioId: string | null;
+}) {
   return withAuth(async ({ tx, role }) => {
     if (role !== "gerencia") {
       throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar unidades");
@@ -98,10 +104,13 @@ export async function toggleProfileUnidadAction(data: {
     }
 
     if (data.checked) {
-      await tx.insert(profileUnidadesNegocio).values({
-        profileId: data.profileId,
-        unidadNegocioId: data.unidadId,
-      }).onConflictDoNothing();
+      await tx
+        .insert(profileUnidadesNegocio)
+        .values({
+          profileId: data.profileId,
+          unidadNegocioId: data.unidadId,
+        })
+        .onConflictDoNothing();
     } else {
       await tx
         .delete(profileUnidadesNegocio)

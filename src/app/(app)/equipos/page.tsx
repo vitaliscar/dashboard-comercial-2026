@@ -15,7 +15,15 @@ import {
   getEquiposClientesCobroAction,
 } from "@/lib/actions/equipos";
 import { useMemo, useState } from "react";
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ComposedChart, Bar } from "recharts";
+import {
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  ComposedChart,
+  Bar,
+} from "recharts";
 import { Truck, TrendingUp, FileText, Search, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {

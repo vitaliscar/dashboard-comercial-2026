@@ -4,30 +4,30 @@
  */
 
 const ROUTES_TO_TEST = [
-  '/',
-  '/api/health',
-  '/api/metrics',
-  '/dashboard',
-  '/gerencia-nacional',
-  '/coordinador',
-  '/asesor',
-  '/asesores',
-  '/sucursal',
-  '/alertas',
-  '/cobranzas',
-  '/pareto',
-  '/embudo',
-  '/lubfiltros',
-  '/repuestos',
-  '/servicios',
-  '/alquiler',
-  '/cliente-360',
-  '/simulador',
-  '/comisiones',
+  "/",
+  "/api/health",
+  "/api/metrics",
+  "/dashboard",
+  "/gerencia-nacional",
+  "/coordinador",
+  "/asesor",
+  "/asesores",
+  "/sucursal",
+  "/alertas",
+  "/cobranzas",
+  "/pareto",
+  "/embudo",
+  "/lubfiltros",
+  "/repuestos",
+  "/servicios",
+  "/alquiler",
+  "/cliente-360",
+  "/simulador",
+  "/comisiones",
 ];
 
 async function runSmokeTest() {
-  const baseUrl = process.env.STAGING_URL || 'http://localhost:3000';
+  const baseUrl = process.env.STAGING_URL || "http://localhost:3000";
   console.log(`=======================================================`);
   console.log(`  RUNNING SMOKE TESTS ON STAGING / LOCAL              `);
   console.log(`  Base URL: ${baseUrl}`);
@@ -40,14 +40,19 @@ async function runSmokeTest() {
     const url = `${baseUrl}${route}`;
     try {
       const start = Date.now();
-      const res = await fetch(url, { method: 'GET', headers: { 'User-Agent': 'SmokeTestRunner/1.0' } });
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { "User-Agent": "SmokeTestRunner/1.0" },
+      });
       const duration = Date.now() - start;
 
       if (res.status < 500) {
         console.log(`[PASS] ${route.padEnd(25)} Status: ${res.status} (${duration}ms)`);
         passed++;
       } else {
-        console.error(`[FAIL] ${route.padEnd(25)} Status: ${res.status} (${duration}ms) - SERVER ERROR`);
+        console.error(
+          `[FAIL] ${route.padEnd(25)} Status: ${res.status} (${duration}ms) - SERVER ERROR`,
+        );
         failed++;
       }
     } catch (err) {

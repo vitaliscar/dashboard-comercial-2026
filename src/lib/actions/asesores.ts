@@ -1,12 +1,7 @@
 "use server";
 
 import { and, eq, gte, inArray, lt, isNotNull, type SQLWrapper } from "drizzle-orm";
-import {
-  cotizaciones,
-  facturas,
-  ventasPerdidas,
-  cumplimientoAsesores,
-} from "@/db/schema";
+import { cotizaciones, facturas, ventasPerdidas, cumplimientoAsesores } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
 import type { DateRange, MonthFilter } from "@/lib/date-range";
@@ -120,10 +115,7 @@ export async function getAsesoresDrilldownAction(data: { anio: number }) {
         })
         .from(cumplimientoAsesores)
         .where(
-          and(
-            isNotNull(cumplimientoAsesores.codigoAsesor),
-            isNotNull(cumplimientoAsesores.asesor),
-          ),
+          and(isNotNull(cumplimientoAsesores.codigoAsesor), isNotNull(cumplimientoAsesores.asesor)),
         ),
       tx
         .select({
@@ -145,9 +137,7 @@ export async function getAsesoresDrilldownAction(data: { anio: number }) {
           unidad_negocio_id: facturas.unidadNegocioId,
         })
         .from(facturas)
-        .where(
-          and(gte(facturas.fecha, `${anio}-01-01`), lt(facturas.fecha, `${anio + 1}-01-01`)),
-        ),
+        .where(and(gte(facturas.fecha, `${anio}-01-01`), lt(facturas.fecha, `${anio + 1}-01-01`))),
       tx
         .select({
           monto: cotizaciones.monto,

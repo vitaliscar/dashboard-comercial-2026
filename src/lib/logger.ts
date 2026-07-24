@@ -1,15 +1,15 @@
-import pino from 'pino';
+import pino from "pino";
 
 /**
  * Centralized Structured Logger using Pino
  * Outputs JSON format with timestamp, level, message, userId, route, statusCode, duration
  */
 export const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   timestamp: pino.stdTimeFunctions.isoTime,
   base: {
-    env: process.env.NODE_ENV || 'development',
-    service: 'dashboard-comercial-2026',
+    env: process.env.NODE_ENV || "development",
+    service: "dashboard-comercial-2026",
   },
   formatters: {
     level: (label) => ({ level: label }),
@@ -30,7 +30,7 @@ export interface LogContext {
  */
 export function logRequest(message: string, context: LogContext = {}) {
   const { duration, statusCode, error, ...rest } = context;
-  
+
   if (error || (statusCode && statusCode >= 500)) {
     logger.error({
       message,

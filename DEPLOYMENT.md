@@ -1,4 +1,5 @@
 # Manual de Despliegue & Plan de Rollback
+
 **Proyecto**: `dashboard-comercial-2026`
 
 Este documento detalla el procedimiento de despliegue en servidor VPS autohospedado y las instrucciones paso a paso para ejecutar un **Rollback de Emergencia**.
@@ -42,6 +43,7 @@ npm run test:smoke
 Si la aplicación presenta errores 5xx sostenidos o falla el smoke test tras el despliegue:
 
 ### Paso 1: Revertir Código a Release Anterior
+
 ```bash
 # Identificar commit estable anterior
 git log -n 5 --oneline
@@ -55,10 +57,12 @@ pm2 reload dashboard-comercial-2026
 ```
 
 ### Paso 2: Revertir Migración de Base de Datos (Si aplica)
+
 ```bash
 # Restaurar copia de respaldo de PostgreSQL previa al deploy
 pg_restore -h localhost -U postgres -d dashboard_db /backups/db_pre_deploy_latest.dump
 ```
 
 ### Paso 3: Notificación de Incidencia
+
 Enviar reporte inmediato al equipo técnico indicando la hora del rollback y los logs capturados.

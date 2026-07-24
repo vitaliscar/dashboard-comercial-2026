@@ -1,5 +1,5 @@
-import { db } from '@/db';
-import { logger } from '../logger';
+import { db } from "@/db";
+import { logger } from "../logger";
 
 /**
  * GDPR Data Retention and Right to be Forgotten (Anonymization/Deletion)
@@ -24,10 +24,11 @@ export class GdprComplianceManager {
       exportTimestamp: new Date().toISOString(),
       personalInfo: {
         userId,
-        status: 'ACTIVE',
+        status: "ACTIVE",
       },
       auditLogs: [],
-      dataRetentionPolicy: 'Active accounts are retained for the duration of the employment contract + 5 years for audit requirements.',
+      dataRetentionPolicy:
+        "Active accounts are retained for the duration of the employment contract + 5 years for audit requirements.",
     };
   }
 
@@ -49,7 +50,9 @@ export class GdprComplianceManager {
    * Audit log retention cleanup (Purge audit records older than retention threshold)
    */
   async cleanupExpiredLogs(retentionDays = 365): Promise<number> {
-    logger.info(`[GDPR] Running log retention cleanup for records older than ${retentionDays} days.`);
+    logger.info(
+      `[GDPR] Running log retention cleanup for records older than ${retentionDays} days.`,
+    );
     // Returns count of purged log entries
     return 0;
   }

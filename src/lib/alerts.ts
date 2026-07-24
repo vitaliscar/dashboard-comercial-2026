@@ -1,9 +1,9 @@
-import { logger } from './logger';
+import { logger } from "./logger";
 
 export interface AlertPayload {
   title: string;
   message: string;
-  severity: 'critical' | 'warning' | 'info';
+  severity: "critical" | "warning" | "info";
   metadata?: Record<string, unknown>;
 }
 
@@ -25,9 +25,9 @@ class AlertManager {
 
     if (this.errorCountWindow.length >= this.ERROR_THRESHOLD_PER_MIN) {
       this.sendAlert({
-        title: '🚨 CRITICAL ALERT: High Error Rate (>5 errors/min)',
-        message: `Detected ${this.errorCountWindow.length} 500-level errors in the last 60 seconds on route ${route || 'unknown'}. Latest: ${error}`,
-        severity: 'critical',
+        title: "🚨 CRITICAL ALERT: High Error Rate (>5 errors/min)",
+        message: `Detected ${this.errorCountWindow.length} 500-level errors in the last 60 seconds on route ${route || "unknown"}. Latest: ${error}`,
+        severity: "critical",
         metadata: { route, recentErrorCount: this.errorCountWindow.length },
       });
       // Reset window to prevent duplicate spamming
@@ -41,9 +41,9 @@ class AlertManager {
   public trackSlowRequest(durationMs: number, route: string) {
     if (durationMs > 5000) {
       this.sendAlert({
-        title: '⚠️ WARNING: High Request Latency (>5s)',
+        title: "⚠️ WARNING: High Request Latency (>5s)",
         message: `Request to ${route} took ${(durationMs / 1000).toFixed(2)} seconds.`,
-        severity: 'warning',
+        severity: "warning",
         metadata: { durationMs, route },
       });
     }
@@ -52,21 +52,28 @@ class AlertManager {
   /**
    * Monitor CPU and DB pool saturation
    */
-  public checkSystemHealth(metrics: { cpuPercent: number; activeDbConnections: number; maxDbConnections: number }) {
+  public checkSystemHealth(metrics: {
+    cpuPercent: number;
+    activeDbConnections: number;
+    maxDbConnections: number;
+  }) {
     if (metrics.cpuPercent > 80) {
       this.sendAlert({
-        title: '🚨 CRITICAL ALERT: High CPU Utilization (>80%)',
+        title: "🚨 CRITICAL ALERT: High CPU Utilization (>80%)",
         message: `CPU usage has reached ${metrics.cpuPercent.toFixed(1)}%.`,
-        severity: 'critical',
+        severity: "critical",
         metadata: metrics,
       });
     }
 
-    if (metrics.maxDbConnections > 0 && metrics.activeDbConnections / metrics.maxDbConnections > 0.85) {
+    if (
+      metrics.maxDbConnections > 0 &&
+      metrics.activeDbConnections / metrics.maxDbConnections > 0.85
+    ) {
       this.sendAlert({
-        title: '🚨 CRITICAL ALERT: Database Connection Pool Saturated (>85%)',
+        title: "🚨 CRITICAL ALERT: Database Connection Pool Saturated (>85%)",
         message: `Active DB connections: ${metrics.activeDbConnections} / ${metrics.maxDbConnections}`,
-        severity: 'critical',
+        severity: "critical",
         metadata: metrics,
       });
     }
@@ -84,20 +91,22 @@ class AlertManager {
     if (this.slackWebhookUrl) {
       try {
         await fetch(this.slackWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text: `*${payload.title}*\n${payload.message}\n\`\`\`${JSON.stringify(payload.metadata || {}, null, 2)}\`\`\``,
           }),
         });
       } catch (err) {
-        logger.error({ message: 'Failed to dispatch Slack alert', error: String(err) });
+        logger.error({ message: "Failed to dispatch Slack alert", error: String(err) });
       }
     }
 
     if (this.alertEmail) {
       // In production, integrate email service (e.g. Resend, SendGrid, Nodemailer)
-      logger.info({ message: `[SIMULATED EMAIL ALERT SENT] To: ${this.alertEmail} Subject: ${payload.title}` });
+      logger.info({
+        message: `[SIMULATED EMAIL ALERT SENT] To: ${this.alertEmail} Subject: ${payload.title}`,
+      });
     }
   }
 }

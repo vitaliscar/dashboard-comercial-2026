@@ -1,11 +1,11 @@
-import autocannon from 'autocannon';
+import autocannon from "autocannon";
 
 /**
  * Load Test Script for Dashboard Comercial 2026
  * Simulates 100 concurrent users against critical API routes and pages.
  */
 async function runLoadTest() {
-  const targetUrl = process.env.LOAD_TEST_URL || 'http://localhost:3000';
+  const targetUrl = process.env.LOAD_TEST_URL || "http://localhost:3000";
   console.log(`=======================================================`);
   console.log(`  STARTING LOAD TEST - 100 CONCURRENT USERS  `);
   console.log(`  Target URL: ${targetUrl}`);
@@ -14,15 +14,15 @@ async function runLoadTest() {
   const result = await autocannon({
     url: targetUrl,
     connections: 100, // 100 concurrent connections
-    duration: 10,     // 10 seconds test
+    duration: 10, // 10 seconds test
     pipelining: 1,
     requests: [
-      { path: '/', method: 'GET' },
-      { path: '/api/health', method: 'GET' },
-      { path: '/dashboard', method: 'GET' },
-      { path: '/gerencia-nacional', method: 'GET' },
-      { path: '/cobranzas', method: 'GET' },
-      { path: '/alertas', method: 'GET' },
+      { path: "/", method: "GET" },
+      { path: "/api/health", method: "GET" },
+      { path: "/dashboard", method: "GET" },
+      { path: "/gerencia-nacional", method: "GET" },
+      { path: "/cobranzas", method: "GET" },
+      { path: "/alertas", method: "GET" },
     ],
   });
 
@@ -36,7 +36,7 @@ async function runLoadTest() {
   console.log(`Latency p50        : ${result.latency.p50} ms`);
   console.log(`Latency p95        : ${result.latency.p95} ms`);
   console.log(`Latency p99        : ${result.latency.p99} ms`);
-  console.log(`2xx Responses      : ${result['2xx'] || 0}`);
+  console.log(`2xx Responses      : ${result["2xx"] || 0}`);
   console.log(`Non-2xx Responses  : ${result.non2xx || 0}`);
   console.log(`Errors             : ${result.errors || 0}`);
   console.log(`Timeouts           : ${result.timeouts || 0}`);
@@ -52,6 +52,6 @@ async function runLoadTest() {
 }
 
 runLoadTest().catch((err) => {
-  console.error('Load test failed with exception:', err);
+  console.error("Load test failed with exception:", err);
   process.exit(1);
 });

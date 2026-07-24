@@ -102,7 +102,8 @@ export default function AsesorPage() {
   const { data: metrics, isLoading } = useQuery({
     queryKey: ["asesor-panel", filterKey, profile?.id],
     enabled: canView,
-    queryFn: () => getAsesorMetricsAction({ anio, meses, ranges: dateRanges, unidades: selectedUnidades }),
+    queryFn: () =>
+      getAsesorMetricsAction({ anio, meses, ranges: dateRanges, unidades: selectedUnidades }),
   });
 
   const { data: trend } = useQuery({

@@ -1,4 +1,4 @@
-import { AsyncLocalStorage } from 'async_hooks';
+import { AsyncLocalStorage } from "async_hooks";
 
 export interface TraceContext {
   requestId: string;
@@ -10,7 +10,7 @@ export interface TraceContext {
 export const traceStorage = new AsyncLocalStorage<TraceContext>();
 
 export function generateRequestId(): string {
-  if (typeof globalThis.crypto?.randomUUID === 'function') {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
   }
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -18,7 +18,7 @@ export function generateRequestId(): string {
 
 export function runWithTrace<T>(
   context: Partial<TraceContext>,
-  fn: () => Promise<T> | T
+  fn: () => Promise<T> | T,
 ): Promise<T> | T {
   const fullContext: TraceContext = {
     requestId: context.requestId || generateRequestId(),

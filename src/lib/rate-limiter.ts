@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from "./logger";
 
 interface RateLimitRecord {
   count: number;
@@ -18,7 +18,12 @@ export class MemoryRateLimiter {
     setInterval(() => this.cleanup(), this.windowMs);
   }
 
-  isRateLimited(identifier: string): { limited: boolean; current: number; remaining: number; resetMs: number } {
+  isRateLimited(identifier: string): {
+    limited: boolean;
+    current: number;
+    remaining: number;
+    resetMs: number;
+  } {
     const now = Date.now();
     const record = this.requests.get(identifier);
 
@@ -27,12 +32,19 @@ export class MemoryRateLimiter {
         count: 1,
         resetTime: now + this.windowMs,
       });
-      return { limited: false, current: 1, remaining: this.maxRequests - 1, resetMs: this.windowMs };
+      return {
+        limited: false,
+        current: 1,
+        remaining: this.maxRequests - 1,
+        resetMs: this.windowMs,
+      };
     }
 
     record.count++;
     if (record.count > this.maxRequests) {
-      logger.warn(`[Rate Limit Exceeded] IP/User ${identifier} sent ${record.count} reqs in ${this.windowMs}ms`);
+      logger.warn(
+        `[Rate Limit Exceeded] IP/User ${identifier} sent ${record.count} reqs in ${this.windowMs}ms`,
+      );
       return {
         limited: true,
         current: record.count,

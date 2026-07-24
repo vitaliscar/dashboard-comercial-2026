@@ -6,12 +6,12 @@
 
 ## 1. Métricas Objetivos Core Web Vitals
 
-| Métrica | Objetivo | Estado Actual | Estado / Estrategia |
-| :--- | :---: | :---: | :--- |
-| **LCP (Largest Contentful Paint)** | `< 2.5 s` | **1.2 s** | ✅ Servidor SSR optimizado con Next.js App Router. |
-| **FID / INP (First Input Delay / INP)** | `< 100 ms` | **18 ms** | ✅ Componentes interactivos optimizados sin bloqueo de hilo principal. |
-| **CLS (Cumulative Layout Shift)** | `< 0.1` | **0.01** | ✅ Reservas explícitas de espacio para tablas y gráficos Recharts. |
-| **Lighthouse Performance Score** | `≥ 85 / 100` | **92 / 100** | ✅ Excelente rendimiento de entrega de assets. |
+| Métrica                                 |   Objetivo   | Estado Actual | Estado / Estrategia                                                    |
+| :-------------------------------------- | :----------: | :-----------: | :--------------------------------------------------------------------- |
+| **LCP (Largest Contentful Paint)**      |  `< 2.5 s`   |   **1.2 s**   | ✅ Servidor SSR optimizado con Next.js App Router.                     |
+| **FID / INP (First Input Delay / INP)** |  `< 100 ms`  |   **18 ms**   | ✅ Componentes interactivos optimizados sin bloqueo de hilo principal. |
+| **CLS (Cumulative Layout Shift)**       |   `< 0.1`    |   **0.01**    | ✅ Reservas explícitas de espacio para tablas y gráficos Recharts.     |
+| **Lighthouse Performance Score**        | `≥ 85 / 100` | **92 / 100**  | ✅ Excelente rendimiento de entrega de assets.                         |
 
 ---
 

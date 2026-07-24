@@ -11,7 +11,11 @@ const tracker = new Map<string, RateLimitRecord>();
  * @param limit Maximum allowed requests in window
  * @param windowMs Window duration in milliseconds (default: 1 minute)
  */
-export function checkRateLimit(key: string, limit: number = 60, windowMs: number = 60000): { success: boolean; remaining: number; resetTime: number } {
+export function checkRateLimit(
+  key: string,
+  limit: number = 60,
+  windowMs: number = 60000,
+): { success: boolean; remaining: number; resetTime: number } {
   const now = Date.now();
   const record = tracker.get(key);
 

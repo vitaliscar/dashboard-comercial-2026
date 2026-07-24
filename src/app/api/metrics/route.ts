@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import os from 'os';
+import { NextResponse } from "next/server";
+import os from "os";
 
 export async function GET() {
   const mem = process.memoryUsage();
@@ -32,7 +32,7 @@ node_cpu_cores ${cpus}
   return new NextResponse(metrics, {
     status: 200,
     headers: {
-      'Content-Type': 'text/plain; version=0.0.4',
+      "Content-Type": "text/plain; version=0.0.4",
     },
   });
 }

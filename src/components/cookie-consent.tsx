@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 export function CookieConsentBanner() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookie_consent');
+    const consent = localStorage.getItem("cookie_consent");
     if (!consent) {
       setShowBanner(true);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem('cookie_consent', 'accepted');
+    localStorage.setItem("cookie_consent", "accepted");
     setShowBanner(false);
   };
 
@@ -24,7 +24,8 @@ export function CookieConsentBanner() {
       <div className="space-y-2">
         <h4 className="text-sm font-semibold">Política de Cookies & Privacidad</h4>
         <p className="text-xs text-muted-foreground">
-          Utilizamos cookies esenciales para la autenticación y seguridad del Dashboard Comercial. Al continuar navegando, aceptas nuestros términos de privacidad.
+          Utilizamos cookies esenciales para la autenticación y seguridad del Dashboard Comercial.
+          Al continuar navegando, aceptas nuestros términos de privacidad.
         </p>
         <div className="flex items-center gap-2 pt-2">
           <button

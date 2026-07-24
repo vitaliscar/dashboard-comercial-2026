@@ -5,6 +5,7 @@
 ---
 
 ## 1. Requisitos Pre-Despliegue
+
 1. Confirmar que la suite de pruebas pase al 100%: `bun test` y `npx playwright test`.
 2. Verificar que la base de datos PostgreSQL tenga backups recientes.
 3. Asegurar variables de entorno en el servidor VPS en `.env.production`.
@@ -39,6 +40,7 @@ pm2 reload dashboard-comercial
 Si tras el despliegue se detectan alertas críticas o errores 500 sostenidos:
 
 ### Paso 1: Revertir versión del código
+
 ```bash
 # Revertir al commit anterior estable
 git log -n 5 --oneline
@@ -48,10 +50,12 @@ pm2 reload dashboard-comercial
 ```
 
 ### Paso 2: Restaurar base de datos (Si hubo migración destructiva)
+
 ```bash
 # Restaurar backup de PostgreSQL
 pg_restore -U postgres -d dashboard_db /var/backups/db_backup_pre_deploy.dump
 ```
 
 ### Paso 3: Notificación de Rollback
+
 Informar en el canal de Slack `#alertas-dashboard-prod` sobre la ejecución del rollback y la causa raíz.
