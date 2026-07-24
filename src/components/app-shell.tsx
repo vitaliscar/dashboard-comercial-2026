@@ -1,4 +1,7 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { roleLabel } from "@/lib/format";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
@@ -123,8 +126,8 @@ function pageTitle(pathname: string): string {
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile, role, signOut } = useAuth();
   const { filters } = useSharedFilters();
-  const nav = useNavigate();
-  const loc = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -165,7 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const handleSignOut = async () => {
     await signOut();
-    nav({ to: "/auth" });
+    router.replace("/auth");
   };
 
   return (
@@ -193,11 +196,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav className="flex-1 space-y-1 px-3 pt-2">
           {items.map((n) => {
-            const active = isNavItemActive(loc.pathname, n.to);
+            const active = isNavItemActive(pathname, n.to);
             return (
               <Link
                 key={n.to}
-                to={n.to}
+                href={n.to}
                 onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 font-display text-sm tracking-wide transition-[background-color,color,border-color,transform] duration-150 ease-out border rounded-lg",
@@ -215,7 +218,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="mt-auto border-t border-border pt-4 px-3 space-y-1">
           <Link
-            to="/auth"
+            href="/auth"
             onClick={handleSignOut}
             className="flex items-center gap-3 px-3 py-2.5 font-display text-sm font-bold tracking-wide text-sidebar-accent-foreground border border-transparent rounded-lg hover:border-border/30 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 transition-[border-color,color,background-color]"
           >
@@ -255,7 +258,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-6 flex-1 min-w-0">
             <h2 className="font-display font-black tracking-tight text-foreground text-lg truncate">
-              {pageTitle(loc.pathname)}
+              {pageTitle(pathname)}
             </h2>
           </div>
 
@@ -272,7 +275,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Button>
             {canUploadExcel && (
               <Link
-                to="/carga"
+                href="/carga"
                 className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
               >
                 <Upload className="size-4" />
