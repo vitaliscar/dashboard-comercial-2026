@@ -1,5 +1,7 @@
+"use client";
+
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { loginFn, logoutFn, meFn, type AppRole } from "@/lib/server/auth";
+import { loginAction, logoutAction, meAction, type AppRole } from "@/lib/actions/auth";
 import { clearSharedFilters } from "@/lib/shared-filters";
 
 export type { AppRole };
@@ -59,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadFromMe = async () => {
-    const me = await meFn();
+    const me = await meAction();
     if (me) {
       setSession(me.user);
       setProfile(toUserProfile(me.profile));
@@ -82,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role,
     loading,
     signIn: async (email: string, password: string) => {
-      const result = await loginFn({ data: { email, password } });
+      const result = await loginAction({ email, password });
       if (result.error || !result.user || !result.profile) {
         return { error: new Error(result.error ?? "No se pudo iniciar sesión.") };
       }
@@ -93,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     signOut: async () => {
       clearSharedFilters();
-      await logoutFn();
+      await logoutAction();
       setSession(null);
       setProfile(null);
       setRole(null);

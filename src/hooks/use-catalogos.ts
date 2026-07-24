@@ -1,5 +1,7 @@
+"use client";
+
 import { useQuery } from "@tanstack/react-query";
-import { getSucursalesFn, getUnidadesFn } from "@/lib/server/catalogos";
+import { getSucursalesAction, getUnidadesAction } from "@/lib/actions/catalogos";
 
 /**
  * Catálogos casi inmutables (solo cambian vía /carga o /usuarios). staleTime
@@ -15,7 +17,7 @@ import { getSucursalesFn, getUnidadesFn } from "@/lib/server/catalogos";
 export function useSucursales() {
   return useQuery({
     queryKey: ["sucursales"],
-    queryFn: () => getSucursalesFn(),
+    queryFn: () => getSucursalesAction(),
     staleTime: Infinity,
   });
 }
@@ -23,7 +25,7 @@ export function useSucursales() {
 export function useUnidades() {
   return useQuery({
     queryKey: ["unidades"],
-    queryFn: () => getUnidadesFn(),
+    queryFn: () => getUnidadesAction(),
     staleTime: Infinity,
   });
 }
