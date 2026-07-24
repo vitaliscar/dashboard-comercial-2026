@@ -1,5 +1,4 @@
 import { AsyncLocalStorage } from 'async_hooks';
-import { crypto } from 'node:crypto';
 
 export interface TraceContext {
   requestId: string;
