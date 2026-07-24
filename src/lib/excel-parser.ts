@@ -243,11 +243,9 @@ import * as fs from "fs";
 
 export class ExcelParser {
   private workbook: XLSX.WorkBook;
-  private filePath: string;
 
-  constructor(filePath: string) {
-    this.filePath = filePath;
-    const fileBuffer = fs.readFileSync(filePath);
+  constructor(source: string | Buffer) {
+    const fileBuffer = typeof source === "string" ? fs.readFileSync(source) : source;
     this.workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: true });
     console.log("\n🔍 HOJAS DETECTADAS EN EL EXCEL:", this.workbook.SheetNames, "\n");
   }
