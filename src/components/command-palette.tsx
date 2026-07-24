@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useRouter } from "next/navigation";
 import {
   CommandDialog,
   CommandEmpty,
@@ -68,7 +70,7 @@ export interface CommandPaletteProps {
  */
 export function CommandPalette({ open, onOpenChange: setOpen }: CommandPaletteProps) {
   const { role } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -85,7 +87,7 @@ export function CommandPalette({ open, onOpenChange: setOpen }: CommandPalettePr
 
   const go = (to: string) => {
     setOpen(false);
-    navigate({ to });
+    router.push(to);
   };
 
   return (
