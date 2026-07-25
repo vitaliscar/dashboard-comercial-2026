@@ -91,32 +91,48 @@ export const ReceivablesTable = memo(function ReceivablesTable({ rows, unitOptio
         </Empty>
       ) : (
         <>
-          <Table>
-            <TableHeader className="bg-primary [&_tr]:border-b-0">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-primary-foreground text-left text-xs tracking-wider">
-                  Nombre cliente
-                </TableHead>
-                <TableHead className="text-primary-foreground text-left text-xs tracking-wider">
-                  Unidad de negocio
-                </TableHead>
-                <TableHead className="text-primary-foreground text-right text-xs tracking-wider">
-                  Total $
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pageRows.map((r) => (
-                <TableRow key={`${r.cliente}-${r.unidadId}`}>
-                  <TableCell className="font-medium">{r.cliente}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.unidadLabel}</TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {money(r.total)}
-                  </TableCell>
+          {/* Mobile card view (<600px) */}
+          <div className="min-[600px]:hidden flex flex-col divide-y divide-border">
+            {pageRows.map((r) => (
+              <div key={`${r.cliente}-${r.unidadId}`} className="p-3 space-y-1 bg-card">
+                <div className="flex justify-between items-start gap-2">
+                  <span className="font-semibold text-sm text-foreground">{r.cliente}</span>
+                  <span className="font-mono font-bold text-sm text-primary shrink-0">{money(r.total)}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">{r.unidadLabel}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table (≥600px) */}
+          <div className="hidden min-[600px]:block overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-primary [&_tr]:border-b-0">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead aria-sort="none" className="text-primary-foreground text-left text-xs tracking-wider">
+                    Nombre cliente
+                  </TableHead>
+                  <TableHead aria-sort="none" className="text-primary-foreground text-left text-xs tracking-wider">
+                    Unidad de negocio
+                  </TableHead>
+                  <TableHead aria-sort="descending" className="text-primary-foreground text-right text-xs tracking-wider">
+                    Total $
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {pageRows.map((r) => (
+                  <TableRow key={`${r.cliente}-${r.unidadId}`}>
+                    <TableCell className="font-medium">{r.cliente}</TableCell>
+                    <TableCell className="text-muted-foreground">{r.unidadLabel}</TableCell>
+                    <TableCell className="text-right font-mono font-medium">
+                      {money(r.total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           {pageCount > 1 && (
             <div className="border-t border-border p-3">
               <Pagination>

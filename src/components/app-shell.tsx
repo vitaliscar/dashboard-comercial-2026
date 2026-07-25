@@ -24,9 +24,10 @@ import {
   UserSearch,
   Percent,
   Calculator,
+  Building2,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useState, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { canAccessModule, type ModuleKey } from "@/lib/permissions";
 import { StatusPill } from "@/components/status-pill";
@@ -130,8 +131,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
 
   const { data: sucursales } = useSucursales();
+
+  // Focus trap & Escape key listener for mobile menu (WCAG-P0-02)
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+      } else if (e.key === "Tab" && sidebarRef.current) {
+        const focusables = sidebarRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button, input, textarea, select, details, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   const getSucursalLabel = () => {
     if (!sucursales) return "...";
@@ -173,10 +201,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Sidebar */}
+      {/* Sidebar - Negro ónix (#111113) con divisores metálicos 1px */}
       <aside
+        ref={sidebarRef}
+        aria-label="Navegación principal"
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? "true" : undefined}
         className={cn(
-          "no-print fixed lg:sticky top-0 z-40 h-screen w-60 bg-sidebar border-r border-border flex flex-col overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "no-print fixed lg:sticky top-0 z-40 h-screen w-60 bg-[#111113] border-r border-border flex flex-col overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
@@ -187,7 +219,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="font-display font-bold text-sidebar-foreground text-lg leading-tight">
                 CCV
               </div>
-              <div className="text-[10px] tracking-widest text-sidebar-accent-foreground/70 font-display font-bold">
+              <div className="text-[10px] tracking-widest text-primary font-display font-bold uppercase">
                 {roleLabel(role)}
               </div>
             </div>
@@ -205,11 +237,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 font-display text-sm tracking-wide transition-[background-color,color,border-color,transform] duration-150 ease-out border rounded-lg",
                   active
-                    ? "border-border bg-accent text-accent-foreground font-bold"
+                    ? "border-border bg-accent text-accent-foreground font-bold border-l-2 border-l-primary"
                     : "border-transparent text-sidebar-accent-foreground hover:border-border/30 hover:text-sidebar-foreground hover:bg-sidebar-accent/40",
                 )}
               >
-                <n.icon className="size-4 shrink-0" />
+                <n.icon className={cn("size-4 shrink-0", active ? "text-primary" : "")} />
                 {n.label}
               </Link>
             );
@@ -227,7 +259,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-3 px-3 py-3 mt-2">
-            <div className="size-8 rounded-full bg-sidebar-accent border border-border flex items-center justify-center text-sidebar-foreground font-display font-bold text-xs shrink-0">
+            <div className="size-8 rounded-full bg-sidebar-accent border border-border flex items-center justify-center text-primary font-display font-bold text-xs shrink-0">
               {profile?.nombre_completo?.[0]?.toUpperCase() ??
                 profile?.email?.[0]?.toUpperCase() ??
                 "U"}
@@ -251,18 +283,24 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="no-print sticky top-0 z-20 h-16 bg-card border-b border-border flex items-center gap-4 px-6 lg:px-8">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}>
+        <header className="no-print sticky top-0 z-20 h-16 bg-card border-b border-border flex items-center gap-2 sm:gap-4 px-4 sm:px-6 lg:px-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setOpen(true)}
+            aria-label="Toggle menu"
+          >
             <Menu />
           </Button>
 
-          <div className="flex items-center gap-6 flex-1 min-w-0">
-            <h2 className="font-display font-black tracking-tight text-foreground text-lg truncate">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <h2 className="font-display font-bold tracking-tight text-foreground text-base sm:text-lg truncate">
               {pageTitle(pathname)}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -273,6 +311,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>Buscar</span>
               <Kbd className="ml-1">⌘K</Kbd>
             </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="sm:hidden text-muted-foreground"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Buscar"
+            >
+              <Search className="size-4" />
+            </Button>
+
             {canUploadExcel && (
               <Link
                 href="/carga"
@@ -283,13 +332,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             )}
             {canExportPdf && (
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                aria-label="Exportar PDF"
+              >
                 <FileDown className="size-4" />
                 <span className="hidden sm:inline">Exportar PDF</span>
               </Button>
             )}
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground bg-accent/40 border border-border px-2.5 py-1 rounded-md max-w-[200px] truncate">
-              <span className="text-muted-foreground font-display font-bold text-[10px] uppercase tracking-wider">
+            <div
+              className="flex items-center gap-1.5 text-xs font-semibold text-foreground bg-accent/40 border border-border px-2 sm:px-2.5 py-1 rounded-md max-w-[120px] sm:max-w-[200px] truncate"
+              title={`Sucursal: ${getSucursalLabel()}`}
+            >
+              <Building2 className="size-3.5 text-primary shrink-0 sm:hidden" />
+              <span className="hidden sm:inline text-muted-foreground font-display font-bold text-[10px] uppercase tracking-wider">
                 Sucursal:
               </span>
               <span className="font-display font-black text-[11px] uppercase tracking-wide truncate">
@@ -304,7 +362,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main id="print-area" className="flex-1 p-6 lg:p-8">
+        <main id="print-area" className="flex-1 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

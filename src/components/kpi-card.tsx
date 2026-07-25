@@ -106,7 +106,7 @@ export function KpiCard({
       <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-2">
         <span
           className={cn(
-            "font-display font-black tracking-tight tabular-nums text-foreground leading-none",
+            "font-mono font-bold tracking-tight tabular-nums text-foreground leading-none",
             compact ? "text-xl" : featured ? "text-3xl" : "text-2xl",
             valueClassName,
           )}

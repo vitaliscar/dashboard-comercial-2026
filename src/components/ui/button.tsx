@@ -9,15 +9,15 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "brutal-button bg-primary text-primary-foreground hover:brightness-95 active:brutal-button-press",
+          "brutal-button bg-primary text-primary-foreground hover:brightness-105 hover:border-primary/50 active:brutal-button-press",
         outline:
-          "brutal-button bg-card hover:bg-muted aria-expanded:bg-muted active:brutal-button-press",
+          "brutal-button bg-card text-foreground hover:bg-muted hover:border-primary/40 aria-expanded:bg-muted active:brutal-button-press",
         secondary:
-          "brutal-button bg-secondary text-secondary-foreground hover:brightness-95 aria-expanded:brightness-95 active:brutal-button-press",
+          "brutal-button bg-transparent text-primary border-primary/30 hover:bg-primary/10 hover:border-primary/60 aria-expanded:bg-primary/10 active:brutal-button-press",
         ghost:
-          "border-transparent hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
+          "border-transparent text-foreground hover:bg-muted hover:text-primary aria-expanded:bg-muted aria-expanded:text-primary",
         destructive:
-          "brutal-button bg-destructive text-destructive-foreground hover:brightness-95 focus-visible:ring-destructive/20 active:brutal-button-press",
+          "brutal-button bg-destructive text-destructive-foreground hover:brightness-105 focus-visible:ring-destructive/20 active:brutal-button-press",
         link: "border-transparent text-primary underline-offset-4 hover:underline normal-case tracking-normal font-medium",
       },
       size: {

@@ -17,6 +17,7 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(() => {
     if (typeof window !== "undefined") {
       return Number(sessionStorage.getItem("login_attempts") || "0");
@@ -37,11 +38,14 @@ export function AuthForm() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLocked) {
-      toast.error(`Demasiados intentos fallidos. Intenta de nuevo en ${minutesRemaining} minutos.`);
+      const msg = `Demasiados intentos fallidos. Intenta de nuevo en ${minutesRemaining} minutos.`;
+      setErrorMessage(msg);
+      toast.error(msg);
       return;
     }
 
     setLoading(true);
+    setErrorMessage(null);
     const { error } = await signIn(email, password);
 
     if (error) {
@@ -54,11 +58,14 @@ export function AuthForm() {
         const lockTime = Date.now() + 15 * 60 * 1000;
         setLockUntil(lockTime);
         sessionStorage.setItem("login_lock_until", String(lockTime));
-        toast.error(
-          "Acceso temporalmente bloqueado por 15 minutos debido a demasiados intentos fallidos.",
-        );
+        const msg =
+          "Acceso temporalmente bloqueado por 15 minutos debido a demasiados intentos fallidos.";
+        setErrorMessage(msg);
+        toast.error(msg);
       } else {
-        toast.error(error.message + ` (Intento ${newAttempts}/5)`);
+        const msg = error.message + ` (Intento ${newAttempts}/5)`;
+        setErrorMessage(msg);
+        toast.error(msg);
       }
       return;
     }
@@ -203,6 +210,17 @@ export function AuthForm() {
                 </div>
               </div>
             </div>
+
+            {errorMessage && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="text-xs font-semibold text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3"
+              >
+                {errorMessage}
+              </div>
+            )}
+
             <Button
               type="submit"
               className="w-full h-11 text-sm font-semibold"

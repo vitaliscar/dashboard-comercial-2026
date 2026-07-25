@@ -406,8 +406,17 @@ export default function AsesoresPage() {
                         return (
                           <TableRow
                             key={item.codigo}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setSelectedAdvisor(item)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setSelectedAdvisor(item);
+                              }
+                            }}
                             className={cn(
-                              "hover:bg-muted/20 transition-colors",
+                              "hover:bg-muted/30 cursor-pointer transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring",
                               isCasa && "bg-secondary/40 font-semibold hover:bg-secondary/60",
                             )}
                           >
