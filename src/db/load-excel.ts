@@ -26,6 +26,7 @@ import {
   cobranzasEquipos,
   servicios,
   detallesServiciosEstrategicos,
+  serviciosInterno,
   equiposInventario,
   equiposPorMarca,
   equiposFacturacionSucursal,
@@ -453,6 +454,18 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
         mes: d.mes,
         tipoServicio: d.tipoServicio,
         monto: String(d.monto),
+      })),
+    );
+
+    // 8.2 Servicios Interno (solo Mes + Monto, sin sucursal/año)
+    console.log("→ Cargando servicios interno...");
+    const serviciosInternoRaw = parser.getServiciosInterno();
+    await dbAdmin.delete(serviciosInterno);
+    result.rowsAffected["servicios_interno"] = await insertChunked(
+      serviciosInterno,
+      serviciosInternoRaw.map((s) => ({
+        mes: s.mes,
+        monto: String(s.monto),
       })),
     );
 
