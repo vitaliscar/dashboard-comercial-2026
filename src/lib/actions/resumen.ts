@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte, lt, inArray } from "drizzle-orm";
+import { and, eq, gte, lt, inArray, sum, count } from "drizzle-orm";
 import {
   cotizaciones,
   facturas,
@@ -24,10 +24,19 @@ export async function getResumenDataAction(data: {
     const sucCond = <T extends { sucursalId: unknown }>(col: T["sucursalId"]) =>
       sucursalId ? eq(col as never, sucursalId) : undefined;
 
-    const cotCond = and(dateRangeCondition(cotizaciones.fecha, ranges), sucCond(cotizaciones.sucursalId));
+    const cotCond = and(
+      dateRangeCondition(cotizaciones.fecha, ranges),
+      sucCond(cotizaciones.sucursalId),
+    );
     const facCond = and(dateRangeCondition(facturas.fecha, ranges), sucCond(facturas.sucursalId));
-    const vpCond = and(dateRangeCondition(ventasPerdidas.fecha, ranges), sucCond(ventasPerdidas.sucursalId));
-    const servCond = and(dateRangeCondition(servicios.fecha, ranges), sucCond(servicios.sucursalId));
+    const vpCond = and(
+      dateRangeCondition(ventasPerdidas.fecha, ranges),
+      sucCond(ventasPerdidas.sucursalId),
+    );
+    const servCond = and(
+      dateRangeCondition(servicios.fecha, ranges),
+      sucCond(servicios.sucursalId),
+    );
 
     const mesCond =
       meses === "all"
@@ -49,11 +58,73 @@ export async function getResumenDataAction(data: {
             )
         : inArray(cumplimientoAsesores.mes, meses);
 
-    const [cot, fac, vp, serv, pre, ca] = await Promise.all([
-      tx.select().from(cotizaciones).where(cotCond),
-      tx.select().from(facturas).where(facCond),
-      tx.select().from(ventasPerdidas).where(vpCond),
-      tx.select().from(servicios).where(servCond),
+    const [cot, cotClientes, fac, vp, vpClientes, vpRazones, serv, pre, ca] = await Promise.all([
+      tx
+        .select({
+          unidadNegocioId: cotizaciones.unidadNegocioId,
+          montoTotal: sum(cotizaciones.monto),
+          cantidad: count(cotizaciones.id),
+        })
+        .from(cotizaciones)
+        .where(cotCond)
+        .groupBy(cotizaciones.unidadNegocioId),
+      tx
+        .select({
+          unidadNegocioId: cotizaciones.unidadNegocioId,
+          sucursalId: cotizaciones.sucursalId,
+          cliente: cotizaciones.cliente,
+          montoTotal: sum(cotizaciones.monto),
+        })
+        .from(cotizaciones)
+        .where(cotCond)
+        .groupBy(cotizaciones.unidadNegocioId, cotizaciones.sucursalId, cotizaciones.cliente),
+      tx
+        .select({
+          unidadNegocioId: facturas.unidadNegocioId,
+          montoTotal: sum(facturas.monto),
+          cantidad: count(facturas.id),
+        })
+        .from(facturas)
+        .where(facCond)
+        .groupBy(facturas.unidadNegocioId),
+      tx
+        .select({
+          unidadNegocioId: ventasPerdidas.unidadNegocioId,
+          montoTotal: sum(ventasPerdidas.monto),
+          cantidad: count(ventasPerdidas.id),
+        })
+        .from(ventasPerdidas)
+        .where(vpCond)
+        .groupBy(ventasPerdidas.unidadNegocioId),
+      tx
+        .select({
+          unidadNegocioId: ventasPerdidas.unidadNegocioId,
+          sucursalId: ventasPerdidas.sucursalId,
+          cliente: ventasPerdidas.cliente,
+          montoTotal: sum(ventasPerdidas.monto),
+        })
+        .from(ventasPerdidas)
+        .where(vpCond)
+        .groupBy(ventasPerdidas.unidadNegocioId, ventasPerdidas.sucursalId, ventasPerdidas.cliente),
+      tx
+        .select({
+          unidadNegocioId: ventasPerdidas.unidadNegocioId,
+          razon: ventasPerdidas.razon,
+          montoTotal: sum(ventasPerdidas.monto),
+          cantidad: count(ventasPerdidas.id),
+        })
+        .from(ventasPerdidas)
+        .where(vpCond)
+        .groupBy(ventasPerdidas.unidadNegocioId, ventasPerdidas.razon),
+      tx
+        .select({
+          unidadNegocioId: servicios.unidadNegocioId,
+          montoTotal: sum(servicios.monto),
+          cantidad: count(servicios.id),
+        })
+        .from(servicios)
+        .where(servCond)
+        .groupBy(servicios.unidadNegocioId),
       tx
         .select()
         .from(presupuestos)
@@ -73,8 +144,11 @@ export async function getResumenDataAction(data: {
 
     return {
       cotizaciones: cot,
+      cotizacionesClientes: cotClientes,
       facturas: fac,
       ventasPerdidas: vp,
+      ventasPerdidasClientes: vpClientes,
+      ventasPerdidasRazones: vpRazones,
       servicios: serv,
       presupuestos: pre,
       cumplimientoAsesor: ca,

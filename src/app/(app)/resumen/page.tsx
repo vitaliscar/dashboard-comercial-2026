@@ -187,7 +187,6 @@ export default function ResumenPage() {
     const sucMap = new Map<string, string>();
     sucursales.forEach((s) => sucMap.set(s.id, s.nombre));
 
-    const maturinId = sucursales.find((s) => s.nombre === "Maturín")?.id;
     const categories: UnidadNegocio[] = [
       "Servicios",
       "Repuestos",
@@ -203,7 +202,7 @@ export default function ResumenPage() {
     let totalPerdido = 0;
 
     rawData.cotizaciones.forEach((c) => {
-      totalCotizado += Number(c.monto);
+      totalCotizado += Number(c.montoTotal || 0);
     });
     // Facturado = Ventas_CCV + Ventas_Xibi + Ventas_Estrategicas de CumplimientoBase (presupuestos),
     // no la suma transaccional de facturas — esa hoja no es la fuente de verdad para este KPI.
@@ -222,7 +221,7 @@ export default function ResumenPage() {
       });
     }
     rawData.ventasPerdidas.forEach((vp) => {
-      totalPerdido += Number(vp.monto);
+      totalPerdido += Number(vp.montoTotal || 0);
     });
 
     const facturadoVsCotizadoPorcentaje =
@@ -236,19 +235,24 @@ export default function ResumenPage() {
         const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
         return dbName && mapDbUnidadToUi(dbName) === cat;
       });
-      const monto = filtered.reduce((sum, c) => sum + Number(c.monto), 0);
+      const monto = filtered.reduce((sum, c) => sum + Number(c.montoTotal || 0), 0);
 
+      const filteredClientes = (rawData.cotizacionesClientes || []).filter((c) => {
+        const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
       const clientMap = new Map<string, TopCliente>();
-      filtered.forEach((c) => {
-        const key = `${c.cliente}|${c.sucursalId}`;
+      filteredClientes.forEach((c) => {
+        const key = `${c.cliente}|${c.sucursalId || ""}`;
         const existing = clientMap.get(key);
+        const m = Number(c.montoTotal || 0);
         if (existing) {
-          existing.monto += Number(c.monto);
+          existing.monto += m;
         } else {
           clientMap.set(key, {
             cliente: c.cliente,
             sucursal: c.sucursalId ? sucMap.get(c.sucursalId) || "" : "",
-            monto: Number(c.monto),
+            monto: m,
           });
         }
       });
@@ -292,56 +296,6 @@ export default function ResumenPage() {
       let ventasXibi = 0;
       let ventasEstrategicas = 0;
 
-      if (cat === "Servicios") {
-        // Para Servicios: extrae de tabla `servicios`, TOP 5 por facturación agrupada por cliente+sucursal
-        const filteredServ = (rawData.servicios || []).filter((s) => {
-          const dbName = s.unidadNegocioId ? unitMap.get(s.unidadNegocioId) : "";
-          return dbName && mapDbUnidadToUi(dbName) === cat;
-        });
-
-        const clientMap = new Map<string, TopCliente>();
-        filteredServ.forEach((s) => {
-          const key = `${s.cliente}|${s.sucursalId}`;
-          const existing = clientMap.get(key);
-          if (existing) {
-            existing.monto += Number(s.monto) || 0;
-          } else {
-            clientMap.set(key, {
-              cliente: s.cliente || "Cliente S/N",
-              sucursal: s.sucursalId ? sucMap.get(s.sucursalId) || "" : "",
-              monto: Number(s.monto) || 0,
-            });
-          }
-        });
-        topClientes = Array.from(clientMap.values())
-          .sort((a, b) => b.monto - a.monto)
-          .slice(0, 5);
-      } else {
-        // Para otras categorías: usa facturas, agrupa por cliente+sucursal
-        const filteredFac = rawData.facturas.filter((f) => {
-          const dbName = f.unidadNegocioId ? unitMap.get(f.unidadNegocioId) : "";
-          return dbName && mapDbUnidadToUi(dbName) === cat;
-        });
-
-        const clientMap = new Map<string, TopCliente>();
-        filteredFac.forEach((f) => {
-          const key = `${f.cliente}|${f.sucursalId}`;
-          const existing = clientMap.get(key);
-          if (existing) {
-            existing.monto += Number(f.monto);
-          } else {
-            clientMap.set(key, {
-              cliente: f.cliente,
-              sucursal: f.sucursalId ? sucMap.get(f.sucursalId) || "" : "",
-              monto: Number(f.monto),
-            });
-          }
-        });
-        topClientes = Array.from(clientMap.values())
-          .sort((a, b) => b.monto - a.monto)
-          .slice(0, 5);
-      }
-
       if (role === "asesor") {
         // cumplimiento_asesores no distingue Ventas_CCV/Xibi/Estratégicas — solo presupuesto y
         // venta totales por U/N para este asesor.
@@ -352,10 +306,12 @@ export default function ResumenPage() {
         presupuesto = filteredCa.reduce((sum, c) => sum + Number(c.presupuesto || 0), 0);
         monto = filteredCa.reduce((sum, c) => sum + Number(c.venta || 0), 0);
       } else {
+        // Maturín/Machine Shop se cargan sólo en meses con movimiento real (ver
+        // excel-parser.ts debeExcluirCumplimiento) — cualquier fila que llega aquí
+        // ya es válida, así que no se filtran por sucursal.
         const filteredPre = rawData.presupuestos.filter((p) => {
           const dbName = p.unidadNegocioId ? unitMap.get(p.unidadNegocioId) : "";
-          const isMaturin = maturinId && p.sucursalId === maturinId;
-          return dbName && mapDbUnidadToUi(dbName) === cat && !isMaturin;
+          return dbName && mapDbUnidadToUi(dbName) === cat;
         });
         presupuesto = filteredPre.reduce((sum, p) => sum + Number(p.monto), 0);
 
@@ -405,37 +361,48 @@ export default function ResumenPage() {
         const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
         return dbName && mapDbUnidadToUi(dbName) === cat;
       });
-      const monto = filtered.reduce((sum, vp) => sum + Number(vp.monto), 0);
+      const monto = filtered.reduce((sum, vp) => sum + Number(vp.montoTotal || 0), 0);
 
-      const clientMap = new Map<string, TopCliente>();
-      filtered.forEach((vp) => {
-        const key = `${vp.cliente}|${vp.sucursalId}`;
-        const existing = clientMap.get(key);
+      const filteredClientes = (rawData.ventasPerdidasClientes || []).filter((vp) => {
+        const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
+      const vpClientMap = new Map<string, TopCliente>();
+      filteredClientes.forEach((vp) => {
+        const key = `${vp.cliente}|${vp.sucursalId || ""}`;
+        const existing = vpClientMap.get(key);
+        const m = Number(vp.montoTotal || 0);
         if (existing) {
-          existing.monto += Number(vp.monto);
+          existing.monto += m;
         } else {
-          clientMap.set(key, {
+          vpClientMap.set(key, {
             cliente: vp.cliente,
             sucursal: vp.sucursalId ? sucMap.get(vp.sucursalId) || "" : "",
-            monto: Number(vp.monto),
+            monto: m,
           });
         }
       });
-      const topClientes = Array.from(clientMap.values())
+      const topClientes = Array.from(vpClientMap.values())
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
 
+      const filteredRazones = (rawData.ventasPerdidasRazones || []).filter((vp) => {
+        const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
       const razonMap = new Map<string, { razon: string; monto: number; cantidad: number }>();
-      filtered.forEach((vp) => {
+      filteredRazones.forEach((vp) => {
         const existing = razonMap.get(vp.razon);
+        const m = Number(vp.montoTotal || 0);
+        const cant = Number(vp.cantidad || 0);
         if (existing) {
-          existing.monto += Number(vp.monto);
-          existing.cantidad += 1;
+          existing.monto += m;
+          existing.cantidad += cant;
         } else {
           razonMap.set(vp.razon, {
             razon: vp.razon,
-            monto: Number(vp.monto),
-            cantidad: 1,
+            monto: m,
+            cantidad: cant,
           });
         }
       });
@@ -657,42 +624,20 @@ export default function ResumenPage() {
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
       />
 
-      {/* Fila superior: Cotizaciones, Facturación y Ventas Perdidas lado a lado (cada unidad
-          como fila compacta) — el detalle de top clientes/razones baja junto, debajo del bloque. */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <CotizacionesSection
-          datos={resumenData.cotizaciones}
-          hideSucursalColumn={role === "coordinador" || role === "asesor"}
-          part="summary"
-        />
-        <FacturadoSection
-          datos={resumenData.facturado}
-          hideSucursalColumn={role === "coordinador" || role === "asesor"}
-          part="summary"
-        />
-        <VentasPerdidasSection
-          datos={resumenData.ventasPerdidas}
-          hideSucursalColumn={role === "coordinador" || role === "asesor"}
-          part="summary"
-        />
-      </div>
-
+      {/* Secciones por Fila: Cotizaciones, Facturado y Ventas Perdidas */}
       <CotizacionesSection
         datos={resumenData.cotizaciones}
         hideSucursalColumn={role === "coordinador" || role === "asesor"}
-        part="detail"
       />
 
       <FacturadoSection
         datos={resumenData.facturado}
         hideSucursalColumn={role === "coordinador" || role === "asesor"}
-        part="detail"
       />
 
       <VentasPerdidasSection
         datos={resumenData.ventasPerdidas}
         hideSucursalColumn={role === "coordinador" || role === "asesor"}
-        part="detail"
       />
     </div>
   );

@@ -4,11 +4,12 @@ import { db } from "@/db";
 import type { AppRole } from "@/lib/actions/auth";
 import { getCurrentSession } from "@/lib/actions/auth";
 
-type AuthedProfile = Awaited<ReturnType<typeof getCurrentSession>> extends infer R
-  ? R extends { profile: infer P }
-    ? P
-    : never
-  : never;
+type AuthedProfile =
+  Awaited<ReturnType<typeof getCurrentSession>> extends infer R
+    ? R extends { profile: infer P }
+      ? P
+      : never
+    : never;
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**

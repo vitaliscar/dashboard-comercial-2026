@@ -1,15 +1,24 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/actions/auth";
+import { unidadId, type UnidadKey } from "@/lib/server/unidades";
 
-// Map from canonical unit ID to specific route. Repuestos has no dedicated route — a
-// Repuestos-only GC (e.g. Abrahan Chavez) falls through to /gerencia-nacional, same as
-// any multi-unit GC, filtered to their assigned unit via the unit chip selector.
-const UNIT_TO_ROUTE: Record<string, string> = {
-  "9c322ad9-75af-4f88-912e-182e708264d3": "/servicios",
-  "bd01d86c-c8a5-488a-9afc-141d242b9325": "/lubfiltros",
-  "78e09e03-c1aa-4ed5-8755-8310102f5220": "/equipos",
-  "825146fc-ab6d-4f9c-97d4-2078f3e67549": "/alquiler",
+// Ruta dedicada por unidad. Los IDs se resuelven por nombre contra la BD: no
+// son estables entre cargas del Excel (defaultRandom), y hardcodearlos hacía
+// que ningún GC llegara nunca a su vista de unidad.
+const ROUTE_BY_UNIDAD: Record<UnidadKey, string> = {
+  servicios: "/servicios",
+  lubfiltros: "/lubfiltros",
+  equipos: "/equipos",
+  alquiler: "/alquiler",
+  repuestos: "/repuestos",
 };
+
+async function unitRoute(unidadNegocioId: string): Promise<string | null> {
+  for (const key of Object.keys(ROUTE_BY_UNIDAD) as UnidadKey[]) {
+    if ((await unidadId(key)) === unidadNegocioId) return ROUTE_BY_UNIDAD[key];
+  }
+  return null;
+}
 
 /**
  * Dashboard Home — detecta el rol y redirige a la vista correspondiente.
@@ -29,9 +38,8 @@ export default async function DashboardPage() {
 
     case "gerente_comercial": {
       const units = profile.unidadesNegocioIds ?? [];
-      if (units.length === 1 && UNIT_TO_ROUTE[units[0]]) {
-        redirect(UNIT_TO_ROUTE[units[0]]);
-      }
+      const route = units.length === 1 ? await unitRoute(units[0]) : null;
+      if (route) redirect(route);
       redirect("/gerencia-nacional");
     }
 

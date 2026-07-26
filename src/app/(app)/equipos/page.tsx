@@ -15,7 +15,15 @@ import {
   getEquiposClientesCobroAction,
 } from "@/lib/actions/equipos";
 import { useMemo, useState } from "react";
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ComposedChart, Bar } from "recharts";
+import {
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  ComposedChart,
+  Bar,
+} from "recharts";
 import { Truck, TrendingUp, FileText, Search, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -52,8 +60,9 @@ export default function Equipos() {
         facturado: 0,
       }));
       rows.forEach((r) => {
-        const m = new Date(r.fecha).getMonth();
-        byMonth[m].facturado += Number(r.monto);
+        if (r.mes >= 1 && r.mes <= 12) {
+          byMonth[r.mes - 1].facturado += Number(r.monto);
+        }
       });
       return byMonth;
     },

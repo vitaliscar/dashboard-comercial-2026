@@ -193,8 +193,27 @@ export const DataTable = memo(function DataTable({
               {columns.map((col) => (
                 <TableHead
                   key={col.key}
+                  role={col.sortable ? "columnheader" : undefined}
+                  aria-sort={
+                    col.sortable
+                      ? sortKey === col.key
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : sortDir === "desc"
+                            ? "descending"
+                            : "none"
+                        : "none"
+                      : undefined
+                  }
+                  tabIndex={col.sortable ? 0 : undefined}
+                  onKeyDown={(e) => {
+                    if (col.sortable && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      handleSort(col.key);
+                    }
+                  }}
                   className={cn(
-                    "h-8 px-2.5 py-1.5 font-display text-[9px] font-bold tracking-wider text-muted-foreground uppercase whitespace-normal",
+                    "h-8 px-2.5 py-1.5 font-display text-[9px] font-bold tracking-wider text-muted-foreground uppercase whitespace-normal outline-none focus-visible:ring-1 focus-visible:ring-ring",
                     col.align === "right" ? "text-right" : "text-left",
                     col.width || "",
                     col.sortable &&
