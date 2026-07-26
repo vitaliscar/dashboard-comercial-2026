@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gt, inArray, type SQLWrapper } from "drizzle-orm";
+import { and, eq, gt, inArray, sum, count, max, type SQLWrapper } from "drizzle-orm";
 import {
   presupuestos,
   cobranzas,
@@ -23,12 +23,12 @@ export async function getCoordinadorYearAction(data: { anio: number }) {
 
     const rows = await tx
       .select({
-        monto: presupuestos.monto,
+        monto: sum(presupuestos.monto),
         mes: presupuestos.mes,
         unidadNegocioId: presupuestos.unidadNegocioId,
-        ventasCcv: presupuestos.ventasCcv,
-        ventasXibi: presupuestos.ventasXibi,
-        ventasEstrategicas: presupuestos.ventasEstrategicas,
+        ventasCcv: sum(presupuestos.ventasCcv),
+        ventasXibi: sum(presupuestos.ventasXibi),
+        ventasEstrategicas: sum(presupuestos.ventasEstrategicas),
       })
       .from(presupuestos)
       .where(
@@ -36,9 +36,18 @@ export async function getCoordinadorYearAction(data: { anio: number }) {
           eq(presupuestos.anio, data.anio),
           sucursalId ? eq(presupuestos.sucursalId, sucursalId) : undefined,
         ),
-      );
+      )
+      .groupBy(presupuestos.mes, presupuestos.unidadNegocioId);
 
-    return { presupuestos: rows };
+    return {
+      presupuestos: rows.map((r) => ({
+        ...r,
+        monto: Number(r.monto ?? 0),
+        ventasCcv: Number(r.ventasCcv ?? 0),
+        ventasXibi: Number(r.ventasXibi ?? 0),
+        ventasEstrategicas: Number(r.ventasEstrategicas ?? 0),
+      })),
+    };
   });
 }
 
@@ -49,8 +58,8 @@ export async function getCoordinadorCobranzasAction() {
     const rows = await tx
       .select({
         cliente: cobranzas.cliente,
-        monto: cobranzas.monto,
-        saldo: cobranzas.saldo,
+        monto: sum(cobranzas.monto),
+        saldo: sum(cobranzas.saldo),
         unidadNegocioId: cobranzas.unidadNegocioId,
       })
       .from(cobranzas)
@@ -59,9 +68,14 @@ export async function getCoordinadorCobranzasAction() {
           gt(cobranzas.saldo, "0"),
           sucursalId ? eq(cobranzas.sucursalId, sucursalId) : undefined,
         ),
-      );
+      )
+      .groupBy(cobranzas.cliente, cobranzas.unidadNegocioId);
 
-    return rows;
+    return rows.map((r) => ({
+      ...r,
+      monto: String(r.monto ?? 0),
+      saldo: String(r.saldo ?? 0),
+    }));
   });
 }
 
@@ -104,34 +118,63 @@ export async function getCoordinadorScorecardAction(data: {
 
     const [c, f, m, a] = await Promise.all([
       tx
-        .select({ asesorCodigo: cotizaciones.asesorCodigo, monto: cotizaciones.monto })
+        .select({
+          asesorCodigo: cotizaciones.asesorCodigo,
+          monto: sum(cotizaciones.monto),
+          cantidad: count(cotizaciones.id),
+        })
         .from(cotizaciones)
-        .where(and(...cotConds)),
+        .where(and(...cotConds))
+        .groupBy(cotizaciones.asesorCodigo),
       tx
-        .select({ asesor: facturas.asesor, monto: facturas.monto })
+        .select({
+          asesor: facturas.asesor,
+          monto: sum(facturas.monto),
+          cantidad: count(facturas.id),
+        })
         .from(facturas)
-        .where(and(...facConds)),
+        .where(and(...facConds))
+        .groupBy(facturas.asesor),
       tx
-        .select({ responsable: minutas.responsable, estado: minutas.estado })
+        .select({
+          responsable: minutas.responsable,
+          estado: minutas.estado,
+          cantidad: count(minutas.id),
+        })
         .from(minutas)
-        .where(and(...minConds)),
+        .where(and(...minConds))
+        .groupBy(minutas.responsable, minutas.estado),
       tx
         .select({
           codigoAsesor: cumplimientoAsesores.codigoAsesor,
           asesor: cumplimientoAsesores.asesor,
-          venta: cumplimientoAsesores.venta,
-          pctCumplimiento: cumplimientoAsesores.pctCumplimiento,
-          pctParticipacion: cumplimientoAsesores.pctParticipacion,
+          venta: sum(cumplimientoAsesores.venta),
+          pctCumplimiento: max(cumplimientoAsesores.pctCumplimiento),
+          pctParticipacion: max(cumplimientoAsesores.pctParticipacion),
         })
         .from(cumplimientoAsesores)
-        .where(and(...caConds)),
+        .where(and(...caConds))
+        .groupBy(cumplimientoAsesores.codigoAsesor, cumplimientoAsesores.asesor),
     ]);
 
     return {
-      cotizaciones: c,
-      facturas: f,
-      minutas: m,
-      asesores: a,
+      cotizaciones: c.map((r) => ({
+        ...r,
+        monto: Number(r.monto ?? 0),
+        cantidad: Number(r.cantidad ?? 0),
+      })),
+      facturas: f.map((r) => ({
+        ...r,
+        monto: Number(r.monto ?? 0),
+        cantidad: Number(r.cantidad ?? 0),
+      })),
+      minutas: m.map((r) => ({ ...r, cantidad: Number(r.cantidad ?? 0) })),
+      asesores: a.map((r) => ({
+        ...r,
+        venta: Number(r.venta ?? 0),
+        pctCumplimiento: Number(r.pctCumplimiento ?? 0),
+        pctParticipacion: Number(r.pctParticipacion ?? 0),
+      })),
     };
   });
 }

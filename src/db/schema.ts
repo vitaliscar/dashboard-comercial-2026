@@ -9,6 +9,7 @@ import {
   timestamp,
   date,
   primaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 
 // ── Enums ────────────────────────────────────────────────────────────────
@@ -40,14 +41,18 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const sessions = pgTable("sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sessions_user_id_idx").on(t.userId)],
+);
 
 // ── Catálogos / identidad ───────────────────────────────────────────────────
 export const sucursales = pgTable("sucursales", {
@@ -106,65 +111,102 @@ export const userRoles = pgTable("user_roles", {
 // ── Comerciales / transaccionales ───────────────────────────────────────────
 // cotizaciones: sin columna `asesor` (drift conocido) — resolver el nombre
 // contra cumplimiento_asesores.codigo_asesor en el código de consulta, no aquí.
-export const cotizaciones = pgTable("cotizaciones", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  fecha: date("fecha").notNull(),
-  cliente: text("cliente").notNull(),
-  asesorCodigo: text("asesor_codigo"),
-  asesorId: uuid("asesor_id"),
-  sucursalId: uuid("sucursal_id").references(() => sucursales.id),
-  // NOT NULL aquí, a diferencia de facturas/ventas_perdidas
-  unidadNegocioId: uuid("unidad_negocio_id")
-    .notNull()
-    .references(() => unidadesNegocio.id),
-  nroCotizacion: text("nro_cotizacion"),
-  monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
-  montoFacturado: numeric("monto_facturado", { precision: 14, scale: 2 }).notNull().default("0"),
-  montoPerdido: numeric("monto_perdido", { precision: 14, scale: 2 }).notNull().default("0"),
-  etapa: cotizacionEtapa("etapa").notNull().default("desarrollo"),
-  descripcion: text("descripcion"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const cotizaciones = pgTable(
+  "cotizaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fecha: date("fecha").notNull(),
+    cliente: text("cliente").notNull(),
+    asesorCodigo: text("asesor_codigo"),
+    asesorId: uuid("asesor_id"),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    nroCotizacion: text("nro_cotizacion"),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    montoFacturado: numeric("monto_facturado", { precision: 14, scale: 2 }).notNull().default("0"),
+    montoPerdido: numeric("monto_perdido", { precision: 14, scale: 2 }).notNull().default("0"),
+    etapa: cotizacionEtapa("etapa").notNull().default("desarrollo"),
+    descripcion: text("descripcion"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("cotizaciones_fecha_idx").on(t.fecha),
+    index("cotizaciones_sucursal_id_fecha_idx").on(t.sucursalId, t.fecha),
+  ],
+);
 
-export const facturas = pgTable("facturas", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  fecha: date("fecha").notNull(),
-  numero: text("numero"),
-  cliente: text("cliente").notNull(),
-  asesor: text("asesor"),
-  asesorId: uuid("asesor_id"),
-  sucursalId: uuid("sucursal_id").references(() => sucursales.id),
-  unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
-  monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const facturas = pgTable(
+  "facturas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fecha: date("fecha").notNull(),
+    numero: text("numero"),
+    cliente: text("cliente").notNull(),
+    asesor: text("asesor"),
+    asesorId: uuid("asesor_id"),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("facturas_fecha_idx").on(t.fecha),
+    index("facturas_sucursal_id_fecha_idx").on(t.sucursalId, t.fecha),
+  ],
+);
 
-export const ventasPerdidas = pgTable("ventas_perdidas", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  fecha: date("fecha").notNull(),
-  cliente: text("cliente").notNull(),
-  asesor: text("asesor"),
-  asesorId: uuid("asesor_id"),
-  sucursalId: uuid("sucursal_id").references(() => sucursales.id),
-  unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
-  monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
-  razon: text("razon").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const ventasPerdidas = pgTable(
+  "ventas_perdidas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fecha: date("fecha").notNull(),
+    cliente: text("cliente").notNull(),
+    asesor: text("asesor"),
+    asesorId: uuid("asesor_id"),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    razon: text("razon").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ventas_perdidas_fecha_idx").on(t.fecha)],
+);
 
-export const servicios = pgTable("servicios", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  fecha: date("fecha").notNull(),
-  cliente: text("cliente").notNull(),
-  monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
-  tipoServicio: text("tipo_servicio"),
-  categoriaVenta: text("categoria_venta"),
-  compania: text("compania"),
-  asesor: text("asesor"),
-  sucursalId: uuid("sucursal_id").references(() => sucursales.id),
-  unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const servicios = pgTable(
+  "servicios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fecha: date("fecha").notNull(),
+    cliente: text("cliente").notNull(),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    tipoServicio: text("tipo_servicio"),
+    categoriaVenta: text("categoria_venta"),
+    compania: text("compania"),
+    asesor: text("asesor"),
+    taller: text("taller"),
+    csa: text("csa"),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("servicios_fecha_idx").on(t.fecha),
+    index("servicios_sucursal_id_fecha_idx").on(t.sucursalId, t.fecha),
+  ],
+);
+
+export const detallesServiciosEstrategicos = pgTable(
+  "detalles_servicios_estrategicos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    mes: integer("mes").notNull(),
+    tipoServicio: text("tipo_servicio").notNull(),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("detalles_servicios_estrategicos_mes_idx").on(t.mes)],
+);
 
 // Estado actual únicamente — sin histórico (ver cobranzas_snapshots, diferida)
 export const cobranzas = pgTable("cobranzas", {
@@ -175,6 +217,7 @@ export const cobranzas = pgTable("cobranzas", {
   fechaVencimiento: date("fecha_vencimiento").notNull(),
   monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
   saldo: numeric("saldo", { precision: 14, scale: 2 }).notNull().default("0"),
+  diasVencidos: integer("dias_vencidos").notNull().default(0),
   sucursalId: uuid("sucursal_id").references(() => sucursales.id),
   unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -210,36 +253,44 @@ export const minutas = pgTable("minutas", {
 // ── Presupuesto / cumplimiento ──────────────────────────────────────────────
 // Fuente de verdad del KPI "Facturado" (no `facturas`, que es transaccional y
 // no reconciliada). Sin columna `cliente` ni `asesor` — es agregado mensual.
-export const presupuestos = pgTable("presupuestos", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  anio: integer("anio").notNull(),
-  mes: integer("mes").notNull(),
-  sucursalId: uuid("sucursal_id").references(() => sucursales.id),
-  unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
-  monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
-  ventasCcv: numeric("ventas_ccv", { precision: 14, scale: 2 }).notNull().default("0"),
-  ventasXibi: numeric("ventas_xibi", { precision: 14, scale: 2 }).notNull().default("0"),
-  ventasEstrategicas: numeric("ventas_estrategicas", { precision: 14, scale: 2 })
-    .notNull()
-    .default("0"),
-});
+export const presupuestos = pgTable(
+  "presupuestos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    anio: integer("anio").notNull(),
+    mes: integer("mes").notNull(),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventasCcv: numeric("ventas_ccv", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventasXibi: numeric("ventas_xibi", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventasEstrategicas: numeric("ventas_estrategicas", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+  },
+  (t) => [index("presupuestos_anio_mes_idx").on(t.anio, t.mes)],
+);
 
 // Única tabla con el nombre completo del asesor junto a su código.
-export const cumplimientoAsesores = pgTable("cumplimiento_asesores", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  anio: integer("anio").notNull(),
-  mes: integer("mes").notNull(),
-  codigoAsesor: text("codigo_asesor").notNull(),
-  asesor: text("asesor").notNull(),
-  asesorId: uuid("asesor_id"),
-  sucursalId: uuid("sucursal_id").references(() => sucursales.id),
-  unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
-  presupuesto: numeric("presupuesto", { precision: 14, scale: 2 }).notNull().default("0"),
-  venta: numeric("venta", { precision: 14, scale: 2 }).notNull().default("0"),
-  pctCumplimiento: numeric("pct_cumplimiento", { precision: 7, scale: 4 }).notNull().default("0"),
-  pctParticipacion: numeric("pct_participacion", { precision: 7, scale: 4 }).notNull().default("0"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const cumplimientoAsesores = pgTable(
+  "cumplimiento_asesores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    anio: integer("anio").notNull(),
+    mes: integer("mes").notNull(),
+    codigoAsesor: text("codigo_asesor").notNull(),
+    asesor: text("asesor").notNull(),
+    asesorId: uuid("asesor_id"),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    presupuesto: numeric("presupuesto", { precision: 14, scale: 2 }).notNull().default("0"),
+    venta: numeric("venta", { precision: 14, scale: 2 }).notNull().default("0"),
+    pctCumplimiento: numeric("pct_cumplimiento", { precision: 7, scale: 4 }).notNull().default("0"),
+    pctParticipacion: numeric("pct_participacion", { precision: 7, scale: 4 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("cumplimiento_asesores_anio_mes_idx").on(t.anio, t.mes)],
+);
 
 export const comisionesReglas = pgTable("comisiones_reglas", {
   id: uuid("id").primaryKey().defaultRandom(),

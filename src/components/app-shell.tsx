@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { roleLabel } from "@/lib/format";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
-import { useSucursales } from "@/hooks/use-catalogos";
+import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -58,12 +58,15 @@ const NAV: NavItem[] = [
   { to: "/usuarios", label: "Usuarios", icon: Users, module: "usuarios" },
 ] as const;
 
-// Map route path -> canonical unidad_negocio_id
+// Map route path -> nombre canónico de unidades_negocio. Los IDs se resuelven
+// contra el catálogo (useUnidades): cambian en cada carga del Excel, así que
+// hardcodearlos ocultaba el nav de unidad a todos los gerente_comercial.
 const UNIT_ROUTE_MAP = {
-  "/servicios": "9c322ad9-75af-4f88-912e-182e708264d3",
-  "/lubfiltros": "bd01d86c-c8a5-488a-9afc-141d242b9325",
-  "/equipos": "78e09e03-c1aa-4ed5-8755-8310102f5220",
-  "/alquiler": "825146fc-ab6d-4f9c-97d4-2078f3e67549",
+  "/servicios": "servicios",
+  "/lubfiltros": "lubricantes/filtros",
+  "/equipos": "equipos",
+  "/alquiler": "alquiler",
+  "/repuestos": "repuestos",
 } as const;
 
 const UNIT_NAV: NavItem[] = [
@@ -71,6 +74,7 @@ const UNIT_NAV: NavItem[] = [
   { to: "/lubfiltros", label: "Lub / Filtros", icon: Wrench, module: "lubfiltros" },
   { to: "/equipos", label: "Equipos", icon: Wrench, module: "equipos" },
   { to: "/alquiler", label: "Alquiler", icon: Wrench, module: "alquiler" },
+  { to: "/repuestos", label: "Repuestos", icon: Wrench, module: "repuestos" },
 ] as const;
 
 const NAV_ACTIVE_ALIASES = {
@@ -134,6 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebarRef = useRef<HTMLElement>(null);
 
   const { data: sucursales } = useSucursales();
+  const { data: unidades } = useUnidades();
 
   // Focus trap & Escape key listener for mobile menu (WCAG-P0-02)
   useEffect(() => {
@@ -184,7 +189,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (role === "coordinador") return true;
     // GC only sees routes for their assigned units
     if (role === "gerente_comercial") {
-      const unitId = UNIT_ROUTE_MAP[item.to as keyof typeof UNIT_ROUTE_MAP];
+      const nombre = UNIT_ROUTE_MAP[item.to as keyof typeof UNIT_ROUTE_MAP];
+      const unitId = unidades?.find((u) => u.nombre.trim().toLowerCase() === nombre)?.id;
       return unitId ? assignedUnitIds.includes(unitId) : false;
     }
     return false;
@@ -201,14 +207,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Sidebar - Negro ónix (#111113) con divisores metálicos 1px */}
+      {/* Sidebar - superficie blanca con hairline; color vía tokens --sidebar* */}
       <aside
         ref={sidebarRef}
         aria-label="Navegación principal"
         role={open ? "dialog" : undefined}
         aria-modal={open ? "true" : undefined}
         className={cn(
-          "no-print fixed lg:sticky top-0 z-40 h-screen w-60 bg-[#111113] border-r border-border flex flex-col overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "no-print fixed lg:sticky top-0 z-40 h-screen w-60 bg-sidebar border-r border-sidebar-border flex flex-col overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
@@ -276,7 +282,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div
         className={cn(
-          "fixed inset-0 bg-black/80 z-30 lg:hidden transition-opacity duration-200 ease-out",
+          "fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-30 lg:hidden transition-opacity duration-200 ease-out",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={() => setOpen(false)}

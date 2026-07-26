@@ -209,6 +209,7 @@ export interface CobranzaNueva {
   fechaVencimiento: string | null;
   monto: number;
   saldo: number;
+  diasVencidos?: number;
   sucursal: string;
   unidadNegocio: string | null;
 }
@@ -221,8 +222,17 @@ export interface ServicioNuevo {
   categoriaVenta: string;
   compania: string;
   asesor: string;
+  taller?: string;
+  csa?: string;
   sucursal: string;
   unidadNegocio: string | null;
+}
+
+export interface DetalleServicioEstrategico {
+  sucursal: string;
+  mes: number;
+  tipoServicio: string;
+  monto: number;
 }
 
 export interface EquipoInventarioItem {
@@ -243,6 +253,10 @@ import * as fs from "fs";
 
 export class ExcelParser {
   private workbook: XLSX.WorkBook;
+  // Varios métodos leen la misma hoja (p.ej. el neteo de cotizaciones vs.
+  // Lub/Filtros documentado en CLAUDE.md) — cachear evita re-parsear hojas
+  // grandes de miles de filas con sheet_to_json() más de una vez por carga.
+  private hojaCache = new Map<string, RawRowData[]>();
 
   constructor(source: string | Buffer) {
     const fileBuffer = typeof source === "string" ? fs.readFileSync(source) : source;
@@ -306,26 +320,34 @@ export class ExcelParser {
   }
 
   /**
-   * Exclusión adicional solo para reportes de Cumplimiento (presupuestos):
-   * Machine Shop + Maturín no deben aparecer en cumplimiento por sucursal,
-   * aunque Maturín sí sea una sucursal válida en el resto de la app.
+   * Machine Shop y Maturín son sucursales sin cumplimiento regular — la mayoría
+   * de sus filas en CumplimientoBase son placeholders en cero. Pero si un mes
+   * concreto trae movimiento real (presupuesto o alguna venta != 0), esa fila
+   * debe contarse — de lo contrario el total de cumplimiento queda subestimado
+   * en los meses donde sí operaron.
    */
-  private debeExcluirCumplimiento(sucursal: string): boolean {
-    if (this.debeExcluir(sucursal)) return true;
-    const normalizada = this.normalizarSucursal(sucursal);
-    return normalizada.trim().toLowerCase() === "maturín";
+  private debeExcluirCumplimiento(sucursal: string, montos: number[]): boolean {
+    const normalizada = this.normalizarSucursal(sucursal).trim().toLowerCase();
+    const esSucursalSinCumplimientoRegular =
+      normalizada === "machine shop" || normalizada === "maturín";
+    if (!esSucursalSinCumplimientoRegular) return false;
+    return montos.every((m) => m === 0);
   }
 
   /**
    * Lee una hoja del workbook y retorna los datos
    */
   private leerHoja(nombreHoja: string): RawRowData[] {
+    const cached = this.hojaCache.get(nombreHoja);
+    if (cached) return cached;
+
     const sheet = this.workbook.Sheets[nombreHoja];
     if (!sheet) {
       return [];
     }
 
     const datos = XLSX.utils.sheet_to_json<RawRowData>(sheet);
+    this.hojaCache.set(nombreHoja, datos);
     return datos;
   }
 
@@ -464,7 +486,7 @@ export class ExcelParser {
         sucursal: this.normalizarSucursal(row["Sucursal Venta"]),
         cliente: row["Nombre Cliente"] || "",
         monto: this.parseNumber(row["TOTAL $"]),
-        diasVencido: parseInt(row["DIAS VENCIDO"], 10) || 0,
+        diasVencido: parseInt(row["Dias Vencidos"] || row["DIAS VENCIDO"], 10) || 0,
         unNegocio: this.clasificarUnidadNegocio(row["Unidad de Negocio"]),
       }))
       .filter((row) => row.unNegocio !== null);
@@ -659,11 +681,12 @@ export class ExcelParser {
     if (!texto) return null;
 
     const lower = texto.toLowerCase();
-    if (lower.includes("repuesto")) return "repuestos";
-    if (lower.includes("lubricante") || lower.includes("filtro")) return "lubFiltros";
-    if (lower.includes("servicio")) return "servicios";
-    if (lower.includes("alquiler")) return "alquiler";
-    if (lower.includes("equipo")) return "equipos";
+    if (lower.includes("equipo")) return UNIDAD_EQUIPOS;
+    if (lower.includes("alquiler")) return UNIDAD_ALQUILER;
+    if (lower.includes("servicio")) return UNIDAD_SERVICIOS;
+    if (lower.includes("lubricante") || lower.includes("filtro") || lower.includes("lub"))
+      return UNIDAD_LUBFILTROS;
+    if (lower.includes("repuesto")) return UNIDAD_REPUESTOS;
 
     return null;
   }
@@ -679,14 +702,14 @@ export class ExcelParser {
     if (lower.includes("repuesto")) {
       const codigosLubFiltros = ["CO", "DN", "D1", "NC", "GF"];
       if (suplidor && codigosLubFiltros.includes(suplidor.toUpperCase())) {
-        return "lubFiltros";
+        return UNIDAD_LUBFILTROS;
       }
-      return "repuestos";
+      return UNIDAD_REPUESTOS;
     }
 
-    if (lower.includes("servicio")) return "servicios";
-    if (lower.includes("equipo")) return "equipos";
-    if (lower.includes("alquiler")) return "alquiler";
+    if (lower.includes("servicio")) return UNIDAD_SERVICIOS;
+    if (lower.includes("equipo")) return UNIDAD_EQUIPOS;
+    if (lower.includes("alquiler")) return UNIDAD_ALQUILER;
 
     return null;
   }
@@ -1234,7 +1257,6 @@ export class ExcelParser {
   getPresupuestosNuevo(): PresupuestoNuevo[] {
     const datos = this.leerHoja("CumplimientoBase");
     return datos
-      .filter((row) => !this.debeExcluirCumplimiento(row["Sucursal"] || ""))
       .map((row) => ({
         anio: this.parseYear(row["Año"]),
         mes: this.parseMonth(row["Mes"]),
@@ -1247,6 +1269,15 @@ export class ExcelParser {
           this.parseNumber(row["Ventas_Estrategicas"]) ||
           this.parseNumber(row["Ventas Estrategicas"]),
       }))
+      .filter(
+        (row) =>
+          !this.debeExcluirCumplimiento(row.sucursal, [
+            row.monto,
+            row.ventasCCV,
+            row.ventasXibi,
+            row.ventasEstrategicas,
+          ]),
+      )
       .filter((row) => row.mes >= 1 && row.mes <= 12 && row.anio > 0);
   }
 
@@ -1295,6 +1326,7 @@ export class ExcelParser {
         fechaVencimiento: this.excelDateToISO(row["Fecha Vencimiento"]),
         monto,
         saldo: monto,
+        diasVencidos: parseInt(row["Dias Vencidos"] || row["DIAS VENCIDO"], 10) || 0,
         sucursal: this.normalizarSucursal(row["Sucursal Venta"]),
         unidadNegocio: this.normalizarUnidadNegocio(row["Unidad de Negocio"]),
       };
@@ -1316,8 +1348,25 @@ export class ExcelParser {
         categoriaVenta: this.normalizarTexto(row["Tipo Cliente"]),
         compania: this.normalizarTexto(row["Nombre Compañia"]),
         asesor: "",
+        taller: this.normalizarTexto(row["Taller"]),
+        csa: this.normalizarTexto(row["CSA"]),
         sucursal: this.normalizarSucursal(row["Nombre Sucursal"]),
         unidadNegocio: UNIDAD_SERVICIOS,
+      }));
+  }
+
+  /**
+   * Hoja: Detalles Servicios Estrategicos → tabla nueva `detalles_servicios_estrategicos`
+   */
+  getDetallesServiciosEstrategicos(): DetalleServicioEstrategico[] {
+    const datos = this.leerHoja("Detalles Servicios Estrategicos");
+    return datos
+      .filter((row) => !this.debeExcluir(row["Sucursal"] || ""))
+      .map((row) => ({
+        sucursal: this.normalizarSucursal(row["Sucursal"]),
+        mes: parseInt(row["Mes"], 10) || 1,
+        tipoServicio: this.normalizarTexto(row["Tipo Servicio"]) || "Otro",
+        monto: this.parseNumber(row["Monto"]),
       }));
   }
 

@@ -60,8 +60,9 @@ export default function Equipos() {
         facturado: 0,
       }));
       rows.forEach((r) => {
-        const m = new Date(r.fecha).getMonth();
-        byMonth[m].facturado += Number(r.monto);
+        if (r.mes >= 1 && r.mes <= 12) {
+          byMonth[r.mes - 1].facturado += Number(r.monto);
+        }
       });
       return byMonth;
     },

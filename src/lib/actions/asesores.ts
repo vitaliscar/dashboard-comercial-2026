@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte, inArray, lt, isNotNull, type SQLWrapper } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, isNotNull, sum, count, type SQLWrapper } from "drizzle-orm";
 import { cotizaciones, facturas, ventasPerdidas, cumplimientoAsesores } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
@@ -58,46 +58,70 @@ export async function getAsesoresRawDataAction(data: {
       tx
         .select({
           asesor_codigo: cotizaciones.asesorCodigo,
-          monto: cotizaciones.monto,
+          monto: sum(cotizaciones.monto),
+          cantidad: count(cotizaciones.id),
           sucursal_id: cotizaciones.sucursalId,
           unidad_negocio_id: cotizaciones.unidadNegocioId,
         })
         .from(cotizaciones)
-        .where(and(...cotConds)),
+        .where(and(...cotConds))
+        .groupBy(cotizaciones.asesorCodigo, cotizaciones.sucursalId, cotizaciones.unidadNegocioId),
       tx
         .select({
           asesor: facturas.asesor,
-          monto: facturas.monto,
+          monto: sum(facturas.monto),
+          cantidad: count(facturas.id),
           sucursal_id: facturas.sucursalId,
           unidad_negocio_id: facturas.unidadNegocioId,
         })
         .from(facturas)
-        .where(and(...facConds)),
+        .where(and(...facConds))
+        .groupBy(facturas.asesor, facturas.sucursalId, facturas.unidadNegocioId),
       tx
         .select({
           asesor: ventasPerdidas.asesor,
-          monto: ventasPerdidas.monto,
+          monto: sum(ventasPerdidas.monto),
+          cantidad: count(ventasPerdidas.id),
           sucursal_id: ventasPerdidas.sucursalId,
           unidad_negocio_id: ventasPerdidas.unidadNegocioId,
         })
         .from(ventasPerdidas)
-        .where(and(...vpConds)),
+        .where(and(...vpConds))
+        .groupBy(ventasPerdidas.asesor, ventasPerdidas.sucursalId, ventasPerdidas.unidadNegocioId),
       tx
         .select({
           codigo_asesor: cumplimientoAsesores.codigoAsesor,
           asesor: cumplimientoAsesores.asesor,
-          presupuesto: cumplimientoAsesores.presupuesto,
+          presupuesto: sum(cumplimientoAsesores.presupuesto),
           sucursal_id: cumplimientoAsesores.sucursalId,
           unidad_negocio_id: cumplimientoAsesores.unidadNegocioId,
         })
         .from(cumplimientoAsesores)
-        .where(and(...caConds)),
+        .where(and(...caConds))
+        .groupBy(
+          cumplimientoAsesores.codigoAsesor,
+          cumplimientoAsesores.asesor,
+          cumplimientoAsesores.sucursalId,
+          cumplimientoAsesores.unidadNegocioId,
+        ),
     ]);
 
     return {
-      cotizaciones: cotData.map((r) => ({ ...r, monto: Number(r.monto ?? 0) })),
-      facturas: facData.map((r) => ({ ...r, monto: Number(r.monto ?? 0) })),
-      perdidas: vpData.map((r) => ({ ...r, monto: Number(r.monto ?? 0) })),
+      cotizaciones: cotData.map((r) => ({
+        ...r,
+        monto: Number(r.monto ?? 0),
+        cantidad: Number(r.cantidad ?? 0),
+      })),
+      facturas: facData.map((r) => ({
+        ...r,
+        monto: Number(r.monto ?? 0),
+        cantidad: Number(r.cantidad ?? 0),
+      })),
+      perdidas: vpData.map((r) => ({
+        ...r,
+        monto: Number(r.monto ?? 0),
+        cantidad: Number(r.cantidad ?? 0),
+      })),
       metas: metaData.map((r) => ({ ...r, presupuesto: Number(r.presupuesto ?? 0) })),
     };
   });
@@ -116,28 +140,37 @@ export async function getAsesoresDrilldownAction(data: { anio: number }) {
         .from(cumplimientoAsesores)
         .where(
           and(isNotNull(cumplimientoAsesores.codigoAsesor), isNotNull(cumplimientoAsesores.asesor)),
-        ),
+        )
+        .groupBy(cumplimientoAsesores.codigoAsesor, cumplimientoAsesores.asesor),
       tx
         .select({
           mes: cumplimientoAsesores.mes,
-          presupuesto: cumplimientoAsesores.presupuesto,
+          presupuesto: sum(cumplimientoAsesores.presupuesto),
           codigo_asesor: cumplimientoAsesores.codigoAsesor,
           asesor: cumplimientoAsesores.asesor,
           sucursal_id: cumplimientoAsesores.sucursalId,
           unidad_negocio_id: cumplimientoAsesores.unidadNegocioId,
         })
         .from(cumplimientoAsesores)
-        .where(eq(cumplimientoAsesores.anio, anio)),
+        .where(eq(cumplimientoAsesores.anio, anio))
+        .groupBy(
+          cumplimientoAsesores.mes,
+          cumplimientoAsesores.codigoAsesor,
+          cumplimientoAsesores.asesor,
+          cumplimientoAsesores.sucursalId,
+          cumplimientoAsesores.unidadNegocioId,
+        ),
       tx
         .select({
-          monto: facturas.monto,
+          monto: sum(facturas.monto),
           fecha: facturas.fecha,
           asesor: facturas.asesor,
           sucursal_id: facturas.sucursalId,
           unidad_negocio_id: facturas.unidadNegocioId,
         })
         .from(facturas)
-        .where(and(gte(facturas.fecha, `${anio}-01-01`), lt(facturas.fecha, `${anio + 1}-01-01`))),
+        .where(and(gte(facturas.fecha, `${anio}-01-01`), lt(facturas.fecha, `${anio + 1}-01-01`)))
+        .groupBy(facturas.fecha, facturas.asesor, facturas.sucursalId, facturas.unidadNegocioId),
       tx
         .select({
           monto: cotizaciones.monto,

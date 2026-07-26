@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -14,7 +14,10 @@
     "test:excel": "bun run src/tests/excel.test.ts",
     "test:e2e": "playwright test",
     "test:load": "npx tsx scripts/load-test.ts",
-    "test:smoke": "npx tsx scripts/smoke-test.ts"
+    "test:smoke": "npx tsx scripts/smoke-test.ts",
+    "alter-schema": "bun scripts/alter-schema.ts",
+    "load-excel": "bun load-excel:full",
+    "load-excel:full": "bun alter-schema && bun scripts/load-excel-local.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

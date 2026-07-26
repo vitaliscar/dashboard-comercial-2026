@@ -1,6 +1,6 @@
 "use server";
 
-import { and, gte, lt } from "drizzle-orm";
+import { and, gte, lt, sum } from "drizzle-orm";
 import { cotizaciones, facturas, ventasPerdidas } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 
@@ -23,34 +23,37 @@ export async function getParetoDataAction(data: {
         .select({
           cliente: cotizaciones.cliente,
           asesor: cotizaciones.asesorCodigo,
-          monto: cotizaciones.monto,
+          monto: sum(cotizaciones.monto),
           sucursal_id: cotizaciones.sucursalId,
         })
         .from(cotizaciones)
-        .where(and(gte(cotizaciones.fecha, desde), lt(cotizaciones.fecha, hasta)));
-      return rows;
+        .where(and(gte(cotizaciones.fecha, desde), lt(cotizaciones.fecha, hasta)))
+        .groupBy(cotizaciones.cliente, cotizaciones.asesorCodigo, cotizaciones.sucursalId);
+      return rows.map((r) => ({ ...r, monto: Number(r.monto ?? 0) }));
     } else if (fuente === "facturado") {
       const rows = await tx
         .select({
           cliente: facturas.cliente,
           asesor: facturas.asesor,
-          monto: facturas.monto,
+          monto: sum(facturas.monto),
           sucursal_id: facturas.sucursalId,
         })
         .from(facturas)
-        .where(and(gte(facturas.fecha, desde), lt(facturas.fecha, hasta)));
-      return rows;
+        .where(and(gte(facturas.fecha, desde), lt(facturas.fecha, hasta)))
+        .groupBy(facturas.cliente, facturas.asesor, facturas.sucursalId);
+      return rows.map((r) => ({ ...r, monto: Number(r.monto ?? 0) }));
     } else {
       const rows = await tx
         .select({
           cliente: ventasPerdidas.cliente,
           asesor: ventasPerdidas.asesor,
-          monto: ventasPerdidas.monto,
+          monto: sum(ventasPerdidas.monto),
           sucursal_id: ventasPerdidas.sucursalId,
         })
         .from(ventasPerdidas)
-        .where(and(gte(ventasPerdidas.fecha, desde), lt(ventasPerdidas.fecha, hasta)));
-      return rows;
+        .where(and(gte(ventasPerdidas.fecha, desde), lt(ventasPerdidas.fecha, hasta)))
+        .groupBy(ventasPerdidas.cliente, ventasPerdidas.asesor, ventasPerdidas.sucursalId);
+      return rows.map((r) => ({ ...r, monto: Number(r.monto ?? 0) }));
     }
   });
 }

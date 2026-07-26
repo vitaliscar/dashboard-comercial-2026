@@ -153,8 +153,8 @@ export default function ComisionesPage() {
                   <TableCell className="font-medium">{row.asesor}</TableCell>
                   <TableCell>{row.codigoAsesor}</TableCell>
                   <TableCell className="text-right">{money(row.venta)}</TableCell>
-                  <TableCell className="text-right">{pct(row.pctCumplimiento / 100)}</TableCell>
-                  <TableCell className="text-right">{pct(row.tasa)}</TableCell>
+                  <TableCell className="text-right">{pct(row.pctCumplimiento)}</TableCell>
+                  <TableCell className="text-right">{pct(row.tasa > 1 ? row.tasa : row.tasa * 100)}</TableCell>
                   <TableCell className="text-right font-semibold">{money(row.comision)}</TableCell>
                 </TableRow>
               ))}
@@ -172,7 +172,7 @@ export default function ComisionesPage() {
                 key={row.id}
                 label={`#${idx + 1} ${row.asesor}`}
                 value={money(row.comision)}
-                subvalue={pct(row.pctCumplimiento / 100)}
+                subvalue={pct(row.pctCumplimiento)}
                 subvalueLabel="cumplimiento"
               />
             ))}

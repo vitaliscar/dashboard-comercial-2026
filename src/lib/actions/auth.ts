@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/db";
@@ -59,10 +60,13 @@ async function loadAuthPayload(userId: string) {
 export async function loginAction(data: { email: string; password: string }) {
   const fail = (error: string) => ({ error, user: null, profile: null, role: null }) as const;
 
-  const [user] = await dbAdmin.select().from(users).where(eq(users.email, data.email)).limit(1);
+  const cleanEmail = (data.email || "").trim().toLowerCase();
+  const cleanPassword = (data.password || "").trim();
+
+  const [user] = await dbAdmin.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
   if (!user || !user.isActive) return fail("Correo o contraseña incorrectos.");
 
-  const valid = await verifyPassword(user.passwordHash, data.password);
+  const valid = await verifyPassword(user.passwordHash, cleanPassword);
   if (!valid) return fail("Correo o contraseña incorrectos.");
 
   const payload = await loadAuthPayload(user.id);
@@ -90,30 +94,40 @@ export async function logoutAction() {
 }
 
 /** Lee la sesión actual — usable desde Server Components y Server Actions. */
-export async function getCurrentSession() {
+export const getCurrentSession = cache(async () => {
   const store = await cookies();
   const sessionId = store.get(SESSION_COOKIE_NAME)?.value;
   if (!sessionId) return null;
 
-  const [session] = await dbAdmin
-    .select()
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
+  try {
+    const [session] = await dbAdmin
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
 
-  if (!session || isSessionExpired(session.expiresAt)) {
-    store.delete(SESSION_COOKIE_NAME);
+    if (!session || isSessionExpired(session.expiresAt)) {
+      store.delete(SESSION_COOKIE_NAME);
+      return null;
+    }
+
+    const payload = await loadAuthPayload(session.userId);
+    if (!payload) return null;
+
+    const [user] = await dbAdmin.select().from(users).where(eq(users.id, session.userId)).limit(1);
+    if (!user) return null;
+
+    return { user: { id: user.id, email: user.email }, ...payload };
+  } catch (error) {
+    console.error("Error validando sesión:", error);
+    try {
+      store.delete(SESSION_COOKIE_NAME);
+    } catch {
+      // Ignore cookie deletion errors in context where cookies are read-only
+    }
     return null;
   }
-
-  const payload = await loadAuthPayload(session.userId);
-  if (!payload) return null;
-
-  const [user] = await dbAdmin.select().from(users).where(eq(users.id, session.userId)).limit(1);
-  if (!user) return null;
-
-  return { user: { id: user.id, email: user.email }, ...payload };
-}
+});
 
 export async function meAction() {
   return getCurrentSession();

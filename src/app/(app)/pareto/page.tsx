@@ -232,7 +232,7 @@ export default function ParetoPage() {
           hint={`representa el ${pct(top20Share, 1)}`}
         />
         <KpiCard
-          label="Clientes vitales"
+          label={`${dim === "cliente" ? "Clientes" : "Asesores"} vitales`}
           value={String(vitalesRows.length)}
           icon={Shield}
           accent="ochre"
@@ -242,10 +242,10 @@ export default function ParetoPage() {
 
       <div className="card-elevated p-5">
         <h3 className="font-display font-semibold mb-1">
-          Clientes vitales — {FUENTE_TITULO[fuente]}
+          {dim === "cliente" ? "Clientes" : "Asesores"} vitales — {FUENTE_TITULO[fuente]}
         </h3>
         <p className="text-xs text-muted-foreground mb-4">
-          {chartData.length} clientes que generan el 80% · barras = monto · línea = % acumulado
+          {chartData.length} {dim === "cliente" ? "clientes" : "asesores"} que generan el 80% · barras = monto · línea = % acumulado
         </p>
         <ChartContainer config={chartConfig} className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">

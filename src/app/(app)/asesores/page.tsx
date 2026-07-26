@@ -182,7 +182,8 @@ export default function AsesoresPage() {
     });
 
     filteredFacturas.forEach((f) => {
-      const fMonth = new Date(f.fecha).getMonth();
+      const parts = String(f.fecha).split("-");
+      const fMonth = parts.length >= 2 ? parseInt(parts[1], 10) - 1 : new Date(f.fecha).getMonth();
       if (fMonth >= 0 && fMonth < 12) {
         monthlyData[fMonth].venta += Number(f.monto || 0);
       }

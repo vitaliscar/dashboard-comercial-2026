@@ -71,8 +71,9 @@ export default function LubFiltrosPage() {
         ventas: 0,
       }));
       data.forEach((r) => {
-        const m = new Date(r.fecha).getMonth();
-        byMonth[m].ventas += Number(r.monto);
+        if (r.mes >= 1 && r.mes <= 12) {
+          byMonth[r.mes - 1].ventas += Number(r.monto);
+        }
       });
 
       if (meses !== "all") {
@@ -88,7 +89,8 @@ export default function LubFiltrosPage() {
   // Aggregate data
   const totales = useMemo(() => {
     const facturado = metricsData?.facturas.reduce((a, r) => a + Number(r.monto), 0) ?? 0;
-    return { facturado, count: metricsData?.facturas.length ?? 0 };
+    const count = metricsData?.facturas.reduce((a, r) => a + Number(r.cantidad ?? 1), 0) ?? 0;
+    return { facturado, count };
   }, [metricsData]);
 
   const porSucursal = useMemo(() => {

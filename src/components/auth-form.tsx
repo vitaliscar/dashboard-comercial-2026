@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,19 +18,23 @@ export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [attempts, setAttempts] = useState(() => {
+  const [attempts, setAttempts] = useState(0);
+  const [lockUntil, setLockUntil] = useState<number | null>(null);
+
+  const resetAttempts = () => {
+    setAttempts(0);
+    setLockUntil(null);
+    setErrorMessage(null);
     if (typeof window !== "undefined") {
-      return Number(sessionStorage.getItem("login_attempts") || "0");
+      sessionStorage.removeItem("login_attempts");
+      sessionStorage.removeItem("login_lock_until");
     }
-    return 0;
-  });
-  const [lockUntil, setLockUntil] = useState<number | null>(() => {
-    if (typeof window !== "undefined") {
-      const val = sessionStorage.getItem("login_lock_until");
-      return val ? Number(val) : null;
-    }
-    return null;
-  });
+  };
+
+  useEffect(() => {
+    // Reset any legacy lock or attempts on page load as requested
+    resetAttempts();
+  }, []);
 
   const isLocked = lockUntil !== null && lockUntil > Date.now();
   const minutesRemaining = isLocked ? Math.ceil((lockUntil - Date.now()) / 60000) : 0;
@@ -81,41 +85,51 @@ export function AuthForm() {
     <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] bg-background">
       <div
         className="hidden lg:flex flex-col justify-center relative overflow-hidden px-14 py-12"
-        style={{ background: "linear-gradient(165deg, #0b1830 0%, #0e2040 60%, #10213e 100%)" }}
+        style={{
+          background:
+            "linear-gradient(165deg, oklch(0.975 0.010 250) 0%, oklch(0.958 0.016 255) 60%, oklch(0.948 0.020 258) 100%)",
+        }}
       >
         <svg
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-60"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-70"
           viewBox="0 0 400 400"
           preserveAspectRatio="none"
           aria-hidden="true"
         >
           <path
             d="M0 320 L120 320 L140 280 L180 280 L200 340 L400 340"
-            stroke="#22406e"
+            stroke="var(--primary)"
+            strokeOpacity="0.22"
             strokeWidth="1.5"
             fill="none"
           />
-          <path d="M0 220 L90 220 L110 180 L400 180" stroke="#1a3358" strokeWidth="1" fill="none" />
-          <circle cx="120" cy="320" r="3" fill="#f9ca0e" />
-          <circle cx="200" cy="340" r="3" fill="#f9ca0e" />
+          <path
+            d="M0 220 L90 220 L110 180 L400 180"
+            stroke="var(--primary)"
+            strokeOpacity="0.14"
+            strokeWidth="1"
+            fill="none"
+          />
+          <circle cx="120" cy="320" r="3" fill="var(--accent-gold-ink)" />
+          <circle cx="200" cy="340" r="3" fill="var(--accent-gold-ink)" />
         </svg>
 
         <div className="relative z-10 flex flex-col gap-8 max-w-md">
           <Suspense
-            fallback={<div className="size-[140px] rounded-full bg-white/5 animate-pulse" />}
+            fallback={<div className="size-[140px] rounded-full bg-foreground/5 animate-pulse" />}
           >
             <SVG3DLogo size={140} showLabel={false} />
           </Suspense>
 
           <div className="space-y-4">
-            <p className="text-[11px] tracking-[0.14em] uppercase font-display text-[#f9ca0e] font-semibold">
+            <p className="text-[11px] tracking-[0.14em] uppercase font-display text-[var(--accent-gold-ink)] font-semibold">
               Consorcio de Cogestión Venequip
             </p>
-            <h1 className="font-display text-[34px] font-light leading-[1.14] text-[#eef2fb]">
-              La continuidad de su <b className="font-bold text-[#f9ca0e]">operación</b>,
+            <h1 className="font-display text-[34px] font-light leading-[1.14] text-foreground">
+              La continuidad de su <b className="font-semibold text-primary">operación</b>,
               garantizada.
             </h1>
-            <p className="text-sm leading-relaxed text-[#93a2c2] max-w-[36ch]">
+            <p className="text-sm leading-relaxed text-muted-foreground max-w-[36ch]">
               Distribuidores autorizados Generac y Donaldson. Maquinaria Cat, Cummins, JLG, Sullair,
               Bomag y Wacker Neuson para todo el país.
             </p>
@@ -127,8 +141,8 @@ export function AuthForm() {
               "Repuestos originales en stock nacional",
               "Cobertura Barquisimeto y todo el territorio",
             ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5 text-[13px] text-[#cfd7e8]">
-                <span className="mt-[6px] size-[6px] rounded-full bg-[#f9ca0e] flex-shrink-0" />
+              <li key={item} className="flex items-start gap-2.5 text-[13px] text-foreground/85">
+                <span className="mt-[6px] size-[6px] rounded-full bg-[var(--accent-gold-ink)] flex-shrink-0" />
                 {item}
               </li>
             ))}
@@ -138,7 +152,7 @@ export function AuthForm() {
             {["Generac", "Donaldson", "Blumaq"].map((brand) => (
               <span
                 key={brand}
-                className="text-[11px] px-3 py-1.5 rounded-full border border-[#2c3e63] text-[#a9b6d4]"
+                className="text-[11px] px-3 py-1.5 rounded-full border border-border bg-card/60 text-muted-foreground"
               >
                 {brand}
               </span>
@@ -146,7 +160,7 @@ export function AuthForm() {
           </div>
         </div>
 
-        <div className="absolute bottom-6 left-14 right-14 flex items-center justify-between text-[11px] font-display tracking-wider text-[#6d7ea3]">
+        <div className="absolute bottom-6 left-14 right-14 flex items-center justify-between text-[11px] font-display tracking-wider text-muted-foreground">
           <span>Dashboard Comercial 2026</span>
           <span>CCV · Todos los derechos reservados</span>
         </div>
@@ -229,6 +243,18 @@ export function AuthForm() {
               {loading && <Loader2 className="animate-spin mr-2 size-4" />}
               {isLocked ? `Bloqueado por ${minutesRemaining} min` : "Ingresar"}
             </Button>
+
+            {(isLocked || attempts > 0) && (
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={resetAttempts}
+                  className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+                >
+                  Reiniciar conteo de intentos fallidos
+                </button>
+              </div>
+            )}
           </form>
 
           <p className="text-xs text-muted-foreground text-center leading-relaxed">

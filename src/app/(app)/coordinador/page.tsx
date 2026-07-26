@@ -340,7 +340,7 @@ export default function CoordinadorPanel() {
     asesorScoreData.cotizaciones.forEach((r) => {
       const resolved = resolverAsesor({ codigo: r.asesorCodigo }, aliases);
       const key = resolved.nombre;
-      cotByAsesor.set(key, (cotByAsesor.get(key) ?? 0) + 1);
+      cotByAsesor.set(key, (cotByAsesor.get(key) ?? 0) + (r.cantidad ?? 1));
     });
 
     const facCountByAsesor = new Map<string, number>();
@@ -348,7 +348,7 @@ export default function CoordinadorPanel() {
     asesorScoreData.facturas.forEach((r) => {
       const resolved = resolverAsesor({ nombre: r.asesor }, aliases);
       const key = resolved.nombre;
-      facCountByAsesor.set(key, (facCountByAsesor.get(key) ?? 0) + 1);
+      facCountByAsesor.set(key, (facCountByAsesor.get(key) ?? 0) + (r.cantidad ?? 1));
       facMontoByAsesor.set(key, (facMontoByAsesor.get(key) ?? 0) + Number(r.monto ?? 0));
     });
 
@@ -357,8 +357,9 @@ export default function CoordinadorPanel() {
       const resolved = resolverAsesor({ nombre: r.responsable }, aliases);
       const key = resolved.nombre;
       const current = minByAsesor.get(key) ?? { total: 0, cerradas: 0 };
-      current.total += 1;
-      if (r.estado === "cumplido") current.cerradas += 1;
+      const qty = r.cantidad ?? 1;
+      current.total += qty;
+      if (r.estado === "cumplido") current.cerradas += qty;
       minByAsesor.set(key, current);
     });
 

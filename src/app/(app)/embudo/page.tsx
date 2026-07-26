@@ -97,7 +97,8 @@ export default function EmbudoPage() {
     }));
 
     (cotizacionesAnio ?? []).forEach((c) => {
-      const m = new Date(c.fecha).getMonth();
+      const parts = String(c.fecha).split("-");
+      const m = parts.length >= 2 ? parseInt(parts[1], 10) - 1 : new Date(c.fecha).getMonth();
       if (m >= 0 && m < 12) monthly[m].cotizado += Number(c.monto ?? 0);
     });
 

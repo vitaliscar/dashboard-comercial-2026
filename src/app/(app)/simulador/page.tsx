@@ -43,7 +43,7 @@ export default function SimuladorPage() {
   const base = useMemo(() => {
     const venta = (rows ?? []).reduce((acc, r) => acc + Number(r.venta ?? 0), 0);
     const presupuesto = (rows ?? []).reduce((acc, r) => acc + Number(r.presupuesto ?? 0), 0);
-    const cumplimiento = presupuesto > 0 ? venta / presupuesto : 0;
+    const cumplimiento = presupuesto > 0 ? (venta / presupuesto) * 100 : 0;
     return { venta, presupuesto, cumplimiento };
   }, [rows]);
 
@@ -52,7 +52,7 @@ export default function SimuladorPage() {
     const conv = conversion[0] / 100;
     const ventaSim = base.venta * (1 + crec) * (1 + conv * 0.5);
     const presupuestoSim = base.presupuesto * (1 + crec * 0.3);
-    const cumplimientoSim = presupuestoSim > 0 ? ventaSim / presupuestoSim : 0;
+    const cumplimientoSim = presupuestoSim > 0 ? (ventaSim / presupuestoSim) * 100 : 0;
     return { ventaSim, presupuestoSim, cumplimientoSim };
   }, [base, crecimiento, conversion]);
 
