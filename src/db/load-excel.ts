@@ -25,6 +25,7 @@ import {
   cobranzas,
   cobranzasEquipos,
   servicios,
+  detallesServiciosEstrategicos,
   equiposInventario,
   equiposPorMarca,
   equiposFacturacionSucursal,
@@ -114,26 +115,45 @@ async function seedUsuarios(
   const userProfiles: Array<{ id: string; nombre_completo: string }> = [];
   let count = 0;
 
+  // Single query for existing users
+  const existingUsers = await dbAdmin.select({ id: users.id, email: users.email }).from(users);
+  const existingMap = new Map(existingUsers.map((u) => [u.email.toLowerCase(), u.id]));
+
+  // Cache argon2 password hashes so identical passwords (e.g. "inicio2026") are hashed only once
+  const passHashCache = new Map<string, string>();
+  const getPasswordHash = async (rawPass: string): Promise<string> => {
+    let cached = passHashCache.get(rawPass);
+    if (!cached) {
+      cached = await argon2Hash(rawPass);
+      passHashCache.set(rawPass, cached);
+    }
+    return cached;
+  };
+
   for (const u of usuarios) {
     if (!u.email) continue;
+    const cleanEmail = u.email.trim().toLowerCase();
+    const rawPass = u.contraseña?.trim();
 
-    const existing = await dbAdmin
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, u.email))
-      .limit(1);
-
-    let userId: string;
-    if (existing.length > 0) {
-      userId = existing[0].id;
+    let userId = existingMap.get(cleanEmail);
+    if (userId) {
+      if (rawPass) {
+        const passwordHash = await getPasswordHash(rawPass);
+        await dbAdmin
+          .update(users)
+          .set({ passwordHash, isActive: true })
+          .where(eq(users.id, userId));
+      }
     } else {
-      const passwordHash = await argon2Hash(u.contraseña || generateTemporaryPassword());
+      const pass = rawPass || generateTemporaryPassword();
+      const passwordHash = await getPasswordHash(pass);
       const [created] = await dbAdmin
         .insert(users)
-        .values({ email: u.email, passwordHash })
+        .values({ email: cleanEmail, passwordHash, isActive: true })
         .returning({ id: users.id });
       userId = created.id;
-      await dbAdmin.insert(profiles).values({ id: userId, email: u.email });
+      existingMap.set(cleanEmail, userId);
+      await dbAdmin.insert(profiles).values({ id: userId, email: cleanEmail });
     }
 
     const sucursalId = sucursalesMap.get(u.sucursal.trim().toLowerCase()) ?? null;
@@ -209,7 +229,7 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
     } = await seedUsuarios(parser, sucursalesMap, unidadesMap);
     result.rowsAffected["usuarios"] = usuariosCount;
 
-    // Fuzzy-match de nombres de asesor en las transacciones contra userProfiles
+    // Fuzzy-match de nombres de asesor pre-normalizando los nombres de perfil
     const uniqueAsesores = new Set<string>();
     [
       ...parser.getFacturasPrincipales().map((f) => f.asesor),
@@ -222,19 +242,26 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
       if (name) uniqueAsesores.add(name.trim());
     });
 
+    const profileWordsList = userProfiles.map((p) => {
+      const norm = normalizeName(p.nombre_completo);
+      return {
+        profile: p,
+        words: norm.split(" ").filter((w) => w.length > 2),
+      };
+    });
+
     for (const rawAsesor of uniqueAsesores) {
       const normAsesor = normalizeName(rawAsesor);
       const asesorWords = normAsesor.split(" ").filter((w) => w.length > 2);
       let bestMatch: { id: string; nombre_completo: string } | null = null;
       let maxMatchWords = 0;
-      for (const p of userProfiles) {
-        const normProfile = normalizeName(p.nombre_completo);
-        const profileWords = normProfile.split(" ").filter((w) => w.length > 2);
+      for (const item of profileWordsList) {
+        const profileWords = item.words;
         const intersection = asesorWords.filter((w) => profileWords.includes(w));
         if (intersection.length >= 2 || (intersection.length === 1 && profileWords.length === 1)) {
           if (intersection.length > maxMatchWords) {
             maxMatchWords = intersection.length;
-            bestMatch = p;
+            bestMatch = item.profile;
           }
         }
       }
@@ -374,6 +401,7 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
         fechaVencimiento: c.fechaVencimiento ?? today,
         monto: String(c.monto),
         saldo: String(c.saldo),
+        diasVencidos: c.diasVencidos ?? 0,
         sucursalId: sucursalesMap.get(c.sucursal.trim().toLowerCase()) ?? null,
         unidadNegocioId: c.unidadNegocio
           ? (unidadesMap.get(c.unidadNegocio.trim().toLowerCase()) ?? null)
@@ -407,8 +435,24 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
         categoriaVenta: s.categoriaVenta || null,
         compania: s.compania || null,
         asesor: s.asesor || null,
+        taller: s.taller || null,
+        csa: s.csa || null,
         sucursalId: sucursalesMap.get(s.sucursal.trim().toLowerCase()) ?? null,
         unidadNegocioId: unidadesMap.get(s.unidadNegocio!.trim().toLowerCase()) ?? null,
+      })),
+    );
+
+    // 8.1 Detalles Servicios Estratégicos
+    console.log("→ Cargando detalles servicios estratégicos...");
+    const detallesEstrategicosRaw = parser.getDetallesServiciosEstrategicos();
+    await dbAdmin.delete(detallesServiciosEstrategicos);
+    result.rowsAffected["detalles_servicios_estrategicos"] = await insertChunked(
+      detallesServiciosEstrategicos,
+      detallesEstrategicosRaw.map((d) => ({
+        sucursalId: sucursalesMap.get(d.sucursal.trim().toLowerCase()) ?? null,
+        mes: d.mes,
+        tipoServicio: d.tipoServicio,
+        monto: String(d.monto),
       })),
     );
 
@@ -549,7 +593,7 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
   return result;
 }
 
-const CHUNK = 500;
+const CHUNK = 2500;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function insertChunked(table: any, rows: Record<string, unknown>[]): Promise<number> {

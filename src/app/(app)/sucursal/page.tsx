@@ -87,12 +87,15 @@ export default function SucursalPage() {
       }));
 
       fData.forEach((r) => {
-        const m = new Date(r.fecha).getMonth();
-        byMonth[m].ventas += Number(r.monto);
+        if (r.mes >= 1 && r.mes <= 12) {
+          byMonth[r.mes - 1].ventas += Number(r.monto);
+        }
       });
 
       pData.forEach((r) => {
-        byMonth[r.mes - 1].presupuesto += Number(r.monto ?? 0);
+        if (r.mes >= 1 && r.mes <= 12) {
+          byMonth[r.mes - 1].presupuesto += Number(r.monto ?? 0);
+        }
       });
 
       if (meses !== "all") {
@@ -107,11 +110,9 @@ export default function SucursalPage() {
 
   // Compute KPI totals
   const kpis = useMemo(() => {
-    const totalFacturado =
-      metrics?.facturacion.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
-    const totalPresupuesto =
-      metrics?.presupuestos.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
-    const totalPerdido = metrics?.perdidas.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
+    const totalFacturado = metrics?.facturacion.totalMonto ?? 0;
+    const totalPresupuesto = metrics?.presupuestos.totalMonto ?? 0;
+    const totalPerdido = metrics?.perdidas.totalMonto ?? 0;
     const cumplimiento = totalPresupuesto > 0 ? (totalFacturado / totalPresupuesto) * 100 : 0;
 
     return {
@@ -128,9 +129,9 @@ export default function SucursalPage() {
   const resumenData = useMemo(() => {
     return {
       totalFacturado: kpis.totalFacturado,
-      facturacionCount: metrics?.facturacion.length ?? 0,
+      facturacionCount: metrics?.facturacion.cantidad ?? 0,
       totalPerdido: kpis.totalPerdido,
-      perdidasCount: metrics?.perdidas.length ?? 0,
+      perdidasCount: metrics?.perdidas.cantidad ?? 0,
       cumplimiento: kpis.cumplimiento,
     };
   }, [kpis, metrics]);
@@ -225,7 +226,7 @@ export default function SucursalPage() {
         <KpiCard
           label="Totales Facturados"
           value={money(kpis.totalFacturado)}
-          hint={`${(metrics?.facturacion ?? []).length} operaciones`}
+          hint={`${metrics?.facturacion.cantidad ?? 0} operaciones`}
           accent="success"
           icon={Zap}
         />

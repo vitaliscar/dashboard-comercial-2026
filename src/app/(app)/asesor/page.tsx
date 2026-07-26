@@ -102,7 +102,8 @@ export default function AsesorPage() {
   const { data: metrics, isLoading } = useQuery({
     queryKey: ["asesor-panel", filterKey, profile?.id],
     enabled: canView,
-    queryFn: () => getAsesorMetricsAction({ anio, meses, ranges: dateRanges, unidades: selectedUnidades }),
+    queryFn: () =>
+      getAsesorMetricsAction({ anio, meses, ranges: dateRanges, unidades: selectedUnidades }),
   });
 
   const { data: trend } = useQuery({
@@ -122,12 +123,15 @@ export default function AsesorPage() {
       }));
 
       fData.forEach((r) => {
-        const m = new Date(r.fecha).getMonth();
-        byMonth[m].ventas += Number(r.monto);
+        if (r.mes >= 1 && r.mes <= 12) {
+          byMonth[r.mes - 1].ventas += Number(r.monto);
+        }
       });
 
       pData.forEach((r) => {
-        byMonth[r.mes - 1].presupuesto += Number(r.presupuesto ?? 0);
+        if (r.mes >= 1 && r.mes <= 12) {
+          byMonth[r.mes - 1].presupuesto += Number(r.presupuesto ?? 0);
+        }
       });
 
       if (meses !== "all") {
@@ -141,10 +145,10 @@ export default function AsesorPage() {
   });
 
   const kpis = useMemo(() => {
-    const totalFacturado = metrics?.facturacion.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
+    const totalFacturado = metrics?.facturacion.totalMonto ?? 0;
     const totalPresupuesto =
       metrics?.presupuestos.reduce((a, r) => a + Number(r.presupuesto ?? 0), 0) ?? 0;
-    const totalPerdido = metrics?.perdidas.reduce((a, r) => a + Number(r.monto ?? 0), 0) ?? 0;
+    const totalPerdido = metrics?.perdidas.totalMonto ?? 0;
     const cumplimiento = totalPresupuesto > 0 ? (totalFacturado / totalPresupuesto) * 100 : 0;
 
     return {
@@ -160,24 +164,22 @@ export default function AsesorPage() {
   const cumplimientoStatus = statusFromPct(kpis.cumplimiento);
 
   const scorecard = useMemo(() => {
-    const ventas = metrics?.facturacion ?? [];
-    const cotizaciones = metrics?.cotizaciones ?? [];
-    const minutas = metrics?.minutas ?? [];
-    const scoreAsesor = metrics?.scoreAsesor ?? [];
+    const nVentas = metrics?.facturacion.cantidad ?? 0;
+    const nCotizaciones = metrics?.cotizaciones.cantidad ?? 0;
+    const minutasList = metrics?.minutas ?? [];
+    const scoreAsesor = metrics?.scoreAsesor ?? metrics?.presupuestos ?? [];
 
-    const conversion = cotizaciones.length > 0 ? (ventas.length / cotizaciones.length) * 100 : 0;
-    const ticketPromedio = ventas.length > 0 ? kpis.totalFacturado / ventas.length : 0;
+    const conversion = nCotizaciones > 0 ? (nVentas / nCotizaciones) * 100 : 0;
+    const ticketPromedio = nVentas > 0 ? kpis.totalFacturado / nVentas : 0;
     const ticketNorm = Math.min(100, (ticketPromedio / 5000) * 100);
-    const disciplina =
-      minutas.length > 0
-        ? (minutas.filter((m) => {
-            if (m.estado !== "cumplido") return false;
-            if (!m.fechaLimite) return true;
-            return new Date(m.fechaLimite).getTime() >= Date.now() - 86400000;
-          }).length /
-            minutas.length) *
-          100
-        : 100;
+    const totalMinutas = minutasList.reduce((acc, m) => acc + m.cantidad, 0);
+    const minutasCumplidas = minutasList.reduce((acc, m) => {
+      if (m.estado !== "cumplido") return acc;
+      if (!m.fechaLimite) return acc + m.cantidad;
+      if (new Date(m.fechaLimite).getTime() >= Date.now() - 86400000) return acc + m.cantidad;
+      return acc;
+    }, 0);
+    const disciplina = totalMinutas > 0 ? (minutasCumplidas / totalMinutas) * 100 : 100;
     const participacion =
       scoreAsesor.length > 0
         ? scoreAsesor.reduce((a, r) => a + Number(r.pctParticipacion ?? 0), 0) / scoreAsesor.length
@@ -307,7 +309,7 @@ export default function AsesorPage() {
         <KpiCard
           label="Totales Facturados"
           value={money(kpis.totalFacturado)}
-          hint={`${(metrics?.facturacion ?? []).length} operaciones`}
+          hint={`${metrics?.facturacion?.cantidad ?? 0} operaciones`}
           accent="success"
           icon={Zap}
         />
@@ -384,7 +386,7 @@ export default function AsesorPage() {
                 Operaciones
               </p>
               <p className="font-display font-semibold text-lg tabular-nums">
-                {metrics?.facturacion?.length ?? 0}
+                {metrics?.facturacion?.cantidad ?? 0}
               </p>
             </div>
           </div>

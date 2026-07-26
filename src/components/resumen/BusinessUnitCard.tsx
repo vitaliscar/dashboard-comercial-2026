@@ -47,12 +47,12 @@ export function BusinessUnitCard({
       <CardContent className="flex flex-col gap-3">
         {/* Header: unit name + presupuesto (meta) or participation % */}
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground truncate">
+          <h3 className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-muted-foreground truncate">
             {label}
           </h3>
           <span
             className={cn(
-              "text-xs tabular-nums shrink-0",
+              "font-mono text-xs tabular-nums shrink-0",
               presupuesto !== undefined
                 ? "font-bold text-foreground"
                 : "font-medium text-muted-foreground",
@@ -64,7 +64,7 @@ export function BusinessUnitCard({
 
         {/* Primary value */}
         <div>
-          <p className="font-display text-xl font-bold text-foreground tabular-nums leading-tight">
+          <p className="font-mono text-xl font-bold text-foreground tabular-nums leading-tight">
             {money(monto)}
           </p>
         </div>
@@ -75,8 +75,8 @@ export function BusinessUnitCard({
           return (
             <div key={idx} className="flex flex-col gap-1">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs text-muted-foreground">{info.label}</p>
-                <p className={cn("text-xs font-semibold tabular-nums shrink-0", textColors[color])}>
+                <p className="font-sans text-xs text-muted-foreground">{info.label}</p>
+                <p className={cn("font-mono text-xs font-semibold tabular-nums shrink-0", textColors[color])}>
                   {info.value}
                 </p>
               </div>

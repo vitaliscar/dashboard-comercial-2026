@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte, lt, inArray, type SQLWrapper } from "drizzle-orm";
+import { and, eq, gte, lt, inArray, sum, count, sql, type SQLWrapper } from "drizzle-orm";
 import { facturas, ventasPerdidas, presupuestos } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
@@ -13,7 +13,12 @@ function inCond(col: SQLWrapper, values: string[]) {
 function mesCond(col: SQLWrapper, meses: MonthFilter, anio: number) {
   if (meses === "all") {
     const cap = getAllMonthsCap(anio);
-    return cap === 12 ? undefined : inArray(col, Array.from({ length: cap }, (_, i) => i + 1));
+    return cap === 12
+      ? undefined
+      : inArray(
+          col,
+          Array.from({ length: cap }, (_, i) => i + 1),
+        );
   }
   return inArray(col, meses);
 }
@@ -28,9 +33,12 @@ export async function getSucursalMetricsAction(data: {
   return withAuth(async ({ tx }) => {
     const { anio, meses, ranges, sucursales, unidades } = data;
 
-    const [facturacion, perdidas, pres] = await Promise.all([
+    const [fRes, pRes, presRes] = await Promise.all([
       tx
-        .select()
+        .select({
+          totalMonto: sum(facturas.monto),
+          cantidad: count(facturas.id),
+        })
         .from(facturas)
         .where(
           and(
@@ -40,7 +48,10 @@ export async function getSucursalMetricsAction(data: {
           ),
         ),
       tx
-        .select()
+        .select({
+          totalMonto: sum(ventasPerdidas.monto),
+          cantidad: count(ventasPerdidas.id),
+        })
         .from(ventasPerdidas)
         .where(
           and(
@@ -50,7 +61,9 @@ export async function getSucursalMetricsAction(data: {
           ),
         ),
       tx
-        .select()
+        .select({
+          totalMonto: sum(presupuestos.monto),
+        })
         .from(presupuestos)
         .where(
           and(
@@ -62,7 +75,19 @@ export async function getSucursalMetricsAction(data: {
         ),
     ]);
 
-    return { facturacion, perdidas, presupuestos: pres };
+    return {
+      facturacion: {
+        totalMonto: Number(fRes[0]?.totalMonto ?? 0),
+        cantidad: Number(fRes[0]?.cantidad ?? 0),
+      },
+      perdidas: {
+        totalMonto: Number(pRes[0]?.totalMonto ?? 0),
+        cantidad: Number(pRes[0]?.cantidad ?? 0),
+      },
+      presupuestos: {
+        totalMonto: Number(presRes[0]?.totalMonto ?? 0),
+      },
+    };
   });
 }
 
@@ -77,7 +102,10 @@ export async function getSucursalTrendAction(data: {
 
     const [fRows, pRows] = await Promise.all([
       tx
-        .select({ monto: facturas.monto, fecha: facturas.fecha })
+        .select({
+          mes: sql<number>`EXTRACT(MONTH FROM ${facturas.fecha})::int`,
+          monto: sum(facturas.monto),
+        })
         .from(facturas)
         .where(
           and(
@@ -86,9 +114,13 @@ export async function getSucursalTrendAction(data: {
             inCond(facturas.sucursalId, sucursales),
             inCond(facturas.unidadNegocioId, unidades),
           ),
-        ),
+        )
+        .groupBy(sql`EXTRACT(MONTH FROM ${facturas.fecha})`),
       tx
-        .select({ monto: presupuestos.monto, mes: presupuestos.mes })
+        .select({
+          mes: presupuestos.mes,
+          monto: sum(presupuestos.monto),
+        })
         .from(presupuestos)
         .where(
           and(
@@ -97,9 +129,13 @@ export async function getSucursalTrendAction(data: {
             inCond(presupuestos.sucursalId, sucursales),
             inCond(presupuestos.unidadNegocioId, unidades),
           ),
-        ),
+        )
+        .groupBy(presupuestos.mes),
     ]);
 
-    return { facturas: fRows, presupuestos: pRows };
+    return {
+      facturas: fRows.map((r) => ({ mes: Number(r.mes), monto: Number(r.monto ?? 0) })),
+      presupuestos: pRows.map((r) => ({ mes: Number(r.mes), monto: Number(r.monto ?? 0) })),
+    };
   });
 }

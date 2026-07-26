@@ -35,9 +35,9 @@ export interface KPIAsesores {
  * Todo lo que no coincida con el catálogo de 32 asesores se acumula en "Ventas Casa".
  */
 export function consolidarAsesores(
-  facturas: { asesor?: string | null; monto?: number | null }[],
-  cotizaciones: { asesor_codigo?: string | number | null; monto?: number | null }[],
-  perdidas: { asesor?: string | null; monto?: number | null }[],
+  facturas: { asesor?: string | null; monto?: number | null; cantidad?: number | null }[],
+  cotizaciones: { asesor_codigo?: string | number | null; monto?: number | null; cantidad?: number | null }[],
+  perdidas: { asesor?: string | null; monto?: number | null; cantidad?: number | null }[],
   metas: {
     codigo_asesor?: string | number | null;
     asesor?: string | null;
@@ -88,7 +88,7 @@ export function consolidarAsesores(
     const resolved = resolverAsesor({ nombre: f.asesor }, aliases);
     const item = map.get(resolved.codigo)!;
     item.venta += Number(f.monto || 0);
-    item.nFacturas++;
+    item.nFacturas += f.cantidad != null ? Number(f.cantidad) : 1;
   });
 
   // 2. Acumular Cotizaciones
@@ -96,7 +96,7 @@ export function consolidarAsesores(
     const resolved = resolverAsesor({ codigo: c.asesor_codigo }, aliases);
     const item = map.get(resolved.codigo)!;
     item.cotizado += Number(c.monto || 0);
-    item.nCotizaciones++;
+    item.nCotizaciones += c.cantidad != null ? Number(c.cantidad) : 1;
   });
 
   // 3. Acumular Ventas Perdidas
@@ -104,7 +104,7 @@ export function consolidarAsesores(
     const resolved = resolverAsesor({ nombre: p.asesor }, aliases);
     const item = map.get(resolved.codigo)!;
     item.perdido += Number(p.monto || 0);
-    item.nPerdidas++;
+    item.nPerdidas += p.cantidad != null ? Number(p.cantidad) : 1;
   });
 
   // 4. Acumular Metas (presupuesto de cumplimiento_asesores)
