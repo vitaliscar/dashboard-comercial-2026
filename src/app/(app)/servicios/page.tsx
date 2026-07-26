@@ -6,6 +6,8 @@ import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import {
   getServiciosAction,
+  getPresupuestosServiciosAction,
+  getServiciosInternoAction,
   getCobranzasServiciosAction,
   getServiciosTrendAction,
   getDetallesServiciosEstrategicosAction,
@@ -26,15 +28,14 @@ import { CompliancePyramid } from "@/components/servicios/CompliancePyramid";
 import {
   BarChart,
   Bar,
+  ComposedChart,
+  Line,
+  LabelList,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Cell,
-  Legend,
-  PieChart,
-  Pie,
 } from "recharts";
 
 export default function ServiciosPage() {
@@ -69,6 +70,21 @@ export default function ServiciosPage() {
       unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
     });
   };
+
+  const { data: presupuestosData, isLoading: isLoadingPresupuestos } = useQuery({
+    queryKey: ["presupuestos-servicios", filterKey, role, profile?.id],
+    queryFn: () =>
+      getPresupuestosServiciosAction({
+        anio,
+        meses,
+        sucursal,
+      }),
+  });
+
+  const { data: serviciosInternoData, isLoading: isLoadingServiciosInterno } = useQuery({
+    queryKey: ["servicios-interno", JSON.stringify(meses)],
+    queryFn: () => getServiciosInternoAction({ meses }),
+  });
 
   const { data: servicios, isLoading: isLoadingServicios } = useQuery({
     queryKey: ["servicios", filterKey, role, profile?.id],
@@ -105,18 +121,31 @@ export default function ServiciosPage() {
     queryFn: () => getDetallesServiciosEstrategicosAction({ meses, sucursal }),
   });
 
-  const totales = useMemo(() => {
-    if (!servicios) return { ventas_internas: 0, ventas_talleres: 0, ventas_csa: 0, total: 0 };
+  const ventasInternasTotal = useMemo(() => {
+    if (!serviciosInternoData) return 0;
+    return serviciosInternoData.reduce((sum, s) => sum + Number(s.monto || 0), 0);
+  }, [serviciosInternoData]);
 
-    let ventas_internas = 0;
+  const ventasConsolidadasTotal = useMemo(() => {
+    if (!presupuestosData) return 0;
+    return presupuestosData.reduce(
+      (sum, p) =>
+        sum +
+        Number(p.ventasCcv || 0) +
+        Number(p.ventasXibi || 0) +
+        Number(p.ventasEstrategicas || 0),
+      0,
+    );
+  }, [presupuestosData]);
+
+  const totales = useMemo(() => {
+    if (!servicios) return { ventas_talleres: 0, ventas_csa: 0 };
+
     let ventas_talleres = 0;
     let ventas_csa = 0;
-    let total = 0;
 
     servicios.forEach((s) => {
       const val = Number(s.monto) || 0;
-      total += val;
-
       const cat = (s.categoriaVenta ?? "").toUpperCase();
       const tallerStr = (s.taller ?? "").trim().toUpperCase();
       const csaStr = (s.csa ?? "").trim().toUpperCase();
@@ -127,27 +156,31 @@ export default function ServiciosPage() {
       if (tallerStr.length > 0) {
         ventas_talleres += val;
       }
-      if (cat === "INTERNO" || cat.includes("INTERN")) {
-        ventas_internas += val;
-      }
     });
 
     return {
-      ventas_internas,
       ventas_talleres,
       ventas_csa,
-      total,
     };
   }, [servicios]);
 
   const trendData = useMemo(() => {
-    if (!trend) return { monthlyCombo: [], workshopsMonthly: [], csaMonthly: [] };
-
     const byMonthCombo = Array.from({ length: 12 }, (_, i) => ({
       mes: MESES[i].slice(0, 3),
       presupuesto: 0,
       venta: 0,
     }));
+
+    (presupuestosData ?? []).forEach((p) => {
+      const m = p.mes - 1;
+      if (m >= 0 && m < 12) {
+        byMonthCombo[m].presupuesto += Number(p.monto || 0);
+        byMonthCombo[m].venta +=
+          Number(p.ventasCcv || 0) +
+          Number(p.ventasXibi || 0) +
+          Number(p.ventasEstrategicas || 0);
+      }
+    });
 
     const byMonthWorkshops = Array.from({ length: 12 }, (_, i) => ({
       mes: MESES[i].slice(0, 3),
@@ -161,12 +194,11 @@ export default function ServiciosPage() {
       monto: 0,
     }));
 
-    trend.forEach((r) => {
+    (trend ?? []).forEach((r) => {
       const parts = String(r.fecha).split("-");
       const m = parts.length >= 2 ? parseInt(parts[1], 10) - 1 : new Date(r.fecha).getMonth();
       if (m >= 0 && m < 12) {
         const val = Number(r.monto);
-        byMonthCombo[m].venta += val;
 
         const tallerStr = (r.taller ?? "").trim().toUpperCase();
         if (tallerStr.includes("CRM")) byMonthWorkshops[m].CRM += val;
@@ -194,41 +226,69 @@ export default function ServiciosPage() {
       workshopsMonthly: filterMonthly(byMonthWorkshops),
       csaMonthly: filterMonthly(byMonthCsa),
     };
-  }, [trend, anio, meses]);
+  }, [presupuestosData, trend, anio, meses]);
 
   const porCompaniaData = useMemo(() => {
-    const map = new Map<string, number>();
-    (servicios ?? []).forEach((s) => {
-      const comp = s.compania || "Consorcio Venequip";
-      map.set(comp, (map.get(comp) ?? 0) + Number(s.monto));
+    if (!presupuestosData) return [];
+    let totalCcv = 0;
+    let totalXibi = 0;
+    let totalEstrategicas = 0;
+
+    presupuestosData.forEach((p) => {
+      totalCcv += Number(p.ventasCcv || 0);
+      totalXibi += Number(p.ventasXibi || 0);
+      totalEstrategicas += Number(p.ventasEstrategicas || 0);
     });
-    return Array.from(map.entries())
-      .map(([label, facturado]) => ({ label, facturado }))
-      .sort((a, b) => b.facturado - a.facturado);
-  }, [servicios]);
+
+    return [
+      { label: "Consorcio Venequip", facturado: totalCcv },
+      { label: "Xibi", facturado: totalXibi },
+      { label: "Estratégicas", facturado: totalEstrategicas },
+    ].filter((item) => item.facturado > 0);
+  }, [presupuestosData]);
 
   const porSucursalData = useMemo(() => {
-    if (!servicios || !sucursales) return [];
-    const map = new Map<string, { nombre: string; monto: number }>();
-    sucursales.forEach((s) => map.set(s.id, { nombre: s.nombre, monto: 0 }));
-    servicios.forEach((r) => {
+    if (!presupuestosData || !sucursales) return [];
+    const map = new Map<string, { nombre: string; monto: number; presupuesto: number }>();
+    sucursales.forEach((s) => map.set(s.id, { nombre: s.nombre, monto: 0, presupuesto: 0 }));
+
+    presupuestosData.forEach((r) => {
       if (r.sucursalId && map.has(r.sucursalId)) {
-        map.get(r.sucursalId)!.monto += Number(r.monto);
+        const item = map.get(r.sucursalId)!;
+        item.monto +=
+          Number(r.ventasCcv || 0) +
+          Number(r.ventasXibi || 0) +
+          Number(r.ventasEstrategicas || 0);
+        item.presupuesto += Number(r.monto || 0);
       }
     });
+
     return Array.from(map.values())
-      .filter((r) => r.monto > 0)
+      .filter((r) => r.monto > 0 || r.presupuesto > 0)
       .sort((a, b) => b.monto - a.monto);
-  }, [servicios, sucursales]);
+  }, [presupuestosData, sucursales]);
 
   const compliancePyramidData = useMemo(() => {
     return porSucursalData.map((s) => ({
       nombre: s.nombre,
-      presupuesto: s.monto * 1.1, // Presupuesto estimado para porcentaje
+      presupuesto: s.presupuesto,
       venta: s.monto,
-      pctCumplimiento: 90.9,
+      pctCumplimiento: s.presupuesto > 0 ? (s.monto / s.presupuesto) * 100 : 0,
     }));
   }, [porSucursalData]);
+
+  const porTipoServicio = useMemo(() => {
+    if (!servicios) return [];
+    const map = new Map<string, number>();
+    servicios.forEach((s) => {
+      const tipo = s.tipoServicio || "Sin Clasificar";
+      map.set(tipo, (map.get(tipo) ?? 0) + Number(s.monto || 0));
+    });
+    return Array.from(map.entries())
+      .map(([tipo, monto]) => ({ tipo, monto }))
+      .sort((a, b) => b.monto - a.monto)
+      .slice(0, 8);
+  }, [servicios]);
 
   const strategicServiceData = useMemo(() => {
     if (!detallesEstrategicos) return [];
@@ -241,18 +301,6 @@ export default function ServiciosPage() {
       monto,
     }));
   }, [detallesEstrategicos]);
-
-  const porTipoServicio = useMemo(() => {
-    const map = new Map<string, number>();
-    (servicios ?? []).forEach((s) => {
-      const tipo = s.tipoServicio || "General";
-      map.set(tipo, (map.get(tipo) ?? 0) + Number(s.monto));
-    });
-    return Array.from(map.entries())
-      .map(([tipo, monto]) => ({ tipo, monto }))
-      .sort((a, b) => b.monto - a.monto)
-      .slice(0, 8);
-  }, [servicios]);
 
   const sucursalMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -287,6 +335,8 @@ export default function ServiciosPage() {
     return null;
   }
 
+  const isLoading = isLoadingServicios || isLoadingPresupuestos || isLoadingServiciosInterno;
+
   return (
     <div className="flex flex-col gap-6 max-w-400">
       <div>
@@ -317,14 +367,14 @@ export default function ServiciosPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Ventas Consolidadas"
-          value={money(totales.total)}
+          value={money(ventasConsolidadasTotal)}
           accent="ochre"
           icon={TrendingUp}
-          hint={`${servicios?.length ?? 0} servicios facturados`}
+          hint={`${presupuestosData?.length ?? 0} registros presupuestarios`}
         />
         <KpiCard
           label="Ventas Internas"
-          value={money(totales.ventas_internas)}
+          value={money(ventasInternasTotal)}
           accent="primary"
           icon={Zap}
         />
@@ -342,29 +392,124 @@ export default function ServiciosPage() {
         />
       </div>
 
-      {/* Bloque 1: Rendimiento y Presupuesto */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <GlobalMonthlyCombo data={trendData.monthlyCombo} />
-        </div>
-        <div>
-          <CompliancePyramid data={compliancePyramidData} />
-        </div>
-      </div>
+      {/* Bloque 1: Ventas Mensuales Servicios (nacional) */}
+      <GlobalMonthlyCombo data={trendData.monthlyCombo} />
 
       {/* Bloque 2: Distribución y Compañías */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <UnitDonut data={porCompaniaData} title="Distribución por Compañía" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <UnitDonut data={porCompaniaData} title="Facturación por Compañía" />
         <div className="card-elevated p-5 flex flex-col h-full">
           <div className="mb-4">
-            <h3 className="font-display font-semibold">Facturación por Sucursal</h3>
-            <p className="text-xs text-muted-foreground">Monto total por sucursal</p>
+            <h3 className="font-display font-semibold">Facturación por Sucursal Servicios</h3>
+            <p className="text-xs text-muted-foreground">Ordenado de mayor a menor</p>
           </div>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={porSucursalData}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+              <BarChart
+                data={porSucursalData}
+                layout="vertical"
+                margin={{ top: 10, right: 45, left: 10, bottom: 0 }}
+              >
+                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" horizontal={false} />
+                <XAxis
+                  type="number"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickFormatter={(v) => money(v)}
+                />
+                <YAxis
+                  dataKey="nombre"
+                  type="category"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  width={100}
+                />
+                <Tooltip
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 0,
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="monto" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <UnitDonut
+          data={porSucursalData.map((s) => ({ label: s.nombre, facturado: s.monto }))}
+          title="Participación Ventas"
+        />
+      </div>
+
+      {/* Bloque 3: Presupuesto vs Cumplimiento por Sucursal */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 card-elevated p-5">
+          <div className="mb-4">
+            <h3 className="font-display font-semibold">Presu. vs Cump. Mensual Servicios</h3>
+            <p className="text-xs text-muted-foreground">Ventas y presupuesto por sucursal</p>
+          </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={porSucursalData} margin={{ top: 24, right: 8, left: 8, bottom: 0 }}>
                 <XAxis dataKey="nombre" stroke="var(--color-muted-foreground)" fontSize={11} />
+                <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+                <Tooltip
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 0,
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="monto" name="Ventas Totales" fill="var(--color-chart-calm-1)" radius={[4, 4, 0, 0]}>
+                  <LabelList
+                    dataKey="monto"
+                    position="top"
+                    fontSize={10}
+                    fontWeight={700}
+                    fill="var(--color-foreground)"
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Bar>
+                <Line
+                  type="monotone"
+                  dataKey="presupuesto"
+                  name="Presupuesto"
+                  stroke="var(--color-muted-foreground)"
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: "var(--color-card)", strokeWidth: 2 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <CompliancePyramid data={compliancePyramidData} title="Porcentaje Cumplimiento Sucursal" />
+      </div>
+
+      {/* Bloque 4: Servicios y Talleres */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="card-elevated p-5 flex flex-col h-full">
+          <div className="mb-4">
+            <h3 className="font-display font-semibold">Monto por Tipo de Servicio</h3>
+            <p className="text-xs text-muted-foreground">M/O Directa, Misceláneos, Subcontrato, M/O Subcon</p>
+          </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={porTipoServicio}>
+                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="tipo"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={10}
+                  interval={0}
+                  angle={-15}
+                  textAnchor="end"
+                  height={50}
+                />
                 <YAxis
                   stroke="var(--color-muted-foreground)"
                   fontSize={11}
@@ -379,17 +524,13 @@ export default function ServiciosPage() {
                     fontSize: 12,
                   }}
                 />
-                <Bar dataKey="monto" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="monto" fill="var(--color-destructive)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
-
-      {/* Bloque 3: Servicios y Talleres */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <TalleresMonthlyChart data={trendData.workshopsMonthly} />
         <ServiciosEstrategicosChart data={strategicServiceData} />
+        <TalleresMonthlyChart data={trendData.workshopsMonthly} />
         <CsaTrendChart data={trendData.csaMonthly} />
       </div>
 
@@ -400,7 +541,7 @@ export default function ServiciosPage() {
         sucursalOptions={sucursalOptions}
       />
 
-      {isLoadingServicios && (
+      {isLoading && (
         <div className="text-xs text-muted-foreground">Cargando datos de servicio…</div>
       )}
     </div>

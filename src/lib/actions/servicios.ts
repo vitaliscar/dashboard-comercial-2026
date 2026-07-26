@@ -1,11 +1,17 @@
 "use server";
 
 import { and, eq, gt, gte, lt, inArray } from "drizzle-orm";
-import { servicios, cobranzas, detallesServiciosEstrategicos } from "@/db/schema";
+import {
+  servicios,
+  cobranzas,
+  detallesServiciosEstrategicos,
+  presupuestos,
+  serviciosInterno,
+} from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { unidadId } from "@/lib/server/unidades";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
-import type { DateRange, MonthFilter } from "@/lib/date-range";
+import { getAllMonthsCap, type DateRange, type MonthFilter } from "@/lib/date-range";
 
 export async function getServiciosAction(data: {
   ranges: DateRange[];
@@ -23,6 +29,54 @@ export async function getServiciosAction(data: {
           eq(servicios.unidadNegocioId, await unidadId("servicios")),
         ),
       );
+  });
+}
+
+export async function getPresupuestosServiciosAction(data: {
+  anio: number;
+  meses: MonthFilter;
+  sucursal: string | "all";
+}) {
+  return withAuth(async ({ tx }) => {
+    const monthCap = getAllMonthsCap(data.anio);
+    const monthCond = Array.isArray(data.meses)
+      ? inArray(presupuestos.mes, data.meses)
+      : monthCap === 12
+        ? undefined
+        : inArray(
+            presupuestos.mes,
+            Array.from({ length: monthCap }, (_, i) => i + 1),
+          );
+
+    return tx
+      .select({
+        id: presupuestos.id,
+        anio: presupuestos.anio,
+        mes: presupuestos.mes,
+        sucursalId: presupuestos.sucursalId,
+        monto: presupuestos.monto,
+        ventasCcv: presupuestos.ventasCcv,
+        ventasXibi: presupuestos.ventasXibi,
+        ventasEstrategicas: presupuestos.ventasEstrategicas,
+      })
+      .from(presupuestos)
+      .where(
+        and(
+          eq(presupuestos.anio, data.anio),
+          monthCond,
+          data.sucursal !== "all" ? eq(presupuestos.sucursalId, data.sucursal) : undefined,
+          eq(presupuestos.unidadNegocioId, await unidadId("servicios")),
+        ),
+      );
+  });
+}
+
+export async function getServiciosInternoAction(data: { meses: MonthFilter }) {
+  return withAuth(async ({ tx }) => {
+    const monthCond = Array.isArray(data.meses)
+      ? inArray(serviciosInterno.mes, data.meses)
+      : undefined;
+    return tx.select().from(serviciosInterno).where(monthCond);
   });
 }
 
