@@ -208,6 +208,19 @@ export const detallesServiciosEstrategicos = pgTable(
   (t) => [index("detalles_servicios_estrategicos_mes_idx").on(t.mes)],
 );
 
+// Hoja Excel "Servicios Interno": solo Mes + Monto, sin sucursal/año (mismo patrón
+// que detalles_servicios_estrategicos — snapshot de un solo año por carga).
+export const serviciosInterno = pgTable(
+  "servicios_interno",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mes: integer("mes").notNull(),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("servicios_interno_mes_idx").on(t.mes)],
+);
+
 // Estado actual únicamente — sin histórico (ver cobranzas_snapshots, diferida)
 export const cobranzas = pgTable("cobranzas", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -1340,19 +1340,41 @@ export class ExcelParser {
     const datos = this.leerHoja("Servicios");
     return datos
       .filter((row) => !this.debeExcluir(row["Nombre Sucursal"] || ""))
-      .map((row) => ({
-        fecha: this.excelDateToISO(row["Fecha Apertura Servicio"]),
-        cliente: this.normalizarTexto(row["Nombre Cliente"]) || "Cliente S/N",
-        monto: this.parseNumber(row["Monto Venta $"]),
-        tipoServicio: this.normalizarTexto(row["Clas.Transaccion"]),
-        categoriaVenta: this.normalizarTexto(row["Tipo Cliente"]),
-        compania: this.normalizarTexto(row["Nombre Compañia"]),
-        asesor: "",
-        taller: this.normalizarTexto(row["Taller"]),
-        csa: this.normalizarTexto(row["CSA"]),
-        sucursal: this.normalizarSucursal(row["Nombre Sucursal"]),
-        unidadNegocio: UNIDAD_SERVICIOS,
-      }));
+      .map((row, index) => {
+        let fecha: string | null = null;
+        const anioContable = parseInt(row["Año Contable"], 10);
+        const mesContable = parseInt(row["Mes Contable"], 10);
+
+        if (!isNaN(anioContable) && !isNaN(mesContable) && mesContable >= 1 && mesContable <= 12) {
+          fecha = `${anioContable}-${String(mesContable).padStart(2, "0")}-01`;
+        } else {
+          const fechaApertura = this.excelDateToISO(row["Fecha Apertura Servicio"]);
+          if (fechaApertura) {
+            fecha = fechaApertura;
+            console.warn(
+              `[Servicios] Fila ${index + 2}: Año Contable/Mes Contable inválidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}"). Usando Fecha Apertura Servicio: ${fechaApertura}`
+            );
+          } else {
+            console.warn(
+              `[Servicios] Fila ${index + 2}: Sin Año/Mes Contable ni Fecha Apertura válidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}").`
+            );
+          }
+        }
+
+        return {
+          fecha,
+          cliente: this.normalizarTexto(row["Nombre Cliente"]) || "Cliente S/N",
+          monto: this.parseNumber(row["Monto Venta $"]),
+          tipoServicio: this.normalizarTexto(row["Clas.Transaccion"]),
+          categoriaVenta: this.normalizarTexto(row["Tipo Cliente"]),
+          compania: this.normalizarTexto(row["Nombre Compañia"]),
+          asesor: "",
+          taller: this.normalizarTexto(row["Taller"]),
+          csa: this.normalizarTexto(row["CSA"]),
+          sucursal: this.normalizarSucursal(row["Nombre Sucursal"]),
+          unidadNegocio: UNIDAD_SERVICIOS,
+        };
+      });
   }
 
   /**
@@ -1368,6 +1390,17 @@ export class ExcelParser {
         tipoServicio: this.normalizarTexto(row["Tipo Servicio"]) || "Otro",
         monto: this.parseNumber(row["Monto"]),
       }));
+  }
+
+  /**
+   * Hoja: Servicios Interno → tabla nueva `servicios_interno`. Solo tiene Mes + Monto.
+   */
+  getServiciosInterno(): { mes: number; monto: number }[] {
+    const datos = this.leerHoja("Servicios Interno");
+    return datos.map((row) => ({
+      mes: parseInt(row["Mes"], 10) || 1,
+      monto: this.parseNumber(row["Monto"]),
+    }));
   }
 
   /**
