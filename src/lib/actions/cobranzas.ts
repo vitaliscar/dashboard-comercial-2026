@@ -6,7 +6,9 @@ import { withAuth } from "@/lib/actions/with-auth";
 import { compararSnapshots } from "@/lib/analytics/cobranzas";
 
 function unidadCond(col: SQLWrapper, selectedUnidades?: string[]) {
-  return selectedUnidades && selectedUnidades.length > 0 ? inArray(col, selectedUnidades) : undefined;
+  return selectedUnidades && selectedUnidades.length > 0
+    ? inArray(col, selectedUnidades)
+    : undefined;
 }
 
 export async function getCobranzasAction(data?: { selectedUnidades?: string[] }) {

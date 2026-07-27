@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  compararSnapshots,
-  calcularParetoCobranzas,
-  segmentarCobranzas,
-} from "./cobranzas";
+import { compararSnapshots, calcularParetoCobranzas, segmentarCobranzas } from "./cobranzas";
 
 describe("cobranzas analytics", () => {
   describe("compararSnapshots", () => {

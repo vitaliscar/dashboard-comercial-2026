@@ -48,10 +48,7 @@ export function compararSnapshots(
 
   const anteriorPorCliente = new Map<string, number>();
   for (const r of anterior) {
-    anteriorPorCliente.set(
-      r.cliente,
-      (anteriorPorCliente.get(r.cliente) || 0) + parseVal(r.saldo),
-    );
+    anteriorPorCliente.set(r.cliente, (anteriorPorCliente.get(r.cliente) || 0) + parseVal(r.saldo));
   }
 
   const todosClientes = new Set([...actualPorCliente.keys(), ...anteriorPorCliente.keys()]);

@@ -1350,9 +1350,7 @@ export class ExcelParser {
   getCobranzasNuevo(): CobranzaNueva[] {
     const datos = this.leerHoja("Cuentas por Cobrar");
 
-    const datosFiltrados = datos.filter(
-      (row) => !this.debeExcluir(row["Sucursal Venta"] || ""),
-    );
+    const datosFiltrados = datos.filter((row) => !this.debeExcluir(row["Sucursal Venta"] || ""));
 
     const grupos = new Map<
       string,
@@ -1384,9 +1382,7 @@ export class ExcelParser {
           fechaEmision: this.excelDateToISO(row["Fecha Emisión"]),
           fechaVencimiento: this.excelDateToISO(row["Fecha Vencimiento"]),
           monto: 0,
-          diasVencidos: this.parseAccountingInt(
-            row["Dias Vencidos"] ?? row["DIAS VENCIDO"],
-          ),
+          diasVencidos: this.parseAccountingInt(row["Dias Vencidos"] ?? row["DIAS VENCIDO"]),
           sucursal,
           unidadNegocio: this.normalizarUnidadNegocio(row["Unidad de Negocio"]),
         });
@@ -1408,7 +1404,6 @@ export class ExcelParser {
       unidadNegocio: g.unidadNegocio,
     }));
   }
-
 
   /**
    * Hoja: Servicios → tabla nueva `servicios`

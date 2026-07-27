@@ -275,7 +275,6 @@ export const cobranzasSnapshots = pgTable(
   (t) => [index("cobranzas_snapshots_captured_at_idx").on(t.capturedAt)],
 );
 
-
 // Cartera de Equipos/Alquiler — sin unidad_negocio_id
 export const cobranzasEquipos = pgTable("cobranzas_equipos", {
   id: uuid("id").primaryKey().defaultRandom(),
