@@ -58,94 +58,110 @@ export async function getResumenDataAction(data: {
             )
         : inArray(cumplimientoAsesores.mes, meses);
 
-    const [cot, cotClientes, fac, vp, vpClientes, vpRazones, serv, pre, ca] = await Promise.all([
-      tx
-        .select({
-          unidadNegocioId: cotizaciones.unidadNegocioId,
-          montoTotal: sum(cotizaciones.monto),
-          cantidad: count(cotizaciones.id),
-        })
-        .from(cotizaciones)
-        .where(cotCond)
-        .groupBy(cotizaciones.unidadNegocioId),
-      tx
-        .select({
-          unidadNegocioId: cotizaciones.unidadNegocioId,
-          sucursalId: cotizaciones.sucursalId,
-          cliente: cotizaciones.cliente,
-          montoTotal: sum(cotizaciones.monto),
-        })
-        .from(cotizaciones)
-        .where(cotCond)
-        .groupBy(cotizaciones.unidadNegocioId, cotizaciones.sucursalId, cotizaciones.cliente),
-      tx
-        .select({
-          unidadNegocioId: facturas.unidadNegocioId,
-          montoTotal: sum(facturas.monto),
-          cantidad: count(facturas.id),
-        })
-        .from(facturas)
-        .where(facCond)
-        .groupBy(facturas.unidadNegocioId),
-      tx
-        .select({
-          unidadNegocioId: ventasPerdidas.unidadNegocioId,
-          montoTotal: sum(ventasPerdidas.monto),
-          cantidad: count(ventasPerdidas.id),
-        })
-        .from(ventasPerdidas)
-        .where(vpCond)
-        .groupBy(ventasPerdidas.unidadNegocioId),
-      tx
-        .select({
-          unidadNegocioId: ventasPerdidas.unidadNegocioId,
-          sucursalId: ventasPerdidas.sucursalId,
-          cliente: ventasPerdidas.cliente,
-          montoTotal: sum(ventasPerdidas.monto),
-        })
-        .from(ventasPerdidas)
-        .where(vpCond)
-        .groupBy(ventasPerdidas.unidadNegocioId, ventasPerdidas.sucursalId, ventasPerdidas.cliente),
-      tx
-        .select({
-          unidadNegocioId: ventasPerdidas.unidadNegocioId,
-          razon: ventasPerdidas.razon,
-          montoTotal: sum(ventasPerdidas.monto),
-          cantidad: count(ventasPerdidas.id),
-        })
-        .from(ventasPerdidas)
-        .where(vpCond)
-        .groupBy(ventasPerdidas.unidadNegocioId, ventasPerdidas.razon),
-      tx
-        .select({
-          unidadNegocioId: servicios.unidadNegocioId,
-          montoTotal: sum(servicios.monto),
-          cantidad: count(servicios.id),
-        })
-        .from(servicios)
-        .where(servCond)
-        .groupBy(servicios.unidadNegocioId),
-      tx
-        .select()
-        .from(presupuestos)
-        .where(and(eq(presupuestos.anio, anio), mesCond, sucCond(presupuestos.sucursalId))),
-      role === "asesor"
-        ? tx
-            .select({
-              mes: cumplimientoAsesores.mes,
-              presupuesto: cumplimientoAsesores.presupuesto,
-              venta: cumplimientoAsesores.venta,
-              unidadNegocioId: cumplimientoAsesores.unidadNegocioId,
-            })
-            .from(cumplimientoAsesores)
-            .where(and(eq(cumplimientoAsesores.anio, anio), caMesCond))
-        : Promise.resolve([]),
-    ]);
+    const [cot, cotClientes, fac, facClientes, vp, vpClientes, vpRazones, serv, pre, ca] =
+      await Promise.all([
+        tx
+          .select({
+            unidadNegocioId: cotizaciones.unidadNegocioId,
+            montoTotal: sum(cotizaciones.monto),
+            cantidad: count(cotizaciones.id),
+          })
+          .from(cotizaciones)
+          .where(cotCond)
+          .groupBy(cotizaciones.unidadNegocioId),
+        tx
+          .select({
+            unidadNegocioId: cotizaciones.unidadNegocioId,
+            sucursalId: cotizaciones.sucursalId,
+            cliente: cotizaciones.cliente,
+            montoTotal: sum(cotizaciones.monto),
+          })
+          .from(cotizaciones)
+          .where(cotCond)
+          .groupBy(cotizaciones.unidadNegocioId, cotizaciones.sucursalId, cotizaciones.cliente),
+        tx
+          .select({
+            unidadNegocioId: facturas.unidadNegocioId,
+            montoTotal: sum(facturas.monto),
+            cantidad: count(facturas.id),
+          })
+          .from(facturas)
+          .where(facCond)
+          .groupBy(facturas.unidadNegocioId),
+        tx
+          .select({
+            unidadNegocioId: facturas.unidadNegocioId,
+            sucursalId: facturas.sucursalId,
+            cliente: facturas.cliente,
+            montoTotal: sum(facturas.monto),
+          })
+          .from(facturas)
+          .where(facCond)
+          .groupBy(facturas.unidadNegocioId, facturas.sucursalId, facturas.cliente),
+        tx
+          .select({
+            unidadNegocioId: ventasPerdidas.unidadNegocioId,
+            montoTotal: sum(ventasPerdidas.monto),
+            cantidad: count(ventasPerdidas.id),
+          })
+          .from(ventasPerdidas)
+          .where(vpCond)
+          .groupBy(ventasPerdidas.unidadNegocioId),
+        tx
+          .select({
+            unidadNegocioId: ventasPerdidas.unidadNegocioId,
+            sucursalId: ventasPerdidas.sucursalId,
+            cliente: ventasPerdidas.cliente,
+            montoTotal: sum(ventasPerdidas.monto),
+          })
+          .from(ventasPerdidas)
+          .where(vpCond)
+          .groupBy(
+            ventasPerdidas.unidadNegocioId,
+            ventasPerdidas.sucursalId,
+            ventasPerdidas.cliente,
+          ),
+        tx
+          .select({
+            unidadNegocioId: ventasPerdidas.unidadNegocioId,
+            razon: ventasPerdidas.razon,
+            montoTotal: sum(ventasPerdidas.monto),
+            cantidad: count(ventasPerdidas.id),
+          })
+          .from(ventasPerdidas)
+          .where(vpCond)
+          .groupBy(ventasPerdidas.unidadNegocioId, ventasPerdidas.razon),
+        tx
+          .select({
+            unidadNegocioId: servicios.unidadNegocioId,
+            montoTotal: sum(servicios.monto),
+            cantidad: count(servicios.id),
+          })
+          .from(servicios)
+          .where(servCond)
+          .groupBy(servicios.unidadNegocioId),
+        tx
+          .select()
+          .from(presupuestos)
+          .where(and(eq(presupuestos.anio, anio), mesCond, sucCond(presupuestos.sucursalId))),
+        role === "asesor"
+          ? tx
+              .select({
+                mes: cumplimientoAsesores.mes,
+                presupuesto: cumplimientoAsesores.presupuesto,
+                venta: cumplimientoAsesores.venta,
+                unidadNegocioId: cumplimientoAsesores.unidadNegocioId,
+              })
+              .from(cumplimientoAsesores)
+              .where(and(eq(cumplimientoAsesores.anio, anio), caMesCond))
+          : Promise.resolve([]),
+      ]);
 
     return {
       cotizaciones: cot,
       cotizacionesClientes: cotClientes,
       facturas: fac,
+      facturasClientes: facClientes,
       ventasPerdidas: vp,
       ventasPerdidasClientes: vpClientes,
       ventasPerdidasRazones: vpRazones,

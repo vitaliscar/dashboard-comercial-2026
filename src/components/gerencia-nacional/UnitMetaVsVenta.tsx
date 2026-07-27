@@ -32,6 +32,8 @@ const chartConfig = {
   meta: { label: "Meta", color: "var(--color-success)" },
 } satisfies ChartConfig;
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 type Props = {
   data: UnitChartRow[];
   /** Unit IDs selected via the top unit-filter chips; others dim without being removed. */
@@ -39,6 +41,7 @@ type Props = {
 };
 
 export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds = [] }: Props) {
+  const chartAnimation = useChartAnimation();
   const [mode, setMode] = useState<"abs" | "pct">("abs");
   const isSelected = (row: UnitChartRow) =>
     selectedIds.length === 0 || selectedIds.includes(row.id);
@@ -82,6 +85,7 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
                   fill: "var(--color-foreground)",
                   formatter: ((v: unknown) => fmtPct(Number(v))) as never,
                 }}
+                {...chartAnimation}
               >
                 {data.map((row) => {
                   const selected = isSelected(row);
@@ -124,6 +128,7 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
                   fill: "var(--color-foreground)",
                   formatter: ((v: unknown) => money(Number(v))) as never,
                 }}
+                {...chartAnimation}
               >
                 {data.map((row) => {
                   const selected = isSelected(row);
@@ -156,6 +161,7 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
                 stroke="var(--color-meta)"
                 strokeWidth={2.5}
                 dot={{ r: 4 }}
+                {...chartAnimation}
                 label={{
                   position: "top",
                   fontSize: 11,

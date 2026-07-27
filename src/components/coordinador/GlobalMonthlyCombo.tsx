@@ -11,6 +11,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 export type MonthlyRow = { mes: string; presupuesto: number; venta: number };
 
 const chartConfig = {
@@ -23,6 +25,7 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
 }: {
   data: MonthlyRow[];
 }) {
+  const chartAnimation = useChartAnimation();
   const chartData = data.map((row) => {
     const cumplimiento = row.presupuesto > 0 ? (row.venta / row.presupuesto) * 100 : 0;
     return { ...row, cumplimiento };
@@ -51,7 +54,13 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
               content={<ChartTooltipContent formatter={(value) => money(Number(value))} />}
             />
             <ChartLegend content={<ChartLegendContent />} />
-            <Bar dataKey="venta" name="Venta Total" fill="var(--color-venta)" radius={[4, 4, 0, 0]}>
+            <Bar
+              dataKey="venta"
+              name="Venta Total"
+              fill="var(--color-venta)"
+              radius={[4, 4, 0, 0]}
+              {...chartAnimation}
+            >
               <LabelList
                 dataKey="venta"
                 position="top"
@@ -77,6 +86,7 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
               stroke="var(--color-presupuesto)"
               strokeWidth={2.5}
               dot={{ r: 4, fill: "var(--color-card)", strokeWidth: 2 }}
+              {...chartAnimation}
             >
               <LabelList
                 dataKey="presupuesto"

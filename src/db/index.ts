@@ -13,10 +13,8 @@ if (!adminUrl) throw new Error("Missing DATABASE_ADMIN_URL");
 const appUrl = process.env.DATABASE_URL;
 if (!appUrl) throw new Error("Missing DATABASE_URL");
 
-const adminClient =
-  globalForDb.adminClient ?? postgres(adminUrl, { max: 10, idle_timeout: 30 });
-const appClient =
-  globalForDb.appClient ?? postgres(appUrl, { max: 15, idle_timeout: 30 });
+const adminClient = globalForDb.adminClient ?? postgres(adminUrl, { max: 10, idle_timeout: 30 });
+const appClient = globalForDb.appClient ?? postgres(appUrl, { max: 15, idle_timeout: 30 });
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.adminClient = adminClient;

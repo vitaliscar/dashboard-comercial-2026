@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -25,16 +25,16 @@
   --font-size: 14px;
 
   /* Tokens semánticos de marca */
-  --bg-primary: oklch(0.985 0.002 250);   /* Lienzo gris casi blanco */
-  --surface-primary: oklch(1 0 0);        /* Tarjeta blanca pura */
-  --text-primary: oklch(0.24 0.02 255);   /* Tinta pizarra (14:1 sobre blanco) */
-  --accent-gold: oklch(0.80 0.15 85);     /* Ámbar CCV — solo decorativo */
+  --bg-primary: oklch(0.985 0.002 250); /* Lienzo gris casi blanco */
+  --surface-primary: oklch(1 0 0); /* Tarjeta blanca pura */
+  --text-primary: oklch(0.24 0.02 255); /* Tinta pizarra (14:1 sobre blanco) */
+  --accent-gold: oklch(0.8 0.15 85); /* Ámbar CCV — solo decorativo */
   --accent-gold-ink: oklch(0.52 0.11 70); /* Ámbar oscuro — cuando lleva texto */
   --muted: oklch(0.965 0.004 250);
   --border-color: oklch(0.92 0.005 250);
   --success: oklch(0.55 0.14 155);
-  --warning: oklch(0.60 0.13 68);
-  --danger: oklch(0.55 0.20 25);
+  --warning: oklch(0.6 0.13 68);
+  --danger: oklch(0.55 0.2 25);
 
   --background: oklch(0.985 0.002 250);
   --foreground: oklch(0.24 0.02 255);
@@ -42,29 +42,29 @@
   --card-foreground: oklch(0.24 0.02 255);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.24 0.02 255);
-  --primary: oklch(0.45 0.13 258);        /* Azul corporativo — 8.5:1 con texto blanco */
+  --primary: oklch(0.45 0.13 258); /* Azul corporativo — 8.5:1 con texto blanco */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.96 0.006 255);
-  --secondary-foreground: oklch(0.30 0.02 255);
+  --secondary-foreground: oklch(0.3 0.02 255);
   --muted-foreground: oklch(0.52 0.015 255); /* 4.9:1 sobre blanco */
   --accent: oklch(0.96 0.008 255);
-  --accent-foreground: oklch(0.30 0.02 255);
-  --destructive: oklch(0.55 0.20 25);
+  --accent-foreground: oklch(0.3 0.02 255);
+  --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.92 0.005 250);
-  --input: oklch(0.90 0.006 250);
+  --input: oklch(0.9 0.006 250);
   --input-background: oklch(1 0 0);
   --switch-background: oklch(0.89 0.006 250);
   --ring: oklch(0.45 0.13 258);
 
   --chart-1: oklch(0.55 0.15 258); /* Azul */
   --chart-2: oklch(0.62 0.12 190); /* Teal */
-  --chart-3: oklch(0.72 0.14 75);  /* Ámbar */
-  --chart-4: oklch(0.58 0.18 20);  /* Coral */
+  --chart-3: oklch(0.72 0.14 75); /* Ámbar */
+  --chart-4: oklch(0.58 0.18 20); /* Coral */
   --chart-5: oklch(0.55 0.16 300); /* Violeta */
 
-  --sidebar: oklch(1 0 0);                /* Nav blanca con hairline */
-  --sidebar-foreground: oklch(0.30 0.02 255);
+  --sidebar: oklch(1 0 0); /* Nav blanca con hairline */
+  --sidebar-foreground: oklch(0.3 0.02 255);
   --sidebar-primary: oklch(0.45 0.13 258);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.965 0.008 255);
@@ -72,7 +72,7 @@
   --sidebar-border: oklch(0.92 0.005 250);
   --sidebar-ring: oklch(0.45 0.13 258);
 
-  --tertiary: oklch(0.30 0.02 255);
+  --tertiary: oklch(0.3 0.02 255);
   --tertiary-foreground: oklch(1 0 0);
   --ochre: oklch(0.52 0.11 70);
   --success-foreground: oklch(1 0 0);
@@ -85,16 +85,24 @@
   --chart-calm-4: oklch(0.76 0.07 155);
   --chart-calm-5: oklch(0.76 0.09 20);
 
-  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* Sombras suaves y en capas — el peso lo lleva el hairline, no la sombra */
   --component-card-border-width: 1px;
-  --component-card-shadow-rest: 0 1px 2px 0 rgba(16, 24, 40, 0.04), 0 1px 3px 0 rgba(16, 24, 40, 0.06);
-  --component-card-shadow-hover: 0 4px 12px -2px rgba(16, 24, 40, 0.08), 0 2px 6px -2px rgba(16, 24, 40, 0.05);
+  --component-card-shadow-rest:
+    0 1px 2px 0 rgba(16, 24, 40, 0.04), 0 1px 3px 0 rgba(16, 24, 40, 0.06);
+  --component-card-shadow-hover:
+    0 4px 12px -2px rgba(16, 24, 40, 0.08), 0 2px 6px -2px rgba(16, 24, 40, 0.05);
   --component-button-shadow-rest: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
   --component-button-shadow-press: none;
+  --ease-out: cubic-bezier(
+    0.16,
+    1,
+    0.3,
+    1
+  ); /* curva de entrada/salida — no usar bare "ease" para animaciones deliberadas */
 }
 
 .dark {
@@ -158,9 +166,9 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-ochre: var(--ochre);
 
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Outfit', 'Inter Variable', ui-sans-serif, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Inter Variable", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 @layer base {
@@ -226,9 +234,9 @@
   box-shadow: var(--component-card-shadow-rest);
   will-change: transform;
   transition:
-    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 200ms var(--ease-out),
     border-color 200ms ease,
-    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow 200ms var(--ease-out);
 }
 
 @utility card-elevated-hover {
@@ -245,9 +253,9 @@
   box-shadow: var(--component-card-shadow-rest);
   will-change: transform;
   transition:
-    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 200ms var(--ease-out),
     border-color 200ms ease,
-    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow 200ms var(--ease-out);
 }
 
 @utility card-elevated-2-hover {
@@ -262,7 +270,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow:
-    0 8px 20px -6px rgba(16, 24, 40, 0.10),
+    0 8px 20px -6px rgba(16, 24, 40, 0.1),
     0 3px 8px -3px rgba(16, 24, 40, 0.06);
 }
 
@@ -270,6 +278,15 @@
   .card-elevated-2-hover:hover,
   .card-elevated-hover:hover {
     transform: none;
+  }
+}
+
+@media not all and (hover: hover) and (pointer: fine) {
+  .card-elevated-2-hover:hover,
+  .card-elevated-hover:hover {
+    transform: none;
+    box-shadow: var(--component-card-shadow-rest);
+    border-color: var(--border);
   }
 }
 
@@ -281,8 +298,8 @@
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
-    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
 }
 
 @utility brutal-button-press {
@@ -308,21 +325,21 @@
 
 /* Status pills — tinte pálido + tinta oscura. Cada par verificado ≥5.5:1 (AA). */
 @utility status-success {
-  background: oklch(0.55 0.14 155 / 0.10);
+  background: oklch(0.55 0.14 155 / 0.1);
   color: oklch(0.44 0.12 155);
   border: 1px solid oklch(0.55 0.14 155 / 0.25);
 }
 
 @utility status-warning {
-  background: oklch(0.60 0.13 68 / 0.12);
+  background: oklch(0.6 0.13 68 / 0.12);
   color: oklch(0.45 0.11 62);
-  border: 1px solid oklch(0.60 0.13 68 / 0.25);
+  border: 1px solid oklch(0.6 0.13 68 / 0.25);
 }
 
 @utility status-danger {
-  background: oklch(0.55 0.20 25 / 0.10);
+  background: oklch(0.55 0.2 25 / 0.1);
   color: oklch(0.47 0.19 25);
-  border: 1px solid oklch(0.55 0.20 25 / 0.25);
+  border: 1px solid oklch(0.55 0.2 25 / 0.25);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -341,7 +358,7 @@
 }
 
 @utility pareto-80 {
-  background: oklch(0.80 0.15 85 / 0.10);
+  background: oklch(0.8 0.15 85 / 0.1);
   border-left: 3px solid var(--accent-gold);
 }
 
@@ -362,7 +379,7 @@
 }
 
 @utility section-enter {
-  animation: ccv-fade-in-up 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: ccv-fade-in-up 300ms var(--ease-out) both;
 }
 
 @utility section-enter-1 {
@@ -436,13 +453,41 @@
   width: 100%;
   height: 100%;
   transform-origin: left;
-  transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 600ms var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .progress-fill {
     transition: none;
   }
+}
+
+/* Scrollbar temática (clara) — sin esto, algunos navegadores usan un
+ * scrollbar nativo oscuro por defecto en contenedores con scroll interno
+ * (tablas, listas), que desentona con la paleta clara de la app. */
+* {
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 999px;
+  border: 2px solid var(--card);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
 }
 
 @media print {
@@ -462,4 +507,3 @@
     border: 1px solid #ddd !important;
   }
 }
-

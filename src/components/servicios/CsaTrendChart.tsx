@@ -1,13 +1,5 @@
 import { memo } from "react";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip } from "recharts";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -19,12 +11,19 @@ export type CsaTrendRow = {
 type Props = {
   data: CsaTrendRow[];
   title?: string;
+  selectedMonths?: string[];
 };
+
+import { useChartAnimation } from "@/hooks/use-chart-animation";
 
 export const CsaTrendChart = memo(function CsaTrendChart({
   data,
   title = "Tendencia Ventas CSA",
+  selectedMonths,
 }: Props) {
+  const chartAnimation = useChartAnimation();
+  const hasSelection = Boolean(selectedMonths && selectedMonths.length > 0);
+
   return (
     <Card className="ring-0 card-elevated flex flex-col h-full">
       <CardHeader>
@@ -38,14 +37,7 @@ export const CsaTrendChart = memo(function CsaTrendChart({
         ) : (
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="csaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-warning)" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="var(--color-warning)" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+              <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
                 <YAxis
                   stroke="var(--color-muted-foreground)"
@@ -61,17 +53,19 @@ export const CsaTrendChart = memo(function CsaTrendChart({
                     fontSize: 12,
                   }}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="monto"
-                  name="Ventas CSA"
-                  stroke="var(--color-warning)"
-                  strokeWidth={2.5}
-                  fillOpacity={1}
-                  fill="url(#csaGradient)"
-                  dot={{ r: 4, fill: "var(--color-warning)" }}
-                />
-              </AreaChart>
+                <Bar dataKey="monto" name="Ventas CSA" radius={[4, 4, 0, 0]} {...chartAnimation}>
+                  {data.map((row) => {
+                    const isSelected = hasSelection ? selectedMonths!.includes(row.mes) : true;
+                    return (
+                      <Cell
+                        key={row.mes}
+                        fill="var(--color-warning)"
+                        fillOpacity={isSelected ? 1 : 0.35}
+                      />
+                    );
+                  })}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}

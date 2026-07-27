@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+package-lock.json
 
 node_modules
 .bun-cache
@@ -50,5 +51,8 @@ powershell.cmd
 
 # graphify knowledge-graph output (regenerable, not source)
 graphify-out/
+
+# Playwright MCP debug artifacts (screenshots/console logs from local testing)
+.playwright-mcp/
 
 

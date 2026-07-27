@@ -9,6 +9,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 type UnitAmountRow = { label: string; facturado: number; cumplimiento: number };
 
 const chartConfig = {
@@ -16,6 +18,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export const UnitAmountBars = memo(function UnitAmountBars({ data }: { data: UnitAmountRow[] }) {
+  const chartAnimation = useChartAnimation();
   return (
     <Card className="ring-0 card-elevated">
       <CardHeader>
@@ -37,7 +40,12 @@ export const UnitAmountBars = memo(function UnitAmountBars({ data }: { data: Uni
               cursor={false}
               content={<ChartTooltipContent formatter={(value) => money(Number(value))} />}
             />
-            <Bar dataKey="facturado" fill="var(--color-facturado)" radius={[4, 4, 0, 0]}>
+            <Bar
+              dataKey="facturado"
+              fill="var(--color-facturado)"
+              radius={[4, 4, 0, 0]}
+              {...chartAnimation}
+            >
               <LabelList
                 dataKey="facturado"
                 position="top"

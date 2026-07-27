@@ -76,7 +76,12 @@ export function BusinessUnitCard({
             <div key={idx} className="flex flex-col gap-1">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="font-sans text-xs text-muted-foreground">{info.label}</p>
-                <p className={cn("font-mono text-xs font-semibold tabular-nums shrink-0", textColors[color])}>
+                <p
+                  className={cn(
+                    "font-mono text-xs font-semibold tabular-nums shrink-0",
+                    textColors[color],
+                  )}
+                >
                   {info.value}
                 </p>
               </div>

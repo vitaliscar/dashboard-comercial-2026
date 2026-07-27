@@ -1,17 +1,48 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Search, Shield } from "lucide-react";
+import { Users, Search, Shield, TrendingUp, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { getCliente360DataAction } from "@/lib/actions/cliente-360";
-import { money, diasEntre } from "@/lib/format";
+import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
+import { useSharedFilters } from "@/hooks/use-shared-filters";
+import { getCliente360DataAction, type Cliente360Fuente } from "@/lib/actions/cliente-360";
+import { money, pct, diasEntre } from "@/lib/format";
 import { canAccessModule } from "@/lib/permissions";
 import { computeHealthScore, healthBand, type HealthBand } from "@/lib/analytics/health-score";
+import { computeParetoSummary, type ParetoInputRow } from "@/lib/analytics/pareto";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/status-pill";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+} from "recharts";
 import {
   Table,
   TableHeader,
@@ -21,6 +52,28 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { cn } from "@/lib/utils";
+
+const FUENTE_TITULO: Record<Cliente360Fuente, string> = {
+  cotizado: "Cotizado",
+  facturado: "Facturado",
+  perdido: "Ventas Perdidas",
+};
+
+const MESES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 const BAND_KIND: Record<HealthBand, "success" | "warning" | "danger"> = {
   sano: "success",
@@ -33,17 +86,11 @@ const BAND_LABEL: Record<HealthBand, string> = {
   riesgo: "Riesgo",
 };
 
-interface ClienteRow {
-  cliente: string;
-  ltv: number;
-  saldoVencido: number;
-  diasVencidoMax: number;
-  recenciaDias: number | null;
-  montoPerdidoReciente: number;
-  health: number;
-  band: HealthBand;
-  prioridad: number;
-}
+const CLASIFICACION_KIND: Record<"A" | "B" | "C", "success" | "warning" | "neutral"> = {
+  A: "success",
+  B: "warning",
+  C: "neutral",
+};
 
 function normalize(s: string | null | undefined): string {
   if (!s) return "";
@@ -51,23 +98,71 @@ function normalize(s: string | null | undefined): string {
 }
 
 export default function Cliente360Page() {
+  const searchParams = useSearchParams();
+  const clienteParam = searchParams.get("cliente");
+
   const { role, profile } = useAuth();
   const canView = canAccessModule(role, "cliente_360");
-  const [search, setSearch] = useState("");
+
+  const [search, setSearch] = useState(() => clienteParam || "");
+  const [fuente, setFuente] = useState<Cliente360Fuente>("facturado");
+  const [anio, setAnio] = useState(() => new Date().getFullYear());
+  const [mes, setMes] = useState(0);
+  const [sucursalId, setSucursalId] = useState<string | undefined>(undefined);
+
+  const { filters, setFilters } = useSharedFilters();
+  const selectedUnidades = filters.unidades;
+
+  const { data: sucursales } = useSucursales();
+  const { data: unidades } = useUnidades();
+
   const hoy = useMemo(() => new Date(), []);
 
+  useEffect(() => {
+    if (clienteParam) {
+      setSearch(clienteParam);
+    }
+  }, [clienteParam]);
+
+  const unitOptions = useMemo(() => {
+    if (!unidades) return [];
+    return unidades.map((u) => ({ value: u.id, label: u.nombre }));
+  }, [unidades]);
+
+  const handleSelectAllUnits = () => setFilters({ unidades: [] });
+  const handleUnitSelectionChange = (unitIds: string[]) => setFilters({ unidades: unitIds });
+
   const { data, isLoading } = useQuery({
-    queryKey: ["cliente-360", role, profile?.id],
+    queryKey: ["cliente-360", fuente, anio, mes, sucursalId, selectedUnidades, role, profile?.id],
     enabled: canView,
-    queryFn: () => getCliente360DataAction(),
+    queryFn: () =>
+      getCliente360DataAction({
+        fuente,
+        anio,
+        mes,
+        sucursalId,
+        unidades: selectedUnidades,
+      }),
   });
 
-  const rows: ClienteRow[] = useMemo(() => {
-    if (!data) return [];
+  const { rows, top20Count, top20Sum, top20Share, vitalesCount } = useMemo(() => {
+    if (!data) {
+      return {
+        rows: [],
+        totalGeneral: 0,
+        top20Count: 0,
+        top20Sum: 0,
+        top20Share: 0,
+        vitalesCount: 0,
+      };
+    }
+
     const porCliente = new Map<
       string,
       {
         nombre: string;
+        montoPareto: number;
+        sucursales: Set<string>;
         ltv: number;
         ultimaFecha: Date | null;
         saldoVencido: number;
@@ -83,6 +178,8 @@ export default function Cliente360Page() {
       if (!e) {
         e = {
           nombre,
+          montoPareto: 0,
+          sucursales: new Set<string>(),
           ltv: 0,
           ultimaFecha: null,
           saldoVencido: 0,
@@ -93,6 +190,13 @@ export default function Cliente360Page() {
       }
       return e;
     };
+
+    data.pareto.forEach((p) => {
+      const e = upsert(p.cliente);
+      if (!e) return;
+      e.montoPareto += Number(p.monto) || 0;
+      if (p.sucursal_id) e.sucursales.add(p.sucursal_id);
+    });
 
     data.facturas.forEach((f) => {
       const e = upsert(f.cliente);
@@ -117,31 +221,70 @@ export default function Cliente360Page() {
       if (dias > e.diasVencidoMax) e.diasVencidoMax = dias;
     });
 
-    return Array.from(porCliente.values())
-      .map((e) => {
-        const recenciaDias = e.ultimaFecha ? diasEntre(e.ultimaFecha, hoy) : null;
-        const health = computeHealthScore({
-          diasVencidoMax: Math.max(0, e.diasVencidoMax),
-          saldoVencido: e.saldoVencido,
-          recenciaDias: recenciaDias ?? 365,
-          montoPerdidoReciente: e.montoPerdidoReciente,
-          ltv: e.ltv,
-        });
-        const band = healthBand(health);
-        return {
-          cliente: e.nombre,
-          ltv: Math.round(e.ltv * 100) / 100,
-          saldoVencido: Math.round(e.saldoVencido * 100) / 100,
-          diasVencidoMax: Math.max(0, e.diasVencidoMax),
-          recenciaDias,
-          montoPerdidoReciente: Math.round(e.montoPerdidoReciente * 100) / 100,
-          health,
-          band,
-          prioridad: e.saldoVencido * (1 - health / 100),
-        };
-      })
-      .sort((a, b) => b.prioridad - a.prioridad);
+    const paretoInput: ParetoInputRow[] = Array.from(porCliente.values()).map((e) => ({
+      key: e.nombre,
+      monto: e.montoPareto,
+    }));
+
+    const summary = computeParetoSummary(paretoInput);
+
+    const unifiedRows = summary.rows.map((pRow) => {
+      const key = normalize(pRow.nombre);
+      const entry = porCliente.get(key);
+
+      const ltv = entry ? Math.round(entry.ltv * 100) / 100 : 0;
+      const saldoVencido = entry ? Math.round(entry.saldoVencido * 100) / 100 : 0;
+      const diasVencidoMax = entry ? Math.max(0, entry.diasVencidoMax) : 0;
+      const recenciaDias = entry && entry.ultimaFecha ? diasEntre(entry.ultimaFecha, hoy) : null;
+      const montoPerdidoReciente = entry ? Math.round(entry.montoPerdidoReciente * 100) / 100 : 0;
+
+      const health = computeHealthScore({
+        diasVencidoMax,
+        saldoVencido,
+        recenciaDias: recenciaDias ?? 365,
+        montoPerdidoReciente,
+        ltv,
+      });
+      const band = healthBand(health);
+
+      return {
+        cliente: pRow.nombre,
+        sucursalesCount: entry ? entry.sucursales.size : 0,
+        montoPareto: pRow.monto,
+        share: pRow.share,
+        acumulado: pRow.acumulado,
+        clasificacion: pRow.clasificacion,
+        health,
+        band,
+        saldoVencido,
+        diasVencidoMax,
+        recenciaDias,
+        ltv,
+      };
+    });
+
+    const vitalesCount = unifiedRows.filter((r) => r.clasificacion === "A").length;
+
+    return {
+      rows: unifiedRows,
+      totalGeneral: summary.totalGeneral,
+      top20Count: summary.top20Count,
+      top20Sum: summary.top20Sum,
+      top20Share: summary.top20Share,
+      vitalesCount,
+    };
   }, [data, hoy]);
+
+  const vitalesRows = useMemo(() => rows.filter((r) => r.clasificacion === "A"), [rows]);
+  const chartData = useMemo(() => vitalesRows.slice(0, 15), [vitalesRows]);
+
+  const chartConfig: ChartConfig = useMemo(
+    () => ({
+      montoPareto: { label: FUENTE_TITULO[fuente], color: "var(--color-primary)" },
+      acumulado: { label: "% Acumulado", color: "var(--color-destructive)" },
+    }),
+    [fuente],
+  );
 
   const filteredRows = useMemo(() => {
     if (!search.trim()) return rows;
@@ -153,8 +296,17 @@ export default function Cliente360Page() {
     const enRiesgo = rows.filter((r) => r.band === "riesgo").length;
     const saldoTotalVencido = rows.reduce((a, r) => a + r.saldoVencido, 0);
     const ltvTotal = rows.reduce((a, r) => a + r.ltv, 0);
-    return { total: rows.length, enRiesgo, saldoTotalVencido, ltvTotal };
-  }, [rows]);
+    return {
+      total: rows.length,
+      enRiesgo,
+      saldoTotalVencido,
+      ltvTotal,
+      top20Count,
+      top20Sum,
+      top20Share,
+      vitalesCount,
+    };
+  }, [rows, top20Count, top20Sum, top20Share, vitalesCount]);
 
   if (!canView) {
     return (
@@ -167,10 +319,120 @@ export default function Cliente360Page() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      <PageHeader eyebrow="Analytics / Clientes" title="Cliente 360° · Salud y Riesgo" />
+    <div className="flex flex-col gap-6 max-w-[1400px] mx-auto">
+      <PageHeader eyebrow="Analytics / Clientes" title="Cliente 360° · Salud y Pareto" />
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      {/* FILTROS ARRIBA DE LA PANTALLA */}
+      <div className="flex flex-col gap-3">
+        <div className="bg-card border border-border shadow-sm rounded-md p-3 flex flex-wrap items-end justify-between gap-4">
+          <Tabs value={fuente} onValueChange={(v) => setFuente(v as Cliente360Fuente)}>
+            <TabsList>
+              <TabsTrigger value="cotizado">Cotizado</TabsTrigger>
+              <TabsTrigger value="facturado">Facturado</TabsTrigger>
+              <TabsTrigger value="perdido">Ventas perdidas</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Año</Label>
+              <Select value={String(anio)} onValueChange={(v) => setAnio(Number(v))}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2024, 2025, 2026, 2027].map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Mes</Label>
+              <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Todos</SelectItem>
+                  {MESES.map((label, i) => (
+                    <SelectItem key={label} value={String(i + 1)}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Sucursal</Label>
+              <Select
+                value={sucursalId ?? "all"}
+                onValueChange={(v) => setSucursalId(!v || v === "all" ? undefined : v)}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {(sucursales ?? []).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {unitOptions.length > 0 && (
+          <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
+            <span className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
+              Filtrar por unidad:
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={selectedUnidades.length === 0 ? "default" : "outline"}
+                size="sm"
+                onClick={handleSelectAllUnits}
+                className={cn(
+                  "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
+                  selectedUnidades.length === 0
+                    ? "bg-foreground text-background hover:bg-foreground/90"
+                    : "text-muted-foreground",
+                )}
+              >
+                Todas
+              </Button>
+              <ToggleGroup
+                multiple
+                value={selectedUnidades}
+                onValueChange={handleUnitSelectionChange}
+                spacing={2}
+              >
+                {unitOptions.map((opt) => (
+                  <ToggleGroupItem
+                    key={opt.value}
+                    value={opt.value}
+                    variant="outline"
+                    className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:border-border border border-transparent"
+                  >
+                    {opt.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* KPI CARDS (6 CARDS) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard label="Clientes" value={String(kpis.total)} accent="primary" icon={Users} />
         <KpiCard
           label="En riesgo"
@@ -183,37 +445,154 @@ export default function Cliente360Page() {
           accent="warning"
         />
         <KpiCard label="LTV histórico total" value={money(kpis.ltvTotal)} accent="success" />
-      </div>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar cliente…"
-          className="pl-8"
+        <KpiCard
+          label={`Top ${kpis.top20Count} (20%)`}
+          value={money(kpis.top20Sum)}
+          icon={TrendingUp}
+          hint={`representa el ${pct(kpis.top20Share, 1)}`}
+        />
+        <KpiCard
+          label="Clientes vitales"
+          value={String(kpis.vitalesCount)}
+          icon={Shield}
+          accent="ochre"
+          hint={`concentran el 80% de ${FUENTE_TITULO[fuente].toLowerCase()}`}
         />
       </div>
 
+      {/* GRAFICO PARETO */}
+      <div className="card-elevated p-5">
+        <h3 className="font-display font-semibold mb-1">
+          Clientes vitales — {FUENTE_TITULO[fuente]}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          {chartData.length} clientes que generan el 80% · barras = monto · línea = % acumulado
+        </p>
+        <ChartContainer config={chartConfig} className="h-[400px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={chartData}
+              layout="vertical"
+              margin={{ left: 10, right: 60, top: 5, bottom: 5 }}
+            >
+              <CartesianGrid
+                stroke="var(--color-border)"
+                strokeDasharray="3 3"
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
+                stroke="var(--color-muted-foreground)"
+                fontSize={11}
+                tickFormatter={(v) => money(v)}
+              />
+              <YAxis
+                type="category"
+                yAxisId="left"
+                dataKey="cliente"
+                stroke="var(--color-muted-foreground)"
+                fontSize={11}
+                width={160}
+                tick={{ textAnchor: "end" }}
+              />
+              <YAxis
+                type="number"
+                yAxisId="right"
+                orientation="right"
+                stroke="var(--color-muted-foreground)"
+                fontSize={11}
+                tickFormatter={(v) => `${v}%`}
+                domain={[0, 100]}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => (
+                      <span className="font-mono font-medium text-foreground tabular-nums">
+                        {name === "acumulado"
+                          ? `${Number(value).toFixed(1)}%`
+                          : money(Number(value))}
+                      </span>
+                    )}
+                  />
+                }
+              />
+              <Bar
+                yAxisId="left"
+                dataKey="montoPareto"
+                fill="var(--color-montoPareto)"
+                radius={[0, 4, 4, 0]}
+                barSize={18}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="acumulado"
+                stroke="var(--color-acumulado)"
+                strokeWidth={2.5}
+                dot={{ r: 3 }}
+              />
+              <ReferenceLine
+                yAxisId="right"
+                y={80}
+                stroke="var(--color-destructive)"
+                strokeDasharray="4 4"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      </div>
+
+      {/* TABLA UNIFICADA */}
       <div className="card-elevated overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-4">
+          <div>
+            <h3 className="font-display font-semibold">Detalle por Cliente</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Salud, concentración Pareto ({FUENTE_TITULO[fuente]}) y morosidad
+            </p>
+          </div>
+          <div className="relative max-w-xs w-full">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar cliente…"
+              className="pl-8"
+            />
+          </div>
+        </div>
+
+        <div className="[&_[data-slot=table-container]]:max-h-[26rem] [&_[data-slot=table-container]]:overflow-y-auto">
           <Table className="text-sm">
-            <TableHeader className="bg-primary [&_tr]:border-b-0">
+            <TableHeader className="bg-primary [&_tr]:border-b-0 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">
+                <TableHead className="text-primary-foreground text-left px-3 py-2 text-xs tracking-wider w-12">
+                  #
+                </TableHead>
                 <TableHead className="text-primary-foreground text-left px-3 py-2 text-xs tracking-wider">
                   Cliente
+                </TableHead>
+                <TableHead className="text-primary-foreground text-center px-3 py-2 text-xs tracking-wider">
+                  Suc.
+                </TableHead>
+                <TableHead className="text-primary-foreground text-right px-3 py-2 text-xs tracking-wider">
+                  Monto ({FUENTE_TITULO[fuente]})
+                </TableHead>
+                <TableHead className="text-primary-foreground text-right px-3 py-2 text-xs tracking-wider">
+                  % Total
+                </TableHead>
+                <TableHead className="text-primary-foreground text-right px-3 py-2 text-xs tracking-wider">
+                  % Acum.
+                </TableHead>
+                <TableHead className="text-primary-foreground text-center px-3 py-2 text-xs tracking-wider">
+                  Clasificación
                 </TableHead>
                 <TableHead className="text-primary-foreground text-center px-3 py-2 text-xs tracking-wider">
                   Salud
                 </TableHead>
                 <TableHead className="text-primary-foreground text-right px-3 py-2 text-xs tracking-wider">
-                  LTV histórico
-                </TableHead>
-                <TableHead className="text-primary-foreground text-right px-3 py-2 text-xs tracking-wider">
                   Saldo vencido
-                </TableHead>
-                <TableHead className="text-primary-foreground text-right px-3 py-2 text-xs tracking-wider">
-                  Días vencido (máx)
                 </TableHead>
                 <TableHead className="text-primary-foreground text-right px-3 py-2 text-xs tracking-wider">
                   Recencia
@@ -223,13 +602,13 @@ export default function Cliente360Page() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
                     Cargando…
                   </TableCell>
                 </TableRow>
               ) : filteredRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="p-0">
+                  <TableCell colSpan={10} className="p-0">
                     <Empty>
                       <EmptyHeader>
                         <EmptyTitle className="text-sm font-normal text-muted-foreground">
@@ -240,22 +619,40 @@ export default function Cliente360Page() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredRows.slice(0, 100).map((r) => (
+                filteredRows.slice(0, 100).map((r, i) => (
                   <TableRow key={r.cliente} className="hover:bg-muted/20">
+                    <TableCell className="px-3 py-2 text-muted-foreground tabular-nums text-xs font-medium">
+                      {i + 1}
+                    </TableCell>
                     <TableCell className="px-3 py-2 font-medium">{r.cliente}</TableCell>
+                    <TableCell className="px-3 py-2 text-center text-xs text-muted-foreground">
+                      {r.sucursalesCount > 1 ? (
+                        <StatusPill kind="neutral">{r.sucursalesCount}</StatusPill>
+                      ) : (
+                        <span className="text-muted-foreground/50">1</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-right tabular-nums font-medium">
+                      {money(r.montoPareto)}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-right tabular-nums">
+                      {pct(r.share, 1)}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-right tabular-nums font-medium">
+                      {pct(r.acumulado, 1)}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-center">
+                      <StatusPill kind={CLASIFICACION_KIND[r.clasificacion]}>
+                        {r.clasificacion}
+                      </StatusPill>
+                    </TableCell>
                     <TableCell className="px-3 py-2 text-center">
                       <StatusPill kind={BAND_KIND[r.band]}>
                         {BAND_LABEL[r.band]} · {r.health.toFixed(0)}
                       </StatusPill>
                     </TableCell>
                     <TableCell className="px-3 py-2 text-right tabular-nums">
-                      {money(r.ltv)}
-                    </TableCell>
-                    <TableCell className="px-3 py-2 text-right tabular-nums">
                       {r.saldoVencido > 0 ? money(r.saldoVencido) : "—"}
-                    </TableCell>
-                    <TableCell className="px-3 py-2 text-right tabular-nums">
-                      {r.diasVencidoMax > 0 ? r.diasVencidoMax : "—"}
                     </TableCell>
                     <TableCell className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                       {r.recenciaDias !== null ? `${r.recenciaDias}d` : "—"}

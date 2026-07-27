@@ -19,11 +19,6 @@ import {
   BranchSummaryTable,
   type BranchSummaryRow,
 } from "@/components/gerencia-nacional/BranchSummaryTable";
-import {
-  UnitHeatmapMatrix,
-  type MatrixRow,
-  type MatrixUnit,
-} from "@/components/gerencia-nacional/UnitHeatmapMatrix";
 import { getAllowedMonths } from "@/lib/date-range";
 import { useMemo, useCallback } from "react";
 import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
@@ -103,7 +98,6 @@ export default function GerenciaNacionalPage() {
 
     const branchAcc = new Map<string, Acc>();
     const unitAcc = new Map<string, Acc>();
-    const matrixAcc = new Map<string, Map<string, Acc>>();
 
     const bump = (map: Map<string, Acc>, key: string, field: keyof Acc, value: number) => {
       const entry = map.get(key) ?? emptyAcc();
@@ -125,10 +119,6 @@ export default function GerenciaNacionalPage() {
         bump(branchAcc, r.sucursalId, "meta", meta);
         bump(branchAcc, r.sucursalId, "facturado", facturado);
       }
-      if (!matrixAcc.has(r.sucursalId)) matrixAcc.set(r.sucursalId, new Map());
-      const cell = matrixAcc.get(r.sucursalId)!;
-      bump(cell, r.unidadNegocioId, "meta", meta);
-      bump(cell, r.unidadNegocioId, "facturado", facturado);
     });
 
     const branchRows: BranchSummaryRow[] = sucursalesData
@@ -155,24 +145,7 @@ export default function GerenciaNacionalPage() {
       .filter((r) => r.meta > 0 || r.facturado > 0)
       .sort((a, b) => a.order - b.order);
 
-    const matrixUnits: MatrixUnit[] = unitRows.map((u) => ({ id: u.id, label: u.label }));
-
-    const matrixRows: MatrixRow[] = branchRows.map((b) => {
-      const cellsMap = matrixAcc.get(b.id);
-      const cells: MatrixRow["cells"] = {};
-      unitRows.forEach((u) => {
-        const a = cellsMap?.get(u.id);
-        cells[u.id] = a ? { meta: a.meta, facturado: a.facturado, pct: pctOf(a) } : undefined;
-      });
-      return {
-        sucursalId: b.id,
-        sucursal: b.label,
-        cells,
-        general: { meta: b.meta, facturado: b.facturado, pct: b.pct },
-      };
-    });
-
-    return { branchRows, unitRows, matrixUnits, matrixRows };
+    return { branchRows, unitRows };
   }, [crossRaw, sucursalesData, unidades, selectedUnidades]);
 
   // Highlight KPIs: best branch, branches under 70%, weakest/strongest unit — always full-picture.
@@ -404,11 +377,10 @@ export default function GerenciaNacionalPage() {
         <BranchRanking rows={cross?.branchRows ?? []} />
       </div>
 
-      {/* Resumen por sucursal + Mapa de calor (Matriz). content-visibility:auto
-          difiere el layout/paint hasta que la fila entra al viewport. */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 section-enter section-enter-3 [content-visibility:auto] [contain-intrinsic-size:auto_420px]">
+      {/* Resumen por sucursal. content-visibility:auto difiere el layout/paint
+          hasta que la fila entra al viewport. */}
+      <div className="section-enter section-enter-3 [content-visibility:auto] [contain-intrinsic-size:auto_420px]">
         <BranchSummaryTable rows={cross?.branchRows ?? []} />
-        <UnitHeatmapMatrix rows={cross?.matrixRows ?? []} units={cross?.matrixUnits ?? []} />
       </div>
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}

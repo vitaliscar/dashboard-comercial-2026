@@ -315,7 +315,7 @@ export default function AsesorPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-1">
         <div className="card-elevated p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -400,7 +400,7 @@ export default function AsesorPage() {
             Evaluación táctica sobre 5 ejes en escala 0-100
           </p>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-2">
           <div className="h-72 lg:col-span-2">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={scorecard.radar}>

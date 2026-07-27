@@ -35,19 +35,23 @@ export default async function DashboardPage() {
   switch (role) {
     case "gerencia":
       redirect("/gerencia-nacional");
+      break;
 
     case "gerente_comercial": {
       const units = profile.unidadesNegocioIds ?? [];
       const route = units.length === 1 ? await unitRoute(units[0]) : null;
       if (route) redirect(route);
       redirect("/gerencia-nacional");
+      break;
     }
 
     case "coordinador":
       redirect("/coordinador");
+      break;
 
     case "asesor":
       redirect("/asesor");
+      break;
 
     default:
       return (
