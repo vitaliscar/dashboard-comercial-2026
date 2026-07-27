@@ -23,6 +23,7 @@ import {
   ventasPerdidas,
   presupuestos,
   cobranzas,
+  cobranzasSnapshots,
   cobranzasEquipos,
   servicios,
   detallesServiciosEstrategicos,
@@ -33,6 +34,7 @@ import {
   equiposPresupuesto,
   equiposFacturacion,
   cumplimientoAsesores,
+  ventasCasa,
 } from "@/db/schema";
 import {
   ExcelParser,
@@ -387,9 +389,28 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
       })),
     );
 
-    // 7. Cobranzas + split a cobranzas_equipos
-    // (cobranzas_snapshots queda fuera de alcance: no aplicada en producción,
-    // diferida a una fase posterior — ver docs/SCHEMA.md).
+    // 7. Cobranzas + snapshot acumulado + split a cobranzas_equipos
+    console.log("→ Guardando snapshot de cobranzas previas...");
+    const actualCobranzas = await dbAdmin.select().from(cobranzas);
+    if (actualCobranzas.length > 0) {
+      const snapshotTimestamp = new Date();
+      result.rowsAffected["cobranzas_snapshots"] = await insertChunked(
+        cobranzasSnapshots,
+        actualCobranzas.map((c) => ({
+          cliente: c.cliente,
+          facturaNumero: c.facturaNumero,
+          fechaEmision: c.fechaEmision,
+          fechaVencimiento: c.fechaVencimiento,
+          monto: c.monto,
+          saldo: c.saldo,
+          diasVencidos: c.diasVencidos,
+          sucursalId: c.sucursalId,
+          unidadNegocioId: c.unidadNegocioId,
+          capturedAt: snapshotTimestamp,
+        })),
+      );
+    }
+
     console.log("→ Cargando cobranzas...");
     const cobranzasRaw = parser.getCobranzasNuevo();
     await dbAdmin.delete(cobranzas);
@@ -591,6 +612,22 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
         venta: String(c.venta),
         pctCumplimiento: String(c.pctCumplimiento),
         pctParticipacion: String(c.pctParticipacion),
+      })),
+    );
+
+    // 13. Ventas Casa (Sucursal/U-N/Mes, sin asesor asociado)
+    console.log("→ Cargando ventas casa...");
+    const ventasCasaRaw = parser.getVentasCasa();
+    await dbAdmin.delete(ventasCasa);
+    result.rowsAffected["ventas_casa"] = await insertChunked(
+      ventasCasa,
+      ventasCasaRaw.map((v) => ({
+        sucursalId: sucursalesMap.get(v.sucursal.trim().toLowerCase()) ?? null,
+        unidadNegocioId: v.unidadNegocio
+          ? (unidadesMap.get(v.unidadNegocio.trim().toLowerCase()) ?? null)
+          : null,
+        mes: v.mes,
+        monto: String(v.monto),
       })),
     );
 

@@ -3,6 +3,8 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import { abbreviateSucursal, money, statusFromPct90 } from "@/lib/format";
 import type { BranchSummaryRow } from "./BranchSummaryTable";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 export type BranchRow = BranchSummaryRow;
 
 const ACCENT_VAR: Record<ReturnType<typeof statusFromPct90>, string> = {
@@ -42,6 +44,7 @@ function getAxisConfig(maxPct: number) {
 }
 
 export const BranchRanking = memo(function BranchRanking({ rows }: { rows: BranchRow[] }) {
+  const chartAnimation = useChartAnimation();
   const chartData = rows.map((r) => ({
     ...r,
     shortLabel: abbreviateSucursal(r.label),
@@ -114,6 +117,7 @@ export const BranchRanking = memo(function BranchRanking({ rows }: { rows: Branc
                 fontWeight: 700,
                 fill: "var(--color-foreground)",
               }}
+              {...chartAnimation}
             >
               {chartData.map((row) => (
                 <Cell key={row.id} fill={ACCENT_VAR[statusFromPct90(row.pct)]} />

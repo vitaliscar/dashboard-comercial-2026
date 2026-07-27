@@ -28,16 +28,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useState, useMemo } from "react";
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
 import {
   Shield,
   TrendingUp,
@@ -80,6 +71,9 @@ const MESES = [
   "Noviembre",
   "Diciembre",
 ];
+
+// TODO: reactivar la pestaña "Distribución Pareto" cuando pasemos a producción.
+const SHOW_PARETO_TAB = false;
 
 const TEXT_ACCENT_CLASS: Record<"success" | "warning" | "danger", string> = {
   success: "text-success",
@@ -154,8 +148,11 @@ export default function AsesoresPage() {
     const filterByAdvisor = (row: Record<string, unknown>, key: "codigo" | "nombre") => {
       const codeVal = (row.asesor_codigo || row.codigo_asesor) as string | number | undefined;
       const nameVal = row.asesor as string | undefined;
+      const clienteVal = row.cliente as string | undefined;
       const resolved = resolverAsesor(
-        key === "codigo" ? { codigo: codeVal } : { nombre: nameVal },
+        key === "codigo"
+          ? { codigo: codeVal, cliente: clienteVal }
+          : { nombre: nameVal, cliente: clienteVal },
         aliases,
       );
       return resolved.codigo === selectedAdvisor.codigo;
@@ -205,17 +202,17 @@ export default function AsesoresPage() {
     unidades.forEach((u) => uMap.set(u.id, u.nombre));
 
     const aliases = new Map<string, string>();
-    rawData.metas.forEach((row: Record<string, unknown>) => {
+    rawData.cumplimiento.forEach((row: Record<string, unknown>) => {
       const normName = normalizarNombre(row.asesor as string);
       const code = String(row.codigo_asesor ?? "").trim();
       if (normName && code) aliases.set(normName, code);
     });
 
     const consolidated = consolidarAsesores(
-      rawData.facturas,
+      rawData.cumplimiento,
       rawData.cotizaciones,
       rawData.perdidas,
-      rawData.metas,
+      rawData.ventasCasa,
       aliases,
     );
 
@@ -341,16 +338,18 @@ export default function AsesoresPage() {
               <TabsList className="bg-transparent p-0 gap-2 h-auto">
                 <TabsTrigger
                   value="ranking"
-                  className="px-4 py-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-auto font-semibold text-sm transition-all"
+                  className="px-4 py-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-auto font-semibold text-sm transition-colors"
                 >
                   Ranking Comercial
                 </TabsTrigger>
-                <TabsTrigger
-                  value="pareto"
-                  className="px-4 py-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-auto font-semibold text-sm transition-all"
-                >
-                  Distribución Pareto
-                </TabsTrigger>
+                {SHOW_PARETO_TAB && (
+                  <TabsTrigger
+                    value="pareto"
+                    className="px-4 py-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-auto font-semibold text-sm transition-colors"
+                  >
+                    Distribución Pareto
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {activeTab === "pareto" && (
@@ -499,69 +498,67 @@ export default function AsesoresPage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
-                          data={paretoChartData}
-                          margin={{ top: 10, right: 10, bottom: 20, left: 10 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis
-                            dataKey="name"
-                            tick={{ fontSize: 10 }}
-                            angle={-35}
-                            textAnchor="end"
-                            interval={0}
-                            height={50}
-                          />
-                          <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-                          <YAxis
-                            yAxisId="right"
-                            orientation="right"
-                            domain={[0, 100]}
-                            tick={{ fontSize: 10 }}
-                          />
-                          <ChartTooltip
-                            content={
-                              <ChartTooltipContent
-                                labelKey="name"
-                                indicator="line"
-                                className="w-56"
-                              />
-                            }
-                          />
-                          <Bar
-                            yAxisId="left"
-                            dataKey="value"
-                            name="Monto"
-                            fill="hsl(var(--primary))"
-                            radius={[4, 4, 0, 0]}
-                            maxBarSize={40}
-                          />
-                          <Line
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey="acumulado"
-                            name="% Acumulado"
-                            stroke="hsl(var(--destructive))"
-                            strokeWidth={2}
-                            dot={{ r: 3 }}
-                          />
-                          <ReferenceLine
-                            yAxisId="right"
-                            y={80}
-                            stroke="hsl(var(--destructive))"
-                            strokeDasharray="4 4"
-                            label={{
-                              value: "Límite 80%",
-                              position: "insideTopLeft",
-                              fontSize: 10,
-                              fill: "hsl(var(--destructive))",
-                            }}
-                          />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </div>
+                    <ChartContainer config={{}} className="aspect-auto h-80 w-full">
+                      <ComposedChart
+                        data={paretoChartData}
+                        margin={{ top: 10, right: 10, bottom: 20, left: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10 }}
+                          angle={-35}
+                          textAnchor="end"
+                          interval={0}
+                          height={50}
+                        />
+                        <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          domain={[0, 100]}
+                          tick={{ fontSize: 10 }}
+                        />
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent
+                              labelKey="name"
+                              indicator="line"
+                              className="w-56"
+                            />
+                          }
+                        />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="value"
+                          name="Monto"
+                          fill="hsl(var(--primary))"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="acumulado"
+                          name="% Acumulado"
+                          stroke="hsl(var(--destructive))"
+                          strokeWidth={2}
+                          dot={{ r: 3 }}
+                        />
+                        <ReferenceLine
+                          yAxisId="right"
+                          y={80}
+                          stroke="hsl(var(--destructive))"
+                          strokeDasharray="4 4"
+                          label={{
+                            value: "Límite 80%",
+                            position: "insideTopLeft",
+                            fontSize: 10,
+                            fill: "hsl(var(--destructive))",
+                          }}
+                        />
+                      </ComposedChart>
+                    </ChartContainer>
                   )}
                 </div>
 
@@ -648,36 +645,34 @@ export default function AsesoresPage() {
                     <h4 className="text-xs font-bold mb-3 text-foreground uppercase tracking-wider">
                       Tendencia Mensual ({anio}) — Venta vs Meta
                     </h4>
-                    <div className="h-52">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
-                          data={drilldownData.monthlyData}
-                          margin={{ top: 10, right: 10, bottom: 0, left: 10 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <ChartTooltip
-                            content={<ChartTooltipContent labelKey="mes" indicator="dot" />}
-                          />
-                          <Bar
-                            dataKey="venta"
-                            name="Facturado"
-                            fill="hsl(var(--primary))"
-                            radius={[4, 4, 0, 0]}
-                            maxBarSize={30}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="meta"
-                            name="Presupuesto"
-                            stroke="hsl(var(--destructive))"
-                            strokeWidth={2}
-                            dot={{ r: 4 }}
-                          />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </div>
+                    <ChartContainer config={{}} className="aspect-auto h-52 w-full">
+                      <ComposedChart
+                        data={drilldownData.monthlyData}
+                        margin={{ top: 10, right: 10, bottom: 0, left: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <ChartTooltip
+                          content={<ChartTooltipContent labelKey="mes" indicator="dot" />}
+                        />
+                        <Bar
+                          dataKey="venta"
+                          name="Facturado"
+                          fill="hsl(var(--primary))"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={30}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="meta"
+                          name="Presupuesto"
+                          stroke="hsl(var(--destructive))"
+                          strokeWidth={2}
+                          dot={{ r: 4 }}
+                        />
+                      </ComposedChart>
+                    </ChartContainer>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

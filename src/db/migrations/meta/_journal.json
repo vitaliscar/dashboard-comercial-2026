@@ -15,6 +15,20 @@
       "when": 1785090011038,
       "tag": "0001_far_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785164498390,
+      "tag": "0002_absent_kabuki",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785174189548,
+      "tag": "0003_useful_wind_dancer",
+      "breakpoints": true
     }
   ]
 }

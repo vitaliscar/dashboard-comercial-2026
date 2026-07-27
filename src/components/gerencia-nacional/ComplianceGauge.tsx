@@ -6,6 +6,8 @@ import { GoalFeedback } from "./GoalFeedback";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 const chartConfig = {
   value: { label: "Cumplimiento" },
 } satisfies ChartConfig;
@@ -29,6 +31,7 @@ export const ComplianceGauge = memo(function ComplianceGauge({
   presupuesto,
   title = "Cumplimiento General",
 }: Props) {
+  const chartAnimation = useChartAnimation();
   const displayPct = Math.max(0, pct); // No clamping at 100% — show real values
   const color = ACCENT_VAR[statusFromPct90(pct)];
   const brecha = presupuesto - facturado;
@@ -54,6 +57,7 @@ export const ComplianceGauge = memo(function ComplianceGauge({
                 cornerRadius={8}
                 fill={color}
                 background={{ fill: "var(--color-muted)" }}
+                {...chartAnimation}
               />
             </RadialBarChart>
           </ChartContainer>

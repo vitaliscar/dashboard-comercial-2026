@@ -49,6 +49,8 @@ function renderSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent 
   );
 }
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 type Props = {
   /** `id` is only needed by callers that support selection dimming (e.g. business-unit chips). */
   data: { id?: string; label: string; facturado: number }[];
@@ -62,6 +64,7 @@ export const UnitDonut = memo(function UnitDonut({
   title = "De dónde vino la venta",
   selectedIds = [],
 }: Props) {
+  const chartAnimation = useChartAnimation();
   const chartConfig = useMemo(
     () =>
       data.reduce<ChartConfig>((config, row, i) => {
@@ -92,6 +95,7 @@ export const UnitDonut = memo(function UnitDonut({
               paddingAngle={2}
               label={renderSliceLabel as never}
               labelLine={false}
+              {...chartAnimation}
             >
               {data.map((row, i) => {
                 const isSelected =

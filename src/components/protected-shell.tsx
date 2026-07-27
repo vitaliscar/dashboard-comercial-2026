@@ -53,16 +53,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
       const timeSinceLastActive = Date.now() - lastActiveRef.current;
 
       if (isWarningOpen) {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setIsWarningOpen(false);
-            signOut();
-            router.replace("/auth");
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft((prev) => Math.max(0, prev - 1));
       } else if (timeSinceLastActive > INACTIVITY_TIMEOUT) {
         setIsWarningOpen(true);
         setTimeLeft(WARNING_TIMEOUT);
@@ -72,7 +63,16 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session, isWarningOpen, signOut, router]);
+  }, [session, isWarningOpen]);
+
+  useEffect(() => {
+    if (isWarningOpen && timeLeft === 0) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setIsWarningOpen(false);
+      signOut();
+      router.replace("/auth");
+    }
+  }, [isWarningOpen, timeLeft, signOut, router]);
 
   useEffect(() => {
     if (!loading && !session) {

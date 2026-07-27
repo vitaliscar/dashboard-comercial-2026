@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/db";
 import { users, sessions, profiles, userRoles, profileUnidadesNegocio } from "@/db/schema";
+import { authRateLimiter } from "@/lib/rate-limiter";
 import { verifyPassword } from "@/lib/auth/password";
 import { sessionExpiryDate, isSessionExpired, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 
@@ -62,6 +63,11 @@ export async function loginAction(data: { email: string; password: string }) {
 
   const cleanEmail = (data.email || "").trim().toLowerCase();
   const cleanPassword = (data.password || "").trim();
+
+  const limitCheck = authRateLimiter.isRateLimited(cleanEmail || "unknown");
+  if (limitCheck.limited) {
+    return fail("Demasiados intentos de inicio de sesión. Por favor, intente más tarde.");
+  }
 
   const [user] = await dbAdmin.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
   if (!user || !user.isActive) return fail("Correo o contraseña incorrectos.");

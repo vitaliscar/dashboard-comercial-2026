@@ -11,6 +11,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 export type CompanyTrendRow = { mes: string; ccv: number; xibi: number; estrategicas: number };
 
 const chartConfig = {
@@ -24,6 +26,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
 }: {
   data: CompanyTrendRow[];
 }) {
+  const chartAnimation = useChartAnimation();
   return (
     <Card className="ring-0 card-elevated">
       <CardHeader>
@@ -53,6 +56,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
               stroke="var(--color-ccv)"
               strokeWidth={2.5}
               dot={{ r: 3 }}
+              {...chartAnimation}
             />
             <Line
               type="monotone"
@@ -61,6 +65,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
               stroke="var(--color-xibi)"
               strokeWidth={2.5}
               dot={{ r: 3 }}
+              {...chartAnimation}
             />
             <Line
               type="monotone"
@@ -69,6 +74,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
               stroke="var(--color-estrategicas)"
               strokeWidth={2.5}
               dot={{ r: 3 }}
+              {...chartAnimation}
             />
           </LineChart>
         </ChartContainer>

@@ -221,7 +221,22 @@ export const serviciosInterno = pgTable(
   (t) => [index("servicios_interno_mes_idx").on(t.mes)],
 );
 
-// Estado actual únicamente — sin histórico (ver cobranzas_snapshots, diferida)
+// Hoja Excel "Ventas Casa": ventas de atención casa por sucursal/unidad de
+// negocio/mes, sin asesor asociado (no tienen asesor asignado). Sin columna
+// año — mismo patrón snapshot-de-un-año que servicios_interno.
+export const ventasCasa = pgTable(
+  "ventas_casa",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    mes: integer("mes").notNull(),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ventas_casa_mes_idx").on(t.mes)],
+);
+
 export const cobranzas = pgTable("cobranzas", {
   id: uuid("id").primaryKey().defaultRandom(),
   cliente: text("cliente").notNull(),
@@ -235,6 +250,31 @@ export const cobranzas = pgTable("cobranzas", {
   unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Tabla de snapshots históricos de cobranzas.
+ * ACUMULA una fila de historia por cada carga semanal (no se borra nunca, a diferencia
+ * de `cobranzas` que sí se reemplaza) — es intencional, es la única fuente de tendencia
+ * que tenemos ya que el Excel no trae histórico.
+ */
+export const cobranzasSnapshots = pgTable(
+  "cobranzas_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cliente: text("cliente").notNull(),
+    facturaNumero: text("factura_numero"),
+    fechaEmision: date("fecha_emision").notNull(),
+    fechaVencimiento: date("fecha_vencimiento").notNull(),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+    saldo: numeric("saldo", { precision: 14, scale: 2 }).notNull().default("0"),
+    diasVencidos: integer("dias_vencidos").notNull().default(0),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("cobranzas_snapshots_captured_at_idx").on(t.capturedAt)],
+);
+
 
 // Cartera de Equipos/Alquiler — sin unidad_negocio_id
 export const cobranzasEquipos = pgTable("cobranzas_equipos", {
@@ -299,7 +339,9 @@ export const cumplimientoAsesores = pgTable(
     presupuesto: numeric("presupuesto", { precision: 14, scale: 2 }).notNull().default("0"),
     venta: numeric("venta", { precision: 14, scale: 2 }).notNull().default("0"),
     pctCumplimiento: numeric("pct_cumplimiento", { precision: 7, scale: 4 }).notNull().default("0"),
-    pctParticipacion: numeric("pct_participacion", { precision: 7, scale: 4 }).notNull().default("0"),
+    pctParticipacion: numeric("pct_participacion", { precision: 7, scale: 4 })
+      .notNull()
+      .default("0"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("cumplimiento_asesores_anio_mes_idx").on(t.anio, t.mes)],

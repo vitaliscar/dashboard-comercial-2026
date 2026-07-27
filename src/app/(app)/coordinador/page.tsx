@@ -493,7 +493,7 @@ export default function CoordinadorPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-1">
         <ComplianceGauge
           pct={currentPeriodTotals.cumplimiento}
           facturado={currentPeriodTotals.facturado}
@@ -503,17 +503,17 @@ export default function CoordinadorPanel() {
         <CompanyTrendChart data={deferredCompanyTrend} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 section-enter section-enter-2">
         <UnitAmountBars data={deferredCurrentPeriodByUnit} />
         <GlobalMonthlyCombo data={deferredGlobalTrend} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px] section-enter section-enter-3">
         <RepuestosAreaChart data={deferredRepuestosTrend} />
         <ServiciosBarWithMarkers data={deferredServiciosTrend} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px] section-enter section-enter-1">
         <LubFiltrosComboLines data={deferredLubFiltrosTrend} />
         <EquiposAlquilerStacked data={deferredEquiposAlquilerTrend} />
       </div>
@@ -538,7 +538,7 @@ export default function CoordinadorPanel() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-2">
             <div className="h-72 lg:col-span-2">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={deferredRadarByMetric}>

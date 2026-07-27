@@ -33,6 +33,7 @@ import { canAccessModule, type ModuleKey } from "@/lib/permissions";
 import { StatusPill } from "@/components/status-pill";
 import { CommandPalette } from "@/components/command-palette";
 import { Kbd } from "@/components/ui/kbd";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 interface NavItem {
   to: string;
@@ -129,6 +130,7 @@ function pageTitle(pathname: string): string {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const isOnline = useOnlineStatus();
   const { profile, role, signOut } = useAuth();
   const { filters } = useSharedFilters();
   const router = useRouter();
@@ -362,8 +364,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground pl-2 border-l border-border">
-              <span className="w-2 h-2 bg-success border border-border online-indicator-pulse rounded-full"></span>
-              <span className="font-display text-[10px] font-bold">Online</span>
+              <span
+                className={cn(
+                  "w-2 h-2 border border-border rounded-full",
+                  isOnline ? "bg-success online-indicator-pulse" : "bg-danger",
+                )}
+              />
+              <span className="font-display text-[10px] font-bold">
+                {isOnline ? "Online" : "Sin conexión"}
+              </span>
             </div>
           </div>
         </header>
