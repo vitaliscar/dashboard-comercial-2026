@@ -794,6 +794,36 @@ export class ExcelParser {
   }
 
   /**
+   * Parsea números con formato de paréntesis contable: (N) -> -N.
+   */
+  private parseAccountingNumber(value: any): number {
+    if (value === undefined || value === null) return 0;
+    if (typeof value === "number") return value;
+
+    const str = String(value).trim();
+    if (!str) return 0;
+
+    const isParentheses = /^\s*\((.+)\)\s*$/.test(str);
+    const cleanStr = isParentheses ? str.replace(/^\s*\((.+)\)\s*$/, "$1") : str;
+    const num = this.parseNumber(cleanStr);
+    return isParentheses ? -Math.abs(num) : num;
+  }
+
+  private parseAccountingInt(value: any): number {
+    if (value === undefined || value === null) return 0;
+    if (typeof value === "number") return Math.round(value);
+
+    const str = String(value).trim();
+    if (!str) return 0;
+
+    const isParentheses = /^\s*\((.+)\)\s*$/.test(str);
+    const cleanStr = isParentheses ? str.replace(/^\s*\((.+)\)\s*$/, "$1") : str;
+    const num = this.parseNumber(cleanStr);
+    const intVal = Math.round(num);
+    return isParentheses ? -Math.abs(intVal) : intVal;
+  }
+
+  /**
    * Calcula porcentaje
    */
   private calcularPorcentaje(numerador: number, denominador: number): number {
@@ -1312,25 +1342,67 @@ export class ExcelParser {
 
   /**
    * Hoja: Cuentas por Cobrar → cobranzas (esquema nuevo).
+   * Agrupa filas por combinación (Sucursal Venta + Cliente/Nombre Cliente + Factura),
+   * sumando "Total DO" de todas las líneas de Giro de esa factura.
    * La hoja no trae un saldo parcial separado del monto total, así que
    * saldo = monto (se asume la factura completa está pendiente).
    */
   getCobranzasNuevo(): CobranzaNueva[] {
     const datos = this.leerHoja("Cuentas por Cobrar");
-    return datos.map((row) => {
-      const monto = this.parseNumber(row["TOTAL $"]);
-      return {
-        cliente: this.normalizarTexto(row["Nombre Cliente"]) || "Cliente S/N",
-        facturaNumero: this.normalizarTexto(row["Factura"]),
-        fechaEmision: this.excelDateToISO(row["Fecha Emisión"]),
-        fechaVencimiento: this.excelDateToISO(row["Fecha Vencimiento"]),
-        monto,
-        saldo: monto,
-        diasVencidos: parseInt(row["Dias Vencidos"] || row["DIAS VENCIDO"], 10) || 0,
-        sucursal: this.normalizarSucursal(row["Sucursal Venta"]),
-        unidadNegocio: this.normalizarUnidadNegocio(row["Unidad de Negocio"]),
-      };
-    });
+
+    const datosFiltrados = datos.filter((row) => !this.debeExcluir(row["Sucursal Venta"] || ""));
+
+    const grupos = new Map<
+      string,
+      {
+        cliente: string;
+        facturaNumero: string;
+        fechaEmision: string | null;
+        fechaVencimiento: string | null;
+        monto: number;
+        diasVencidos: number;
+        sucursal: string;
+        unidadNegocio: string | null;
+      }
+    >();
+
+    for (const row of datosFiltrados) {
+      const sucursal = this.normalizarSucursal(row["Sucursal Venta"]);
+      const clienteCod = this.normalizarTexto(row["Cliente"]);
+      const clienteNom = this.normalizarTexto(row["Nombre Cliente"]) || "Cliente S/N";
+      const facturaNumero = this.normalizarTexto(row["Factura"]);
+      const key = `${sucursal}|${clienteCod}|${clienteNom}|${facturaNumero}`;
+
+      const montoDO = this.parseAccountingNumber(row["Total DO"]);
+
+      if (!grupos.has(key)) {
+        grupos.set(key, {
+          cliente: clienteNom,
+          facturaNumero,
+          fechaEmision: this.excelDateToISO(row["Fecha Emisión"]),
+          fechaVencimiento: this.excelDateToISO(row["Fecha Vencimiento"]),
+          monto: 0,
+          diasVencidos: this.parseAccountingInt(row["Dias Vencidos"] ?? row["DIAS VENCIDO"]),
+          sucursal,
+          unidadNegocio: this.normalizarUnidadNegocio(row["Unidad de Negocio"]),
+        });
+      }
+
+      const item = grupos.get(key)!;
+      item.monto += montoDO;
+    }
+
+    return Array.from(grupos.values()).map((g) => ({
+      cliente: g.cliente,
+      facturaNumero: g.facturaNumero,
+      fechaEmision: g.fechaEmision,
+      fechaVencimiento: g.fechaVencimiento,
+      monto: g.monto,
+      saldo: g.monto,
+      diasVencidos: g.diasVencidos,
+      sucursal: g.sucursal,
+      unidadNegocio: g.unidadNegocio,
+    }));
   }
 
   /**
@@ -1352,11 +1424,11 @@ export class ExcelParser {
           if (fechaApertura) {
             fecha = fechaApertura;
             console.warn(
-              `[Servicios] Fila ${index + 2}: Año Contable/Mes Contable inválidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}"). Usando Fecha Apertura Servicio: ${fechaApertura}`
+              `[Servicios] Fila ${index + 2}: Año Contable/Mes Contable inválidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}"). Usando Fecha Apertura Servicio: ${fechaApertura}`,
             );
           } else {
             console.warn(
-              `[Servicios] Fila ${index + 2}: Sin Año/Mes Contable ni Fecha Apertura válidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}").`
+              `[Servicios] Fila ${index + 2}: Sin Año/Mes Contable ni Fecha Apertura válidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}").`,
             );
           }
         }
@@ -1401,6 +1473,28 @@ export class ExcelParser {
       mes: parseInt(row["Mes"], 10) || 1,
       monto: this.parseNumber(row["Monto"]),
     }));
+  }
+
+  /**
+   * Hoja: Ventas Casa → tabla nueva `ventas_casa`. Ventas de atención casa por
+   * Sucursal/U-N/Mes, sin asesor asociado (no tienen asesor asignado).
+   */
+  getVentasCasa(): {
+    sucursal: string;
+    unidadNegocio: string | null;
+    mes: number;
+    monto: number;
+  }[] {
+    const datos = this.leerHoja("Ventas Casa");
+    return datos
+      .filter((row) => !this.debeExcluir(row["Sucursal"] || ""))
+      .map((row) => ({
+        sucursal: this.normalizarSucursal(row["Sucursal"]),
+        unidadNegocio: this.normalizarUnidadNegocio(row["U/N"]),
+        mes: this.parseMonth(row["Mes"]),
+        monto: this.parseNumber(row["Monto"]),
+      }))
+      .filter((row) => row.mes >= 1 && row.mes <= 12);
   }
 
   /**

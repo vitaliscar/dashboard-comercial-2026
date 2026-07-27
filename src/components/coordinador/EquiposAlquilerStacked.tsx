@@ -11,6 +11,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 export type EquiposAlquilerRow = {
   mes: string;
   equiposVenta: number;
@@ -29,6 +31,7 @@ export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({
 }: {
   data: EquiposAlquilerRow[];
 }) {
+  const chartAnimation = useChartAnimation();
   return (
     <Card className="ring-0 card-elevated">
       <CardHeader>
@@ -57,6 +60,7 @@ export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({
               stackId="venta"
               fill="var(--color-equiposVenta)"
               radius={[0, 0, 0, 0]}
+              {...chartAnimation}
             />
             <Bar
               dataKey="alquilerVenta"
@@ -64,6 +68,7 @@ export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({
               stackId="venta"
               fill="var(--color-alquilerVenta)"
               radius={[4, 4, 0, 0]}
+              {...chartAnimation}
             />
             <Line
               type="monotone"
@@ -73,6 +78,7 @@ export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({
               strokeDasharray="5 3"
               strokeWidth={2.5}
               dot={{ r: 4 }}
+              {...chartAnimation}
             />
           </ComposedChart>
         </ChartContainer>

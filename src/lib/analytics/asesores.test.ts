@@ -3,11 +3,10 @@ import { consolidarAsesores, calcularKPIs, prepararDatosPareto } from "./asesore
 import { VENTAS_CASA } from "../asesores-catalogo";
 
 describe("Advisors Core Engine Tests", () => {
-  const mockFacturas = [
-    { asesor: "Felix Conde", monto: 10000 },
-    { asesor: "CONDE FELIX", monto: 5000 },
-    { asesor: "ADMIN", monto: 2000 }, // Ventas Casa
-    { asesor: "Alfredo Betancourt", monto: 8000 },
+  const mockCumplimiento = [
+    { codigo_asesor: "57995", asesor: "Felix Conde", venta: 15000, presupuesto: 12000 },
+    { codigo_asesor: "80868", asesor: "Alfredo Betancourt", venta: 8000, presupuesto: 10000 },
+    { codigo_asesor: "99999", asesor: "Desconocido", venta: 2000, presupuesto: 0 }, // Ventas Casa (unknown code)
   ];
 
   const mockCotizaciones = [
@@ -21,18 +20,20 @@ describe("Advisors Core Engine Tests", () => {
     { asesor: "Unknown Broker", monto: 1000 }, // Ventas Casa
   ];
 
-  const mockMetas = [
-    { codigo_asesor: "57995", asesor: "Felix Conde", presupuesto: 12000 },
-    { codigo_asesor: "80868", asesor: "Alfredo Betancourt", presupuesto: 10000 },
-  ];
+  const mockVentasCasaSucursal = [{ monto: 4000 }, { monto: 1000 }];
 
   it("should consolidate and group metrics correctly per advisor including Ventas Casa", () => {
-    const result = consolidarAsesores(mockFacturas, mockCotizaciones, mockPerdidas, mockMetas);
+    const result = consolidarAsesores(
+      mockCumplimiento,
+      mockCotizaciones,
+      mockPerdidas,
+      mockVentasCasaSucursal,
+    );
 
     // Felix Conde (code 57995)
     const felix = result.find((a) => a.codigo === "57995")!;
     expect(felix).toBeDefined();
-    expect(felix.venta).toBe(15000); // 10000 + 5000
+    expect(felix.venta).toBe(15000);
     expect(felix.cotizado).toBe(20000);
     expect(felix.perdido).toBe(2000);
     expect(felix.meta).toBe(12000);
@@ -46,27 +47,29 @@ describe("Advisors Core Engine Tests", () => {
     expect(alfredo.cotizado).toBe(10000);
     expect(alfredo.meta).toBe(10000);
 
-    // Ventas Casa
+    // Ventas Casa: código desconocido en cumplimiento (2000) + cotización con
+    // código desconocido (5000) + venta perdida sin asesor reconocido (1000) +
+    // ventas casa por sucursal (4000 + 1000)
     const casa = result.find((a) => a.codigo === VENTAS_CASA.codigo)!;
     expect(casa).toBeDefined();
-    expect(casa.venta).toBe(2000); // ADMIN factura
-    expect(casa.cotizado).toBe(5000); // code 99999 cotizacion
-    expect(casa.perdido).toBe(1000); // Unknown Broker perdida
+    expect(casa.venta).toBe(2000 + 4000 + 1000);
+    expect(casa.cotizado).toBe(5000);
+    expect(casa.perdido).toBe(1000);
     expect(casa.meta).toBe(0);
   });
 
   it("should calculate correct KPIs from consolidated data", () => {
     const consolidated = consolidarAsesores(
-      mockFacturas,
+      mockCumplimiento,
       mockCotizaciones,
       mockPerdidas,
-      mockMetas,
+      mockVentasCasaSucursal,
     );
 
     const kpi = calcularKPIs(consolidated);
 
     expect(kpi.totalFacturadoAsesores).toBe(23000); // Felix (15000) + Alfredo (8000)
-    expect(kpi.totalFacturadoVentasCasa).toBe(2000); // ADMIN (2000)
+    expect(kpi.totalFacturadoVentasCasa).toBe(7000); // 2000 + 4000 + 1000
     expect(kpi.totalPerdido).toBe(3000); // Felix (2000) + Unknown (1000)
     expect(kpi.cumplimientoPromedio).toBe(((15000 + 8000) / (12000 + 10000)) * 100); // (23000 / 22000) * 100 = 104.54%
     expect(kpi.asesoresSobreMeta).toBe(1); // Felix is 125%, Alfredo is 80%
@@ -75,10 +78,10 @@ describe("Advisors Core Engine Tests", () => {
 
   it("should prepare and sort Pareto data correctly", () => {
     const consolidated = consolidarAsesores(
-      mockFacturas,
+      mockCumplimiento,
       mockCotizaciones,
       mockPerdidas,
-      mockMetas,
+      mockVentasCasaSucursal,
     );
 
     const paretoVenta = prepararDatosPareto(consolidated, "venta");
@@ -89,6 +92,43 @@ describe("Advisors Core Engine Tests", () => {
     expect(paretoVenta[1].name).toBe("Alfredo Betancourt");
     expect(paretoVenta[1].value).toBe(8000);
     expect(paretoVenta[2].name).toBe("Ventas Casa");
-    expect(paretoVenta[2].value).toBe(2000);
+    expect(paretoVenta[2].value).toBe(7000);
+  });
+
+  it("should route Visco Orinoco cotizaciones to Ventas Casa even when an advisor is listed", () => {
+    const cotizacionesConVisco = [
+      ...mockCotizaciones,
+      { asesor_codigo: "57995", cliente: "Visco Orinoco", monto: 3000 },
+    ];
+
+    const result = consolidarAsesores(
+      mockCumplimiento,
+      cotizacionesConVisco,
+      mockPerdidas,
+      mockVentasCasaSucursal,
+    );
+
+    // Felix Conde should NOT receive the Visco Orinoco cotización.
+    const felix = result.find((a) => a.codigo === "57995")!;
+    expect(felix.cotizado).toBe(20000); // unchanged
+
+    // Ventas Casa absorbs the Visco Orinoco amount on top of the existing unmatched rows.
+    const casa = result.find((a) => a.codigo === VENTAS_CASA.codigo)!;
+    expect(casa.cotizado).toBe(5000 + 3000);
+  });
+
+  it("should add ventas casa por sucursal directly to the Ventas Casa bucket", () => {
+    const result = consolidarAsesores(
+      [{ codigo_asesor: "57995", asesor: "Felix Conde", venta: 9000, presupuesto: 12000 }],
+      [],
+      [],
+      [{ monto: 10000 }, { monto: 5000 }],
+    );
+
+    const felix = result.find((a) => a.codigo === "57995")!;
+    expect(felix.venta).toBe(9000); // unaffected by ventas casa por sucursal
+
+    const casa = result.find((a) => a.codigo === VENTAS_CASA.codigo)!;
+    expect(casa.venta).toBe(15000); // 10000 + 5000
   });
 });

@@ -1,5 +1,25 @@
 import type { NextConfig } from "next";
 
+// Note on HSTS (Strict-Transport-Security):
+// HSTS is intentionally omitted here as it should be configured at the reverse proxy level (Nginx/Caddy) in production.
+
+// Content Security Policy directive.
+// 'unsafe-inline' and 'unsafe-eval' are included in script-src as required for Next.js App Router client hydration,
+// React 19, and 3D rendering libraries (Three.js / React Three Fiber).
+const cspHeader = `
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' 'unsafe-eval';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' data: https:;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self';
+  frame-ancestors 'none';
+  base-uri 'self';
+  form-action 'self';
+`
+  .replace(/\s{2,}/g, " ")
+  .trim();
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -15,6 +35,10 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
+          {
+            key: "Content-Security-Policy",
+            value: cspHeader,
+          },
           {
             key: "X-Frame-Options",
             value: "DENY",

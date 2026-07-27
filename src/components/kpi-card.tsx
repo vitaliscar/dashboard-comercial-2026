@@ -59,7 +59,7 @@ export function KpiCard({
         featured
           ? "card-elevated-2 hover:card-elevated-2-hover"
           : "card-elevated hover:card-elevated-hover",
-        "transition-all duration-200",
+        "transition-[transform,box-shadow,border-color] duration-200",
         "section-enter",
         className,
       )}

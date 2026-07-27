@@ -12,6 +12,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 const chartConfig = {
   presupuesto: { label: "Presupuesto", color: "var(--color-muted-foreground)" },
   venta: { label: "Venta Total", color: "var(--color-chart-calm-1)" },
@@ -22,6 +24,7 @@ export const LubFiltrosComboLines = memo(function LubFiltrosComboLines({
 }: {
   data: MonthlyRow[];
 }) {
+  const chartAnimation = useChartAnimation();
   return (
     <Card className="ring-0 card-elevated">
       <CardHeader>
@@ -54,6 +57,7 @@ export const LubFiltrosComboLines = memo(function LubFiltrosComboLines({
               strokeDasharray="5 3"
               strokeWidth={2.5}
               dot={{ r: 3 }}
+              {...chartAnimation}
             />
             <Line
               type="monotone"
@@ -62,6 +66,7 @@ export const LubFiltrosComboLines = memo(function LubFiltrosComboLines({
               stroke="var(--color-venta)"
               strokeWidth={2.5}
               dot={{ r: 3 }}
+              {...chartAnimation}
             />
           </LineChart>
         </ChartContainer>

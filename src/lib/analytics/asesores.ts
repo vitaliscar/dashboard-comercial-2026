@@ -13,7 +13,6 @@ export interface AgrupacionAsesor {
   meta: number;
   cotizado: number;
   perdido: number;
-  nFacturas: number;
   nCotizaciones: number;
   nPerdidas: number;
   cumplimiento: number;
@@ -33,15 +32,34 @@ export interface KPIAsesores {
 /**
  * Agrupa y consolida todos los datos transaccionales y de presupuesto por asesor canónico.
  * Todo lo que no coincida con el catálogo de 32 asesores se acumula en "Ventas Casa".
+ *
+ * La venta y la meta de cada asesor vienen de `cumplimiento_asesores` (hoja
+ * Excel CumplimientoAsesoresBase), ya reconciliada por código de asesor —
+ * no de `facturas`, que es transaccional y sin reconciliar. Las ventas de
+ * atención casa (hoja Excel "Ventas Casa": por sucursal/U-N/mes, sin asesor
+ * asociado) se suman directo al bucket de Ventas Casa.
  */
 export function consolidarAsesores(
-  facturas: { asesor?: string | null; monto?: number | null; cantidad?: number | null }[],
-  cotizaciones: { asesor_codigo?: string | number | null; monto?: number | null; cantidad?: number | null }[],
-  perdidas: { asesor?: string | null; monto?: number | null; cantidad?: number | null }[],
-  metas: {
+  cumplimiento: {
     codigo_asesor?: string | number | null;
     asesor?: string | null;
+    venta?: number | null;
     presupuesto?: number | null;
+  }[],
+  cotizaciones: {
+    asesor_codigo?: string | number | null;
+    cliente?: string | null;
+    monto?: number | null;
+    cantidad?: number | null;
+  }[],
+  perdidas: {
+    asesor?: string | null;
+    cliente?: string | null;
+    monto?: number | null;
+    cantidad?: number | null;
+  }[],
+  ventasCasaSucursal: {
+    monto?: number | null;
   }[],
   aliases?: Map<string, string>,
 ): AgrupacionAsesor[] {
@@ -57,7 +75,6 @@ export function consolidarAsesores(
       meta: 0,
       cotizado: 0,
       perdido: 0,
-      nFacturas: 0,
       nCotizaciones: 0,
       nPerdidas: 0,
       cumplimiento: 0,
@@ -75,7 +92,6 @@ export function consolidarAsesores(
     meta: 0,
     cotizado: 0,
     perdido: 0,
-    nFacturas: 0,
     nCotizaciones: 0,
     nPerdidas: 0,
     cumplimiento: 0,
@@ -83,17 +99,17 @@ export function consolidarAsesores(
     participacion: 0,
   });
 
-  // 1. Acumular Facturas
-  facturas.forEach((f) => {
-    const resolved = resolverAsesor({ nombre: f.asesor }, aliases);
+  // 1. Acumular Venta y Meta (cumplimiento_asesores, ya reconciliado por código)
+  cumplimiento.forEach((m) => {
+    const resolved = resolverAsesor({ codigo: m.codigo_asesor, nombre: m.asesor }, aliases);
     const item = map.get(resolved.codigo)!;
-    item.venta += Number(f.monto || 0);
-    item.nFacturas += f.cantidad != null ? Number(f.cantidad) : 1;
+    item.venta += Number(m.venta || 0);
+    item.meta += Number(m.presupuesto || 0);
   });
 
   // 2. Acumular Cotizaciones
   cotizaciones.forEach((c) => {
-    const resolved = resolverAsesor({ codigo: c.asesor_codigo }, aliases);
+    const resolved = resolverAsesor({ codigo: c.asesor_codigo, cliente: c.cliente }, aliases);
     const item = map.get(resolved.codigo)!;
     item.cotizado += Number(c.monto || 0);
     item.nCotizaciones += c.cantidad != null ? Number(c.cantidad) : 1;
@@ -101,17 +117,16 @@ export function consolidarAsesores(
 
   // 3. Acumular Ventas Perdidas
   perdidas.forEach((p) => {
-    const resolved = resolverAsesor({ nombre: p.asesor }, aliases);
+    const resolved = resolverAsesor({ nombre: p.asesor, cliente: p.cliente }, aliases);
     const item = map.get(resolved.codigo)!;
     item.perdido += Number(p.monto || 0);
     item.nPerdidas += p.cantidad != null ? Number(p.cantidad) : 1;
   });
 
-  // 4. Acumular Metas (presupuesto de cumplimiento_asesores)
-  metas.forEach((m) => {
-    const resolved = resolverAsesor({ codigo: m.codigo_asesor, nombre: m.asesor }, aliases);
-    const item = map.get(resolved.codigo)!;
-    item.meta += Number(m.presupuesto || 0);
+  // 4. Ventas Casa por sucursal (sin asesor asociado) — directo al bucket Ventas Casa
+  const casaItem = map.get(VENTAS_CASA.codigo)!;
+  ventasCasaSucursal.forEach((v) => {
+    casaItem.venta += Number(v.monto || 0);
   });
 
   const result = Array.from(map.values());

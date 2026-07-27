@@ -63,7 +63,7 @@ export async function getEmbudoTotalesAction(data: {
           gte(cotizaciones.fecha, `${data.anio}-01-01`),
           lt(cotizaciones.fecha, `${data.anio + 1}-01-01`),
           data.meses.length > 0
-            ? sql`extract(month from ${cotizaciones.fecha})::int = ANY(${data.meses})`
+            ? inArray(sql`extract(month from ${cotizaciones.fecha})::int`, data.meses)
             : undefined,
           unitCond(cotizaciones.unidadNegocioId, data.unidades),
         ),

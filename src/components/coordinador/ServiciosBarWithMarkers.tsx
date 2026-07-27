@@ -33,11 +33,14 @@ function TargetMarker({ cx, cy }: MarkerProps) {
   );
 }
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 export const ServiciosBarWithMarkers = memo(function ServiciosBarWithMarkers({
   data,
 }: {
   data: MonthlyRow[];
 }) {
+  const chartAnimation = useChartAnimation();
   return (
     <Card className="ring-0 card-elevated">
       <CardHeader>
@@ -79,6 +82,7 @@ export const ServiciosBarWithMarkers = memo(function ServiciosBarWithMarkers({
               fill="var(--color-venta)"
               barSize={22}
               radius={[4, 4, 4, 4]}
+              {...chartAnimation}
             >
               <LabelList
                 dataKey="venta"

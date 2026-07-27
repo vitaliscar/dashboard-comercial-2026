@@ -10,6 +10,22 @@ export const VENTAS_CASA: AsesorCanonico = {
   sucursal: "Todas",
 };
 
+/**
+ * Compañías de atención casa: todas sus operaciones se acumulan en
+ * "Ventas Casa" sin importar qué asesor aparezca asociado en el Excel,
+ * porque no tienen un asesor asignado realmente.
+ */
+export const CLIENTES_VENTAS_CASA = ["Visco Orinoco"];
+
+const CLIENTES_VENTAS_CASA_NORMALIZADOS = new Set(
+  CLIENTES_VENTAS_CASA.map((c) => normalizarNombre(c)),
+);
+
+export function esClienteVentasCasa(cliente?: string | null): boolean {
+  if (!cliente) return false;
+  return CLIENTES_VENTAS_CASA_NORMALIZADOS.has(normalizarNombre(cliente));
+}
+
 export const ASESORES_CANONICOS: AsesorCanonico[] = [
   { sucursal: "Puerto Ordaz", nombre: "Abiezer Guerra", codigo: "75610" },
   { sucursal: "Puerto Ordaz", nombre: "Islanis Romero", codigo: "81238" },
@@ -43,7 +59,19 @@ export const ASESORES_CANONICOS: AsesorCanonico[] = [
   { sucursal: "Maturín", nombre: "Americo Alcalá Martinez", codigo: "31344" },
   { sucursal: "Maturín", nombre: "Hector Rojas", codigo: "31602" },
   { sucursal: "Maturín", nombre: "Jose Padron", codigo: "17622" },
+  { sucursal: "Caracas", nombre: "Ismael Farrera", codigo: "25593" },
+  { sucursal: "Barquisimeto", nombre: "Milton Marrufo", codigo: "44707" },
+  { sucursal: "Maracaibo", nombre: "Jose Urdaneta", codigo: "60493" },
+  { sucursal: "Valencia", nombre: "Lucia Torres", codigo: "78077" },
+  { sucursal: "Caracas", nombre: "Maria Eugenia Duran", codigo: "79261" },
 ];
+
+// Nota: el código 80890 aparece en el Excel (hoja CumplimientoAsesoresBase)
+// tanto para "Eudo Prieto" (cuyo código canónico real es 61812, ver arriba)
+// como para "Argenis Ricardi" (ya no trabaja en la empresa — excluido a
+// propósito). Cualquier fila con código 80890 cae en Ventas Casa, que es el
+// comportamiento correcto dado que ninguno de los dos debe recibir esas
+// ventas bajo ese código.
 
 export function normalizarNombre(nombre: string): string {
   return nombre
@@ -65,9 +93,15 @@ const CANONICAL_SPELLING_OVERWRITES: Record<string, string> = {
 };
 
 export function resolverAsesor(
-  query: { codigo?: string | number | null; nombre?: string | null },
+  query: { codigo?: string | number | null; nombre?: string | null; cliente?: string | null },
   aliases?: Map<string, string>,
 ): AsesorCanonico {
+  // 0. Clientes de atención casa siempre son Ventas Casa, sin importar el
+  // asesor que traiga el Excel (no tienen asesor asignado realmente).
+  if (esClienteVentasCasa(query.cliente)) {
+    return VENTAS_CASA;
+  }
+
   // 1. Resolve by code if provided
   if (query.codigo !== undefined && query.codigo !== null) {
     const codeStr = String(query.codigo).trim();

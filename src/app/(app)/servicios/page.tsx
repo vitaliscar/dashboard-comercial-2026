@@ -20,23 +20,12 @@ import { useMemo } from "react";
 import { Zap, Wrench, User, TrendingUp } from "lucide-react";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
+import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
 import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
-import { ServiciosEstrategicosChart } from "@/components/servicios/ServiciosEstrategicosChart";
+import { RankedHorizontalBar } from "@/components/servicios/RankedHorizontalBar";
+import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import { TalleresMonthlyChart } from "@/components/servicios/TalleresMonthlyChart";
 import { CsaTrendChart } from "@/components/servicios/CsaTrendChart";
-import { CompliancePyramid } from "@/components/servicios/CompliancePyramid";
-import {
-  BarChart,
-  Bar,
-  ComposedChart,
-  Line,
-  LabelList,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
 
 export default function ServiciosPage() {
   const { role, profile } = useAuth();
@@ -176,9 +165,7 @@ export default function ServiciosPage() {
       if (m >= 0 && m < 12) {
         byMonthCombo[m].presupuesto += Number(p.monto || 0);
         byMonthCombo[m].venta +=
-          Number(p.ventasCcv || 0) +
-          Number(p.ventasXibi || 0) +
-          Number(p.ventasEstrategicas || 0);
+          Number(p.ventasCcv || 0) + Number(p.ventasXibi || 0) + Number(p.ventasEstrategicas || 0);
       }
     });
 
@@ -186,7 +173,7 @@ export default function ServiciosPage() {
       mes: MESES[i].slice(0, 3),
       CRM: 0,
       CNRC: 0,
-      VMS: 0,
+      MachineShop: 0,
     }));
 
     const byMonthCsa = Array.from({ length: 12 }, (_, i) => ({
@@ -203,7 +190,7 @@ export default function ServiciosPage() {
         const tallerStr = (r.taller ?? "").trim().toUpperCase();
         if (tallerStr.includes("CRM")) byMonthWorkshops[m].CRM += val;
         else if (tallerStr.includes("CNRC")) byMonthWorkshops[m].CNRC += val;
-        else if (tallerStr.includes("VMS")) byMonthWorkshops[m].VMS += val;
+        else if (tallerStr.includes("MACHINE SHOP")) byMonthWorkshops[m].MachineShop += val;
 
         const csaStr = (r.csa ?? "").trim().toUpperCase();
         if (csaStr === "CSA" || (r.categoriaVenta ?? "").toUpperCase().includes("CSA")) {
@@ -221,12 +208,19 @@ export default function ServiciosPage() {
       return items.slice(0, cap);
     };
 
+    const cap = getAllMonthsCap(anio);
+
     return {
       monthlyCombo: filterMonthly(byMonthCombo),
-      workshopsMonthly: filterMonthly(byMonthWorkshops),
-      csaMonthly: filterMonthly(byMonthCsa),
+      workshopsMonthly: byMonthWorkshops.slice(0, cap),
+      csaMonthly: byMonthCsa.slice(0, cap),
     };
   }, [presupuestosData, trend, anio, meses]);
+
+  const selectedMonthLabels = useMemo(() => {
+    if (meses === "all") return [];
+    return meses.map((m) => MESES[m - 1].slice(0, 3));
+  }, [meses]);
 
   const porCompaniaData = useMemo(() => {
     if (!presupuestosData) return [];
@@ -256,9 +250,7 @@ export default function ServiciosPage() {
       if (r.sucursalId && map.has(r.sucursalId)) {
         const item = map.get(r.sucursalId)!;
         item.monto +=
-          Number(r.ventasCcv || 0) +
-          Number(r.ventasXibi || 0) +
-          Number(r.ventasEstrategicas || 0);
+          Number(r.ventasCcv || 0) + Number(r.ventasXibi || 0) + Number(r.ventasEstrategicas || 0);
         item.presupuesto += Number(r.monto || 0);
       }
     });
@@ -268,14 +260,26 @@ export default function ServiciosPage() {
       .sort((a, b) => b.monto - a.monto);
   }, [presupuestosData, sucursales]);
 
-  const compliancePyramidData = useMemo(() => {
+  const sucursalPerformanceData = useMemo(() => {
     return porSucursalData.map((s) => ({
       nombre: s.nombre,
+      monto: s.monto,
       presupuesto: s.presupuesto,
-      venta: s.monto,
       pctCumplimiento: s.presupuesto > 0 ? (s.monto / s.presupuesto) * 100 : 0,
     }));
   }, [porSucursalData]);
+
+  const cumplimientoGeneral = useMemo(() => {
+    const totalPresupuesto = (presupuestosData ?? []).reduce(
+      (sum, p) => sum + Number(p.monto || 0),
+      0,
+    );
+    return {
+      facturado: ventasConsolidadasTotal,
+      presupuesto: totalPresupuesto,
+      pct: totalPresupuesto > 0 ? (ventasConsolidadasTotal / totalPresupuesto) * 100 : 0,
+    };
+  }, [presupuestosData, ventasConsolidadasTotal]);
 
   const porTipoServicio = useMemo(() => {
     if (!servicios) return [];
@@ -286,6 +290,7 @@ export default function ServiciosPage() {
     });
     return Array.from(map.entries())
       .map(([tipo, monto]) => ({ tipo, monto }))
+      .filter((t) => t.monto !== 0)
       .sort((a, b) => b.monto - a.monto)
       .slice(0, 8);
   }, [servicios]);
@@ -322,7 +327,9 @@ export default function ServiciosPage() {
     if (!cobranzasData) return [];
     return cobranzasData.map((c) => ({
       id: c.id,
-      sucursalVenta: c.sucursalId ? sucursalMap.get(c.sucursalId) || "Sin sucursal" : "Sin sucursal",
+      sucursalVenta: c.sucursalId
+        ? sucursalMap.get(c.sucursalId) || "Sin sucursal"
+        : "Sin sucursal",
       cliente: c.cliente,
       unidadId: c.unidadNegocioId ?? undefined,
       diasVencidos: c.diasVencidos ?? 0,
@@ -363,183 +370,125 @@ export default function ServiciosPage() {
         showAllMonths
       />
 
-      {/* KPI Cards */}
+      {/* KPI Cards — 4 totales sin solaparse: consolidado = talleres + CSA + internas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Ventas Consolidadas"
           value={money(ventasConsolidadasTotal)}
           accent="ochre"
           icon={TrendingUp}
-          hint={`${presupuestosData?.length ?? 0} registros presupuestarios`}
-        />
-        <KpiCard
-          label="Ventas Internas"
-          value={money(ventasInternasTotal)}
-          accent="primary"
-          icon={Zap}
+          hint="Total facturado: talleres + CSA + ventas internas"
         />
         <KpiCard
           label="Ventas Talleres"
           value={money(totales.ventas_talleres)}
           accent="success"
           icon={Wrench}
+          hint="CRM, CNRC y Machine Shop"
         />
         <KpiCard
           label="Ventas CSA"
           value={money(totales.ventas_csa)}
           accent="warning"
           icon={User}
+          hint="Servicio de asistencia al cliente"
+        />
+        <KpiCard
+          label="Ventas Internas"
+          value={money(ventasInternasTotal)}
+          accent="primary"
+          icon={Zap}
+          hint="Facturado entre unidades CCV"
         />
       </div>
 
-      {/* Bloque 1: Ventas Mensuales Servicios (nacional) */}
-      <GlobalMonthlyCombo data={trendData.monthlyCombo} />
+      {/* Sección 1: evolución mensual — único gráfico de tendencia, sin repetir por sucursal */}
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Evolución mensual</h2>
+          <p className="text-xs text-muted-foreground">
+            Venta real vs. presupuesto, consolidado nacional
+          </p>
+        </header>
+        <GlobalMonthlyCombo data={trendData.monthlyCombo} />
+      </section>
 
-      {/* Bloque 2: Distribución y Compañías */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <UnitDonut data={porCompaniaData} title="Facturación por Compañía" />
-        <div className="card-elevated p-5 flex flex-col h-full">
-          <div className="mb-4">
-            <h3 className="font-display font-semibold">Facturación por Sucursal Servicios</h3>
-            <p className="text-xs text-muted-foreground">Ordenado de mayor a menor</p>
+      {/* Sección 2: desempeño por sucursal — gauge (headline) + compañía + ranking */}
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Desempeño por sucursal</h2>
+          <p className="text-xs text-muted-foreground">
+            Cumplimiento general, facturación por compañía y detalle por sucursal, ordenado de mejor
+            a peor
+          </p>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <ComplianceGauge
+            title="Cumplimiento General Servicios"
+            pct={cumplimientoGeneral.pct}
+            facturado={cumplimientoGeneral.facturado}
+            presupuesto={cumplimientoGeneral.presupuesto}
+          />
+          <div className="lg:col-span-2">
+            <UnitDonut data={porCompaniaData} title="Facturación por Compañía" />
           </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={porSucursalData}
-                layout="vertical"
-                margin={{ top: 10, right: 45, left: 10, bottom: 0 }}
-              >
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis
-                  type="number"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
-                <YAxis
-                  dataKey="nombre"
-                  type="category"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  width={100}
-                />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="monto" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="lg:col-span-3">
+            <SucursalPerformanceChart data={sucursalPerformanceData} />
           </div>
         </div>
-        <UnitDonut
-          data={porSucursalData.map((s) => ({ label: s.nombre, facturado: s.monto }))}
-          title="Participación Ventas"
+      </section>
+
+      {/* Sección 3: composición de ingresos — de dónde viene la venta */}
+      <section className="flex flex-col gap-3 section-enter section-enter-3">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Composición de ingresos</h2>
+          <p className="text-xs text-muted-foreground">Por tipo de servicio y línea estratégica</p>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <RankedHorizontalBar
+            title="Monto por Tipo de Servicio"
+            data={porTipoServicio.map((t) => ({ label: t.tipo, value: t.monto }))}
+            emptyLabel="Sin datos por tipo de servicio"
+            valueFormatter={money}
+          />
+          <RankedHorizontalBar
+            title="Tipo Servicio Estratégico"
+            data={strategicServiceData.map((s) => ({ label: s.tipoServicio, value: s.monto }))}
+            emptyLabel="Sin datos estratégicos"
+            valueFormatter={money}
+            barColor="var(--color-chart-calm-3)"
+          />
+        </div>
+      </section>
+
+      {/* Sección 4: talleres y CSA — composición mensual + tendencia */}
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Talleres y CSA</h2>
+          <p className="text-xs text-muted-foreground">
+            Mezcla mensual por taller y tendencia de CSA
+          </p>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TalleresMonthlyChart
+            data={trendData.workshopsMonthly}
+            selectedMonths={selectedMonthLabels}
+          />
+          <CsaTrendChart data={trendData.csaMonthly} selectedMonths={selectedMonthLabels} />
+        </div>
+      </section>
+
+      {/* Sección 5: cartera */}
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Cuentas por cobrar</h2>
+        </header>
+        <ReceivablesTable
+          rows={receivablesRows}
+          unitOptions={unitOptions}
+          sucursalOptions={sucursalOptions}
         />
-      </div>
-
-      {/* Bloque 3: Presupuesto vs Cumplimiento por Sucursal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card-elevated p-5">
-          <div className="mb-4">
-            <h3 className="font-display font-semibold">Presu. vs Cump. Mensual Servicios</h3>
-            <p className="text-xs text-muted-foreground">Ventas y presupuesto por sucursal</p>
-          </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={porSucursalData} margin={{ top: 24, right: 8, left: 8, bottom: 0 }}>
-                <XAxis dataKey="nombre" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="monto" name="Ventas Totales" fill="var(--color-chart-calm-1)" radius={[4, 4, 0, 0]}>
-                  <LabelList
-                    dataKey="monto"
-                    position="top"
-                    fontSize={10}
-                    fontWeight={700}
-                    fill="var(--color-foreground)"
-                    formatter={((v: unknown) => money(Number(v))) as never}
-                  />
-                </Bar>
-                <Line
-                  type="monotone"
-                  dataKey="presupuesto"
-                  name="Presupuesto"
-                  stroke="var(--color-muted-foreground)"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: "var(--color-card)", strokeWidth: 2 }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <CompliancePyramid data={compliancePyramidData} title="Porcentaje Cumplimiento Sucursal" />
-      </div>
-
-      {/* Bloque 4: Servicios y Talleres */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="card-elevated p-5 flex flex-col h-full">
-          <div className="mb-4">
-            <h3 className="font-display font-semibold">Monto por Tipo de Servicio</h3>
-            <p className="text-xs text-muted-foreground">M/O Directa, Misceláneos, Subcontrato, M/O Subcon</p>
-          </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={porTipoServicio}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="tipo"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={10}
-                  interval={0}
-                  angle={-15}
-                  textAnchor="end"
-                  height={50}
-                />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="monto" fill="var(--color-destructive)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <ServiciosEstrategicosChart data={strategicServiceData} />
-        <TalleresMonthlyChart data={trendData.workshopsMonthly} />
-        <CsaTrendChart data={trendData.csaMonthly} />
-      </div>
-
-      {/* Bloque 4: Cuentas por Cobrar */}
-      <ReceivablesTable
-        rows={receivablesRows}
-        unitOptions={unitOptions}
-        sucursalOptions={sucursalOptions}
-      />
+      </section>
 
       {isLoading && (
         <div className="text-xs text-muted-foreground">Cargando datos de servicio…</div>

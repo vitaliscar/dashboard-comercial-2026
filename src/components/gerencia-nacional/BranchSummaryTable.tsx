@@ -73,7 +73,12 @@ export const BranchSummaryTable = memo(function BranchSummaryTable({
             <div key={r.id} className="p-3 space-y-2 bg-card">
               <div className="flex justify-between items-center">
                 <span className="font-bold text-xs text-foreground">{r.label}</span>
-                <span className={cn("text-xs font-semibold px-2 py-0.5 rounded", TEXT_ACCENT_CLASS[status])}>
+                <span
+                  className={cn(
+                    "text-xs font-semibold px-2 py-0.5 rounded",
+                    TEXT_ACCENT_CLASS[status],
+                  )}
+                >
                   {STATUS_LABEL[status]} ({r.pct.toFixed(1)}%)
                 </span>
               </div>

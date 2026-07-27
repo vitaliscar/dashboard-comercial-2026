@@ -289,7 +289,28 @@ export default function ResumenPage() {
       Alquiler: 45,
     };
     const facturadoMetricas = categories.map((cat) => {
-      let topClientes: TopCliente[] = [];
+      const filteredFacClientes = (rawData.facturasClientes || []).filter((f) => {
+        const dbName = f.unidadNegocioId ? unitMap.get(f.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
+      const facClientMap = new Map<string, TopCliente>();
+      filteredFacClientes.forEach((f) => {
+        const key = `${f.cliente}|${f.sucursalId || ""}`;
+        const existing = facClientMap.get(key);
+        const m = Number(f.montoTotal || 0);
+        if (existing) {
+          existing.monto += m;
+        } else {
+          facClientMap.set(key, {
+            cliente: f.cliente,
+            sucursal: f.sucursalId ? sucMap.get(f.sucursalId) || "" : "",
+            monto: m,
+          });
+        }
+      });
+      const topClientes = Array.from(facClientMap.values())
+        .sort((a, b) => b.monto - a.monto)
+        .slice(0, 5);
       let monto = 0;
       let presupuesto = 0;
       let ventasCCV = 0;

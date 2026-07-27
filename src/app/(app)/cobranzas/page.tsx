@@ -1,14 +1,29 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getCobranzasAction } from "@/lib/actions/cobranzas";
+import { getCobranzasAction, getCobranzasComparisonAction } from "@/lib/actions/cobranzas";
+import { calcularParetoCobranzas, segmentarCobranzas } from "@/lib/analytics/cobranzas";
 import { KpiCard } from "@/components/kpi-card";
 import { StatusPill } from "@/components/status-pill";
 import { money } from "@/lib/format";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Wallet, AlertCircle, Search } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { Button } from "@/components/ui/button";
+import { useSharedFilters } from "@/hooks/use-shared-filters";
+import { useUnidades } from "@/hooks/use-catalogos";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Wallet,
+  AlertCircle,
+  Search,
+  TrendingDown,
+  TrendingUp,
+  AlertTriangle,
+  Building2,
+  Layers,
+} from "lucide-react";
+import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
 import {
   Table,
   TableHeader,
@@ -37,6 +52,7 @@ function bucket(days: number) {
   if (days <= 90) return "61-90 días";
   return "+90 días";
 }
+
 function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
   if (b === "Vigente") return "success";
   if (b === "1-30 días") return "neutral";
@@ -46,9 +62,26 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 
 export default function CobranzasPage() {
   const [q, setQ] = useState("");
+  const { filters, setFilters } = useSharedFilters();
+  const selectedUnidades = filters.unidades;
+
+  const { data: unidades } = useUnidades();
+  const unitOptions = useMemo(() => {
+    if (!unidades) return [];
+    return unidades.map((u) => ({ value: u.id, label: u.nombre }));
+  }, [unidades]);
+
+  const handleSelectAllUnits = () => setFilters({ unidades: [] });
+  const handleUnitSelectionChange = (unitIds: string[]) => setFilters({ unidades: unitIds });
+
   const { data, isLoading } = useQuery({
-    queryKey: ["cobranzas"],
-    queryFn: () => getCobranzasAction(),
+    queryKey: ["cobranzas", selectedUnidades],
+    queryFn: () => getCobranzasAction({ selectedUnidades }),
+  });
+
+  const { data: compData, isLoading: compLoading } = useQuery({
+    queryKey: ["cobranzas-comparison", selectedUnidades],
+    queryFn: () => getCobranzasComparisonAction({ selectedUnidades }),
   });
 
   const enriched = useMemo(() => {
@@ -57,7 +90,13 @@ export default function CobranzasPage() {
       const days = Math.floor(
         (today.getTime() - new Date(c.fechaVencimiento).getTime()) / 86400000,
       );
-      return { ...c, dias: days, cubo: bucket(days) };
+      return {
+        ...c,
+        dias: days,
+        cubo: bucket(days),
+        sucursal: c.sucursal ?? "Sin Sucursal",
+        unidadNegocio: c.unidadNegocio ?? "Sin Unidad",
+      };
     });
   }, [data]);
 
@@ -84,6 +123,20 @@ export default function CobranzasPage() {
   const totalGeneral = Object.values(totals).reduce((a, b) => a + b, 0);
   const vencido = totalGeneral - (totals["Vigente"] ?? 0);
 
+  const pareto = useMemo(() => {
+    return calcularParetoCobranzas(enriched);
+  }, [enriched]);
+
+  const segmentacion = useMemo(() => {
+    return segmentarCobranzas(
+      enriched.map((r) => ({
+        sucursal: r.sucursal,
+        unidadNegocio: r.unidadNegocio,
+        saldo: Number(r.saldo) || 0,
+      })),
+    );
+  }, [enriched]);
+
   const chartData = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+90 días"].map((k) => ({
     cubo: k,
     monto: totals[k] ?? 0,
@@ -94,9 +147,69 @@ export default function CobranzasPage() {
       <PageHeader
         eyebrow="Cartera"
         title="Cobranzas"
-        description="Cuentas por cobrar y análisis de antigüedad"
+        description="Cuentas por cobrar, análisis de tendencia, riesgo y concentración"
       />
 
+      {unitOptions.length > 0 && (
+        <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
+          <span className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
+            Filtrar por unidad:
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant={selectedUnidades.length === 0 ? "default" : "outline"}
+              size="sm"
+              onClick={handleSelectAllUnits}
+              className={cn(
+                "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
+                selectedUnidades.length === 0
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : "text-muted-foreground",
+              )}
+            >
+              Todas
+            </Button>
+            <ToggleGroup
+              multiple
+              value={selectedUnidades}
+              onValueChange={handleUnitSelectionChange}
+              spacing={2}
+            >
+              {unitOptions.map((opt) => (
+                <ToggleGroupItem
+                  key={opt.value}
+                  value={opt.value}
+                  variant="outline"
+                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:border-border border border-transparent"
+                >
+                  {opt.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </div>
+      )}
+
+      {/* 2 KPI CARDS GRANDES */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <KpiCard
+          label="Total por cobrar"
+          value={money(totalGeneral)}
+          hint={`${enriched.length} facturas`}
+          accent="primary"
+          icon={Wallet}
+        />
+        <KpiCard
+          label="Vencido"
+          value={money(vencido)}
+          hint={`${totalGeneral > 0 ? ((vencido / totalGeneral) * 100).toFixed(1) : "0"}% del total`}
+          accent="warning"
+          icon={AlertCircle}
+        />
+      </div>
+
+      {/* TARJETAS DE ANTIGÜEDAD POR DÍAS (5 PEQUEÑAS) */}
       <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
         {BUCKET_ORDER.map((k) => {
           const monto = totals[k] ?? 0;
@@ -125,37 +238,246 @@ export default function CobranzasPage() {
         })}
       </div>
 
-      {/* Solo agregados que NO repiten un valor ya mostrado en las tarjetas de antigüedad de
-          arriba (Vigente y +90 días ya están ahí — mostrarlos otra vez aquí era duplicado). */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <KpiCard
-          label="Total por cobrar"
-          value={money(totalGeneral)}
-          hint={`${enriched.length} facturas`}
-          accent="primary"
-          icon={Wallet}
-        />
-        <KpiCard
-          label="Vencido"
-          value={money(vencido)}
-          hint={`${totalGeneral > 0 ? ((vencido / totalGeneral) * 100).toFixed(1) : "0"}% del total`}
-          accent="warning"
-          icon={AlertCircle}
-        />
+      {/* TENDENCIA SEMANAL */}
+      {compLoading ? (
+        <div className="card-elevated p-5 text-sm text-muted-foreground animate-pulse">
+          Cargando tendencia semanal…
+        </div>
+      ) : !compData?.tieneHistorico ? (
+        <div className="card-elevated p-5 border-l-4 border-l-primary flex items-start gap-3">
+          <AlertCircle className="size-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-display font-semibold text-sm">Tendencia Semanal</h4>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Esta es la primera carga registrada — la comparación semanal estará disponible después
+              de la próxima actualización.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-1 flex flex-col justify-between">
+            <KpiCard
+              label="Tendencia semanal de vencido"
+              value={`${compData.deltaVencido > 0 ? "+" : ""}${money(compData.deltaVencido)}`}
+              hint={
+                compData.deltaVencido <= 0
+                  ? "El saldo vencido disminuyó vs. la semana anterior"
+                  : "El saldo vencido aumentó vs. la semana anterior"
+              }
+              accent={compData.deltaVencido <= 0 ? "success" : "danger"}
+              icon={compData.deltaVencido <= 0 ? TrendingDown : TrendingUp}
+            />
+          </div>
+          <div className="lg:col-span-2 card-elevated p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-display font-semibold text-sm flex items-center gap-2">
+                <AlertTriangle className="size-4 text-warning" />
+                Clientes con mayor incremento de saldo
+              </h4>
+              <span className="text-xs text-muted-foreground font-mono">Top 5</span>
+            </div>
+            {compData.clientesEmpeoraron.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">
+                Ningún cliente incrementó su saldo respecto a la semana anterior.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table className="text-xs">
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="py-2 px-3">Cliente</TableHead>
+                      <TableHead className="py-2 px-3 text-right">Saldo anterior</TableHead>
+                      <TableHead className="py-2 px-3 text-right">Saldo actual</TableHead>
+                      <TableHead className="py-2 px-3 text-right font-semibold">
+                        Incremento
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {compData.clientesEmpeoraron.map((c) => (
+                      <TableRow key={c.cliente} className="hover:bg-muted/30">
+                        <TableCell className="py-2 px-3 font-medium">
+                          <Link
+                            href={`/cliente-360?cliente=${encodeURIComponent(c.cliente)}`}
+                            className="hover:underline text-primary font-semibold"
+                          >
+                            {c.cliente}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="py-2 px-3 text-right tabular-nums text-muted-foreground">
+                          {money(c.saldoAnterior)}
+                        </TableCell>
+                        <TableCell className="py-2 px-3 text-right tabular-nums font-medium">
+                          {money(c.saldoActual)}
+                        </TableCell>
+                        <TableCell className="py-2 px-3 text-right tabular-nums font-semibold text-danger">
+                          +{money(c.delta)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CONCENTRACIÓN DE CARTERA (PARETO 80/20) */}
+      <div className="card-elevated p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-display font-semibold">Concentración de cartera (Pareto 80/20)</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Clientes que concentran la mayor parte de las cuentas por cobrar
+            </p>
+          </div>
+        </div>
+        {pareto.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            Sin datos de concentración
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="text-xs">
+              <TableHeader className="bg-primary [&_tr]:border-b-0">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-primary-foreground py-2.5 px-3">Cliente</TableHead>
+                  <TableHead className="text-primary-foreground py-2.5 px-3 text-right">
+                    Saldo por cobrar
+                  </TableHead>
+                  <TableHead className="text-primary-foreground py-2.5 px-3 text-right">
+                    % del total
+                  </TableHead>
+                  <TableHead className="text-primary-foreground py-2.5 px-3 text-right">
+                    % Acumulado
+                  </TableHead>
+                  <TableHead className="text-primary-foreground py-2.5 px-3 text-center">
+                    Estatus
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pareto.slice(0, 10).map((p) => (
+                  <TableRow
+                    key={p.cliente}
+                    className="hover:bg-muted/40 border-b border-border/50 last:border-0"
+                  >
+                    <TableCell className="py-2.5 px-3 font-medium">
+                      <Link
+                        href={`/cliente-360?cliente=${encodeURIComponent(p.cliente)}`}
+                        className="hover:underline text-primary font-semibold"
+                      >
+                        {p.cliente}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 text-right tabular-nums font-medium">
+                      {money(p.saldo)}
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
+                      {p.porcentaje.toFixed(1)}%
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 text-right tabular-nums font-semibold">
+                      {p.porcentajeAcumulado.toFixed(1)}%
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 text-center">
+                      <StatusPill kind={p.esTop80 ? "danger" : "neutral"}>
+                        {p.esTop80 ? "Top 80%" : "Resto"}
+                      </StatusPill>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
+      {/* SEGMENTACIÓN (SUCURSAL Y UNIDAD DE NEGOCIO) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="card-elevated p-5">
+          <h3 className="font-display font-semibold text-sm mb-3 flex items-center gap-2">
+            <Building2 className="size-4 text-primary" />
+            Desglose por Sucursal
+          </h3>
+          <div className="space-y-3">
+            {segmentacion.porSucursal.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">Sin datos por sucursal</p>
+            ) : (
+              segmentacion.porSucursal.map((s) => {
+                const share = totalGeneral > 0 ? s.total / totalGeneral : 0;
+                return (
+                  <div key={s.sucursal}>
+                    <div className="flex justify-between text-xs mb-1 font-medium">
+                      <span>{s.sucursal}</span>
+                      <span className="tabular-nums font-semibold">{money(s.total)}</span>
+                    </div>
+                    <div
+                      className="progress-track"
+                      role="progressbar"
+                      aria-label={s.sucursal}
+                      aria-valuenow={Math.round(share * 100)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className="progress-fill bg-primary"
+                        style={{ transform: `scaleX(${share})` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="card-elevated p-5">
+          <h3 className="font-display font-semibold text-sm mb-3 flex items-center gap-2">
+            <Layers className="size-4 text-primary" />
+            Desglose por Unidad de Negocio
+          </h3>
+          <div className="space-y-3">
+            {segmentacion.porUnidad.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">Sin datos por unidad</p>
+            ) : (
+              segmentacion.porUnidad.map((u) => {
+                const share = totalGeneral > 0 ? u.total / totalGeneral : 0;
+                return (
+                  <div key={u.unidad}>
+                    <div className="flex justify-between text-xs mb-1 font-medium">
+                      <span>{u.unidad}</span>
+                      <span className="tabular-nums font-semibold">{money(u.total)}</span>
+                    </div>
+                    <div
+                      className="progress-track"
+                      role="progressbar"
+                      aria-label={u.unidad}
+                      aria-valuenow={Math.round(share * 100)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className="progress-fill bg-primary"
+                        style={{ transform: `scaleX(${share})` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* GRÁFICO DE ANTIGÜEDAD DE SALDOS */}
       <div className="card-elevated p-5">
         <h3 className="font-display font-semibold mb-4">Antigüedad de saldos</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+            <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
               <XAxis dataKey="cubo" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => money(v)}
-              />
               <Tooltip
                 formatter={((v: unknown) => money(Number(v))) as never}
                 contentStyle={{
@@ -165,12 +487,22 @@ export default function CobranzasPage() {
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="monto" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="monto" fill="var(--color-primary)" radius={[4, 4, 0, 0]}>
+                <LabelList
+                  dataKey="monto"
+                  position="top"
+                  fontSize={10}
+                  fontWeight={700}
+                  fill="var(--color-foreground)"
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
+      {/* TABLA DE DETALLE */}
       <div className="card-elevated overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3">
           <h3 className="font-display font-semibold">Detalle de cuentas por cobrar</h3>
@@ -184,9 +516,9 @@ export default function CobranzasPage() {
             />
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="[&_[data-slot=table-container]]:max-h-[26rem] [&_[data-slot=table-container]]:overflow-y-auto">
           <Table className="text-sm">
-            <TableHeader className="bg-primary [&_tr]:border-b-0">
+            <TableHeader className="bg-primary [&_tr]:border-b-0 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="text-primary-foreground text-left px-4 py-2.5 font-medium text-xs tracking-wider">
                   Cliente

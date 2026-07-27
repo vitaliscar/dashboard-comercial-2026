@@ -12,6 +12,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
+import { useChartAnimation } from "@/hooks/use-chart-animation";
+
 const chartConfig = {
   presupuesto: { label: "Presupuesto", color: "var(--color-muted-foreground)" },
   venta: { label: "Venta Total", color: "var(--color-chart-calm-2)" },
@@ -22,6 +24,7 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
 }: {
   data: MonthlyRow[];
 }) {
+  const chartAnimation = useChartAnimation();
   return (
     <Card className="ring-0 card-elevated">
       <CardHeader>
@@ -51,6 +54,7 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
               fill="var(--color-presupuesto)"
               fillOpacity={0.12}
               strokeWidth={2}
+              {...chartAnimation}
             >
               <LabelList
                 dataKey="presupuesto"
@@ -69,6 +73,7 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
               fill="var(--color-venta)"
               fillOpacity={0.25}
               strokeWidth={2.5}
+              {...chartAnimation}
             >
               <LabelList
                 dataKey="venta"

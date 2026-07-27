@@ -1,7 +1,13 @@
 "use server";
 
 import { and, eq, gte, inArray, lt, isNotNull, sum, count, type SQLWrapper } from "drizzle-orm";
-import { cotizaciones, facturas, ventasPerdidas, cumplimientoAsesores } from "@/db/schema";
+import {
+  cotizaciones,
+  facturas,
+  ventasPerdidas,
+  cumplimientoAsesores,
+  ventasCasa,
+} from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
 import type { DateRange, MonthFilter } from "@/lib/date-range";
@@ -33,12 +39,6 @@ export async function getAsesoresRawDataAction(data: {
       inCond(cotizaciones.unidadNegocioId, selectedUnidades),
     ].filter(Boolean);
 
-    const facConds = [
-      dateRangeCondition(facturas.fecha, ranges),
-      sucursalId ? eq(facturas.sucursalId, sucursalId) : undefined,
-      inCond(facturas.unidadNegocioId, selectedUnidades),
-    ].filter(Boolean);
-
     const vpConds = [
       dateRangeCondition(ventasPerdidas.fecha, ranges),
       sucursalId ? eq(ventasPerdidas.sucursalId, sucursalId) : undefined,
@@ -54,10 +54,21 @@ export async function getAsesoresRawDataAction(data: {
       inCond(cumplimientoAsesores.unidadNegocioId, selectedUnidades),
     ].filter(Boolean);
 
-    const [cotData, facData, vpData, metaData] = await Promise.all([
+    // ventas_casa no tiene columna año (snapshot de un solo año, igual que
+    // servicios_interno) — se filtra solo por mes/sucursal/unidad.
+    const vcConds = [
+      meses !== "all" && Array.isArray(meses) && meses.length > 0
+        ? inArray(ventasCasa.mes, meses)
+        : undefined,
+      sucursalId ? eq(ventasCasa.sucursalId, sucursalId) : undefined,
+      inCond(ventasCasa.unidadNegocioId, selectedUnidades),
+    ].filter(Boolean);
+
+    const [cotData, vpData, cumplimientoData, ventasCasaData] = await Promise.all([
       tx
         .select({
           asesor_codigo: cotizaciones.asesorCodigo,
+          cliente: cotizaciones.cliente,
           monto: sum(cotizaciones.monto),
           cantidad: count(cotizaciones.id),
           sucursal_id: cotizaciones.sucursalId,
@@ -65,21 +76,16 @@ export async function getAsesoresRawDataAction(data: {
         })
         .from(cotizaciones)
         .where(and(...cotConds))
-        .groupBy(cotizaciones.asesorCodigo, cotizaciones.sucursalId, cotizaciones.unidadNegocioId),
-      tx
-        .select({
-          asesor: facturas.asesor,
-          monto: sum(facturas.monto),
-          cantidad: count(facturas.id),
-          sucursal_id: facturas.sucursalId,
-          unidad_negocio_id: facturas.unidadNegocioId,
-        })
-        .from(facturas)
-        .where(and(...facConds))
-        .groupBy(facturas.asesor, facturas.sucursalId, facturas.unidadNegocioId),
+        .groupBy(
+          cotizaciones.asesorCodigo,
+          cotizaciones.cliente,
+          cotizaciones.sucursalId,
+          cotizaciones.unidadNegocioId,
+        ),
       tx
         .select({
           asesor: ventasPerdidas.asesor,
+          cliente: ventasPerdidas.cliente,
           monto: sum(ventasPerdidas.monto),
           cantidad: count(ventasPerdidas.id),
           sucursal_id: ventasPerdidas.sucursalId,
@@ -87,11 +93,17 @@ export async function getAsesoresRawDataAction(data: {
         })
         .from(ventasPerdidas)
         .where(and(...vpConds))
-        .groupBy(ventasPerdidas.asesor, ventasPerdidas.sucursalId, ventasPerdidas.unidadNegocioId),
+        .groupBy(
+          ventasPerdidas.asesor,
+          ventasPerdidas.cliente,
+          ventasPerdidas.sucursalId,
+          ventasPerdidas.unidadNegocioId,
+        ),
       tx
         .select({
           codigo_asesor: cumplimientoAsesores.codigoAsesor,
           asesor: cumplimientoAsesores.asesor,
+          venta: sum(cumplimientoAsesores.venta),
           presupuesto: sum(cumplimientoAsesores.presupuesto),
           sucursal_id: cumplimientoAsesores.sucursalId,
           unidad_negocio_id: cumplimientoAsesores.unidadNegocioId,
@@ -104,15 +116,19 @@ export async function getAsesoresRawDataAction(data: {
           cumplimientoAsesores.sucursalId,
           cumplimientoAsesores.unidadNegocioId,
         ),
+      tx
+        .select({
+          monto: sum(ventasCasa.monto),
+          sucursal_id: ventasCasa.sucursalId,
+          unidad_negocio_id: ventasCasa.unidadNegocioId,
+        })
+        .from(ventasCasa)
+        .where(and(...vcConds))
+        .groupBy(ventasCasa.sucursalId, ventasCasa.unidadNegocioId),
     ]);
 
     return {
       cotizaciones: cotData.map((r) => ({
-        ...r,
-        monto: Number(r.monto ?? 0),
-        cantidad: Number(r.cantidad ?? 0),
-      })),
-      facturas: facData.map((r) => ({
         ...r,
         monto: Number(r.monto ?? 0),
         cantidad: Number(r.cantidad ?? 0),
@@ -122,7 +138,12 @@ export async function getAsesoresRawDataAction(data: {
         monto: Number(r.monto ?? 0),
         cantidad: Number(r.cantidad ?? 0),
       })),
-      metas: metaData.map((r) => ({ ...r, presupuesto: Number(r.presupuesto ?? 0) })),
+      cumplimiento: cumplimientoData.map((r) => ({
+        ...r,
+        venta: Number(r.venta ?? 0),
+        presupuesto: Number(r.presupuesto ?? 0),
+      })),
+      ventasCasa: ventasCasaData.map((r) => ({ ...r, monto: Number(r.monto ?? 0) })),
     };
   });
 }
@@ -165,12 +186,19 @@ export async function getAsesoresDrilldownAction(data: { anio: number }) {
           monto: sum(facturas.monto),
           fecha: facturas.fecha,
           asesor: facturas.asesor,
+          cliente: facturas.cliente,
           sucursal_id: facturas.sucursalId,
           unidad_negocio_id: facturas.unidadNegocioId,
         })
         .from(facturas)
         .where(and(gte(facturas.fecha, `${anio}-01-01`), lt(facturas.fecha, `${anio + 1}-01-01`)))
-        .groupBy(facturas.fecha, facturas.asesor, facturas.sucursalId, facturas.unidadNegocioId),
+        .groupBy(
+          facturas.fecha,
+          facturas.asesor,
+          facturas.cliente,
+          facturas.sucursalId,
+          facturas.unidadNegocioId,
+        ),
       tx
         .select({
           monto: cotizaciones.monto,

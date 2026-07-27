@@ -13,7 +13,8 @@ export async function GET() {
     await db.execute(sql`SELECT 1`);
     dbLatencyMs = Date.now() - dbStart;
   } catch (error) {
-    dbStatus = `unhealthy: ${error instanceof Error ? error.message : String(error)}`;
+    console.error("Database connection error in health check:", error);
+    dbStatus = "unhealthy";
   }
 
   const memoryUsage = process.memoryUsage();

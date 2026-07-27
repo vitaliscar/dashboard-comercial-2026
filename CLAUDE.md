@@ -6,49 +6,87 @@ Este archivo proporciona orientación a Claude Code cuando trabaja con código e
 
 ## Descripción General
 
-**Dashboard Comercial 2026** es un panel de análisis de ventas/comercial para CCV construido con **TanStack Start**, **React 19**, **TypeScript**, **Tailwind CSS v4** y **Supabase**. Autohospedado en VPS propio (sin Vercel, sin Lovable).
+**Dashboard Comercial 2026** es un panel de análisis de ventas/comercial para CCV construido con **Next.js 16 (App Router)**, **React 19**, **TypeScript**, **Tailwind CSS v4**, **Drizzle ORM** sobre **PostgreSQL 18**. RLS nativo de Postgres, sesiones propias — **sin Supabase** (migrado y eliminado por completo, ver sección "Historia" abajo). Postgres corre en un contenedor Docker (`docker-compose.yml`), tanto en desarrollo local como se espera en producción.
 
 ### Stack Tecnológico
 
-- **Framework**: TanStack Start (SSR, file-based routing vía TanStack Router)
-- **UI**: React 19 + shadcn/ui (componentes pre-generados en `src/components/ui/`)
-- **Estilos**: Tailwind CSS v4 (plugin de Vite, no `tailwind.config.js`)
+- **Framework**: Next.js 16, App Router (`src/app/`), React Server Components + Server Actions
+- **UI**: React 19 + shadcn/ui (`src/components/ui/`)
+- **Estilos**: Tailwind CSS v4 (plugin PostCSS)
 - **Formularios**: React Hook Form + Zod
-- **Estado del servidor**: TanStack Query
-- **Gráficos**: Recharts
-- **Backend**: Supabase (PostgreSQL + Auth + RLS)
-- **Gestor de paquetes**: Bun (`bun.lock` presente)
-- **Build**: Vite 8 + Nitro (salida server en `.output/`)
+- **Gráficos**: Recharts, three.js / @react-three/fiber (logo 3D)
+- **Backend/DB**: PostgreSQL 18 en Docker + Drizzle ORM (`src/db/schema.ts`), RLS nativo por SQL policies
+- **Autenticación**: sesiones propias por cookie httpOnly + `argon2` para hash de password
+- **Gestor de paquetes**: Bun (`bun.lock`)
+- **Build**: Next.js (`next build` / `next start`)
+
+## Base de datos local (Docker)
+
+`docker-compose.yml` levanta un único servicio `postgres` (imagen `postgres:18`). El puerto host se mapea a **55432** (no 5432/5433) porque en máquinas con un Postgres nativo de Windows corriendo como servicio, esos puertos quedan ocupados y las conexiones fallan con "password authentication failed" en vez de "connection refused" — confuso de diagnosticar. Si `55432` choca en otro entorno, cambiar el mapeo en `docker-compose.yml` y en `.env.local` a la vez.
+
+`docker/postgres-init/00-roles.sql` corre una sola vez (al crear el volumen) y crea los dos roles de aplicación:
+
+- `app_admin` (`BYPASSRLS`) — dueño del schema, usado por `dbAdmin` en `src/db/index.ts`.
+- `app_user` (sin bypass) — usado por `db`; el scope por rol lo aplican las RLS policies vía `SET LOCAL` dentro de `withAuth` (`src/lib/actions/with-auth.ts`).
+
+```bash
+docker compose up -d              # levantar Postgres (una vez; persiste en el volumen postgres_data)
+docker compose down                # detener (docker compose down -v para borrar también los datos)
+```
+
+### Migraciones (orden de aplicación en una BD nueva)
+
+No hay un comando único "migrate" — se aplican los `.sql` a mano contra el contenedor, en este orden:
+
+```bash
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations/0000_huge_sharon_carter.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations/0001_far_the_stranger.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0001_rls_policies.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0002_minutas_delete_policy.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0003_schema_drift_fix.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations/0002_absent_kabuki.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0004_ventas_casa_rls.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations/0003_useful_wind_dancer.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0005_cobranzas_snapshots_rls.sql
+```
+
+`0003_schema_drift_fix.sql` existe porque `cobranzas.dias_vencidos`, `servicios.taller`/`servicios.csa` y la tabla `detalles_servicios_estrategicos` están en `src/db/schema.ts` pero **nunca se generó una migración Drizzle para ellas** (se aplicaron a mano contra la BD Supabase original — ver el comentario en `0001_far_the_stranger.sql`). Sin este archivo, `bun run load-excel` falla al insertar en `cobranzas`/`servicios`/`detalles_servicios_estrategicos`. Si `schema.ts` cambia, revisar primero si el drift ya está cubierto por una migración antes de asumir que `drizzle-kit push`/`generate` basta.
+
+`0002_absent_kabuki.sql` (generada por `drizzle-kit generate`) crea la tabla `ventas_casa` (hoja Excel "Ventas Casa": ventas de atención casa por Sucursal/U-N/Mes, sin asesor asociado — igual que `servicios_interno`, es un snapshot de un solo año sin columna `año`). `0004_ventas_casa_rls.sql` habilita RLS sobre esa tabla con el mismo patrón que `select_servicios`/`select_cobranzas` (scope por sucursal + unidad, sin `asesor_id` porque no aplica).
 
 ## Comandos
 
 ```bash
-bun install          # instalar dependencias
-bun run dev           # servidor de desarrollo (http://localhost:3000, SSR + HMR)
-bun run build          # build de producción
-bun run build:dev       # build sin minificar (debugging)
-bun run preview         # servir el build de producción localmente
-bun run lint           # ESLint (TypeScript + React)
-bun run format          # Prettier (printWidth 100, comillas dobles, trailingComma all)
-bun run test           # Vitest — corre src/lib/kpi-calculations.test.ts (60 tests)
-bun run test:watch      # Vitest en modo watch
-bun run test:excel       # ejecuta src/tests/excel.test.ts con bun (script standalone, no Vitest)
+bun install               # instalar dependencias
+bun run dev                 # servidor de desarrollo Next.js (http://localhost:3000, o el siguiente puerto libre)
+bun run build                # build de producción
+bun run start                 # servir el build de producción (next start)
+bun run lint                # ESLint (TypeScript + React)
+bun run format                # Prettier
+bun run test                # Vitest (unit/integration, excluye e2e/ y excel.test.ts)
+bun run test:watch             # Vitest en modo watch
+bun run test:excel              # ejecuta src/tests/excel.test.ts con bun (script standalone contra el .xlsx real)
+bun run test:e2e               # Playwright (arranca `next dev` automáticamente vía webServer)
+bunx tsc --noEmit             # type-check completo
+bun run alter-schema            # aplica ALTERs ad-hoc de FK (scripts/alter-schema.ts)
+bun run load-excel               # alter-schema + carga completa desde "CCV Rendimiento.xlsx" (scripts/run-full-load.ts, llama a src/db/load-excel.ts)
 ```
 
-**Nota sobre tests**: Vitest está instalado y cableado (`vitest.config.ts` en la raíz, alias `@` resuelto). `src/tests/excel.test.ts` está excluido de Vitest — es un script standalone contra el `.xlsx` real, se corre solo con `bun run test:excel`.
+Para correr un único test de Vitest: `bun run test -- <patrón o ruta de archivo>` (p. ej. `bun run test -- src/lib/analytics/pareto.test.ts`).
+Para un único test de Playwright: `bun run test:e2e -- <archivo>.spec.ts`.
+
+`scripts/run-full-load.ts <ruta-al-excel>` es el entrypoint real de carga (llama a `loadExcelToPostgres` en `src/db/load-excel.ts`, que siembra catálogos, usuarios, cotizaciones, facturas, ventas perdidas, presupuestos, cobranzas, servicios, equipos y cumplimiento por asesor). No usar un loader parcial que solo cargue un subconjunto de tablas — el dashboard depende de todas ellas.
 
 ## Arquitectura
 
-### Enrutamiento (TanStack Router, file-based)
+### Enrutamiento: Next.js App Router (`src/app/`)
 
-- Cada `.tsx` en `src/routes/` es una ruta; `routeTree.gen.ts` es autogenerado — no editar.
-- `__root.tsx`: shell raíz de la app.
-- `_app.tsx` (no `_layout.tsx`): layout pathless que protege todo lo que cuelga de `src/routes/_app/*`. Su `beforeLoad` verifica `supabase.auth.getSession()` y redirige a `/auth` si no hay sesión; envuelve el contenido en `<AppShell>`.
-- `auth.tsx`, `index.tsx`: rutas públicas.
+- `src/app/(app)/*` — grupo de rutas protegidas. `src/app/(app)/layout.tsx` es un Server Component `async` que llama `getCurrentSession()`; si no hay sesión hace `redirect("/auth")`, y envuelve el contenido en `<ProtectedShell>`.
+- `src/app/(auth)/auth/` — login, ruta pública.
+- `src/app/api/health/`, `src/app/api/metrics/` — route handlers de infraestructura.
+- Cada carpeta bajo `(app)/` es una vista de rol o módulo: `dashboard`, `gerencia-nacional`, `sucursal`, `coordinador`, `asesor`, `asesores`, `equipos`, `alquiler`, `servicios`, `lubfiltros`, `cobranzas`, `minutas`, `pareto`, `alertas`, `carga`, `usuarios`, `cliente-360`, `comisiones`, `embudo`, `repuestos`, `resumen`, `simulador`.
 
-Rutas protegidas actuales bajo `_app/`: `dashboard`, `gerencia-nacional`, `sucursal`, `asesor`, `asesores`, `equipos`, `servicios`, `lubfiltros`, `cobranzas`, `minutas`, `pareto`, `alertas`, `carga`, `usuarios`.
-
-**`dashboard.tsx` no renderiza un dashboard — es un router por rol.** Lee `role`/`profile` de `useAuth()` y hace `navigate()` según el rol antes de mostrar nada:
+**`(app)/dashboard` es un router por rol, no un dashboard en sí** — lee `role`/`profile` de `useAuth()` y navega según:
 
 | Rol (`AppRole`)                       | Redirige a                                                       |
 | ------------------------------------- | ---------------------------------------------------------------- |
@@ -57,110 +95,61 @@ Rutas protegidas actuales bajo `_app/`: `dashboard`, `gerencia-nacional`, `sucur
 | `coordinador` sin `unidad_negocio_id` | `/sucursal`                                                      |
 | `asesor`                              | `/asesor`                                                        |
 
-Al agregar o renombrar una vista por rol, este switch en `dashboard.tsx` es la pieza central a actualizar — el nav (`app-shell.tsx`) solo enlaza a `/dashboard`, no a las vistas específicas.
+Al agregar o renombrar una vista por rol, este switch es la pieza central a actualizar.
 
-### Autorización en tres capas (cliente)
+### Autenticación y autorización (tres capas del lado del servidor)
 
-RLS en Supabase es la autoridad real, pero el cliente aplica su propia lógica en capas — todas deben mantenerse en sync manualmente, no hay generación automática entre ellas:
+RLS en Postgres es la autoridad real. El flujo:
 
-1. **`src/hooks/use-auth.tsx`** — `AuthProvider`/`useAuth()`. Carga `profiles` + `user_roles` tras el login y resuelve un único `role: AppRole` (`"gerencia" | "gerente_comercial" | "coordinador" | "asesor"`) por prioridad si el usuario tiene varios roles asignados.
-2. **`src/lib/permissions.ts`** — funciones `can*(context)` (p. ej. `canManageUsers`, `canViewPareto`, `canEditPipeline`) que deciden qué puede hacer cada rol en la UI.
-3. **`src/lib/data-scope.ts`** — helper `scoped()` que agrega un `.eq()` a un query builder de Supabase según el rol, como atajo de UX (comentario explícito en el código: "RLS also enforces this on the server; this is a UX-level shortcut").
+1. **`src/lib/actions/auth.ts`** (`"use server"`) — `loginAction`/`logoutAction`/`getCurrentSession`/`meAction`. Hace login contra `users`/`sessions` en Postgres (password verificado con `src/lib/auth/password.ts`, argon2), setea cookie httpOnly (`src/lib/auth/session.ts`), y resuelve `profile` + `role: AppRole` por prioridad (`gerencia > gerente_comercial > coordinador > asesor`). `getCurrentSession` está envuelto en `cache()` de React — se puede llamar múltiples veces por request sin duplicar queries.
+2. **`src/lib/actions/with-auth.ts`** — `withAuth(fn)` abre una transacción Drizzle y ejecuta `SET LOCAL app.current_role / app.current_user_id / app.current_sucursal_id` antes de correr `fn`, para que las RLS policies de Postgres (`src/db/migrations-manual/0001_rls_policies.sql`) apliquen sobre esa transacción. Usar esto (no queries sueltas con `db`) para cualquier server function que lea/escriba datos scoped por rol.
+3. **`src/hooks/use-auth.tsx`** (`"use client"`) — `AuthProvider`/`useAuth()`, consume `loginAction`/`logoutAction`/`meAction` vía Server Actions y expone `{ session, profile, role, signIn, signOut, refresh }` a los Client Components.
+4. **`src/lib/permissions.ts`** — `canAccessModule(role, module)` / `getModulesForRole(role)`, tabla `MODULE_ACCESS` por `ModuleKey`.
 
-### Clientes Supabase — no mezclar
+Dos clientes Drizzle en **`src/db/index.ts`**, no mezclar:
 
-- **`src/integrations/supabase/client.ts`** — cliente de navegador/SSR con la clave pública (`VITE_SUPABASE_PUBLISHABLE_KEY`), sujeto a RLS. Es el que se usa en componentes y rutas.
-- **`src/integrations/supabase/client.server.ts`** — cliente admin con `SUPABASE_SERVICE_ROLE_KEY`, **bypassea RLS**. Solo para módulos `*.server.ts` / handlers de servidor; nunca importarlo desde un archivo que se envía al bundle del cliente.
-- **`src/integrations/supabase/auth-middleware.ts`** — middleware de TanStack Start (`requireSupabaseAuth`) para server functions: valida el header `Authorization: Bearer` contra Supabase.
+- `dbAdmin` — rol `app_admin` (BYPASSRLS). Solo para: pipeline de carga de Excel, migraciones, y lectura de credenciales/sesión en `auth.ts` (necesita bypass antes de que exista un `SET LOCAL` de rol). **Nunca** para servir datos de negocio scoped por rol.
+- `db` — rol `app_user` (sin BYPASSRLS). El que sirve requests reales; el scope por rol se aplica vía RLS + `SET LOCAL` dentro de `withAuth`, no en el código de la query.
 
-Todos estos archivos llevan cabecera "autogenerado, no editar directamente" — son generados por la integración con Supabase.
+### Carga de datos (Excel → Postgres)
 
-### Esquema de base de datos — verificar contra `types.ts` y `docs/SCHEMA.md`
+- `src/db/load-excel.ts` (`loadExcelToPostgres`) reemplaza (delete + insert) el contenido de las tablas objetivo a partir de un Excel local, usando `dbAdmin` (BYPASSRLS). También siembra `users`/`profiles`/`user_roles` a partir de la hoja "Usuarios" del Excel (contraseña hasheada con argon2; si la hoja no trae contraseña se genera una temporal).
+- `scripts/run-full-load.ts` + `scripts/alter-schema.ts` son los entrypoints CLI (`bun run load-excel`).
+- Automatizado por `.github/workflows/weekly-excel-load.yml`: cron `0 9 * * 5` (viernes 5 AM Caracas, UTC-4), más `workflow_dispatch` manual. Usa los secrets `DATABASE_URL`/`DATABASE_ADMIN_URL` del repo (apuntando al Postgres de producción).
+- **Neteo de repuestos cotizado vs. Lub/Filtros**: la lógica de negocio para restar del monto bruto de repuestos cotizado el monto ya cotizado en Lub/Filtros (evitar doble conteo) — ver `getCotizacionesPrincipales()`/`getFacturasPrincipales()` en `src/lib/excel-parser.ts`.
+- **Pareto multi-fuente** (`/pareto`): calcula el 80/20 de forma independiente sobre cotizaciones, facturas y ventas perdidas, sin cruzar identidad de cliente entre tablas. Lógica en `src/lib/analytics/pareto.ts` (`computeParetoSummary`), testeable fuera de React.
+- **Módulo de Asesores y Regla "Ventas Casa"** (`/asesores`): el catálogo canónico de asesores autorizados está en `src/lib/asesores-catalogo.ts`. Toda venta/cotización/venta perdida cuyo código o nombre no coincida con el catálogo (normalizado vía `normalizarNombre`, que maneja acentos, espacios, `#` y spelling overrides) se acumula en el asesor sintético "Ventas Casa" (`"CASA"`). Agregación y KPIs en `src/lib/analytics/asesores.ts`.
+- `src/lib/analytics/` tiene además `churn.ts`, `cohortes.ts`, `cross-sell.ts`, `forecast.ts`, `funnel.ts`, `health-score.ts`, `anomalias.ts` — cada uno con su `.test.ts` — para los módulos más nuevos (`embudo`, `simulador`, `comisiones`, etc.). Revisar el test correspondiente antes de tocar la lógica de cálculo.
+- **`presupuestos` (facturado real) solo tiene datos hasta el último mes cerrado en el Excel** — meses futuros del año en curso vienen con `meta` pero `ventas_ccv`/`ventas_xibi`/`ventas_estrategicas` en 0. Un KPI de "Facturado" en $0 para el mes actual no es un bug si ese mes aún no se cerró en el Excel; verificar contra `select anio, mes, sum(ventas_ccv+ventas_xibi+ventas_estrategicas) from presupuestos group by 1,2` antes de asumir que la carga falló.
 
-El esquema real (18 tablas) está documentado en detalle en **`docs/SCHEMA.md`**, generado a partir
-de una introspección directa del endpoint OpenAPI de PostgREST en producción (no de las
-migraciones — ver "drift conocido" en ese documento). `src/integrations/supabase/types.ts` fue
-regenerado a mano para coincidir con ese snapshot real (2026-07-09) y es la referencia canónica
-para el código; `docs/SCHEMA.md` es la referencia legible para humanos con las notas de drift.
+### Esquema de base de datos
 
-Dos gotchas ya corregidos que vale la pena recordar:
-
-- `cotizaciones` **no tiene** columna `asesor` (solo `asesor_id`/`asesor_codigo`) — para mostrar
-  el nombre del asesor hay que resolver `asesor_codigo` contra `cumplimiento_asesores.codigo_asesor`.
-- El enum `cotizacion_etapa` real es `desarrollo | propuesta_negociacion | venta_perdida | desconocido`
-  (no `prospecto | presentada | negociacion | ganada | perdida` como sugieren las migraciones) —
-  `propuesta_negociacion` es funcionalmente la etapa "ganada".
-
-Código limpiado (eliminado):
-
-- `src/hooks/useSupabaseQuery.ts` — hooks huérfanos que referenciaban esquema antiguo
-- `src/lib/kpi-hooks.ts` — no usado en app actual
-- `src/hooks/dashboard-hooks-examples.tsx` — ejemplo/scaffolding
-- `src/lib/kpi-calculations.examples.ts` — ejemplo/scaffolding
-- `src/components/{index.ts,gauge-chart,chart-wrapper,filter-bar,performance-table,svg-3d-renderer,digital-loom-background,model-viewer-3d}` — barrel muerto + componentes sin ninguna referencia real en el árbol de imports
-- `src/hooks/useTop5ClientesFacturados.ts`, `src/shims/opentype-default.ts` — huérfanos (el shim perdió su alias en `vite.config.ts` en algún punto)
-
-**Práctica**: antes de escribir o depurar una consulta a Supabase, verificar siempre el nombre de tabla/columna en `types.ts` o `docs/SCHEMA.md` — nunca asumas que coincide con `supabase/migrations/*.sql`, que ya demostraron estar desincronizadas del estado real.
+- **`src/db/schema.ts`** es la fuente de verdad de Drizzle (tablas, tipos, relaciones). `drizzle.config.ts` apunta a `src/db/migrations/` como `out`; las migraciones generadas viven ahí, y `src/db/migrations-manual/` tiene SQL escrito a mano (RLS policies, políticas de borrado específicas, y el fix de drift `0003_schema_drift_fix.sql`) que no pasa por `drizzle-kit generate`.
+- `docs/SCHEMA.md` documenta el esquema de una era anterior — puede tener drift respecto al esquema Postgres/Drizzle actual; ante la duda, `src/db/schema.ts` manda.
+- Migraciones y `drizzle-kit push` corren como `app_admin` (BYPASSRLS).
 
 ### Bug recurrente a vigilar: hooks después de un early return
 
-`pareto.tsx`, `asesor.tsx`, `coordinador.tsx` y `gerencia-nacional.tsx` tenían el mismo patrón: un
-guard de acceso por rol (`if (role !== "...") return <AccesoRestringido />`) colocado **antes** de
-los `useQuery`/`useMemo` del componente. Como `role` es `null` en el primer render (antes de que
-`useAuth()` resuelva el perfil) y luego cambia a un valor real, React monta el componente con
-menos hooks en el primer render y más en el segundo → `"Rendered more hooks than during the
-previous render"`, un crash real en producción en cualquier hard-refresh de esas rutas. Ya
-corregido en las 4 rutas: el guard ahora va **después** de todos los hooks (justo antes del
-`return` del JSX principal), y las queries sensibles usan `enabled: canView` en vez de saltarse el
-hook. Si se agrega una ruta nueva con guard de rol, seguir este mismo orden.
+Un guard de acceso por rol (`if (role !== "...") return <AccesoRestringido />`) **nunca** debe ir antes de los `useQuery`/`useMemo`/`useEffect` del componente. Como `role` es `null` en el primer render (antes de que `useAuth()` resuelva sesión/perfil) y luego cambia a un valor real, un guard temprano hace que React monte el componente con menos hooks en el primer render y más en el segundo → `"Rendered more hooks than during the previous render"`. El guard debe ir **después** de todos los hooks (justo antes del `return` del JSX principal); las queries sensibles deben usar `enabled: canView` en vez de saltarse el hook.
 
-### Carga de datos (Excel → Supabase)
+### Roles de negocio (`AppRole`, definido en `src/lib/actions/auth.ts`)
 
-- `src/integrations/supabase/load-excel.ts` reemplaza (delete + insert) el contenido de sus tablas objetivo a partir de un Excel local (`CCV Rendimiento.xlsx`).
-- Automatizado por `.github/workflows/weekly-excel-load.yml`: cron `0 9 * * 5` (viernes 5 AM Caracas, UTC-4), más `workflow_dispatch` manual. Requiere los secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, opcionalmente `EXCEL_FILE_URL`.
-- Ver `SUPABASE_SETUP.md` para el setup inicial — pero sus nombres de variable de entorno (`VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`) están desactualizados; usar los reales (sección siguiente).
-- **Neteo de repuestos cotizado vs. Lub/Filtros**: `getCotizacionesPrincipales()` resta del monto
-  bruto de repuestos cotizado en la hoja "Oportunidades" el monto cotizado para el mismo cliente
-  en "Oportunidades LubFiltros" (proporcional al bruto del cliente si hay varias filas), replicando
-  exactamente el mismo principio que `getFacturasPrincipales()` ya aplica para el neto facturado —
-  evita doble conteo del lubricante que viaja embebido en las cotizaciones de repuestos. El asesor
-  de cotización sale de "Nombre Asesor"/"Código Asesor" (cols F/G) en Oportunidades, y de "Nombre
-  Vendedor Cot."/"Código Vendedor Cot." (cols R/S) en Oportunidades LubFiltros — ya estaba
-  implementado correctamente antes de este cambio.
-- **Pareto multi-fuente** (`/pareto`): calcula el 80/20 de forma independiente sobre `cotizaciones`,
-  `facturas` y `ventas_perdidas` (pestañas Cotizado/Facturado/Ventas Perdidas), sin cruzar
-  identidad de cliente entre tablas — cada fuente usa el nombre de cliente tal como llega de su
-  propia hoja de origen. La lógica de cálculo vive en `src/lib/analytics/pareto.ts`
-  (`computeParetoSummary`), reutilizable y testeable fuera de React.
-- **Módulo de Asesores y Regla "Ventas Casa"** (`/asesores`):
-  Vista gerencial que consolida datos comerciales por asesor comercial.
-  El catálogo canónico de los 32 asesores autorizados está en `src/lib/asesores-catalogo.ts`.
-  Toda venta/cotización/venta perdida cuyo código o nombre de asesor no coincida con este catálogo
-  (normalizado mediante `normalizarNombre` que maneja acentos, espacios, signos como `#` y spelling
-  overrides como `BRICE#O` o `HERNANDES`) se acumula en el asesor sintético "Ventas Casa" (`"CASA"`).
-  La lógica de agregación y cálculo de KPIs vive en `src/lib/analytics/asesores.ts` con sus tests.
-
-  Alcance por Rol en el Módulo de Asesores:
-
-  | Rol (`AppRole`)     | Alcance / Scoping de Datos                                                        |
-  | ------------------- | --------------------------------------------------------------------------------- |
-  | `gerencia`          | Nacional: ve todas las sucursales y unidades de negocio (multi-select habilitado) |
-  | `gerente_comercial` | Unidad: restringido a su unidad de negocio asignada                               |
-  | `coordinador`       | Sucursal: restringido a su sucursal asignada (filtro bloqueado a sucursal propia) |
+`"gerencia" | "gerente_comercial" | "coordinador" | "asesor"`. El nav oculta entradas por rol vía `getModulesForRole`/`canAccessModule` en `src/lib/permissions.ts` (p. ej. `/carga` y `/usuarios` solo para `gerencia`).
 
 ### Variables de entorno
 
-Los nombres reales, tal como los leen `client.ts` / `client.server.ts` / `auth-middleware.ts` (no los de `SUPABASE_SETUP.md`, que están desactualizados):
-
 ```env
-VITE_SUPABASE_URL=...                    # cliente browser (fallback: process.env.SUPABASE_URL en SSR)
-VITE_SUPABASE_PUBLISHABLE_KEY=...        # cliente browser, sujeto a RLS (fallback: process.env.SUPABASE_PUBLISHABLE_KEY)
-SUPABASE_SERVICE_ROLE_KEY=...            # solo client.server.ts — bypassea RLS, nunca al bundle de cliente
+DATABASE_URL=...             # Postgres, rol app_user (sin BYPASSRLS) — usado por `db` en src/db/index.ts
+DATABASE_ADMIN_URL=...       # Postgres, rol app_admin (BYPASSRLS) — usado por `dbAdmin`; migraciones y carga de Excel
 ```
 
-### Roles de negocio (`AppRole`, definido en `src/hooks/use-auth.tsx`)
+En desarrollo local ambas apuntan al contenedor Docker en `localhost:55432` (ver `.env.example`). `.env.local` es lo que Bun/Next.js cargan realmente (gitignored) — no confundir con `.env.example`.
 
-`"gerencia" | "gerente_comercial" | "coordinador" | "asesor"` — ver `roleLabel()` en `src/lib/format.ts` para las etiquetas en UI ("Gerencia Nacional", "Gerente Comercial", "Coordinador", "Asesor"). El nav (`app-shell.tsx`) oculta entradas por rol vía un campo `roles` por item (p. ej. `/carga` y `/usuarios` solo para `gerencia`).
+## Historia: migración fuera de Supabase (completa)
+
+El proyecto corrió originalmente sobre TanStack Start + Supabase (Auth + Postgres + RLS de Supabase). Se migró en dos fases — primero a Postgres/Drizzle propio con RLS nativo (aún sobre TanStack Start), luego el enrutamiento a Next.js App Router — y **todo el código de Supabase y el árbol legacy de TanStack Start que dependía de él ya fueron eliminados**: no queda `src/integrations/supabase/`, `src/routes/`, `src/router.tsx`, `vite.config.ts`, ni las dependencias `@supabase/*`/`supabase`/`@tanstack/react-start`/`@tanstack/react-router` en `package.json`. `@tanstack/react-query` sí se mantiene — se sigue usando activamente en `src/app/` para data-fetching en Client Components.
+
+Quedan referencias a "Supabase" solo en **comentarios históricos** (explican por qué algo se hizo de cierta forma) y en documentación de auditoría bajo `docs/` (`MASTER_STRATEGY.md`, `SCHEMA.md`, reportes de fechas anteriores a la migración) — son snapshots de una arquitectura pasada, no instrucciones a seguir; ante cualquier duda sobre el estado actual, `src/db/schema.ts` y el código en `src/app/`/`src/lib/` mandan sobre esos documentos.
 
 ## Git
 
@@ -168,13 +157,14 @@ Conventional commits: `<type>: <descripción>` — tipos `feat, fix, refactor, d
 
 ## Despliegue
 
-Autohospedado en VPS propio, sin Vercel ni Lovable. `vite.config.ts` usa `@tanstack/react-start/plugin/vite` con `target: "node-server"` (reemplaza el preset Cloudflare de Lovable). Build de producción: `bun run build` (salida en `dist/client` + `dist/server/server.js`); servir con `bun run start` (`node dist/server/server.js`) detrás de un reverse proxy (nginx/Caddy) con TLS. Verificado end-to-end con `bun install && bun run build` — el build compila y genera el entrypoint Node correctamente.
-
-**Nota sobre Nitro**: `nitro@3.0.260603-beta` está pinneado a una versión exacta (no `^`), no a un rango — evita que un beta más reciente se cuele en un install. El audit de seguridad recomendaba bajar a "nitro 2.10.x", pero ese release nunca existió: el paquete npm `nitro` es la nueva generación (sucesora de `nitropack`, que sí tiene 2.x estable) y `@tanstack/react-start@1.168+` está construido específicamente sobre la integración Vite-nativa de Nitro v3 — no hay stable release compatible con esta versión de TanStack Start todavía. Downgradear a `nitropack` rompería el build (confirmado: `start-plugin-core` no depende de nitro/nitropack como peer, así que la integración viene de la propia versión de TanStack Start). Mitigación real: build verificado, versión exacta pinneada, sin auto-actualización silenciosa.
+Build de producción: `bun run build` (Next.js); servir con `bun run start` (`next start`) detrás de un reverse proxy (nginx/Caddy) con TLS. `next.config.ts` fija `serverExternalPackages: ["@node-rs/argon2", "postgres"]` para que esos paquetes nativos no se bundleen. Postgres corre en Docker (`docker-compose.yml`) tanto en desarrollo como se espera en el VPS de producción.
 
 ## Recursos
 
-- TanStack Start: https://tanstack.com/start/latest/docs
-- TanStack Router: https://tanstack.com/router/latest/docs
-- Supabase: https://supabase.com/docs
+- Next.js App Router: https://nextjs.org/docs/app
+- Drizzle ORM: https://orm.drizzle.team/docs
 - shadcn/ui: https://ui.shadcn.com
+
+## Notas de supply-chain
+
+- **Dependencia `xlsx` desde CDN**: La dependencia `xlsx` en `package.json` apunta directamente al CDN oficial de SheetJS (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`) debido a que la versión oficial dejó de actualizarse en el registro público de npm. Esta práctica es invisible para herramientas automáticas como `npm audit` y `Dependabot`. Se acepta el riesgo de supply-chain en esta dependencia dado que `bun.lock` fija explícitamente un hash de integridad SHA-512 (`sha512-oLDq3jw7AcLqKWH2AhCpVTZl8mf6X2YReP+Neh0SJUzV/BdZYjth94tG5toiMB1PPrYtxOCfaoUCkvtuH+3AJA==`), previniendo cualquier alteración del tarball sin detección.

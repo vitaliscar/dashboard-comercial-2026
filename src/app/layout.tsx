@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" className="dark" style={{ colorScheme: "dark" }} suppressHydrationWarning>
+    <html lang="es" className="dark" style={{ colorScheme: "light" }} suppressHydrationWarning>
       <body>
         <Providers>{children}</Providers>
       </body>

@@ -20,18 +20,6 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "server-only",
-              message:
-                "TanStack Start does not use the Next.js `server-only` package. Rename the module to `*.server.ts` or mark it with `@tanstack/react-start/server-only`.",
-            },
-          ],
-        },
-      ],
       // TanStack Router exports `Route` as a constant alongside the page component.
       // `allowConstantExport` covers the Route object; `allowExportNames` covers
       // any other named utility exports co-located in route files.

@@ -154,7 +154,9 @@ export default function ComisionesPage() {
                   <TableCell>{row.codigoAsesor}</TableCell>
                   <TableCell className="text-right">{money(row.venta)}</TableCell>
                   <TableCell className="text-right">{pct(row.pctCumplimiento)}</TableCell>
-                  <TableCell className="text-right">{pct(row.tasa > 1 ? row.tasa : row.tasa * 100)}</TableCell>
+                  <TableCell className="text-right">
+                    {pct(row.tasa > 1 ? row.tasa : row.tasa * 100)}
+                  </TableCell>
                   <TableCell className="text-right font-semibold">{money(row.comision)}</TableCell>
                 </TableRow>
               ))}
