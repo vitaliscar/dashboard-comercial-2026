@@ -220,7 +220,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="px-6 py-6 mb-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <img src="/logo-ccv.png" alt="CCV" className="size-9 object-contain" />
+            <img src="/Logo_CCV.png" alt="CCV" className="size-9 object-contain" />
             <div>
               <div className="font-display font-bold text-sidebar-foreground text-lg leading-tight">
                 CCV
