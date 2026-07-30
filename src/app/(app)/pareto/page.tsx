@@ -32,6 +32,7 @@ import {
 import { Shield, TrendingUp, Wallet } from "lucide-react";
 import { KpiCard } from "@/components/kpi-card";
 import { useAuth } from "@/hooks/use-auth";
+import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { computeParetoSummary, type ParetoInputRow } from "@/lib/analytics/pareto";
 import {
   Table,
@@ -45,12 +46,13 @@ import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { resolverAsesor } from "@/lib/asesores-catalogo";
 
 const FUENTE_TITULO: Record<ParetoFuente, string> = {
-  cotizado: "Cotizado",
-  facturado: "Facturado",
-  perdido: "Ventas Perdidas",
+  cotizado: "Cotizaciones acumuladas",
+  facturado: "Facturado real",
+  perdido: "Ventas perdidas acumuladas",
 };
 
 const MESES = [
+  "Todos los meses",
   "Enero",
   "Febrero",
   "Marzo",
@@ -67,9 +69,17 @@ const MESES = [
 
 export default function ParetoPage() {
   const { role } = useAuth();
-  const [anio, setAnio] = useState(new Date().getFullYear());
-  const [mes, setMes] = useState(0);
+  const { filters, setFilters } = useSharedFilters();
+  const anio = filters.anio;
+  const mes = filters.meses === "all" ? 0 : (filters.meses[0] ?? 0);
   const [fuente, setFuente] = useState<ParetoFuente>("facturado");
+
+  const setAnio = (newAnio: number) => {
+    setFilters({ anio: newAnio });
+  };
+  const setMes = (newMes: number) => {
+    setFilters({ meses: newMes === 0 ? "all" : [newMes] });
+  };
 
   const canView = role === "gerencia" || role === "gerente_comercial";
 

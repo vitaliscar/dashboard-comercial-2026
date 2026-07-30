@@ -188,7 +188,7 @@ export function FilterHeader({
         : `${selectedMonths.length} meses`;
 
   return (
-    <div className="mb-6 relative z-10">
+    <div className="sticky top-16 z-10 mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40 shadow-[0_2px_8px_-2px_hsl(var(--border)/0.6)]">
       {/* ── Row 1: Filter bar ───────────────────────────────────────── */}
       <div className="bg-card border border-border shadow-sm rounded-md px-3 py-2.5 flex items-center gap-4 flex-wrap">
         {/* Meses — multi-select */}
