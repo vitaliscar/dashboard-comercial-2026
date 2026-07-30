@@ -113,7 +113,12 @@ export const getCurrentSession = cache(async () => {
       .limit(1);
 
     if (!session || isSessionExpired(session.expiresAt)) {
-      store.delete(SESSION_COOKIE_NAME);
+      try {
+        store.delete(SESSION_COOKIE_NAME);
+      } catch {
+        // Cookie deletion is only allowed in Server Actions / Route Handlers.
+        // When called from a Server Component render we silently skip it.
+      }
       return null;
     }
 

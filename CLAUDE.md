@@ -48,6 +48,7 @@ docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comer
 docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0004_ventas_casa_rls.sql
 docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations/0003_useful_wind_dancer.sql
 docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0005_cobranzas_snapshots_rls.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0006_usuarios_crud_rls.sql
 ```
 
 `0003_schema_drift_fix.sql` existe porque `cobranzas.dias_vencidos`, `servicios.taller`/`servicios.csa` y la tabla `detalles_servicios_estrategicos` están en `src/db/schema.ts` pero **nunca se generó una migración Drizzle para ellas** (se aplicaron a mano contra la BD Supabase original — ver el comentario en `0001_far_the_stranger.sql`). Sin este archivo, `bun run load-excel` falla al insertar en `cobranzas`/`servicios`/`detalles_servicios_estrategicos`. Si `schema.ts` cambia, revisar primero si el drift ya está cubierto por una migración antes de asumir que `drizzle-kit push`/`generate` basta.

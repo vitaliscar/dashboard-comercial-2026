@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, type CSSProperties } from "react";
+import { useMemo, useEffect, useCallback, type CSSProperties } from "react";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { PageHeader } from "@/components/page-header";
 import { KpiCards } from "@/components/resumen/KpiCards";
@@ -10,6 +10,7 @@ import { VentasPerdidasSection } from "@/components/resumen/VentasPerdidasSectio
 import { ResumenData, UnidadNegocio, TopCliente } from "@/lib/resumen-types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { canFilterSucursal, getAccessibleSucursales } from "@/lib/permissions";
 import { getResumenDataAction } from "@/lib/actions/resumen";
@@ -86,13 +87,9 @@ const mapDbUnidadToUi = (dbNombre: string): UnidadNegocio => {
 
 export default function ResumenPage() {
   const { role, profile } = useAuth();
+  const { filters: sharedFilters, setFilters: setSharedFilters } = useSharedFilters();
   const hideSucursalFilter = role === "coordinador" || role === "asesor";
   const today = new Date();
-  const [filters, setFilters] = useState<FilterState>({
-    meses: [today.getMonth() + 1],
-    anio: today.getFullYear(),
-    sucursal: undefined,
-  });
 
   // Fetch reference data
   const {
@@ -108,10 +105,24 @@ export default function ResumenPage() {
     error: unError,
   } = useUnidades();
 
+  const filters: FilterState = useMemo(() => {
+    let sucursalName: string | undefined = undefined;
+    if (sharedFilters.sucursales.length > 0 && sucursales) {
+      sucursalName = sucursales.find((s) => s.id === sharedFilters.sucursales[0])?.nombre;
+    }
+    return {
+      anio: sharedFilters.anio,
+      meses: sharedFilters.meses,
+      sucursal: sucursalName,
+      unidades: sharedFilters.unidades,
+    };
+  }, [sharedFilters, sucursales]);
+
   const selectedSucursalId = useMemo(() => {
+    if (sharedFilters.sucursales.length > 0) return sharedFilters.sucursales[0];
     if (!filters.sucursal || !sucursales) return undefined;
     return sucursales.find((s) => s.nombre === filters.sucursal)?.id;
-  }, [filters.sucursal, sucursales]);
+  }, [sharedFilters.sucursales, filters.sucursal, sucursales]);
 
   // Restrict sucursales selection based on role permissions
   const sucursalesVisibles = useMemo(() => {
@@ -142,12 +153,9 @@ export default function ResumenPage() {
   // Set coordinator's sucursal as default and locked
   useEffect(() => {
     if (role === "coordinador" && profile?.sucursal_id && sucursales) {
-      const name = sucursales.find((s) => s.id === profile.sucursal_id)?.nombre;
-      if (name) {
-        setFilters((f) => ({ ...f, sucursal: name }));
-      }
+      setSharedFilters({ sucursales: [profile.sucursal_id] });
     }
-  }, [role, profile, sucursales]);
+  }, [role, profile, sucursales, setSharedFilters]);
 
   const dateRanges = useMemo(() => {
     return getDateRangesForMonths(filters.anio, filters.meses);
@@ -471,9 +479,21 @@ export default function ResumenPage() {
     };
   }, [rawData, unidades, sucursales, filters, role]);
 
-  const handleApplyFilters = useCallback((newFilters: FilterState) => {
-    setFilters(newFilters);
-  }, []);
+  const handleApplyFilters = useCallback(
+    (newFilters: FilterState) => {
+      let sucursalId: string | undefined = undefined;
+      if (newFilters.sucursal && sucursales) {
+        sucursalId = sucursales.find((s) => s.nombre === newFilters.sucursal)?.id;
+      }
+      setSharedFilters({
+        anio: newFilters.anio,
+        meses: newFilters.meses,
+        sucursales: sucursalId ? [sucursalId] : [],
+        unidades: newFilters.unidades ?? (newFilters.unidad ? [newFilters.unidad] : []),
+      });
+    },
+    [sucursales, setSharedFilters],
+  );
 
   // Keyboard navigation shortcuts
   useEffect(() => {
@@ -492,33 +512,31 @@ export default function ResumenPage() {
 
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        setFilters((prev) => {
-          if (prev.meses === "all") {
-            return { ...prev, meses: [12] };
-          }
-          const currentMes = prev.meses[0] ?? today.getMonth() + 1;
+        if (sharedFilters.meses === "all") {
+          setSharedFilters({ meses: [12] });
+        } else {
+          const currentMes = sharedFilters.meses[0] ?? today.getMonth() + 1;
           if (currentMes > 1) {
-            return { ...prev, meses: [currentMes - 1] };
+            setSharedFilters({ meses: [currentMes - 1] });
           } else {
-            return { ...prev, meses: [12], anio: prev.anio - 1 };
+            setSharedFilters({ meses: [12], anio: sharedFilters.anio - 1 });
           }
-        });
+        }
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        setFilters((prev) => {
-          if (prev.meses === "all") {
-            return { ...prev, meses: [1] };
-          }
-          const currentMes = prev.meses[0] ?? today.getMonth() + 1;
+        if (sharedFilters.meses === "all") {
+          setSharedFilters({ meses: [1] });
+        } else {
+          const currentMes = sharedFilters.meses[0] ?? today.getMonth() + 1;
           if (currentMes < 12) {
-            return { ...prev, meses: [currentMes + 1] };
+            setSharedFilters({ meses: [currentMes + 1] });
           } else {
-            return { ...prev, meses: [1], anio: prev.anio + 1 };
+            setSharedFilters({ meses: [1], anio: sharedFilters.anio + 1 });
           }
-        });
+        }
       } else if (e.key === "Escape") {
         e.preventDefault();
-        setFilters((prev) => ({ ...prev, sucursal: undefined }));
+        setSharedFilters({ sucursales: [] });
       }
     };
 
@@ -526,8 +544,7 @@ export default function ResumenPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sharedFilters, setSharedFilters, today]);
 
   const isDataLoadingCombined =
     isSucLoading || isUnLoading || (isDataLoading && !!unidades && !!sucursales);
