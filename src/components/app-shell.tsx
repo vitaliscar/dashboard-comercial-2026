@@ -48,6 +48,7 @@ const NAV: NavItem[] = [
   { to: "/minutas", label: "Minutas", icon: ClipboardList, module: "minutas" },
   { to: "/cobranzas", label: "Cobranzas", icon: Wallet, module: "cobranzas" },
   { to: "/embudo", label: "Embudo", icon: GitBranch, module: "embudo" },
+  { to: "/pareto", label: "Pareto", icon: GitBranch, module: "pareto" },
   { to: "/asesores", label: "Asesores", icon: Award, module: "asesores" },
   { to: "/cliente-360", label: "Clientes", icon: UserSearch, module: "cliente_360" },
   { to: "/comisiones", label: "Comisiones", icon: Percent, module: "comisiones" },
