@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
 const FILTER_LABEL_CLASS =
-  "text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap";
+  "text-[10px] font-mono font-bold text-muted-foreground tracking-[0.12em] uppercase whitespace-nowrap";
 
 const MESES = [
   "Enero",
@@ -41,25 +41,17 @@ export interface FilterOption {
 export interface FilterState {
   meses: number[] | "all";
   anio: number;
-  /** Single-select mode: one sucursal ID or undefined (all). */
   sucursal?: string;
-  /** Multi-select mode: array of sucursal IDs or undefined (all). */
   sucursales?: string[];
-  /** Single-select legacy mode: one unidad ID or undefined (all). */
   unidad?: string;
-  /** Multi-select mode: array of unidad IDs or undefined (all). */
   unidades?: string[];
 }
 
 interface FilterHeaderProps {
   onApplyFilters: (filters: FilterState) => void;
-  /** Legacy: name-based list (value === label). Used by resumen.tsx. */
   sucursales?: string[];
-  /** Preferred: id-based list. */
   sucursalOptions?: FilterOption[];
-  /** When true, sucursal selector becomes a multi-checkbox dropdown. */
   sucursalMulti?: boolean;
-  /** Unit filter chips rendered in a second row. */
   unitOptions?: FilterOption[];
   defaultMes?: number[] | "all";
   defaultAnio: number;
@@ -188,18 +180,18 @@ export function FilterHeader({
         : `${selectedMonths.length} meses`;
 
   return (
-    <div className="sticky top-16 z-10 mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40 shadow-[0_2px_8px_-2px_hsl(var(--border)/0.6)]">
+    <div className="sticky top-14 z-10 mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40">
       {/* ── Row 1: Filter bar ───────────────────────────────────────── */}
-      <div className="bg-card border border-border shadow-sm rounded-md px-3 py-2.5 flex items-center gap-4 flex-wrap">
-        {/* Meses — multi-select */}
+      <div className="bg-card border border-border rounded-md px-3 py-2.5 flex items-center gap-4 flex-wrap">
+        {/* Meses */}
         <Field orientation="horizontal" className="w-auto gap-2">
           <FieldLabel className={FILTER_LABEL_CLASS}>Meses</FieldLabel>
           <Popover>
-            <PopoverTrigger className="h-8 w-[140px] flex items-center justify-between px-3 text-sm font-semibold bg-background border border-input hover:bg-muted transition-colors rounded">
+            <PopoverTrigger className="h-8 w-[140px] flex items-center justify-between px-3 text-sm font-semibold bg-input-background border border-border hover:bg-accent transition-colors rounded text-foreground">
               <span className="truncate">{mesLabel}</span>
-              <ChevronDown className="shrink-0 ml-2" />
+              <ChevronDown className="shrink-0 ml-2 text-muted-foreground" />
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-[200px] p-0">
+            <PopoverContent align="start" className="w-[200px] p-0 bg-popover border-border">
               <Command>
                 <CommandList>
                   <CommandGroup>
@@ -243,10 +235,10 @@ export function FilterHeader({
         <Field orientation="horizontal" className="w-auto gap-2">
           <FieldLabel className={FILTER_LABEL_CLASS}>Año</FieldLabel>
           <Select value={String(anio)} onValueChange={(value) => value && setAnio(parseInt(value))}>
-            <SelectTrigger className="h-8 w-[90px] bg-background border border-input text-sm font-semibold">
+            <SelectTrigger className="h-8 w-[90px] bg-input-background border border-border text-sm font-semibold text-foreground">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover border-border">
               {Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i).map((y) => (
                 <SelectItem key={y} value={String(y)}>
                   {y}
@@ -261,11 +253,11 @@ export function FilterHeader({
           <Field orientation="horizontal" className="w-auto gap-2">
             <FieldLabel className={FILTER_LABEL_CLASS}>Sucursal</FieldLabel>
             <Popover>
-              <PopoverTrigger className="h-8 w-[160px] flex items-center justify-between px-3 text-sm font-semibold bg-background border border-input hover:bg-muted transition-colors rounded">
+              <PopoverTrigger className="h-8 w-[160px] flex items-center justify-between px-3 text-sm font-semibold bg-input-background border border-border hover:bg-accent transition-colors rounded text-foreground">
                 <span className="truncate">{sucursalLabel}</span>
-                <ChevronDown className="shrink-0 ml-2" />
+                <ChevronDown className="shrink-0 ml-2 text-muted-foreground" />
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-[220px] p-0">
+              <PopoverContent align="start" className="w-[220px] p-0 bg-popover border-border">
                 <Command>
                   <CommandList>
                     <CommandGroup>
@@ -302,10 +294,10 @@ export function FilterHeader({
               onValueChange={(v) => setSucursal(v ?? "")}
               disabled={resolvedSucursalOptions.length === 1}
             >
-              <SelectTrigger className="h-8 w-[150px] bg-background border border-input text-sm font-semibold">
+              <SelectTrigger className="h-8 w-[150px] bg-input-background border border-border text-sm font-semibold text-foreground">
                 <SelectValue placeholder="Todas" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover border-border">
                 {resolvedSucursalOptions.length > 1 && <SelectItem value="all">Todas</SelectItem>}
                 {resolvedSucursalOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
@@ -317,16 +309,16 @@ export function FilterHeader({
           </Field>
         )}
 
-        {/* Apply button — pushed to the right */}
+        {/* Apply button */}
         <Button
           onClick={handleApply}
-          className="h-8 px-4 text-xs font-bold tracking-wide w-full sm:w-auto sm:ml-auto transition-[opacity,transform] duration-150 ease-out hover:opacity-90 active:scale-[0.98]"
+          className="h-8 px-4 text-xs font-bold tracking-wide w-full sm:w-auto sm:ml-auto bg-primary text-primary-foreground hover:bg-primary/90 transition-[opacity,transform] duration-150 ease-out active:scale-[0.98]"
         >
           Aplicar filtros
         </Button>
       </div>
 
-      {/* ── Row 2: Unit chips bar ────────────────────────────────────── */}
+      {/* ── Row 2: Unit chips ────────────────────────────────────────── */}
       {resolvedUnitOptions && resolvedUnitOptions.length > 0 && (
         <div className="bg-card border border-t-0 border-border rounded-b-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
           <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
@@ -339,8 +331,8 @@ export function FilterHeader({
               className={cn(
                 "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
                 selectedUnits.length === 0
-                  ? "bg-foreground text-background hover:bg-foreground/90"
-                  : "text-muted-foreground",
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "text-muted-foreground border-border hover:bg-accent",
               )}
             >
               Todas
@@ -356,7 +348,7 @@ export function FilterHeader({
                   key={`${opt.value}-${opt.label}`}
                   value={opt.value}
                   variant="outline"
-                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:border-border border border-transparent"
+                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground border-border hover:bg-accent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
                 >
                   {opt.label}
                 </ToggleGroupItem>
