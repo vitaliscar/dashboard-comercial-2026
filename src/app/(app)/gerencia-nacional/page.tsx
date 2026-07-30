@@ -22,6 +22,7 @@ import {
 import { getAllowedMonths } from "@/lib/date-range";
 import { useMemo, useCallback } from "react";
 import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
+import { GoalFeedback } from "@/components/gerencia-nacional/GoalFeedback";
 
 type Acc = { meta: number; facturado: number };
 const emptyAcc = (): Acc => ({ meta: 0, facturado: 0 });
@@ -340,6 +341,14 @@ export default function GerenciaNacionalPage() {
         </div>
 
         <UnitDonut data={unitDonutData} selectedIds={selectedUnidades} />
+      </div>
+
+      {/* GoalFeedback: ambulancia / camion / cohete según cumplimiento */}
+      <div className="section-enter section-enter-2">
+        <GoalFeedback
+          pct={kpis.cumplimiento}
+          brecha={Math.abs(kpis.totalPresupuesto - kpis.totalFacturado)}
+        />
       </div>
 
       {/* Desglose separado por unidad — solo aparece con 2+ unidades seleccionadas.

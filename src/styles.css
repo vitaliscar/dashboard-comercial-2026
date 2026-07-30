@@ -11,98 +11,102 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* CCV Dashboard — Minimalista Corporativo (paleta clara, OKLCH)
+/* CCV Dashboard — "Terminal Ámbar" (dark-first, data-dense)
  *
- * Sistema: lienzo gris muy claro + tarjetas blancas + hairlines suaves.
- * Azul corporativo para acciones; ámbar de marca (logo CCV) como acento.
+ * Sistema: base casi negra + paneles elevados + acento ámbar de marca.
+ * Tipografía: Space Grotesk (display) / Inter (UI) / JetBrains Mono (números).
  * Todos los pares texto/fondo verificados a ≥4.5:1 (WCAG AA).
  * Fuente única de verdad: este bloque :root.
  */
 
 :root {
-  color-scheme: light;
-  --radius: 0.75rem; /* Radio generoso = tono amigable */
+  color-scheme: dark;
+  --radius: 0.75rem;
   --font-size: 14px;
 
-  /* Tokens semánticos de marca */
-  --bg-primary: oklch(0.985 0.002 250); /* Lienzo gris casi blanco */
-  --surface-primary: oklch(1 0 0); /* Tarjeta blanca pura */
-  --text-primary: oklch(0.24 0.02 255); /* Tinta pizarra (14:1 sobre blanco) */
-  --accent-gold: oklch(0.8 0.15 85); /* Ámbar CCV — solo decorativo */
-  --accent-gold-ink: oklch(0.52 0.11 70); /* Ámbar oscuro — cuando lleva texto */
-  --muted: oklch(0.965 0.004 250);
-  --border-color: oklch(0.92 0.005 250);
-  --success: oklch(0.55 0.14 155);
-  --warning: oklch(0.6 0.13 68);
-  --danger: oklch(0.55 0.2 25);
+  /* ── Base ─────────────────────────────────────────────────────────── */
+  --bg-primary: oklch(0.13 0.01 255);
+  --surface-primary: oklch(0.17 0.01 255);
+  --surface-2: oklch(0.20 0.01 255);
+  --text-primary: oklch(0.92 0.005 255);
+  --accent-gold: oklch(0.78 0.16 75);
+  --accent-gold-ink: oklch(0.78 0.16 75);
+  --muted: oklch(0.20 0.01 255);
+  --border-color: oklch(0.26 0.01 255);
+  --success: oklch(0.62 0.16 155);
+  --warning: oklch(0.75 0.15 80);
+  --danger: oklch(0.62 0.22 25);
 
-  --background: oklch(0.985 0.002 250);
-  --foreground: oklch(0.24 0.02 255);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.02 255);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.02 255);
-  --primary: oklch(0.45 0.13 258); /* Azul corporativo — 8.5:1 con texto blanco */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.96 0.006 255);
-  --secondary-foreground: oklch(0.3 0.02 255);
-  --muted-foreground: oklch(0.52 0.015 255); /* 4.9:1 sobre blanco */
-  --accent: oklch(0.96 0.008 255);
-  --accent-foreground: oklch(0.3 0.02 255);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.92 0.005 250);
-  --input: oklch(0.9 0.006 250);
-  --input-background: oklch(1 0 0);
-  --switch-background: oklch(0.89 0.006 250);
-  --ring: oklch(0.45 0.13 258);
+  /* ── shadcn tokens ────────────────────────────────────────────────── */
+  --background: oklch(0.13 0.01 255);
+  --foreground: oklch(0.92 0.005 255);
+  --card: oklch(0.17 0.01 255);
+  --card-foreground: oklch(0.92 0.005 255);
+  --popover: oklch(0.20 0.01 255);
+  --popover-foreground: oklch(0.92 0.005 255);
+  --primary: oklch(0.78 0.16 75);
+  --primary-foreground: oklch(0.13 0.01 255);
+  --secondary: oklch(0.20 0.01 255);
+  --secondary-foreground: oklch(0.92 0.005 255);
+  --muted-foreground: oklch(0.60 0.010 255);
+  --accent: oklch(0.20 0.01 255);
+  --accent-foreground: oklch(0.92 0.005 255);
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.92 0.005 255);
+  --border: oklch(0.26 0.01 255);
+  --input: oklch(0.26 0.01 255);
+  --input-background: oklch(0.15 0.01 255);
+  --switch-background: oklch(0.26 0.01 255);
+  --ring: oklch(0.78 0.16 75);
 
-  --chart-1: oklch(0.55 0.15 258); /* Azul */
-  --chart-2: oklch(0.62 0.12 190); /* Teal */
-  --chart-3: oklch(0.72 0.14 75); /* Ámbar */
-  --chart-4: oklch(0.58 0.18 20); /* Coral */
-  --chart-5: oklch(0.55 0.16 300); /* Violeta */
+  /* ── Charts ───────────────────────────────────────────────────────── */
+  --chart-1: oklch(0.78 0.16 75);
+  --chart-2: oklch(0.62 0.16 155);
+  --chart-3: oklch(0.62 0.12 250);
+  --chart-4: oklch(0.62 0.22 25);
+  --chart-5: oklch(0.62 0.16 300);
 
-  --sidebar: oklch(1 0 0); /* Nav blanca con hairline */
-  --sidebar-foreground: oklch(0.3 0.02 255);
-  --sidebar-primary: oklch(0.45 0.13 258);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.965 0.008 255);
-  --sidebar-accent-foreground: oklch(0.28 0.03 258);
-  --sidebar-border: oklch(0.92 0.005 250);
-  --sidebar-ring: oklch(0.45 0.13 258);
+  /* ── Sidebar ──────────────────────────────────────────────────────── */
+  --sidebar: oklch(0.11 0.01 255);
+  --sidebar-foreground: oklch(0.92 0.005 255);
+  --sidebar-primary: oklch(0.78 0.16 75);
+  --sidebar-primary-foreground: oklch(0.13 0.01 255);
+  --sidebar-accent: oklch(0.20 0.01 255);
+  --sidebar-accent-foreground: oklch(0.92 0.005 255);
+  --sidebar-border: oklch(0.22 0.01 255);
+  --sidebar-ring: oklch(0.78 0.16 75);
+  --sidebar-collapsed-width: 56px;
+  --sidebar-expanded-width: 220px;
 
-  --tertiary: oklch(0.3 0.02 255);
-  --tertiary-foreground: oklch(1 0 0);
-  --ochre: oklch(0.52 0.11 70);
-  --success-foreground: oklch(1 0 0);
-  --warning-foreground: oklch(1 0 0);
-  --danger-foreground: oklch(1 0 0);
+  /* ── Semantic extras ──────────────────────────────────────────────── */
+  --tertiary: oklch(0.92 0.005 255);
+  --tertiary-foreground: oklch(0.13 0.01 255);
+  --ochre: oklch(0.78 0.16 75);
+  --success-foreground: oklch(0.13 0.01 255);
+  --warning-foreground: oklch(0.13 0.01 255);
+  --danger-foreground: oklch(0.92 0.005 255);
 
-  --chart-calm-1: oklch(0.72 0.08 258);
-  --chart-calm-2: oklch(0.78 0.05 190);
-  --chart-calm-3: oklch(0.82 0.08 75);
-  --chart-calm-4: oklch(0.76 0.07 155);
-  --chart-calm-5: oklch(0.76 0.09 20);
+  --chart-calm-1: oklch(0.78 0.16 75 / 0.6);
+  --chart-calm-2: oklch(0.62 0.16 155 / 0.6);
+  --chart-calm-3: oklch(0.62 0.12 250 / 0.6);
+  --chart-calm-4: oklch(0.62 0.16 155 / 0.4);
+  --chart-calm-5: oklch(0.62 0.22 25 / 0.6);
 
-  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  /* Sombras suaves y en capas — el peso lo lleva el hairline, no la sombra */
+  /* Sombras — en dark mode el peso lo lleva el borde, no la sombra */
   --component-card-border-width: 1px;
   --component-card-shadow-rest:
-    0 1px 2px 0 rgba(16, 24, 40, 0.04), 0 1px 3px 0 rgba(16, 24, 40, 0.06);
+    0 1px 2px 0 rgba(0, 0, 0, 0.3),
+    0 1px 3px 0 rgba(0, 0, 0, 0.2);
   --component-card-shadow-hover:
-    0 4px 12px -2px rgba(16, 24, 40, 0.08), 0 2px 6px -2px rgba(16, 24, 40, 0.05);
-  --component-button-shadow-rest: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
+    0 4px 12px -2px rgba(0, 0, 0, 0.4),
+    0 2px 6px -2px rgba(0, 0, 0, 0.3);
+  --component-button-shadow-rest: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --component-button-shadow-press: none;
-  --ease-out: cubic-bezier(
-    0.16,
-    1,
-    0.3,
-    1
-  ); /* curva de entrada/salida — no usar bare "ease" para animaciones deliberadas */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
@@ -167,7 +171,7 @@
   --color-ochre: var(--ochre);
 
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Outfit", "Inter Variable", ui-sans-serif, sans-serif;
+  --font-display: "Space Grotesk Variable", "Outfit", "Inter Variable", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
@@ -226,7 +230,7 @@
   }
 }
 
-/* Modern surface utilities */
+/* ── Surface utilities ─────────────────────────────────────────────── */
 @utility card-elevated {
   background: var(--card);
   border: var(--component-card-border-width) solid var(--border);
@@ -270,8 +274,8 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow:
-    0 8px 20px -6px rgba(16, 24, 40, 0.1),
-    0 3px 8px -3px rgba(16, 24, 40, 0.06);
+    0 8px 20px -6px rgba(0, 0, 0, 0.4),
+    0 3px 8px -3px rgba(0, 0, 0, 0.3);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -290,7 +294,7 @@
   }
 }
 
-/* Executive Buttons */
+/* ── Buttons ───────────────────────────────────────────────────────── */
 @utility brutal-button {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -323,23 +327,23 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Status pills — tinte pálido + tinta oscura. Cada par verificado ≥5.5:1 (AA). */
+/* ── Status pills — dark: fondo tintado + texto claro ──────────────── */
 @utility status-success {
-  background: oklch(0.55 0.14 155 / 0.1);
-  color: oklch(0.44 0.12 155);
-  border: 1px solid oklch(0.55 0.14 155 / 0.25);
+  background: oklch(0.62 0.16 155 / 0.12);
+  color: oklch(0.75 0.16 155);
+  border: 1px solid oklch(0.62 0.16 155 / 0.3);
 }
 
 @utility status-warning {
-  background: oklch(0.6 0.13 68 / 0.12);
-  color: oklch(0.45 0.11 62);
-  border: 1px solid oklch(0.6 0.13 68 / 0.25);
+  background: oklch(0.75 0.15 80 / 0.12);
+  color: oklch(0.82 0.15 80);
+  border: 1px solid oklch(0.75 0.15 80 / 0.3);
 }
 
 @utility status-danger {
-  background: oklch(0.55 0.2 25 / 0.1);
-  color: oklch(0.47 0.19 25);
-  border: 1px solid oklch(0.55 0.2 25 / 0.25);
+  background: oklch(0.62 0.22 25 / 0.12);
+  color: oklch(0.75 0.20 25);
+  border: 1px solid oklch(0.62 0.22 25 / 0.3);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -358,7 +362,7 @@
 }
 
 @utility pareto-80 {
-  background: oklch(0.8 0.15 85 / 0.1);
+  background: oklch(0.78 0.16 75 / 0.08);
   border-left: 3px solid var(--accent-gold);
 }
 
@@ -366,12 +370,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Entrance animations ───────────────────────────────────────────── */
 @keyframes ccv-fade-in-up {
   from {
     opacity: 0;
     transform: translateY(6px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -394,11 +398,11 @@
   animation-delay: 150ms;
 }
 
+/* ── Skeleton shimmer ──────────────────────────────────────────────── */
 @keyframes ccv-shimmer {
   0% {
     background-position: -200% 0;
   }
-
   100% {
     background-position: 200% 0;
   }
@@ -441,9 +445,10 @@
   }
 }
 
+/* ── Progress bars ─────────────────────────────────────────────────── */
 @utility progress-track {
   height: 6px;
-  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
   border: none;
   border-radius: 999px;
   overflow: hidden;
@@ -462,9 +467,7 @@
   }
 }
 
-/* Scrollbar temática (clara) — sin esto, algunos navegadores usan un
- * scrollbar nativo oscuro por defecto en contenedores con scroll interno
- * (tablas, listas), que desentona con la paleta clara de la app. */
+/* ── Scrollbar — dark theme ────────────────────────────────────────── */
 * {
   scrollbar-color: var(--border) transparent;
   scrollbar-width: thin;
@@ -490,6 +493,7 @@
   background-color: var(--muted-foreground);
 }
 
+/* ── Print ─────────────────────────────────────────────────────────── */
 @media print {
   .no-print {
     display: none !important;
@@ -504,6 +508,6 @@
   .card-elevated-2,
   .card-elevated-3 {
     box-shadow: none !important;
-    border: 1px solid #ddd !important;
+    border: 1px solid #444 !important;
   }
 }

@@ -621,7 +621,7 @@ function CreateUserDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Sucursal</Label>
-              <Select value={form.sucursalId || "none"} onValueChange={(v) => field("sucursalId", v === "none" ? "" : v)}>
+              <Select value={form.sucursalId || "none"} onValueChange={(v) => field("sucursalId", !v || v === "none" ? "" : v)}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Ninguna" />
                 </SelectTrigger>
@@ -636,7 +636,7 @@ function CreateUserDialog({
             {unidades.length > 0 && (
               <div className="col-span-2 space-y-1.5">
                 <Label>Unidad de negocio (principal)</Label>
-                <Select value={form.unidadNegocioId || "none"} onValueChange={(v) => field("unidadNegocioId", v === "none" ? "" : v)}>
+                <Select value={form.unidadNegocioId || "none"} onValueChange={(v) => field("unidadNegocioId", !v || v === "none" ? "" : v)}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Ninguna" />
                   </SelectTrigger>
