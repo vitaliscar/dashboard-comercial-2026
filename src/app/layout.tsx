@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   description:
     "Plataforma de analytics comercial CCV: cotizaciones, facturacion, cobranzas, minutas y analisis Pareto en tiempo real.",
   icons: {
-    icon: "/logo-ccv.png",
-    apple: "/logo-ccv.png",
+    icon: "/Logo_CCV.png",
+    apple: "/Logo_CCV.png",
   },
   openGraph: {
     title: "CCV Dashboard Comercial",

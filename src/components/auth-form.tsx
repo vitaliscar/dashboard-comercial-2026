@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Mail, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
-const SVG3DLogo = lazy(() => import("@/components/svg-3d-logo"));
+const Logo3DGlb = lazy(() => import("@/components/logo-3d-glb"));
 
 export function AuthForm() {
   const router = useRouter();
@@ -116,9 +116,9 @@ export function AuthForm() {
 
         <div className="relative z-10 flex flex-col gap-8 max-w-md">
           <Suspense
-            fallback={<div className="size-[140px] rounded-full bg-foreground/5 animate-pulse" />}
+            fallback={<div className="size-[220px] rounded-full bg-foreground/5 animate-pulse" />}
           >
-            <SVG3DLogo size={140} showLabel={false} />
+            <Logo3DGlb size={220} onReady={() => {}} />
           </Suspense>
 
           <div className="space-y-4">
@@ -169,7 +169,7 @@ export function AuthForm() {
       <div className="flex items-center justify-center p-6 sm:p-10 bg-background">
         <div className="w-full max-w-sm flex flex-col gap-8">
           <div className="lg:hidden flex items-center gap-3">
-            <img src="/logo-ccv.png" alt="CCV" className="size-9 object-contain" />
+            <img src="/Logo_CCV.png" alt="CCV" className="size-9 object-contain" />
             <div className="font-display font-semibold text-lg text-foreground">CCV Dashboard</div>
           </div>
 
