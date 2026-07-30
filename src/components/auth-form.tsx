@@ -32,7 +32,6 @@ export function AuthForm() {
   };
 
   useEffect(() => {
-    // Reset any legacy lock or attempts on page load as requested
     resetAttempts();
   }, []);
 
@@ -83,55 +82,56 @@ export function AuthForm() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] bg-background">
+      {/* ── Left panel: brand + 3D logo ─────────────────────────────── */}
       <div
         className="hidden lg:flex flex-col justify-center relative overflow-hidden px-14 py-12"
-        style={{
-          background:
-            "linear-gradient(165deg, oklch(0.975 0.010 250) 0%, oklch(0.958 0.016 255) 60%, oklch(0.948 0.020 258) 100%)",
-        }}
+        style={{ background: "oklch(0.08 0.01 255)" }}
       >
+        {/* Subtle grid texture */}
         <svg
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-70"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.04]"
           viewBox="0 0 400 400"
           preserveAspectRatio="none"
           aria-hidden="true"
         >
-          <path
-            d="M0 320 L120 320 L140 280 L180 280 L200 340 L400 340"
-            stroke="var(--primary)"
-            strokeOpacity="0.22"
-            strokeWidth="1.5"
-            fill="none"
-          />
-          <path
-            d="M0 220 L90 220 L110 180 L400 180"
-            stroke="var(--primary)"
-            strokeOpacity="0.14"
-            strokeWidth="1"
-            fill="none"
-          />
-          <circle cx="120" cy="320" r="3" fill="var(--accent-gold-ink)" />
-          <circle cx="200" cy="340" r="3" fill="var(--accent-gold-ink)" />
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+          <rect width="400" height="400" fill="url(#grid)" />
         </svg>
+
+        {/* Amber glow behind logo */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-[400px] rounded-full opacity-20"
+          style={{
+            background:
+              "radial-gradient(circle, oklch(0.78 0.16 75 / 0.4) 0%, transparent 70%)",
+          }}
+          aria-hidden="true"
+        />
 
         <div className="relative z-10 flex flex-col gap-8 max-w-md">
           <Suspense
-            fallback={<div className="size-[220px] rounded-full bg-foreground/5 animate-pulse" />}
+            fallback={
+              <div className="size-[220px] rounded-full bg-foreground/5 animate-pulse" />
+            }
           >
             <Logo3DGlb size={220} onReady={() => {}} />
           </Suspense>
 
           <div className="space-y-4">
-            <p className="text-[11px] tracking-[0.14em] uppercase font-display text-[var(--accent-gold-ink)] font-semibold">
+            <p className="text-[10px] tracking-[0.18em] uppercase font-mono text-primary font-bold">
               Consorcio de Cogestión Venequip
             </p>
             <h1 className="font-display text-[34px] font-light leading-[1.14] text-foreground">
-              La continuidad de su <b className="font-semibold text-primary">operación</b>,
-              garantizada.
+              La continuidad de su{" "}
+              <b className="font-semibold text-primary">operación</b>, garantizada.
             </h1>
             <p className="text-sm leading-relaxed text-muted-foreground max-w-[36ch]">
-              Distribuidores autorizados Generac y Donaldson. Maquinaria Cat, Cummins, JLG, Sullair,
-              Bomag y Wacker Neuson para todo el país.
+              Distribuidores autorizados Generac y Donaldson. Maquinaria Cat, Cummins, JLG,
+              Sullair, Bomag y Wacker Neuson para todo el país.
             </p>
           </div>
 
@@ -141,8 +141,11 @@ export function AuthForm() {
               "Repuestos originales en stock nacional",
               "Cobertura Barquisimeto y todo el territorio",
             ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5 text-[13px] text-foreground/85">
-                <span className="mt-[6px] size-[6px] rounded-full bg-[var(--accent-gold-ink)] flex-shrink-0" />
+              <li
+                key={item}
+                className="flex items-start gap-2.5 text-[13px] text-foreground/70"
+              >
+                <span className="mt-[6px] size-[5px] rounded-full bg-primary flex-shrink-0" />
                 {item}
               </li>
             ))}
@@ -152,7 +155,7 @@ export function AuthForm() {
             {["Generac", "Donaldson", "Blumaq"].map((brand) => (
               <span
                 key={brand}
-                className="text-[11px] px-3 py-1.5 rounded-full border border-border bg-card/60 text-muted-foreground"
+                className="text-[11px] px-3 py-1.5 rounded-full border border-border bg-card/40 text-muted-foreground font-mono"
               >
                 {brand}
               </span>
@@ -160,21 +163,25 @@ export function AuthForm() {
           </div>
         </div>
 
-        <div className="absolute bottom-6 left-14 right-14 flex items-center justify-between text-[11px] font-display tracking-wider text-muted-foreground">
+        <div className="absolute bottom-6 left-14 right-14 flex items-center justify-between text-[10px] font-mono tracking-wider text-muted-foreground/50">
           <span>Dashboard Comercial 2026</span>
           <span>CCV · Todos los derechos reservados</span>
         </div>
       </div>
 
+      {/* ── Right panel: login form ──────────────────────────────────── */}
       <div className="flex items-center justify-center p-6 sm:p-10 bg-background">
         <div className="w-full max-w-sm flex flex-col gap-8">
+          {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3">
             <img src="/Logo_CCV.png" alt="CCV" className="size-9 object-contain" />
-            <div className="font-display font-semibold text-lg text-foreground">CCV Dashboard</div>
+            <div className="font-display font-semibold text-lg text-foreground">
+              CCV Dashboard
+            </div>
           </div>
 
           <div className="space-y-1.5">
-            <p className="text-[10px] tracking-widest font-display text-muted-foreground font-semibold">
+            <p className="text-[10px] tracking-[0.18em] font-mono text-primary font-bold uppercase">
               Acceso al panel
             </p>
             <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">
@@ -188,7 +195,7 @@ export function AuthForm() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">
                   Correo electrónico
                 </Label>
                 <div className="relative">
@@ -201,12 +208,12 @@ export function AuthForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu@ccv.com"
-                    className="pl-9 h-10"
+                    className="pl-9 h-10 bg-input-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pass" className="text-sm font-medium">
+                <Label htmlFor="pass" className="text-sm font-medium text-foreground">
                   Contraseña
                 </Label>
                 <div className="relative">
@@ -219,7 +226,7 @@ export function AuthForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="pl-9 h-10"
+                    className="pl-9 h-10 bg-input-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
                   />
                 </div>
               </div>
@@ -237,7 +244,7 @@ export function AuthForm() {
 
             <Button
               type="submit"
-              className="w-full h-11 text-sm font-semibold"
+              className="w-full h-11 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               disabled={loading || isLocked}
             >
               {loading && <Loader2 className="animate-spin mr-2 size-4" />}

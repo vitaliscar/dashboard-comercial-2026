@@ -14,7 +14,7 @@ const KIND_CLASS: Record<Kind, string> = {
   success: "status-success",
   warning: "status-warning",
   danger: "status-danger",
-  neutral: "bg-card text-foreground border border-border",
+  neutral: "bg-accent/40 text-muted-foreground border border-border",
 };
 
 export function StatusPill({ kind, children }: { kind: Kind; children: React.ReactNode }) {
@@ -22,7 +22,7 @@ export function StatusPill({ kind, children }: { kind: Kind; children: React.Rea
   return (
     <span
       className={cn(
-        "inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-lg px-2 py-0.5 font-display text-[10px] font-bold tracking-wide whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
+        "inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md px-2 py-0.5 font-mono text-[9px] font-bold tracking-wider whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-2.5",
         KIND_CLASS[kind],
       )}
     >
