@@ -60,6 +60,10 @@ export const sucursales = pgTable("sucursales", {
   nombre: text("nombre").notNull().unique(),
   ciudad: text("ciudad"),
   activa: boolean("activa").notNull().default(true),
+  // San Cristóbal solo existe para las hojas de Mercadeo (Google My Business).
+  // `false` la oculta de getSucursalesAction(), que alimenta todos los
+  // FilterHeader del sistema. Ver docs/superpowers/specs/2026-08-02-mercadeo-design.md §2.
+  visibleGeneral: boolean("visible_general").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -357,13 +361,19 @@ export const comisionesReglas = pgTable("comisiones_reglas", {
 });
 
 // ── Equipos (dashboard Equipos) ─────────────────────────────────────────────
+// disponible/transito = monto en USD (columna "Total USD$" del Excel);
+// stockDisponible/stockTransito = cantidad de unidades (columna "Stock").
+// tipoEquipo = "Tipo de Equipo" del Excel (Generador, Transpaleta, etc.).
 export const equiposInventario = pgTable("equipos_inventario", {
   id: uuid("id").primaryKey().defaultRandom(),
   anio: integer("anio").notNull(),
   mes: integer("mes").notNull(),
   marca: text("marca").notNull(),
+  tipoEquipo: text("tipo_equipo").notNull().default("Sin clasificar"),
   disponible: numeric("disponible", { precision: 14, scale: 2 }).notNull().default("0"),
   transito: numeric("transito", { precision: 14, scale: 2 }).notNull().default("0"),
+  stockDisponible: integer("stock_disponible").notNull().default(0),
+  stockTransito: integer("stock_transito").notNull().default(0),
   sucursalId: uuid("sucursal_id").references(() => sucursales.id),
   unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -410,3 +420,145 @@ export const equiposPorMarca = pgTable("equipos_por_marca", {
   unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ── Lubricantes y Filtros (hojas Excel "Detalles de Ventas LUBFILTROS" /
+// "Inventario LubFiltros") — snapshot de un solo año, sin columna año (mismo
+// patrón que detalles_servicios_estrategicos / servicios_interno). Sin RLS,
+// igual que esas dos tablas: acceso controlado por rol en la UI, no por fila.
+export const detallesVentasLubfiltros = pgTable(
+  "detalles_ventas_lubfiltros",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    marca: text("marca").notNull(),
+    mes: integer("mes").notNull(),
+    ventasCcv: numeric("ventas_ccv", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventasXibi: numeric("ventas_xibi", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventasEstrategicas: numeric("ventas_estrategicas", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    montoTotal: numeric("monto_total", { precision: 14, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("detalles_ventas_lubfiltros_mes_idx").on(t.mes)],
+);
+
+// `sucursal` es texto libre desde la columna "Nombre Sucursal" del Excel —
+// incluye valores como "Almacen Central" que no son sucursales físicas del
+// catálogo, mismo patrón que equipos_facturacion_sucursal.
+export const inventarioLubfiltros = pgTable("inventario_lubfiltros", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tipo: text("tipo").notNull(), // "Lubricantes" | "Filtros" — derivado de la columna SUPLIDOR
+  proveedorCodigo: text("proveedor_codigo").notNull(), // CO, NC, DN, D1, GF
+  sucursal: text("sucursal").notNull(),
+  monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Repuestos (hoja Excel "Detalles de Ventas Repuestos") — misma forma que
+// detalles_ventas_lubfiltros pero sin columna Estratégico (el Excel fuente no
+// la trae para esta unidad). Snapshot de un solo año, sin RLS (mismo patrón).
+export const detallesVentasRepuestos = pgTable(
+  "detalles_ventas_repuestos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    marca: text("marca").notNull(),
+    mes: integer("mes").notNull(),
+    ventasCcv: numeric("ventas_ccv", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventasXibi: numeric("ventas_xibi", { precision: 14, scale: 2 }).notNull().default("0"),
+    montoTotal: numeric("monto_total", { precision: 14, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("detalles_ventas_repuestos_mes_idx").on(t.mes)],
+);
+
+// ── Mercadeo ────────────────────────────────────────────────────────────────
+// Hojas Excel: Canales, Instagram, Google My Business, Post Historias,
+// Clientes Potenciales. `canal`/`tipo` son texto libre (sin catálogo propio).
+
+export const mercadeoCanales = pgTable(
+  "mercadeo_canales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    canal: text("canal").notNull(),
+    tipo: text("tipo").notNull(),
+    mes: integer("mes").notNull(),
+    cantidad: numeric("cantidad", { precision: 16, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("mercadeo_canales_mes_idx").on(t.mes)],
+);
+
+export const mercadeoInstagram = pgTable(
+  "mercadeo_instagram",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tipo: text("tipo").notNull(),
+    mes: integer("mes").notNull(),
+    cantidad: numeric("cantidad", { precision: 16, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("mercadeo_instagram_mes_idx").on(t.mes)],
+);
+
+export const mercadeoGoogleBusiness = pgTable(
+  "mercadeo_google_business",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    mes: integer("mes").notNull(),
+    tipo: text("tipo").notNull(),
+    cantidad: numeric("cantidad", { precision: 16, scale: 2 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("mercadeo_gmb_mes_idx").on(t.mes)],
+);
+
+export const mercadeoPostHistorias = pgTable(
+  "mercadeo_post_historias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tipoPublicacion: text("tipo_publicacion").notNull(),
+    // Texto libre: incluye categorías de contenido que no son unidades reales
+    // (Entrenamiento, Branding, RRHH, Eventos, Proyectos, Talleres, Efemérides).
+    unidadNegocio: text("unidad_negocio"),
+    marca: text("marca"),
+    mes: integer("mes").notNull(),
+    cantidad: integer("cantidad").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("mercadeo_post_historias_mes_idx").on(t.mes)],
+);
+
+export const clientesPotenciales = pgTable(
+  "clientes_potenciales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    idClientePotencial: integer("id_cliente_potencial"),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    // Texto libre: incluye "Entrenamiento Técnico", que no es unidad real.
+    tipoNegocio: text("tipo_negocio"),
+    razonSocial: text("razon_social"),
+    nombreContacto: text("nombre_contacto"),
+    correo: text("correo"),
+    telefono: text("telefono"),
+    identificacionFiscal: text("identificacion_fiscal"),
+    fechaDetectada: date("fecha_detectada"),
+    estatusBis: text("estatus_bis"),
+    etapaOportunidad: text("etapa_oportunidad"),
+    tomaContacto: text("toma_contacto"),
+    campana: text("campana"),
+    usuarioAsignado: text("usuario_asignado"),
+    ingresosEsperados: numeric("ingresos_esperados", { precision: 16, scale: 2 })
+      .notNull()
+      .default("0"),
+    montoFacturadoBase: numeric("monto_facturado_base", { precision: 16, scale: 2 })
+      .notNull()
+      .default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clientes_potenciales_estatus_idx").on(t.estatusBis),
+    index("clientes_potenciales_tipo_negocio_idx").on(t.tipoNegocio),
+    index("clientes_potenciales_fecha_idx").on(t.fechaDetectada),
+  ],
+);
