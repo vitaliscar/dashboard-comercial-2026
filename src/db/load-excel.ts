@@ -15,6 +15,7 @@ import { dbAdmin } from "@/db";
 import {
   users,
   profiles,
+  profileUnidadesNegocio,
   userRoles,
   sucursales,
   unidadesNegocio,
@@ -35,6 +36,14 @@ import {
   equiposFacturacion,
   cumplimientoAsesores,
   ventasCasa,
+  detallesVentasLubfiltros,
+  inventarioLubfiltros,
+  detallesVentasRepuestos,
+  mercadeoCanales,
+  mercadeoInstagram,
+  mercadeoGoogleBusiness,
+  mercadeoPostHistorias,
+  clientesPotenciales,
 } from "@/db/schema";
 import {
   ExcelParser,
@@ -77,6 +86,14 @@ async function seedCatalogos(): Promise<{
     .insert(sucursales)
     .values(SUCURSALES_CANONICAS.map((nombre) => ({ nombre })))
     .onConflictDoNothing({ target: sucursales.nombre });
+
+  // San Cristóbal solo aparece en las hojas de Mercadeo. visible_general=false
+  // la saca de getSucursalesAction(), que alimenta los FilterHeader del resto
+  // del sistema. Idempotente: se re-aplica en cada carga.
+  await dbAdmin
+    .update(sucursales)
+    .set({ visibleGeneral: false })
+    .where(eq(sucursales.nombre, "San Cristóbal"));
 
   await dbAdmin
     .insert(unidadesNegocio)
@@ -173,6 +190,30 @@ async function seedUsuarios(
 
     await dbAdmin.delete(userRoles).where(eq(userRoles.userId, userId));
     await dbAdmin.insert(userRoles).values({ userId, role });
+
+    // Multi-unidad para gerente_comercial — RLS (can_read_row en
+    // 0001_rls_policies.sql) consulta ESTA tabla, no profiles.unidad_negocio_id
+    // (que solo guarda la primera unidad, para compatibilidad legacy). Sin esto,
+    // un gerente_comercial no ve NINGÚN dato scoped por unidad (presupuestos,
+    // equipos_por_marca, equipos_inventario, etc.) — la condición RLS siempre
+    // evalúa a false.
+    await dbAdmin
+      .delete(profileUnidadesNegocio)
+      .where(eq(profileUnidadesNegocio.profileId, userId));
+    const unidadesAsignadasIds = Array.from(
+      new Set(
+        (u.unidadesNegocio ?? [])
+          .map((nombre) => unidadesMap.get(nombre.trim().toLowerCase()))
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    if (unidadesAsignadasIds.length > 0) {
+      await dbAdmin
+        .insert(profileUnidadesNegocio)
+        .values(
+          unidadesAsignadasIds.map((unidadNegocioId) => ({ profileId: userId, unidadNegocioId })),
+        );
+    }
 
     userProfiles.push({ id: userId, nombre_completo: u.nombre });
     asesorIdPorNombre.set(u.nombre.trim().toLowerCase(), userId);
@@ -490,6 +531,51 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
       })),
     );
 
+    // 8.3 Lub/Filtros: detalle de ventas por marca (Chronus, Donaldson, Donaldson Industrial)
+    console.log("→ Cargando detalles de ventas Lub/Filtros...");
+    const detallesVentasLubfiltrosRaw = parser.getDetallesVentasLubfiltros();
+    await dbAdmin.delete(detallesVentasLubfiltros);
+    result.rowsAffected["detalles_ventas_lubfiltros"] = await insertChunked(
+      detallesVentasLubfiltros,
+      detallesVentasLubfiltrosRaw.map((d) => ({
+        marca: d.marca,
+        mes: d.mes,
+        ventasCcv: String(d.ventasCcv),
+        ventasXibi: String(d.ventasXibi),
+        ventasEstrategicas: String(d.ventasEstrategicas),
+        montoTotal: String(d.montoTotal),
+      })),
+    );
+
+    // 8.4 Lub/Filtros: inventario (Lubricantes vs Filtros, por sucursal)
+    console.log("→ Cargando inventario Lub/Filtros...");
+    const inventarioLubfiltrosRaw = parser.getInventarioLubfiltros();
+    await dbAdmin.delete(inventarioLubfiltros);
+    result.rowsAffected["inventario_lubfiltros"] = await insertChunked(
+      inventarioLubfiltros,
+      inventarioLubfiltrosRaw.map((i) => ({
+        tipo: i.tipo,
+        proveedorCodigo: i.proveedorCodigo,
+        sucursal: i.sucursal,
+        monto: String(i.monto),
+      })),
+    );
+
+    // 8.5 Repuestos: detalle de ventas por marca (Caterpillar, Blumaq, Vms Corporation...)
+    console.log("→ Cargando detalles de ventas Repuestos...");
+    const detallesVentasRepuestosRaw = parser.getDetallesVentasRepuestos();
+    await dbAdmin.delete(detallesVentasRepuestos);
+    result.rowsAffected["detalles_ventas_repuestos"] = await insertChunked(
+      detallesVentasRepuestos,
+      detallesVentasRepuestosRaw.map((d) => ({
+        marca: d.marca,
+        mes: d.mes,
+        ventasCcv: String(d.ventasCcv),
+        ventasXibi: String(d.ventasXibi),
+        montoTotal: String(d.montoTotal),
+      })),
+    );
+
     // 9. Equipos: inventario (mes/año actual, snapshot semanal)
     console.log("→ Cargando inventario de equipos...");
     const equiposInventarioRaw = parser.getEquiposInventario();
@@ -501,8 +587,11 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
         anio: now.getFullYear(),
         mes: now.getMonth() + 1,
         marca: e.marca,
+        tipoEquipo: e.tipoEquipo,
         disponible: String(e.disponible),
         transito: String(e.transito),
+        stockDisponible: e.stockDisponible,
+        stockTransito: e.stockTransito,
         unidadNegocioId: unidadEquiposId,
       })),
     );
@@ -631,9 +720,92 @@ export async function loadExcelToPostgres(excelSource: string | Buffer): Promise
       })),
     );
 
+    // 14. Mercadeo — hojas Canales / Instagram / Google My Business /
+    // Post Historias / Clientes Potenciales.
+    console.log("→ Cargando métricas de mercadeo...");
+
+    await dbAdmin.delete(mercadeoCanales);
+    result.rowsAffected["mercadeo_canales"] = await insertChunked(
+      mercadeoCanales,
+      parser.getMercadeoCanales().map((r) => ({
+        canal: r.canal,
+        tipo: r.tipo,
+        mes: r.mes,
+        cantidad: String(r.cantidad),
+      })),
+    );
+
+    await dbAdmin.delete(mercadeoInstagram);
+    result.rowsAffected["mercadeo_instagram"] = await insertChunked(
+      mercadeoInstagram,
+      parser.getMercadeoInstagram().map((r) => ({
+        tipo: r.tipo,
+        mes: r.mes,
+        cantidad: String(r.cantidad),
+      })),
+    );
+
+    await dbAdmin.delete(mercadeoGoogleBusiness);
+    result.rowsAffected["mercadeo_google_business"] = await insertChunked(
+      mercadeoGoogleBusiness,
+      parser.getMercadeoGoogleBusiness().map((r) => ({
+        sucursalId: sucursalesMap.get(r.sucursal.trim().toLowerCase()) ?? null,
+        mes: r.mes,
+        tipo: r.tipo,
+        cantidad: String(r.cantidad),
+      })),
+    );
+
+    await dbAdmin.delete(mercadeoPostHistorias);
+    result.rowsAffected["mercadeo_post_historias"] = await insertChunked(
+      mercadeoPostHistorias,
+      parser.getMercadeoPostHistorias().map((r) => ({
+        tipoPublicacion: r.tipoPublicacion,
+        unidadNegocio: r.unidadNegocio,
+        marca: r.marca,
+        mes: r.mes,
+        cantidad: r.cantidad,
+      })),
+    );
+
+    console.log("→ Cargando clientes potenciales...");
+    await dbAdmin.delete(clientesPotenciales);
+    result.rowsAffected["clientes_potenciales"] = await insertChunked(
+      clientesPotenciales,
+      parser.getClientesPotenciales().map((l) => ({
+        idClientePotencial: l.idClientePotencial,
+        // Machine Shop no es sucursal canónica → queda null, la fila se carga igual.
+        sucursalId: sucursalesMap.get(l.sucursal.trim().toLowerCase()) ?? null,
+        tipoNegocio: l.tipoNegocio,
+        razonSocial: l.razonSocial,
+        nombreContacto: l.nombreContacto,
+        correo: l.correo,
+        telefono: l.telefono,
+        identificacionFiscal: l.identificacionFiscal,
+        fechaDetectada: l.fechaDetectada,
+        estatusBis: l.estatusBis,
+        etapaOportunidad: l.etapaOportunidad,
+        tomaContacto: l.tomaContacto,
+        campana: l.campana,
+        usuarioAsignado: l.usuarioAsignado,
+        ingresosEsperados: String(l.ingresosEsperados),
+        montoFacturadoBase: String(l.montoFacturadoBase),
+      })),
+    );
+
     result.success = true;
     console.log("✅ Carga completada exitosamente");
     console.log("📊 Filas cargadas:", result.rowsAffected);
+
+    const unidadesNoReconocidas = parser.getUnidadesNegocioNoReconocidas();
+    if (unidadesNoReconocidas.length > 0) {
+      console.warn(
+        "⚠️  Valores de 'Unidad de Negocio' no reconocidos (filas sin unidad asignada — revisar UNIDAD_NEGOCIO_KEYWORDS en src/lib/excel-parser.ts):",
+      );
+      unidadesNoReconocidas.forEach(({ texto, filas }) =>
+        console.warn(`   - "${texto}" (${filas} fila${filas === 1 ? "" : "s"})`),
+      );
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     result.errors.push(message);
