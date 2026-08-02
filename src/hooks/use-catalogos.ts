@@ -1,7 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getSucursalesAction, getUnidadesAction } from "@/lib/actions/catalogos";
+import {
+  getSucursalesAction,
+  getSucursalesMercadeoAction,
+  getUnidadesAction,
+} from "@/lib/actions/catalogos";
 
 /**
  * Catálogos casi inmutables (solo cambian vía /carga o /usuarios). staleTime
@@ -18,6 +22,19 @@ export function useSucursales() {
   return useQuery({
     queryKey: ["sucursales"],
     queryFn: () => getSucursalesAction(),
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * Igual que useSucursales pero incluye las sucursales ocultas del sistema
+ * (San Cristóbal). queryKey distinta a propósito: si compartiera
+ * ["sucursales"] contaminaría el caché del resto de las rutas.
+ */
+export function useSucursalesMercadeo() {
+  return useQuery({
+    queryKey: ["sucursales-mercadeo"],
+    queryFn: () => getSucursalesMercadeoAction(),
     staleTime: Infinity,
   });
 }
