@@ -44,6 +44,25 @@ export interface Factura {
   cotizacion: string;
 }
 
+export interface ClientePotencialItem {
+  idClientePotencial: number | null;
+  sucursal: string;
+  tipoNegocio: string | null;
+  razonSocial: string | null;
+  nombreContacto: string | null;
+  correo: string | null;
+  telefono: string | null;
+  identificacionFiscal: string | null;
+  fechaDetectada: string | null; // ISO "YYYY-MM-DD"
+  estatusBis: string | null;
+  etapaOportunidad: string | null;
+  tomaContacto: string | null;
+  campana: string | null;
+  usuarioAsignado: string | null;
+  ingresosEsperados: number;
+  montoFacturadoBase: number;
+}
+
 interface RawRowData {
   [key: string]: any;
 }
@@ -61,6 +80,8 @@ const SUCURSAL_CANONICA: { [key: string]: string } = {
   "punto fijo": "Punto Fijo",
   maturin: "Maturín",
   maturín: "Maturín",
+  "san cristobal": "San Cristóbal",
+  "san cristóbal": "San Cristóbal",
   "direccion general": "Dirección General",
 };
 
@@ -72,6 +93,41 @@ export const UNIDADES_CANONICAS: string[] = [
   "Equipos",
   "Alquiler",
 ];
+
+// Tokens informales de la columna "UnidadesNegocio" (hoja Usuarios) → nombre
+// canónico real en unidades_negocio. La mayoría ya coincide en minúsculas,
+// salvo "lubFiltros"/"lub/fil", que no tiene ningún caracter en común con
+// "Lubricantes/Filtros" y por eso necesita mapeo explícito.
+const UNIDAD_TOKEN_CANONICA: { [token: string]: string } = {
+  repuestos: "Repuestos",
+  lubfiltros: "Lubricantes/Filtros",
+  "lub/fil": "Lubricantes/Filtros",
+  "lubricantes/filtros": "Lubricantes/Filtros",
+  servicios: "Servicios",
+  equipos: "Equipos",
+  alquiler: "Alquiler",
+};
+
+/** Normaliza un token informal de unidad de negocio (columna "UnidadesNegocio") a su nombre canónico. */
+export function normalizarUnidadNegocioToken(token: string): string | null {
+  const key = token.trim().toLowerCase().replace(/\s+/g, "");
+  return UNIDAD_TOKEN_CANONICA[key] ?? null;
+}
+
+/**
+ * "31-07-2026" → "2026-07-31". Devuelve null si el valor no encaja. Acepta
+ * también un Date real por si Excel llega a tipar la celda como fecha.
+ */
+export function parseFechaDDMMYYYY(valor: unknown): string | null {
+  if (valor instanceof Date && !Number.isNaN(valor.getTime())) {
+    return valor.toISOString().slice(0, 10);
+  }
+  const texto = (valor ?? "").toString().trim();
+  const match = /^(\d{2})[-/](\d{2})[-/](\d{4})$/.exec(texto);
+  if (!match) return null;
+  const [, dia, mes, anio] = match;
+  return `${anio}-${mes}-${dia}`;
+}
 
 const ROLES_USUARIO_CANONICAS: { [key: string]: string } = {
   gerencia: "Gerencia",
@@ -124,6 +180,71 @@ export const UNIDAD_EQUIPOS = "Equipos";
 export const UNIDAD_ALQUILER = "Alquiler";
 /** @deprecated Usar UNIDAD_EQUIPOS o UNIDAD_ALQUILER según corresponda */
 export const UNIDAD_EQUIPOS_ALQUILER = "Equipos/Alquiler";
+
+/**
+ * Palabras clave que clasifican el texto libre de "Unidad de Negocio" /
+ * "Tipo de Negocio" / "U/N" en una de las 5 unidades reales. ÚNICO lugar a
+ * tocar si el Excel introduce una categoría de producto nueva que hoy cae en
+ * "no reconocida" (ver getUnidadesNegocioNoReconocidas / el warning que
+ * imprime `bun run load-excel`). El orden importa: se evalúa de arriba hacia
+ * abajo y gana la primera unidad cuyas keywords matcheen (ej. "equipo" antes
+ * que "alquiler" para no confundir "alquiler de equipos").
+ */
+const UNIDAD_NEGOCIO_KEYWORDS: { unidad: string; keywords: string[] }[] = [
+  { unidad: UNIDAD_EQUIPOS, keywords: ["equipo"] },
+  {
+    unidad: UNIDAD_ALQUILER,
+    // Categorías de producto de alquiler que no traen la palabra "alquiler"
+    // en la hoja "Cuentas por Cobrar" (montacargas, módulo de potencia,
+    // planta eléctrica) — es texto libre de negocio, no un typo de "alquiler".
+    keywords: ["alquiler", "montacargas", "modulo de potencia", "planta electrica"],
+  },
+  { unidad: UNIDAD_SERVICIOS, keywords: ["servicio"] },
+  { unidad: UNIDAD_LUBFILTROS, keywords: ["lubricante", "filtro", "lub"] },
+  { unidad: UNIDAD_REPUESTOS, keywords: ["repuesto"] },
+];
+
+/**
+ * Categorías de negocio que existen en el Excel pero deliberadamente no se
+ * mapean a ninguna de las 5 unidades (fuera de alcance del dashboard) — se
+ * excluyen del warning de "no reconocidos" para no generar ruido en cada
+ * carga. Agregar aquí, no en UNIDAD_NEGOCIO_KEYWORDS, cualquier categoría que
+ * el negocio decida ignorar en vez de clasificar.
+ */
+const UNIDAD_NEGOCIO_IGNORADOS = new Set(["entrenamiento tecnico"]);
+
+/** Distancia de edición (Levenshtein) — para tolerar typos de la fuente sin listarlos uno a uno. */
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...new Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+/**
+ * true si `keyword` aparece en `text` literalmente, o como un typo cercano
+ * (una palabra de `text` de longitud similar dentro de distancia de edición
+ * tolerable). Cubre variantes como "aquiler"/"alkiler" sin necesidad de
+ * agregar cada typo a mano.
+ */
+function fuzzyIncludes(text: string, keyword: string): boolean {
+  if (text.includes(keyword)) return true;
+  const maxDistance = keyword.length <= 6 ? 1 : 2;
+  const words = text.split(/\s+/);
+  return words.some(
+    (w) =>
+      Math.abs(w.length - keyword.length) <= maxDistance && levenshtein(w, keyword) <= maxDistance,
+  );
+}
 
 // Mapeo de valores raw del Excel → enum cotizacion_etapa (4 valores)
 const ETAPA_CANONICA: {
@@ -237,8 +358,11 @@ export interface DetalleServicioEstrategico {
 
 export interface EquipoInventarioItem {
   marca: string;
+  tipoEquipo: string;
   disponible: number;
   transito: number;
+  stockDisponible: number;
+  stockTransito: number;
 }
 
 export interface EquipoDetalleVenta {
@@ -249,6 +373,30 @@ export interface EquipoDetalleVenta {
   anio: number;
 }
 
+export interface DetalleVentaLubfiltros {
+  marca: string;
+  mes: number;
+  ventasCcv: number;
+  ventasXibi: number;
+  ventasEstrategicas: number;
+  montoTotal: number;
+}
+
+export interface DetalleVentaRepuestos {
+  marca: string;
+  mes: number;
+  ventasCcv: number;
+  ventasXibi: number;
+  montoTotal: number;
+}
+
+export interface InventarioLubfiltrosItem {
+  tipo: "Lubricantes" | "Filtros";
+  proveedorCodigo: string;
+  sucursal: string;
+  monto: number;
+}
+
 import * as fs from "fs";
 
 export class ExcelParser {
@@ -257,6 +405,10 @@ export class ExcelParser {
   // Lub/Filtros documentado en CLAUDE.md) — cachear evita re-parsear hojas
   // grandes de miles de filas con sheet_to_json() más de una vez por carga.
   private hojaCache = new Map<string, RawRowData[]>();
+  // Valores de "Unidad de Negocio"/"Tipo de Negocio" que no matchearon ninguna
+  // keyword — se reportan al final de la carga (ver getUnidadesNegocioNoReconocidas)
+  // en vez de descartarse en silencio.
+  private unidadesNoReconocidas = new Map<string, number>();
 
   constructor(source: string | Buffer) {
     const fileBuffer = typeof source === "string" ? fs.readFileSync(source) : source;
@@ -371,8 +523,8 @@ export class ExcelParser {
       unidadesNegocio: (row["UnidadesNegocio"] || "")
         .toString()
         .split(",")
-        .map((s: string) => s.trim())
-        .filter((s: string) => s.length > 0),
+        .map((s: string) => normalizarUnidadNegocioToken(s))
+        .filter((s: string | null): s is string => s !== null),
       contraseña: this.normalizarTexto(row["Contraseña"]),
     }));
   }
@@ -860,20 +1012,36 @@ export class ExcelParser {
   /**
    * Normaliza "Tipo de Negocio" / "U/N" / "U_N" / el texto libre de
    * "Unidad de Negocio" (Cuentas por Cobrar) a una de las 5 unidades_negocio
-   * reales. Orden de prioridad porque algunos valores contienen más de una
-   * palabra clave (ej. "REPUESTOS LUBRICANTE MOSTRADOR").
+   * reales, usando UNIDAD_NEGOCIO_KEYWORDS (match literal + typo-tolerante).
+   * Lo que no matchea se registra en `unidadesNoReconocidas` en vez de
+   * descartarse en silencio — ver getUnidadesNegocioNoReconocidas().
    */
   private normalizarUnidadNegocio(texto: string | number | undefined | null): string | null {
     if (!texto) return null;
-    const lower = texto.toString().trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-    // Orden: equipo primero (para evitar confundir "alquiler de equipos" con alquiler)
-    if (lower.includes("equipo")) return UNIDAD_EQUIPOS;
-    if (lower.includes("alquiler")) return UNIDAD_ALQUILER;
-    if (lower.includes("servicio")) return UNIDAD_SERVICIOS;
-    if (lower.includes("lubricante") || lower.includes("filtro") || lower.includes("lub"))
-      return UNIDAD_LUBFILTROS;
-    if (lower.includes("repuesto")) return UNIDAD_REPUESTOS;
+    const original = texto.toString().trim();
+    const lower = original.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+    for (const { unidad, keywords } of UNIDAD_NEGOCIO_KEYWORDS) {
+      if (keywords.some((k) => fuzzyIncludes(lower, k))) return unidad;
+    }
+
+    if (!UNIDAD_NEGOCIO_IGNORADOS.has(lower)) {
+      this.unidadesNoReconocidas.set(original, (this.unidadesNoReconocidas.get(original) ?? 0) + 1);
+    }
     return null;
+  }
+
+  /**
+   * Valores de "Unidad de Negocio"/"Tipo de Negocio" vistos durante el parseo
+   * que no matchearon ninguna keyword de UNIDAD_NEGOCIO_KEYWORDS, con su
+   * conteo de filas. Llamar tras cargar todas las hojas — el loader imprime
+   * un warning con esto para que un valor nuevo/typo del Excel se note de
+   * inmediato en `bun run load-excel`, en vez de perderse en silencio.
+   */
+  getUnidadesNegocioNoReconocidas(): { texto: string; filas: number }[] {
+    return Array.from(this.unidadesNoReconocidas.entries())
+      .map(([texto, filas]) => ({ texto, filas }))
+      .sort((a, b) => b.filas - a.filas);
   }
 
   /**
@@ -1499,47 +1667,141 @@ export class ExcelParser {
 
   /**
    * Hojas: Inventario Disponible Equipos + Inventario Tránsito Equipos → equipos_inventario
-   * Se combinan por marca (disponible de la primera hoja, tránsito de la segunda).
+   * Se combinan por marca + tipo de equipo. "Stock" = cantidad de unidades,
+   * "Total USD$" = monto — no confundir (bug histórico: se usaba Stock como monto).
    */
   getEquiposInventario(): EquipoInventarioItem[] {
     const disponibles = this.leerHoja("Inventario Disponible Equipos");
     const transitos = this.leerHoja("Inventario Tránsito Equipos");
 
-    const porMarca: { [marca: string]: EquipoInventarioItem } = {};
+    const porMarcaTipo = new Map<string, EquipoInventarioItem>();
+    const keyOf = (marca: string, tipoEquipo: string) => `${marca}|${tipoEquipo}`;
+    const getOrCreate = (marca: string, tipoEquipo: string) => {
+      const key = keyOf(marca, tipoEquipo);
+      let item = porMarcaTipo.get(key);
+      if (!item) {
+        item = {
+          marca,
+          tipoEquipo,
+          disponible: 0,
+          transito: 0,
+          stockDisponible: 0,
+          stockTransito: 0,
+        };
+        porMarcaTipo.set(key, item);
+      }
+      return item;
+    };
 
     disponibles.forEach((row) => {
       const marca = this.normalizarTexto(row["Marca"]) || "Sin marca";
-      if (!porMarca[marca]) porMarca[marca] = { marca, disponible: 0, transito: 0 };
-      porMarca[marca].disponible += this.parseNumber(row["Stock"]);
+      const tipoEquipo = this.normalizarTexto(row["Tipo de Equipo"]) || "Sin clasificar";
+      const item = getOrCreate(marca, tipoEquipo);
+      item.disponible += this.parseNumber(row["Total USD$"]);
+      item.stockDisponible += this.parseNumber(row["Stock"]);
     });
 
     transitos.forEach((row) => {
       const marca = this.normalizarTexto(row["Marca"]) || "Sin marca";
-      if (!porMarca[marca]) porMarca[marca] = { marca, disponible: 0, transito: 0 };
-      porMarca[marca].transito += this.parseNumber(row["Stock"]);
+      const tipoEquipo = this.normalizarTexto(row["Tipo de Equipo"]) || "Sin clasificar";
+      const item = getOrCreate(marca, tipoEquipo);
+      item.transito += this.parseNumber(row["Total USD$"]);
+      item.stockTransito += this.parseNumber(row["Stock"]);
     });
 
-    return Object.values(porMarca);
+    return Array.from(porMarcaTipo.values());
   }
 
   /**
    * Hoja: Detalles de Ventas Equipos → equipos_facturacion_sucursal / equipos_por_marca
    */
   getEquiposDetalleVentas(): EquipoDetalleVenta[] {
+    // "Mes" es un entero 1-12 (no una fecha de Excel) — la hoja no trae año,
+    // igual que el resto de las hojas "Detalles de Ventas *" (snapshot de un
+    // solo año). Se usa el año en curso, mismo criterio que equipos_inventario.
+    const anioActual = new Date().getFullYear();
     const datos = this.leerHoja("Detalles de Ventas Equipos");
     return datos
+      .map((row) => ({
+        sucursal: this.normalizarSucursal(row["Sucursal"]),
+        marca: this.normalizarTexto(row["Marca"]) || "Sin marca",
+        monto: this.parseNumber(row["Monto"]),
+        mes: parseInt(row["Mes"], 10) || 0,
+        anio: anioActual,
+      }))
+      .filter((row) => row.mes >= 1 && row.mes <= 12);
+  }
+
+  /**
+   * Hoja: Detalles de Ventas LUBFILTROS → tabla nueva `detalles_ventas_lubfiltros`.
+   * Una fila por marca (Chronus, Donaldson, Donaldson Industrial, Otra Marca) x mes,
+   * con el desglose CCV/Xibi/Estratégicas ya calculado en el Excel.
+   */
+  getDetallesVentasLubfiltros(): DetalleVentaLubfiltros[] {
+    const datos = this.leerHoja("Detalles de Ventas LUBFILTROS");
+    return datos
+      .filter((row) => this.normalizarTexto(row["Marcas"]))
+      .map((row) => ({
+        marca: this.normalizarTexto(row["Marcas"]),
+        mes: parseInt(row["Mes"], 10) || 1,
+        ventasCcv: this.parseNumber(row["Consorcio Cogestion Venequip"]),
+        ventasXibi: this.parseNumber(row["Xibi B.V."]),
+        ventasEstrategicas: this.parseNumber(row["Estrategico"]),
+        montoTotal: this.parseNumber(row["Monto Total"]),
+      }))
+      .filter((row) => row.mes >= 1 && row.mes <= 12);
+  }
+
+  /**
+   * Hoja: Detalles de Ventas Repuestos → tabla nueva `detalles_ventas_repuestos`.
+   * Una fila por marca (Caterpillar, Blumaq, Vms Corporation, etc.) x mes, con
+   * el desglose CCV/Xibi ya calculado en el Excel (sin columna Estratégico).
+   */
+  getDetallesVentasRepuestos(): DetalleVentaRepuestos[] {
+    const datos = this.leerHoja("Detalles de Ventas Repuestos");
+    return datos
+      .filter((row) => this.normalizarTexto(row["Marcas"]))
+      .map((row) => ({
+        marca: this.normalizarTexto(row["Marcas"]),
+        mes: parseInt(row["Mes"], 10) || 1,
+        ventasCcv: this.parseNumber(row["Consorcio Cogestion Venequip"]),
+        ventasXibi: this.parseNumber(row["Xibi B.V."]),
+        montoTotal: this.parseNumber(row["Monto Total"]),
+      }))
+      .filter((row) => row.mes >= 1 && row.mes <= 12);
+  }
+
+  /**
+   * Hoja: Inventario LubFiltros → tabla nueva `inventario_lubfiltros`.
+   * Columna B (SUPLIDOR) clasifica el tipo: CO = Lubricantes; NC/DN/D1/GF = Filtros.
+   * Columna Y (Nombre Sucursal) se usa tal cual (texto libre, incluye "Almacen
+   * Central"); se excluyen las filas marcadas "No Disponible". Columna Z = monto.
+   */
+  getInventarioLubfiltros(): InventarioLubfiltrosItem[] {
+    const LUBRICANTE_CODIGOS = new Set(["CO"]);
+    const FILTRO_CODIGOS = new Set(["NC", "DN", "D1", "GF"]);
+
+    const datos = this.leerHoja("Inventario LubFiltros");
+    return datos
       .map((row) => {
-        const fecha = row["Mes"];
-        const mesDate = fecha instanceof Date ? fecha : new Date(this.excelDateToISO(fecha) || "");
+        const codigo = this.normalizarTexto(row["SUPLIDOR"]).toUpperCase();
+        const sucursal = this.normalizarSucursal(row["Nombre Sucursal"]);
+        const tipo: "Lubricantes" | "Filtros" | null = LUBRICANTE_CODIGOS.has(codigo)
+          ? "Lubricantes"
+          : FILTRO_CODIGOS.has(codigo)
+            ? "Filtros"
+            : null;
         return {
-          sucursal: this.normalizarSucursal(row["Sucursal"]),
-          marca: this.normalizarTexto(row["Marca"]) || "Sin marca",
-          monto: this.parseNumber(row["Monto"]),
-          mes: isNaN(mesDate.getTime()) ? 0 : mesDate.getMonth() + 1,
-          anio: isNaN(mesDate.getTime()) ? 0 : mesDate.getFullYear(),
+          tipo,
+          proveedorCodigo: codigo,
+          sucursal,
+          monto: this.parseNumber(row["Monto en Inventario"]),
         };
       })
-      .filter((row) => row.mes >= 1 && row.mes <= 12 && row.anio > 0);
+      .filter(
+        (row): row is InventarioLubfiltrosItem =>
+          row.tipo !== null && row.sucursal.toLowerCase() !== "no disponible",
+      );
   }
 
   /**
@@ -1679,5 +1941,109 @@ export class ExcelParser {
     });
 
     return result;
+  }
+
+  /** Hoja "Canales" → mercadeo_canales. canal/tipo son texto libre. */
+  getMercadeoCanales(): { canal: string; tipo: string; mes: number; cantidad: number }[] {
+    return this.leerHoja("Canales")
+      .map((row) => ({
+        canal: this.normalizarTexto(row["Canal"]),
+        tipo: this.normalizarTexto(row["Tipo"]),
+        mes: this.parseMonth(row["Mes"]),
+        cantidad: this.parseNumber(row["Cantidad"]),
+      }))
+      .filter((r) => r.canal !== "" && r.tipo !== "" && r.mes >= 1 && r.mes <= 12);
+  }
+
+  /**
+   * Hoja "Instagram" → mercadeo_instagram. La columna Canal siempre dice
+   * "Instagram", por eso no se persiste: es el detalle propio de esa red, más
+   * granular que la fila agregada "Instagram" de la hoja Canales.
+   */
+  getMercadeoInstagram(): { tipo: string; mes: number; cantidad: number }[] {
+    return this.leerHoja("Instagram")
+      .map((row) => ({
+        tipo: this.normalizarTexto(row["Tipo"]),
+        mes: this.parseMonth(row["Mes"]),
+        cantidad: this.parseNumber(row["Cantidad"]),
+      }))
+      .filter((r) => r.tipo !== "" && r.mes >= 1 && r.mes <= 12);
+  }
+
+  /** Hoja "Google My Business" → mercadeo_google_business. */
+  getMercadeoGoogleBusiness(): {
+    sucursal: string;
+    mes: number;
+    tipo: string;
+    cantidad: number;
+  }[] {
+    return this.leerHoja("Google My Business")
+      .map((row) => ({
+        sucursal: this.normalizarSucursal(row["Sucursal"]),
+        mes: this.parseMonth(row["Mes"]),
+        tipo: this.normalizarTexto(row["Tipo"]),
+        cantidad: this.parseNumber(row["Cantidad"]),
+      }))
+      .filter((r) => r.tipo !== "" && r.mes >= 1 && r.mes <= 12);
+  }
+
+  /**
+   * Hoja "Post Historias" → mercadeo_post_historias. "Unidad de Negocio" es
+   * texto libre: además de unidades reales trae categorías de contenido
+   * (Entrenamiento, Branding, RRHH, Eventos, Proyectos, Talleres) — por eso
+   * NO pasa por normalizarUnidadNegocio.
+   */
+  getMercadeoPostHistorias(): {
+    tipoPublicacion: string;
+    unidadNegocio: string | null;
+    marca: string | null;
+    mes: number;
+    cantidad: number;
+  }[] {
+    return this.leerHoja("Post Historias")
+      .map((row) => ({
+        tipoPublicacion: this.normalizarTexto(row["Tipo de Publicación"]),
+        unidadNegocio: this.normalizarTexto(row["Unidad de Negocio"]) || null,
+        marca: this.normalizarTexto(row["Marca"]) || null,
+        mes: this.parseMonth(row["Mes"]),
+        cantidad: this.parseNumber(row["Cantidad"]) || 1,
+      }))
+      .filter((r) => r.tipoPublicacion !== "" && r.mes >= 1 && r.mes <= 12);
+  }
+
+  /**
+   * Hoja "Clientes Potenciales" → clientes_potenciales.
+   *
+   * Notas de la hoja real (verificadas 2026-08-02):
+   * - El nombre exacto de la columna es "Etapa de la Oportunidad" y solo viene
+   *   poblada en parte de las filas (undefined en el resto).
+   * - "Fecha Detectada" es un string "DD-MM-YYYY", no una fecha de Excel.
+   * - Machine Shop SÍ se carga (a diferencia del resto del parser, que la
+   *   excluye con debeExcluir): son leads reales. Queda con sucursal_id null
+   *   porque no es una sucursal canónica.
+   * - Se descartan columnas de auditoría CRM que no aportan al dashboard:
+   *   Modificado Por/el, Creado por, Origen, Cuenta, Título, Descripción,
+   *   Comentarios, Compañia, Costo de Opp, Moneda, Nro. Documento,
+   *   ID Oportunidad.
+   */
+  getClientesPotenciales(): ClientePotencialItem[] {
+    return this.leerHoja("Clientes Potenciales").map((row) => ({
+      idClientePotencial: this.parseNumber(row["ID Cliente Pot."]) || null,
+      sucursal: this.normalizarSucursal(row["Sucursal"]),
+      tipoNegocio: this.normalizarTexto(row["Tipo de Negocio"]) || null,
+      razonSocial: this.normalizarTexto(row["Razón Social"]) || null,
+      nombreContacto: this.normalizarTexto(row["Nombre Contacto"]) || null,
+      correo: this.normalizarTexto(row["Correo electrónico"]) || null,
+      telefono: this.normalizarTexto(row["Teléfono"]) || null,
+      identificacionFiscal: this.normalizarTexto(row["Identificación Fiscal"]) || null,
+      fechaDetectada: parseFechaDDMMYYYY(row["Fecha Detectada"]),
+      estatusBis: this.normalizarTexto(row["Estatus BIS"]) || null,
+      etapaOportunidad: this.normalizarTexto(row["Etapa de la Oportunidad"]) || null,
+      tomaContacto: this.normalizarTexto(row["Toma de contacto"]) || null,
+      campana: this.normalizarTexto(row["Campaña"]) || null,
+      usuarioAsignado: this.normalizarTexto(row["Usuario asignado"]) || null,
+      ingresosEsperados: this.parseNumber(row["Ingresos Esperados Base"]),
+      montoFacturadoBase: this.parseNumber(row["Monto Total Facturado Base (Tasa Neg.)"]),
+    }));
   }
 }
