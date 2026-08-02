@@ -8,22 +8,30 @@ import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import {
   LayoutDashboard,
-  ClipboardList,
-  Wallet,
-  GitBranch,
-  BellRing,
-  Upload,
+  BarChart3,
+  Bell,
+  Funnel,
   Users,
+  UserCheck,
+  FileText,
+  Calculator,
+  Receipt,
+  BadgeDollarSign,
+  PieChart,
+  Wrench,
+  Truck,
+  Droplet,
+  Package,
+  KeyRound,
+  FileUp,
+  UserCog,
+  Upload,
   LogOut,
   Menu,
   FileDown,
-  Award,
-  Wrench,
   Search,
-  UserSearch,
-  Percent,
-  Calculator,
   Building2,
+  Megaphone,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useState, useRef, useEffect, type ReactNode } from "react";
@@ -41,22 +49,6 @@ interface NavItem {
   module: ModuleKey;
 }
 
-const NAV: NavItem[] = [
-  { to: "/resumen", label: "Resumen", icon: LayoutDashboard, module: "resumen" },
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" },
-  { to: "/minutas", label: "Minutas", icon: ClipboardList, module: "minutas" },
-  { to: "/cobranzas", label: "Cobranzas", icon: Wallet, module: "cobranzas" },
-  { to: "/embudo", label: "Embudo", icon: GitBranch, module: "embudo" },
-  { to: "/pareto", label: "Pareto", icon: GitBranch, module: "pareto" },
-  { to: "/asesores", label: "Asesores", icon: Award, module: "asesores" },
-  { to: "/cliente-360", label: "Clientes", icon: UserSearch, module: "cliente_360" },
-  { to: "/comisiones", label: "Comisiones", icon: Percent, module: "comisiones" },
-  { to: "/simulador", label: "Simulador", icon: Calculator, module: "simulador" },
-  { to: "/alertas", label: "Alertas", icon: BellRing, module: "alertas" },
-  { to: "/carga", label: "Cargar Excel", icon: Upload, module: "carga" },
-  { to: "/usuarios", label: "Usuarios", icon: Users, module: "usuarios" },
-] as const;
-
 const UNIT_ROUTE_MAP = {
   "/servicios": "servicios",
   "/lubfiltros": "lubricantes/filtros",
@@ -66,11 +58,58 @@ const UNIT_ROUTE_MAP = {
 } as const;
 
 const UNIT_NAV: NavItem[] = [
+  { to: "/repuestos", label: "Repuestos", icon: Package, module: "repuestos" },
+  { to: "/lubfiltros", label: "Lub / Filtros", icon: Droplet, module: "lubfiltros" },
   { to: "/servicios", label: "Servicios", icon: Wrench, module: "servicios" },
-  { to: "/lubfiltros", label: "Lub / Filtros", icon: Wrench, module: "lubfiltros" },
-  { to: "/equipos", label: "Equipos", icon: Wrench, module: "equipos" },
-  { to: "/alquiler", label: "Alquiler", icon: Wrench, module: "alquiler" },
-  { to: "/repuestos", label: "Repuestos", icon: Wrench, module: "repuestos" },
+  { to: "/equipos", label: "Equipos", icon: Truck, module: "equipos" },
+  { to: "/alquiler", label: "Alquiler", icon: KeyRound, module: "alquiler" },
+] as const;
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: "Visión General",
+    items: [
+      { to: "/resumen", label: "Resumen", icon: BarChart3, module: "resumen" },
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" },
+      { to: "/alertas", label: "Alertas", icon: Bell, module: "alertas" },
+    ],
+  },
+  {
+    title: "Gestión Comercial y Ventas",
+    items: [
+      { to: "/embudo", label: "Embudo", icon: Funnel, module: "embudo" },
+      { to: "/cliente-360", label: "Clientes", icon: Users, module: "cliente_360" },
+      { to: "/asesores", label: "Asesores", icon: UserCheck, module: "asesores" },
+      { to: "/minutas", label: "Minutas", icon: FileText, module: "minutas" },
+      { to: "/simulador", label: "Simulador", icon: Calculator, module: "simulador" },
+    ],
+  },
+  {
+    title: "Finanzas y Rendimiento",
+    items: [
+      { to: "/cobranzas", label: "Cobranzas", icon: Receipt, module: "cobranzas" },
+      { to: "/comisiones", label: "Comisiones", icon: BadgeDollarSign, module: "comisiones" },
+      { to: "/pareto", label: "Pareto", icon: PieChart, module: "pareto" },
+    ],
+  },
+  {
+    title: "Mercadeo",
+    items: [{ to: "/mercadeo", label: "Mercadeo", icon: Megaphone, module: "mercadeo" }],
+  },
+  // "Unidad de Negocios" se arma en runtime a partir de
+  // UNIT_NAV filtrado por unidades asignadas — ver visibleUnitNav.
+  {
+    title: "Administración y Datos",
+    items: [
+      { to: "/carga", label: "Cargar Excel", icon: FileUp, module: "carga" },
+      { to: "/usuarios", label: "Usuarios", icon: UserCog, module: "usuarios" },
+    ],
+  },
 ] as const;
 
 const NAV_ACTIVE_ALIASES = {
@@ -181,7 +220,30 @@ export function AppShell({ children }: { children: ReactNode }) {
     return false;
   });
 
-  const items = [...NAV.filter((item) => canAccessModule(role, item.module)), ...visibleUnitNav];
+  const [visionGeneral, gestionComercial, finanzas, mercadeo, administracion] = NAV_GROUPS.map(
+    (group) => ({
+      ...group,
+      items: group.items.filter((item) => canAccessModule(role, item.module)),
+    }),
+  );
+
+  // Un gerente_comercial de una sola unidad (repuestos, servicios o
+  // lubricantes/filtros) ya cae directo en la vista de su unidad al entrar a
+  // "Dashboard" (ver src/app/(app)/dashboard/page.tsx) — mostrarle además un
+  // link redundante a esa misma unidad bajo "Unidad de Negocios" no aporta.
+  // Los gerentes multi-unidad (ej. Equipos + Alquiler) sí necesitan el grupo,
+  // porque su "Dashboard" cae en /gerencia-nacional en vez de una unidad fija.
+  const showUnitNavGroup = !(role === "gerente_comercial" && assignedUnitIds.length <= 1);
+
+  const navGroups: NavGroup[] = [
+    visionGeneral,
+    ...(showUnitNavGroup ? [{ title: "Unidad de Negocios", items: visibleUnitNav }] : []),
+    gestionComercial,
+    finanzas,
+    mercadeo,
+    administracion,
+  ].filter((group) => group.items.length > 0);
+
   const canUploadExcel = canAccessModule(role, "carga");
   const canExportPdf = role === "gerencia" || role === "gerente_comercial";
 
@@ -192,29 +254,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* ── Sidebar: collapsed 56px → expanded 220px on hover ─────────── */}
+      {/* ── Sidebar: fixed 220px, always expanded ───────────────────────── */}
       <aside
         ref={sidebarRef}
         aria-label="Navegación principal"
         role={open ? "dialog" : undefined}
         aria-modal={open ? "true" : undefined}
         className={cn(
-          "no-print fixed lg:sticky top-0 z-40 h-screen flex flex-col overflow-hidden",
+          "no-print fixed lg:sticky top-0 z-40 h-screen w-[220px] flex flex-col overflow-hidden",
           "bg-sidebar border-r border-sidebar-border",
-          "transition-[width,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
           // Mobile: slide in/out
-          open ? "translate-x-0 w-[220px]" : "-translate-x-full lg:translate-x-0",
-          // Desktop: collapsed by default, expand on hover
-          "lg:w-[56px] lg:hover:w-[220px] lg:group/sidebar",
+          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         {/* Logo area */}
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-sidebar-border shrink-0 min-w-[220px]">
+        <div className="flex items-center gap-3 px-3 py-4 border-b border-sidebar-border shrink-0">
           <img src="/Logo_CCV.png" alt="CCV" className="size-8 object-contain shrink-0" />
-          <div className="min-w-0 opacity-0 lg:group-hover/sidebar:opacity-100 transition-opacity duration-150">
-            <div className="font-display font-bold text-sidebar-foreground text-sm leading-tight">
-              CCV
-            </div>
+          <div className="min-w-0">
+            <div className="font-display font-bold text-white text-sm leading-tight">CCV</div>
             <div className="text-[9px] tracking-widest text-primary font-display font-bold uppercase">
               {roleLabel(role)}
             </div>
@@ -223,51 +281,54 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Nav items */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0">
-          <div className="space-y-0.5 px-2 min-w-[220px]">
-            {items.map((n) => {
-              const active = isNavItemActive(pathname, n.to);
-              return (
-                <Link
-                  key={n.to}
-                  href={n.to}
-                  onClick={() => setOpen(false)}
-                  title={n.label}
-                  className={cn(
-                    "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm tracking-wide",
-                    "transition-[background-color,color] duration-150 ease-out",
-                    "border-l-2",
-                    active
-                      ? "border-l-primary bg-primary/10 text-primary font-semibold"
-                      : "border-l-transparent text-sidebar-accent-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
-                  )}
-                >
-                  <n.icon
-                    className={cn(
-                      "size-4 shrink-0",
-                      active ? "text-primary" : "text-sidebar-accent-foreground/50",
-                    )}
-                  />
-                  <span className="opacity-0 lg:group-hover/sidebar:opacity-100 transition-opacity duration-150 whitespace-nowrap">
-                    {n.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+          {navGroups.map((group, i) => (
+            <div key={group.title} className={cn("px-2", i > 0 && "mt-3")}>
+              <p className="px-2 pb-1 text-[10px] font-display font-bold uppercase tracking-wider text-white/40">
+                {group.title}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((n) => {
+                  const active = isNavItemActive(pathname, n.to);
+                  return (
+                    <Link
+                      key={n.to}
+                      href={n.to}
+                      onClick={() => setOpen(false)}
+                      title={n.label}
+                      className={cn(
+                        "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm tracking-wide",
+                        "transition-[background-color,color] duration-150 ease-out",
+                        "border-l-2",
+                        active
+                          ? "border-l-primary bg-primary/10 text-white font-semibold"
+                          : "border-l-transparent text-white/70 hover:text-white hover:bg-sidebar-accent/60",
+                      )}
+                    >
+                      <n.icon
+                        className={cn(
+                          "size-4 shrink-0",
+                          active ? "text-primary" : "text-sidebar-accent-foreground/50",
+                        )}
+                      />
+                      <span className="whitespace-nowrap">{n.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Bottom: sign out + avatar */}
-        <div className="shrink-0 border-t border-sidebar-border px-2 py-2 space-y-0.5 min-w-[220px]">
+        <div className="shrink-0 border-t border-sidebar-border px-2 py-2 space-y-0.5">
           <Link
             href="/auth"
             onClick={handleSignOut}
             title="Cerrar sesión"
-            className="flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-sidebar-accent-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-[background-color,color] duration-150 border-l-2 border-l-transparent"
+            className="flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-white/70 hover:text-white hover:bg-sidebar-accent/60 transition-[background-color,color] duration-150 border-l-2 border-l-transparent"
           >
             <LogOut className="size-4 shrink-0" />
-            <span className="opacity-0 lg:group-hover/sidebar:opacity-100 transition-opacity duration-150 whitespace-nowrap">
-              Cerrar sesión
-            </span>
+            <span className="whitespace-nowrap">Cerrar sesión</span>
           </Link>
 
           <div className="flex items-center gap-3 px-2 py-2">
@@ -276,8 +337,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 profile?.email?.[0]?.toUpperCase() ??
                 "U"}
             </div>
-            <div className="min-w-0 flex-1 opacity-0 lg:group-hover/sidebar:opacity-100 transition-opacity duration-150">
-              <div className="text-xs font-semibold text-sidebar-foreground truncate">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-white truncate">
                 {profile?.nombre_completo ?? "Usuario"}
               </div>
               <StatusPill kind="neutral">{roleLabel(role)}</StatusPill>
