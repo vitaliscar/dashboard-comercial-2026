@@ -9,6 +9,7 @@ export type ModuleKey =
   | "asesores"
   | "alertas"
   | "embudo"
+  | "mercadeo"
   | "carga"
   | "usuarios"
   | "gerencia_nacional"
@@ -24,6 +25,13 @@ export type ModuleKey =
   | "comisiones"
   | "simulador";
 
+/**
+ * Módulos ocultos en producción (NODE_ENV=production) independientemente del
+ * rol — todavía en desarrollo/validación, no listos para los usuarios reales.
+ * Quitar de aquí cuando estén listos para salir a producción.
+ */
+const MODULES_HIDDEN_IN_PRODUCTION: ModuleKey[] = ["comisiones", "pareto"];
+
 const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   resumen: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
   dashboard: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
@@ -33,6 +41,7 @@ const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   asesores: ["gerencia", "gerente_comercial", "coordinador"],
   alertas: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
   embudo: ["gerencia", "gerente_comercial"],
+  mercadeo: ["gerencia"],
   carga: ["gerencia"],
   usuarios: ["gerencia"],
   gerencia_nacional: ["gerencia", "gerente_comercial"],
@@ -51,12 +60,15 @@ const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
 
 export function canAccessModule(role: AppRole | null, module: ModuleKey): boolean {
   if (!role) return false;
+  if (process.env.NODE_ENV === "production" && MODULES_HIDDEN_IN_PRODUCTION.includes(module)) {
+    return false;
+  }
   return MODULE_ACCESS[module].includes(role);
 }
 
 export function getModulesForRole(role: AppRole | null): ModuleKey[] {
   if (!role) return [];
-  return (Object.keys(MODULE_ACCESS) as ModuleKey[]).filter((m) => MODULE_ACCESS[m].includes(role));
+  return (Object.keys(MODULE_ACCESS) as ModuleKey[]).filter((m) => canAccessModule(role, m));
 }
 
 /**
@@ -80,7 +92,7 @@ export function canFilterSucursal(context: UserContext): boolean {
     case "gerencia":
       return true;
     case "gerente_comercial":
-      return false;
+      return true;
     case "coordinador":
       return true;
     case "asesor":
