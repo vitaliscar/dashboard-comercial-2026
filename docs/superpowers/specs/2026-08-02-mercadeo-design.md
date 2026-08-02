@@ -49,7 +49,13 @@ Columnas relevantes del Excel (se descartan columnas puramente de auditoría CRM
 
 ### Cambio al catálogo existente
 
-Se agrega **"San Cristóbal"** a la tabla `sucursales` (aparece en `Google My Business` y `Clientes Potenciales`, no existe hoy). Es exclusivamente para soportar estas hojas nuevas — no se usa en ningún otro módulo del sistema.
+Se agrega **"San Cristóbal"** a la tabla `sucursales` (aparece en `Google My Business` y `Clientes Potenciales`, no existe hoy). Es exclusivamente para soportar estas hojas nuevas — **no debe aparecer en ningún otro filtro/selector de sucursal del sistema** (repuestos, servicios, gerencia-nacional, cobranzas, resumen, etc. — todo lo que hoy consume `useSucursales()`/`getSucursalesAction()`).
+
+Como `getSucursalesAction()` (`src/lib/actions/catalogos.ts`) es la única fuente compartida por `useSucursales()` — usada por prácticamente todos los `FilterHeader` del sistema —, insertar la fila sin más la filtraría en todos lados. Fix explícito:
+
+- Nueva columna `sucursales.visible_general` (boolean, default `true`). San Cristóbal se inserta con `visible_general = false`.
+- `getSucursalesAction()` agrega `WHERE visible_general = true` — así todo el resto del sistema (que sigue llamando este action sin cambios) deja de ver San Cristóbal automáticamente, sin tocar cada página una por una.
+- El módulo Mercadeo (tanto `/mercadeo` como las secciones embebidas por unidad) usa una acción propia `getSucursalesMercadeoAction()` (o el mismo `getSucursalesAction` con un parámetro `{ incluirTodas: true }`) que sí trae San Cristóbal, para los selectores/tablas de `Google My Business` y `Clientes Potenciales` por sucursal.
 
 ## 3. Reglas de negocio — cálculo de montos en Clientes Potenciales
 
