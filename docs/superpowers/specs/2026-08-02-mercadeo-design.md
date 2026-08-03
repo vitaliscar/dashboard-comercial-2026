@@ -1,7 +1,7 @@
 # Módulo Mercadeo — Diseño
 
 **Fecha:** 2026-08-02
-**Estado:** Aprobado, pendiente de plan de implementación
+**Estado:** Implementado — ver `docs/superpowers/plans/2026-08-02-mercadeo.md`
 
 ## 1. Contexto y objetivo
 
@@ -17,21 +17,26 @@ Se agregaron 6 hojas nuevas al Excel de carga (`CCV Rendimiento.xlsx`): `Canales
 Tablas nuevas en `src/db/schema.ts` (uuid PK, `created_at`, siguiendo el patrón existente):
 
 ### `mercadeo_canales`
+
 `canal` (text) · `tipo` (text) · `mes` (integer) · `cantidad` (numeric)
 Texto libre para `canal`/`tipo` — son 7 canales × 21 tipos de métrica distintos, sin catálogo propio.
 
 ### `mercadeo_instagram`
+
 `tipo` (text) · `mes` (integer) · `cantidad` (numeric)
 Sin columna canal (siempre Instagram). Detalle propio de Instagram (Visualizaciones, Alcance, Interacciones, Seguidores, Clicks en enlace, Visitas) — más granular que la fila "Instagram" agregada en `mercadeo_canales`.
 
 ### `mercadeo_google_business`
+
 `sucursal_id` (uuid, FK → `sucursales`) · `mes` (integer) · `tipo` (text) · `cantidad` (numeric)
 
 ### `mercadeo_post_historias`
+
 `tipo_publicacion` (text: "Post" | "Historia") · `unidad_negocio` (text libre) · `marca` (text) · `mes` (integer) · `cantidad` (integer, siempre 1 en origen — se agrega por conteo)
 `unidad_negocio` es texto libre (sin FK) porque trae categorías de contenido que no son unidades de negocio reales (Entrenamiento, Branding, RRHH, Eventos, Proyectos).
 
 ### `clientes_potenciales`
+
 Columnas relevantes del Excel (se descartan columnas puramente de auditoría CRM que no aportan al dashboard: `Modificado Por`, `Cuenta`, `Origen`, `Estatus SIV`, `Cód.Cliente Pot.`):
 
 - `sucursal_id` (uuid, FK → `sucursales`)
