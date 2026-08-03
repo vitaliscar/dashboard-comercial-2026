@@ -7,68 +7,45 @@ import { useSucursales } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
+import { getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
 import {
-  getAlquilerFacturacionAction,
-  getAlquilerPresupuestoAction,
+  getPresupuestosAlquilerAction,
   getAlquilerClientesCobroAction,
 } from "@/lib/actions/alquiler";
+import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
+import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
+import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
+import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
+import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import { useMemo, useState } from "react";
-import {
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  LineChart,
-  Line,
-  Bar,
-  ComposedChart,
-} from "recharts";
-import { Truck, TrendingUp, FileText, Search } from "lucide-react";
+import { TrendingUp, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { PageHeader } from "@/components/page-header";
+import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 
 export default function Alquiler() {
   const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses } = filters;
+  const sucursal = filters.sucursales[0] ?? "all";
   const [searchClientes, setSearchClientes] = useState("");
 
   const handleApplyFilters = (f: FilterState) => {
-    setFilters({ anio: f.anio, meses: f.meses });
+    setFilters({ anio: f.anio, meses: f.meses, sucursales: f.sucursal ? [f.sucursal] : [] });
   };
 
   const { data: sucursales } = useSucursales();
 
-  const { data: facturacionMensual } = useQuery({
-    queryKey: ["alquiler-facturacion", anio],
-    queryFn: async () => {
-      const rows = await getAlquilerFacturacionAction({ anio });
-      const byMonth = Array.from({ length: 12 }, (_, i) => ({
-        mes: MESES[i].slice(0, 3),
-        facturado: 0,
-      }));
-      rows.forEach((r) => {
-        if (r.mes >= 1 && r.mes <= 12) {
-          byMonth[r.mes - 1].facturado += Number(r.monto);
-        }
-      });
-      return byMonth;
-    },
+  const { data: presupuestosData, isLoading } = useQuery({
+    queryKey: ["presupuestos-alquiler", anio, JSON.stringify(meses), sucursal],
+    queryFn: () => getPresupuestosAlquilerAction({ anio, meses, sucursal }),
   });
 
-  const { data: presupuestoData } = useQuery({
-    queryKey: ["alquiler-presupuesto", anio, JSON.stringify(meses)],
-    queryFn: () => getAlquilerPresupuestoAction({ anio, meses }),
+  // Año completo (sin filtro de mes) para la evolución mensual, que siempre se
+  // muestra hasta la fecha con el mes en revisión resaltado.
+  const { data: presupuestosYtdData } = useQuery({
+    queryKey: ["presupuestos-alquiler-ytd", anio, sucursal],
+    queryFn: () => getPresupuestosAlquilerAction({ anio, meses: "all", sucursal }),
   });
 
   const { data: clientesCobro } = useQuery({
@@ -76,14 +53,88 @@ export default function Alquiler() {
     queryFn: () => getAlquilerClientesCobroAction(),
   });
 
-  const kpis = useMemo(() => {
-    const pres = presupuestoData ?? [];
-    const presupuesto = pres.reduce((a, r) => a + Number(r.monto || 0), 0);
-    const facturadoYtd = (facturacionMensual ?? []).reduce((a, r) => a + r.facturado, 0);
-    const clientes = (clientesCobro ?? []).length;
-    const cumplimiento = presupuesto > 0 ? (facturadoYtd / presupuesto) * 100 : 0;
-    return { presupuesto, facturadoYtd, clientes, cumplimiento };
-  }, [presupuestoData, facturacionMensual, clientesCobro]);
+  const ventasConsolidadasTotal = useMemo(() => {
+    if (!presupuestosData) return 0;
+    return presupuestosData.reduce(
+      (sum, p) =>
+        sum +
+        Number(p.ventasCcv || 0) +
+        Number(p.ventasXibi || 0) +
+        Number(p.ventasEstrategicas || 0),
+      0,
+    );
+  }, [presupuestosData]);
+
+  const cumplimientoGeneral = useMemo(() => {
+    const totalPresupuesto = (presupuestosData ?? []).reduce(
+      (sum, p) => sum + Number(p.monto || 0),
+      0,
+    );
+    return {
+      facturado: ventasConsolidadasTotal,
+      presupuesto: totalPresupuesto,
+      pct: totalPresupuesto > 0 ? (ventasConsolidadasTotal / totalPresupuesto) * 100 : 0,
+    };
+  }, [presupuestosData, ventasConsolidadasTotal]);
+
+  const monthlyCombo = useMemo(() => {
+    const byMonth = Array.from({ length: 12 }, (_, i) => ({
+      mes: MESES[i].slice(0, 3),
+      presupuesto: 0,
+      venta: 0,
+    }));
+    (presupuestosYtdData ?? []).forEach((p) => {
+      const m = p.mes - 1;
+      if (m >= 0 && m < 12) {
+        byMonth[m].presupuesto += Number(p.monto || 0);
+        byMonth[m].venta +=
+          Number(p.ventasCcv || 0) + Number(p.ventasXibi || 0) + Number(p.ventasEstrategicas || 0);
+      }
+    });
+    return byMonth.slice(0, getAllMonthsCap(anio));
+  }, [presupuestosYtdData, anio]);
+
+  const highlightMonths = useMemo(() => getHighlightMonthLabels(meses), [meses]);
+
+  const porCompaniaData = useMemo(() => {
+    if (!presupuestosData) return [];
+    let totalCcv = 0;
+    let totalXibi = 0;
+    let totalEstrategicas = 0;
+    presupuestosData.forEach((p) => {
+      totalCcv += Number(p.ventasCcv || 0);
+      totalXibi += Number(p.ventasXibi || 0);
+      totalEstrategicas += Number(p.ventasEstrategicas || 0);
+    });
+    return [
+      { label: "Consorcio Venequip", facturado: totalCcv },
+      { label: "Xibi", facturado: totalXibi },
+      { label: "Estratégicas", facturado: totalEstrategicas },
+    ].filter((item) => item.facturado > 0);
+  }, [presupuestosData]);
+
+  const sucursalPerformanceData = useMemo(() => {
+    if (!presupuestosData || !sucursales) return [];
+    const map = new Map<string, { nombre: string; monto: number; presupuesto: number }>();
+    sucursales.forEach((s) => map.set(s.id, { nombre: s.nombre, monto: 0, presupuesto: 0 }));
+
+    presupuestosData.forEach((r) => {
+      if (r.sucursalId && map.has(r.sucursalId)) {
+        const item = map.get(r.sucursalId)!;
+        item.monto +=
+          Number(r.ventasCcv || 0) + Number(r.ventasXibi || 0) + Number(r.ventasEstrategicas || 0);
+        item.presupuesto += Number(r.monto || 0);
+      }
+    });
+
+    return Array.from(map.values())
+      .filter((r) => r.monto > 0 || r.presupuesto > 0)
+      .map((r) => ({
+        ...r,
+        pctCumplimiento: r.presupuesto > 0 ? (r.monto / r.presupuesto) * 100 : 0,
+      }))
+      .sort((a, b) => b.monto - a.monto);
+  }, [presupuestosData, sucursales]);
 
   const clientesFiltrados = useMemo(() => {
     const s = searchClientes.toLowerCase();
@@ -97,160 +148,66 @@ export default function Alquiler() {
       <PageHeader
         eyebrow="Unidad de Negocio"
         title="Dashboard Comercial - Alquiler"
-        description="Seguimiento de facturacion, cumplimiento presupuestario y cuentas por cobrar por cliente."
+        description="Seguimiento de facturación, cumplimiento presupuestario y cuentas por cobrar por cliente."
       />
 
-      <div className="card-elevated p-4 section-enter section-enter-1">
-        <FilterHeader
-          onApplyFilters={handleApplyFilters}
-          sucursalOptions={
-            role === "gerencia"
-              ? sucursales?.map((s) => ({ value: s.id, label: s.nombre }))
-              : undefined
-          }
-          defaultMes={meses}
-          defaultAnio={anio}
-          showAllMonths
-        />
-      </div>
+      <FilterHeader
+        onApplyFilters={handleApplyFilters}
+        sucursalOptions={
+          role === "gerencia"
+            ? sucursales?.map((s) => ({ value: s.id, label: s.nombre }))
+            : undefined
+        }
+        defaultMes={meses}
+        defaultAnio={anio}
+        showAllMonths
+      />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 section-enter section-enter-1">
-        <KpiCard
-          label="Facturado YTD"
-          value={money(kpis.facturadoYtd)}
-          hint="acumulado del año"
-          accent="success"
-          icon={TrendingUp}
-        />
-        <KpiCard
-          label="Presupuesto"
-          value={money(kpis.presupuesto)}
-          hint="meta anual"
-          accent="primary"
-          icon={FileText}
-        />
-        <KpiCard
-          label="Cumplimiento"
-          value={`${kpis.cumplimiento.toFixed(1)}%`}
-          hint="vs presupuesto"
-          accent="warning"
-          icon={TrendingUp}
-        />
-        <KpiCard
-          label="Clientes con Saldo"
-          value={String(kpis.clientes)}
-          hint="cuentas por cobrar"
-          accent="ochre"
-          icon={Truck}
-        />
-      </div>
+      <KpiCard
+        label="Ventas Consolidadas"
+        value={money(ventasConsolidadasTotal)}
+        accent="ochre"
+        icon={TrendingUp}
+        hint="Total facturado CCV + Xibi + Estratégicas"
+      />
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 section-enter section-enter-2">
-        <div className="card-elevated p-5">
-          <div className="mb-4">
-            <h3 className="font-display font-semibold">Facturación Mensual Alquiler</h3>
-            <p className="text-xs text-muted-foreground">{anio} — Facturado vs Presupuesto</p>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={facturacionMensual ?? []}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "2px solid var(--color-foreground)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar
-                  dataKey="presupuesto"
-                  fill="var(--color-muted-foreground)"
-                  name="Presupuesto"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="facturado"
-                  stroke="var(--color-primary)"
-                  strokeWidth={2.5}
-                  dot={{ r: 3 }}
-                  name="Facturado"
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card-elevated p-5">
-          <h3 className="font-display font-semibold">Cumplimiento anual</h3>
-          <p className="text-xs text-muted-foreground mb-4">Facturado vs presupuesto</p>
-          <div className="h-64 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary">{kpis.cumplimiento.toFixed(1)}%</div>
-              <p className="text-sm text-muted-foreground mt-2">del presupuesto</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {money(kpis.facturadoYtd)} de {money(kpis.presupuesto)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Trend line */}
-      <div className="card-elevated p-5 section-enter section-enter-2">
-        <div className="mb-4">
-          <h3 className="font-display font-semibold">Tendencia anual</h3>
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Desempeño por sucursal</h2>
           <p className="text-xs text-muted-foreground">
-            Evolución mensual de ingresos por alquiler
+            Cumplimiento general, facturación por compañía y detalle por sucursal
           </p>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <ComplianceGauge
+            title="Cumplimiento General Alquiler"
+            pct={cumplimientoGeneral.pct}
+            facturado={cumplimientoGeneral.facturado}
+            presupuesto={cumplimientoGeneral.presupuesto}
+          />
+          <div className="lg:col-span-2">
+            <UnitDonut data={porCompaniaData} title="Facturación por Compañía" />
+          </div>
+          <div className="lg:col-span-3">
+            <SucursalPerformanceChart data={sucursalPerformanceData} />
+          </div>
         </div>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={facturacionMensual ?? []}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-              <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => money(v)}
-              />
-              <Tooltip
-                formatter={((v: unknown) => money(Number(v))) as never}
-                contentStyle={{
-                  background: "var(--color-card)",
-                  border: "2px solid var(--color-foreground)",
-                  borderRadius: 12,
-                  fontSize: 12,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="facturado"
-                stroke="var(--color-primary)"
-                strokeWidth={2.5}
-                dot={{ r: 3 }}
-                name="Facturado"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      </section>
 
-      {/* Clientes cuentas por cobrar */}
-      <div className="card-elevated overflow-hidden section-enter section-enter-3">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Evolución mensual</h2>
+          <p className="text-xs text-muted-foreground">
+            Venta real vs. presupuesto, año a la fecha — mes en revisión resaltado
+          </p>
+        </header>
+        <GlobalMonthlyCombo data={monthlyCombo} highlightMonths={highlightMonths} />
+      </section>
+
+      <section className="flex flex-col gap-3 section-enter section-enter-3">
+        <header className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="font-display font-semibold">Clientes — Cuentas por Cobrar</h3>
+            <h2 className="font-display text-lg font-semibold">Cuentas por cobrar</h2>
             <p className="text-xs text-muted-foreground">Saldos pendientes de alquiler</p>
           </div>
           <div className="relative w-64">
@@ -262,61 +219,19 @@ export default function Alquiler() {
               className="pl-8 h-9"
             />
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <Table className="text-sm">
-            <TableHeader className="bg-accent [&_tr]:border-b-0 border-b border-border">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-accent-foreground text-left px-4 py-2.5 font-semibold text-xs tracking-wider uppercase">
-                  Cliente
-                </TableHead>
-                <TableHead className="text-accent-foreground text-right px-4 py-2.5 font-semibold text-xs tracking-wider uppercase">
-                  Factura Total
-                </TableHead>
-                <TableHead className="text-accent-foreground text-right px-4 py-2.5 font-semibold text-xs tracking-wider uppercase">
-                  Saldo
-                </TableHead>
-                <TableHead className="text-accent-foreground text-left px-4 py-2.5 font-semibold text-xs tracking-wider uppercase">
-                  Sucursal
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clientesFiltrados.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="p-0">
-                    <Empty>
-                      <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Sin clientes con saldo pendiente
-                        </EmptyTitle>
-                      </EmptyHeader>
-                    </Empty>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                clientesFiltrados.map((r, i) => (
-                  <TableRow
-                    key={i}
-                    className="border-b border-border/50 last:border-0 hover:bg-muted/40"
-                  >
-                    <TableCell className="px-4 py-3 font-medium">{r.cliente}</TableCell>
-                    <TableCell className="px-4 py-3 text-right tabular-nums">
-                      {money(Number(r.monto))}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-right tabular-nums font-medium text-danger">
-                      {money(Number(r.saldo))}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-muted-foreground text-sm">
-                      {sucursales?.find((s) => s.id === r.sucursalId)?.nombre || "—"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+        </header>
+        <ReceivablesTable
+          rows={clientesFiltrados.map((r) => ({
+            cliente: r.cliente,
+            sucursalVenta: sucursales?.find((s) => s.id === r.sucursalId)?.nombre,
+            total: Number(r.saldo),
+          }))}
+        />
+      </section>
+
+      <ClientesPotencialesSection unidad="Alquiler" />
+
+      {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>
   );
 }

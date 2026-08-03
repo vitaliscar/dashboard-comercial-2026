@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
-import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
+import { useSucursales } from "@/hooks/use-catalogos";
 import {
   getServiciosAction,
   getPresupuestosServiciosAction,
@@ -15,7 +15,7 @@ import {
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
+import { getDateRangesForMonths, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
 import { useMemo } from "react";
 import { Zap, Wrench, User, TrendingUp } from "lucide-react";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
@@ -26,29 +26,25 @@ import { RankedHorizontalBar } from "@/components/servicios/RankedHorizontalBar"
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import { TalleresMonthlyChart } from "@/components/servicios/TalleresMonthlyChart";
 import { CsaTrendChart } from "@/components/servicios/CsaTrendChart";
+import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 
 export default function ServiciosPage() {
   const { role, profile } = useAuth();
   const { filters, setFilters } = useSharedFilters();
-  const { anio, meses, unidades: selectedUnidades } = filters;
+  const { anio, meses } = filters;
   const sucursalSel = filters.sucursales[0] ?? "all";
 
-  const isGC = role === "gerente_comercial";
   const isCoordinador = role === "coordinador";
   const isGerencia = role === "gerencia";
 
-  const unidadesSeleccionadas =
-    isGC && profile?.unidad_negocio_id ? [profile.unidad_negocio_id] : selectedUnidades;
   const sucursal = isCoordinador && profile?.sucursal_id ? profile.sucursal_id : sucursalSel;
 
   const canFilterSucursal = isGerencia;
-  const canFilterUnidad = isGerencia;
 
   const { data: sucursales } = useSucursales();
-  const { data: unidades } = useUnidades();
 
   const dateRanges = useMemo(() => getDateRangesForMonths(anio, meses), [anio, meses]);
-  const queryFilters = { anio, meses, sucursal, unidadesSeleccionadas };
+  const queryFilters = { anio, meses, sucursal };
   const filterKey = JSON.stringify(queryFilters);
 
   const handleApplyFilters = (f: FilterState) => {
@@ -56,7 +52,6 @@ export default function ServiciosPage() {
       anio: f.anio,
       meses: f.meses,
       sucursales: f.sucursal ? [f.sucursal] : [],
-      unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
     });
   };
 
@@ -70,6 +65,18 @@ export default function ServiciosPage() {
       }),
   });
 
+  // Año completo (sin filtro de mes) para la evolución mensual, que siempre se
+  // muestra hasta la fecha con el mes en revisión resaltado.
+  const { data: presupuestosYtdData } = useQuery({
+    queryKey: ["presupuestos-servicios-ytd", anio, sucursal, role, profile?.id],
+    queryFn: () =>
+      getPresupuestosServiciosAction({
+        anio,
+        meses: "all",
+        sucursal,
+      }),
+  });
+
   const { data: serviciosInternoData, isLoading: isLoadingServiciosInterno } = useQuery({
     queryKey: ["servicios-interno", JSON.stringify(meses)],
     queryFn: () => getServiciosInternoAction({ meses }),
@@ -77,8 +84,7 @@ export default function ServiciosPage() {
 
   const { data: servicios, isLoading: isLoadingServicios } = useQuery({
     queryKey: ["servicios", filterKey, role, profile?.id],
-    queryFn: () =>
-      getServiciosAction({ ranges: dateRanges, sucursal, unidades: unidadesSeleccionadas }),
+    queryFn: () => getServiciosAction({ ranges: dateRanges, sucursal }),
   });
 
   const { data: cobranzasData } = useQuery({
@@ -87,22 +93,8 @@ export default function ServiciosPage() {
   });
 
   const { data: trend } = useQuery({
-    queryKey: [
-      "servicios-trend",
-      anio,
-      sucursal,
-      unidadesSeleccionadas,
-      JSON.stringify(meses),
-      role,
-      profile?.id,
-    ],
-    queryFn: () =>
-      getServiciosTrendAction({
-        anio,
-        meses,
-        sucursal,
-        unidades: unidadesSeleccionadas,
-      }),
+    queryKey: ["servicios-trend", anio, sucursal, JSON.stringify(meses), role, profile?.id],
+    queryFn: () => getServiciosTrendAction({ anio, meses, sucursal }),
   });
 
   const { data: detallesEstrategicos } = useQuery({
@@ -160,7 +152,7 @@ export default function ServiciosPage() {
       venta: 0,
     }));
 
-    (presupuestosData ?? []).forEach((p) => {
+    (presupuestosYtdData ?? []).forEach((p) => {
       const m = p.mes - 1;
       if (m >= 0 && m < 12) {
         byMonthCombo[m].presupuesto += Number(p.monto || 0);
@@ -199,28 +191,16 @@ export default function ServiciosPage() {
       }
     });
 
-    const filterMonthly = <T extends { mes: string }>(items: T[]) => {
-      if (meses !== "all") {
-        const allowed = meses.map((m) => MESES[m - 1].slice(0, 3));
-        return items.filter((item) => allowed.includes(item.mes));
-      }
-      const cap = getAllMonthsCap(anio);
-      return items.slice(0, cap);
-    };
-
     const cap = getAllMonthsCap(anio);
 
     return {
-      monthlyCombo: filterMonthly(byMonthCombo),
+      monthlyCombo: byMonthCombo.slice(0, cap),
       workshopsMonthly: byMonthWorkshops.slice(0, cap),
       csaMonthly: byMonthCsa.slice(0, cap),
     };
-  }, [presupuestosData, trend, anio, meses]);
+  }, [presupuestosYtdData, trend, anio]);
 
-  const selectedMonthLabels = useMemo(() => {
-    if (meses === "all") return [];
-    return meses.map((m) => MESES[m - 1].slice(0, 3));
-  }, [meses]);
+  const selectedMonthLabels = useMemo(() => getHighlightMonthLabels(meses), [meses]);
 
   const porCompaniaData = useMemo(() => {
     if (!presupuestosData) return [];
@@ -319,10 +299,6 @@ export default function ServiciosPage() {
       .map((s) => ({ value: s.nombre, label: s.nombre }));
   }, [sucursales]);
 
-  const unitOptions = useMemo(() => {
-    return (unidades ?? []).map((u) => ({ value: u.id, label: u.nombre.toUpperCase() }));
-  }, [unidades]);
-
   const receivablesRows = useMemo(() => {
     if (!cobranzasData) return [];
     return cobranzasData.map((c) => ({
@@ -331,7 +307,6 @@ export default function ServiciosPage() {
         ? sucursalMap.get(c.sucursalId) || "Sin sucursal"
         : "Sin sucursal",
       cliente: c.cliente,
-      unidadId: c.unidadNegocioId ?? undefined,
       diasVencidos: c.diasVencidos ?? 0,
       total: Number(c.saldo),
     }));
@@ -359,14 +334,8 @@ export default function ServiciosPage() {
                 .map((s) => ({ value: s.id, label: s.nombre }))
             : undefined
         }
-        unitOptions={
-          canFilterUnidad
-            ? unidades?.map((u) => ({ value: u.id, label: u.nombre.toUpperCase() }))
-            : undefined
-        }
         defaultMes={meses}
         defaultAnio={anio}
-        defaultUnits={unidadesSeleccionadas}
         showAllMonths
       />
 
@@ -402,19 +371,8 @@ export default function ServiciosPage() {
         />
       </div>
 
-      {/* Sección 1: evolución mensual — único gráfico de tendencia, sin repetir por sucursal */}
+      {/* Sección 1: desempeño por sucursal — gauge (headline) + compañía + ranking */}
       <section className="flex flex-col gap-3 section-enter section-enter-1">
-        <header>
-          <h2 className="font-display text-lg font-semibold">Evolución mensual</h2>
-          <p className="text-xs text-muted-foreground">
-            Venta real vs. presupuesto, consolidado nacional
-          </p>
-        </header>
-        <GlobalMonthlyCombo data={trendData.monthlyCombo} />
-      </section>
-
-      {/* Sección 2: desempeño por sucursal — gauge (headline) + compañía + ranking */}
-      <section className="flex flex-col gap-3 section-enter section-enter-2">
         <header>
           <h2 className="font-display text-lg font-semibold">Desempeño por sucursal</h2>
           <p className="text-xs text-muted-foreground">
@@ -436,6 +394,17 @@ export default function ServiciosPage() {
             <SucursalPerformanceChart data={sucursalPerformanceData} />
           </div>
         </div>
+      </section>
+
+      {/* Sección 2: evolución mensual — único gráfico de tendencia, sin repetir por sucursal */}
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Evolución mensual</h2>
+          <p className="text-xs text-muted-foreground">
+            Venta real vs. presupuesto, año a la fecha — mes en revisión resaltado
+          </p>
+        </header>
+        <GlobalMonthlyCombo data={trendData.monthlyCombo} highlightMonths={selectedMonthLabels} />
       </section>
 
       {/* Sección 3: composición de ingresos — de dónde viene la venta */}
@@ -483,12 +452,10 @@ export default function ServiciosPage() {
         <header>
           <h2 className="font-display text-lg font-semibold">Cuentas por cobrar</h2>
         </header>
-        <ReceivablesTable
-          rows={receivablesRows}
-          unitOptions={unitOptions}
-          sucursalOptions={sucursalOptions}
-        />
+        <ReceivablesTable rows={receivablesRows} sucursalOptions={sucursalOptions} />
       </section>
+
+      <ClientesPotencialesSection unidad="Servicios" />
 
       {isLoading && (
         <div className="text-xs text-muted-foreground">Cargando datos de servicio…</div>
