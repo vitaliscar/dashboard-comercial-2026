@@ -7,24 +7,21 @@ import { useSucursales } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getDateRangesForMonths } from "@/lib/date-range";
+import { getDateRangesForMonths, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
 import {
-  getEquiposFacturacionAction,
-  getEquiposPresupuestoAction,
+  getPresupuestosEquiposAction,
   getEquiposVentasPerdidasAction,
   getEquiposClientesCobroAction,
+  getEquiposPorMarcaAction,
+  getEquiposInventarioAction,
 } from "@/lib/actions/equipos";
+import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
+import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
+import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
+import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
+import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import { useMemo, useState } from "react";
-import {
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  ComposedChart,
-  Bar,
-} from "recharts";
-import { Truck, TrendingUp, FileText, Search, Package } from "lucide-react";
+import { TrendingUp, Search, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -35,42 +32,33 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { PageHeader } from "@/components/page-header";
+import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 
 export default function Equipos() {
   const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses } = filters;
+  const sucursal = filters.sucursales[0] ?? "all";
   const [searchClientes, setSearchClientes] = useState("");
 
   const dateRanges = useMemo(() => getDateRangesForMonths(anio, meses), [anio, meses]);
 
   const handleApplyFilters = (f: FilterState) => {
-    setFilters({ anio: f.anio, meses: f.meses });
+    setFilters({ anio: f.anio, meses: f.meses, sucursales: f.sucursal ? [f.sucursal] : [] });
   };
 
   const { data: sucursales } = useSucursales();
 
-  const { data: facturacionMensual } = useQuery({
-    queryKey: ["equipos-facturacion", anio],
-    queryFn: async () => {
-      const rows = await getEquiposFacturacionAction({ anio });
-      const byMonth = Array.from({ length: 12 }, (_, i) => ({
-        mes: MESES[i].slice(0, 3),
-        facturado: 0,
-      }));
-      rows.forEach((r) => {
-        if (r.mes >= 1 && r.mes <= 12) {
-          byMonth[r.mes - 1].facturado += Number(r.monto);
-        }
-      });
-      return byMonth;
-    },
+  const { data: presupuestosData, isLoading } = useQuery({
+    queryKey: ["presupuestos-equipos", anio, JSON.stringify(meses), sucursal],
+    queryFn: () => getPresupuestosEquiposAction({ anio, meses, sucursal }),
   });
 
-  const { data: presupuestoData } = useQuery({
-    queryKey: ["equipos-presupuesto", anio, JSON.stringify(meses)],
-    queryFn: () => getEquiposPresupuestoAction({ anio, meses }),
+  // Año completo (sin filtro de mes) para la evolución mensual, que siempre se
+  // muestra hasta la fecha con el mes en revisión resaltado.
+  const { data: presupuestosYtdData } = useQuery({
+    queryKey: ["presupuestos-equipos-ytd", anio, sucursal],
+    queryFn: () => getPresupuestosEquiposAction({ anio, meses: "all", sucursal }),
   });
 
   const { data: ventasPerdidas } = useQuery({
@@ -83,13 +71,125 @@ export default function Equipos() {
     queryFn: () => getEquiposClientesCobroAction(),
   });
 
-  const kpis = useMemo(() => {
-    const pres = presupuestoData ?? [];
-    const presupuesto = pres.reduce((a, r) => a + Number(r.monto || 0), 0);
-    const facturado = (facturacionMensual ?? []).reduce((a, r) => a + r.facturado, 0);
-    const cumplimiento = presupuesto > 0 ? (facturado / presupuesto) * 100 : 0;
-    return { presupuesto, facturado, cumplimiento };
-  }, [presupuestoData, facturacionMensual]);
+  // Año completo — igual que presupuestosYtdData: si el mes filtrado es el
+  // actual (sin cerrar todavía en el Excel), esta tabla no tiene filas para
+  // ese mes y el gráfico se quedaría sin datos que mostrar.
+  const { data: porMarcaData } = useQuery({
+    queryKey: ["equipos-por-marca", anio],
+    queryFn: () => getEquiposPorMarcaAction({ anio, meses: "all" }),
+  });
+
+  const { data: inventarioData } = useQuery({
+    queryKey: ["equipos-inventario"],
+    queryFn: () => getEquiposInventarioAction(),
+  });
+
+  const ventasConsolidadasTotal = useMemo(() => {
+    if (!presupuestosData) return 0;
+    return presupuestosData.reduce(
+      (sum, p) =>
+        sum +
+        Number(p.ventasCcv || 0) +
+        Number(p.ventasXibi || 0) +
+        Number(p.ventasEstrategicas || 0),
+      0,
+    );
+  }, [presupuestosData]);
+
+  const cumplimientoGeneral = useMemo(() => {
+    const totalPresupuesto = (presupuestosData ?? []).reduce(
+      (sum, p) => sum + Number(p.monto || 0),
+      0,
+    );
+    return {
+      facturado: ventasConsolidadasTotal,
+      presupuesto: totalPresupuesto,
+      pct: totalPresupuesto > 0 ? (ventasConsolidadasTotal / totalPresupuesto) * 100 : 0,
+    };
+  }, [presupuestosData, ventasConsolidadasTotal]);
+
+  const monthlyCombo = useMemo(() => {
+    const byMonth = Array.from({ length: 12 }, (_, i) => ({
+      mes: MESES[i].slice(0, 3),
+      presupuesto: 0,
+      venta: 0,
+    }));
+    (presupuestosYtdData ?? []).forEach((p) => {
+      const m = p.mes - 1;
+      if (m >= 0 && m < 12) {
+        byMonth[m].presupuesto += Number(p.monto || 0);
+        byMonth[m].venta +=
+          Number(p.ventasCcv || 0) + Number(p.ventasXibi || 0) + Number(p.ventasEstrategicas || 0);
+      }
+    });
+    return byMonth.slice(0, getAllMonthsCap(anio));
+  }, [presupuestosYtdData, anio]);
+
+  const highlightMonths = useMemo(() => getHighlightMonthLabels(meses), [meses]);
+
+  const porCompaniaData = useMemo(() => {
+    if (!presupuestosData) return [];
+    let totalCcv = 0;
+    let totalXibi = 0;
+    let totalEstrategicas = 0;
+    presupuestosData.forEach((p) => {
+      totalCcv += Number(p.ventasCcv || 0);
+      totalXibi += Number(p.ventasXibi || 0);
+      totalEstrategicas += Number(p.ventasEstrategicas || 0);
+    });
+    return [
+      { label: "Consorcio Venequip", facturado: totalCcv },
+      { label: "Xibi", facturado: totalXibi },
+      { label: "Estratégicas", facturado: totalEstrategicas },
+    ].filter((item) => item.facturado > 0);
+  }, [presupuestosData]);
+
+  const sucursalPerformanceData = useMemo(() => {
+    if (!presupuestosData || !sucursales) return [];
+    const map = new Map<string, { nombre: string; monto: number; presupuesto: number }>();
+    sucursales.forEach((s) => map.set(s.id, { nombre: s.nombre, monto: 0, presupuesto: 0 }));
+
+    presupuestosData.forEach((r) => {
+      if (r.sucursalId && map.has(r.sucursalId)) {
+        const item = map.get(r.sucursalId)!;
+        item.monto +=
+          Number(r.ventasCcv || 0) + Number(r.ventasXibi || 0) + Number(r.ventasEstrategicas || 0);
+        item.presupuesto += Number(r.monto || 0);
+      }
+    });
+
+    return Array.from(map.values())
+      .filter((r) => r.monto > 0 || r.presupuesto > 0)
+      .map((r) => ({
+        ...r,
+        pctCumplimiento: r.presupuesto > 0 ? (r.monto / r.presupuesto) * 100 : 0,
+      }))
+      .sort((a, b) => b.monto - a.monto);
+  }, [presupuestosData, sucursales]);
+
+  const porMarcaDonut = useMemo(() => {
+    const map = new Map<string, number>();
+    (porMarcaData ?? []).forEach((r) => {
+      map.set(r.marca, (map.get(r.marca) ?? 0) + Number(r.monto || 0));
+    });
+    return Array.from(map.entries())
+      .map(([label, facturado]) => ({ label, facturado }))
+      .filter((r) => r.facturado > 0)
+      .sort((a, b) => b.facturado - a.facturado);
+  }, [porMarcaData]);
+
+  const inventarioRows = useMemo(() => {
+    return (inventarioData ?? [])
+      .map((r) => ({
+        marca: r.marca,
+        tipoEquipo: r.tipoEquipo,
+        disponible: Number(r.disponible || 0),
+        stockDisponible: r.stockDisponible,
+        transito: Number(r.transito || 0),
+        stockTransito: r.stockTransito,
+      }))
+      .sort((a, b) => b.disponible - a.disponible);
+  }, [inventarioData]);
 
   const clientesFiltrados = useMemo(() => {
     const s = searchClientes.toLowerCase();
@@ -101,7 +201,7 @@ export default function Equipos() {
   return (
     <div className="flex flex-col gap-6 max-w-400">
       <div>
-        <h1 className="font-display text-3xl font-bold">Dashboard comercial</h1>
+        <h1 className="font-display text-3xl font-bold">Dashboard de Equipos</h1>
       </div>
       <FilterHeader
         onApplyFilters={handleApplyFilters}
@@ -115,147 +215,190 @@ export default function Equipos() {
         showAllMonths
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard
-          label="Facturado"
-          value={money(kpis.facturado)}
-          hint="período seleccionado"
-          accent="success"
+          label="Ventas Consolidadas"
+          value={money(ventasConsolidadasTotal)}
+          accent="ochre"
           icon={TrendingUp}
+          hint="Total facturado CCV + Xibi + Estratégicas"
         />
         <KpiCard
-          label="Presupuesto"
-          value={money(kpis.presupuesto)}
-          hint="meta anual"
+          label="Inventario Disponible"
+          value={money(inventarioRows.reduce((a, r) => a + r.disponible, 0))}
           accent="primary"
           icon={Package}
-        />
-        <KpiCard
-          label="Cumplimiento"
-          value={`${kpis.cumplimiento.toFixed(1)}%`}
-          hint="vs presupuesto"
-          accent="warning"
-          icon={Truck}
+          hint={`En tránsito: ${money(inventarioRows.reduce((a, r) => a + r.transito, 0))}`}
         />
       </div>
 
-      {/* Charts row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card-elevated p-5">
-          <div className="mb-4">
-            <h3 className="font-display font-semibold">Facturación mensual</h3>
-            <p className="text-xs text-muted-foreground">{anio}</p>
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Desempeño por sucursal</h2>
+          <p className="text-xs text-muted-foreground">
+            Cumplimiento general, facturación por compañía y detalle por sucursal
+          </p>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <ComplianceGauge
+            title="Cumplimiento General Equipos"
+            pct={cumplimientoGeneral.pct}
+            facturado={cumplimientoGeneral.facturado}
+            presupuesto={cumplimientoGeneral.presupuesto}
+          />
+          <div className="lg:col-span-2">
+            <UnitDonut data={porCompaniaData} title="Facturación por Compañía" />
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={facturacionMensual ?? []}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="facturado" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
-              </ComposedChart>
-            </ResponsiveContainer>
+          <div className="lg:col-span-3">
+            <SucursalPerformanceChart data={sucursalPerformanceData} />
           </div>
         </div>
+      </section>
 
-        <div className="card-elevated p-5">
-          <h3 className="font-display font-semibold">Ventas perdidas</h3>
-          <p className="text-xs text-muted-foreground mb-4">Oportunidades no concretadas</p>
-          <div className="h-64">
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              {(ventasPerdidas?.length ?? 0) === 0 ? (
-                <div className="text-center text-sm">
-                  <p>Sin ventas perdidas registradas</p>
-                  <p className="text-xs mt-1">en el período</p>
-                </div>
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Evolución mensual</h2>
+          <p className="text-xs text-muted-foreground">
+            Venta real vs. presupuesto, año a la fecha — mes en revisión resaltado
+          </p>
+        </header>
+        <GlobalMonthlyCombo data={monthlyCombo} highlightMonths={highlightMonths} />
+      </section>
+
+      <section className="flex flex-col gap-3 section-enter section-enter-3">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Participación por marca</h2>
+          <p className="text-xs text-muted-foreground">Generac, CAT, EP Equipment, Weichai…</p>
+        </header>
+        <UnitDonut data={porMarcaDonut} title="Ventas por Marca" />
+      </section>
+
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Inventario</h2>
+          <p className="text-xs text-muted-foreground">
+            Disponible y en tránsito, por marca y tipo
+          </p>
+        </header>
+        <div className="card-elevated overflow-hidden">
+          <Table className="text-sm">
+            <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-left px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                  Marca
+                </TableHead>
+                <TableHead className="text-left px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                  Tipo de Equipo
+                </TableHead>
+                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                  Stock Disp.
+                </TableHead>
+                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                  Total $ Disp.
+                </TableHead>
+                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                  Stock Tránsito
+                </TableHead>
+                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                  Total $ Tránsito
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {inventarioRows.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={6} className="p-0">
+                    <Empty>
+                      <EmptyHeader>
+                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
+                          Sin datos de inventario
+                        </EmptyTitle>
+                      </EmptyHeader>
+                    </Empty>
+                  </TableCell>
+                </TableRow>
               ) : (
-                <div className="text-center">
-                  <p className="text-2xl font-bold">
-                    {money((ventasPerdidas ?? []).reduce((a, r) => a + Number(r.monto || 0), 0))}
-                  </p>
-                  <p className="text-xs mt-2">en oportunidades</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts row 2 - Ventas Perdidas detalle */}
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-        <div className="card-elevated p-5">
-          <div className="mb-4">
-            <h3 className="font-display font-semibold">Detalle de Ventas Perdidas</h3>
-            <p className="text-xs text-muted-foreground">
-              Análisis de oportunidades no concretadas
-            </p>
-          </div>
-          {(ventasPerdidas?.length ?? 0) === 0 ? (
-            <div className="h-40 flex items-center justify-center text-muted-foreground text-sm">
-              Sin ventas perdidas registradas en el período
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table className="text-sm">
-                <TableHeader className="bg-primary [&_tr]:border-b-0">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-primary-foreground text-left px-4 py-2 font-medium text-xs">
-                      Cliente
-                    </TableHead>
-                    <TableHead className="text-primary-foreground text-left px-4 py-2 font-medium text-xs">
-                      Razón
-                    </TableHead>
-                    <TableHead className="text-primary-foreground text-right px-4 py-2 font-medium text-xs">
-                      Monto
-                    </TableHead>
-                    <TableHead className="text-primary-foreground text-left px-4 py-2 font-medium text-xs">
-                      Fecha
-                    </TableHead>
+                inventarioRows.map((row, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="px-4 py-2.5 font-medium">{row.marca}</TableCell>
+                    <TableCell className="px-4 py-2.5">{row.tipoEquipo}</TableCell>
+                    <TableCell className="px-4 py-2.5 text-right tabular-nums">
+                      {row.stockDisponible}
+                    </TableCell>
+                    <TableCell className="px-4 py-2.5 text-right tabular-nums">
+                      {money(row.disponible)}
+                    </TableCell>
+                    <TableCell className="px-4 py-2.5 text-right tabular-nums">
+                      {row.stockTransito}
+                    </TableCell>
+                    <TableCell className="px-4 py-2.5 text-right tabular-nums">
+                      {money(row.transito)}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(ventasPerdidas ?? []).slice(0, 8).map((r, i) => (
-                    <TableRow
-                      key={i}
-                      className="border-b border-border/50 last:border-0 hover:bg-muted/40"
-                    >
-                      <TableCell className="px-4 py-2 font-medium">{r.cliente || "—"}</TableCell>
-                      <TableCell className="px-4 py-2 text-muted-foreground text-xs">
-                        {r.razon || "—"}
-                      </TableCell>
-                      <TableCell className="px-4 py-2 text-right tabular-nums">
-                        {money(Number(r.monto))}
-                      </TableCell>
-                      <TableCell className="px-4 py-2 text-muted-foreground text-xs">
-                        {r.fecha?.slice(0, 10)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
-      </div>
+      </section>
 
-      {/* Clientes cuentas por cobrar */}
-      <div className="card-elevated overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-          <h3 className="font-display font-semibold">Clientes - Cuentas por Cobrar</h3>
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Ventas perdidas</h2>
+          <p className="text-xs text-muted-foreground">Oportunidades no concretadas</p>
+        </header>
+        {(ventasPerdidas?.length ?? 0) === 0 ? (
+          <div className="card-elevated p-5 h-40 flex items-center justify-center text-muted-foreground text-sm">
+            Sin ventas perdidas registradas en el período
+          </div>
+        ) : (
+          <div className="card-elevated overflow-hidden">
+            <Table className="text-sm">
+              <TableHeader className="bg-primary [&_tr]:border-b-0">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-primary-foreground text-left px-4 py-2 font-medium text-xs">
+                    Cliente
+                  </TableHead>
+                  <TableHead className="text-primary-foreground text-left px-4 py-2 font-medium text-xs">
+                    Razón
+                  </TableHead>
+                  <TableHead className="text-primary-foreground text-right px-4 py-2 font-medium text-xs">
+                    Monto
+                  </TableHead>
+                  <TableHead className="text-primary-foreground text-left px-4 py-2 font-medium text-xs">
+                    Fecha
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(ventasPerdidas ?? []).slice(0, 8).map((r, i) => (
+                  <TableRow
+                    key={i}
+                    className="border-b border-border/50 last:border-0 hover:bg-muted/40"
+                  >
+                    <TableCell className="px-4 py-2 font-medium">{r.cliente || "—"}</TableCell>
+                    <TableCell className="px-4 py-2 text-muted-foreground text-xs">
+                      {r.razon || "—"}
+                    </TableCell>
+                    <TableCell className="px-4 py-2 text-right tabular-nums">
+                      {money(Number(r.monto))}
+                    </TableCell>
+                    <TableCell className="px-4 py-2 text-muted-foreground text-xs">
+                      {r.fecha?.slice(0, 10)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 section-enter section-enter-3">
+        <header className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Cuentas por cobrar</h2>
+          </div>
           <div className="relative w-64">
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
@@ -265,61 +408,19 @@ export default function Equipos() {
               className="pl-8 h-9"
             />
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <Table className="text-sm">
-            <TableHeader className="bg-primary [&_tr]:border-b-0">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-primary-foreground text-left px-4 py-2.5 font-medium text-xs tracking-wider">
-                  Cliente
-                </TableHead>
-                <TableHead className="text-primary-foreground text-right px-4 py-2.5 font-medium text-xs tracking-wider">
-                  Factura Total
-                </TableHead>
-                <TableHead className="text-primary-foreground text-right px-4 py-2.5 font-medium text-xs tracking-wider">
-                  Saldo
-                </TableHead>
-                <TableHead className="text-primary-foreground text-left px-4 py-2.5 font-medium text-xs tracking-wider">
-                  Sucursal
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clientesFiltrados.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="p-0">
-                    <Empty>
-                      <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Sin clientes con saldo pendiente
-                        </EmptyTitle>
-                      </EmptyHeader>
-                    </Empty>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                clientesFiltrados.map((r, i) => (
-                  <TableRow
-                    key={i}
-                    className="border-b border-border/50 last:border-0 hover:bg-muted/40"
-                  >
-                    <TableCell className="px-4 py-3 font-medium">{r.cliente}</TableCell>
-                    <TableCell className="px-4 py-3 text-right tabular-nums">
-                      {money(Number(r.monto))}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-right tabular-nums font-medium text-danger">
-                      {money(Number(r.saldo))}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-muted-foreground text-sm">
-                      {sucursales?.find((s) => s.id === r.sucursalId)?.nombre || "—"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+        </header>
+        <ReceivablesTable
+          rows={clientesFiltrados.map((r) => ({
+            cliente: r.cliente,
+            sucursalVenta: sucursales?.find((s) => s.id === r.sucursalId)?.nombre,
+            total: Number(r.saldo),
+          }))}
+        />
+      </section>
+
+      <ClientesPotencialesSection unidad="Equipos" />
+
+      {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>
   );
 }

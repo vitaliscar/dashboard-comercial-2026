@@ -5,10 +5,21 @@ import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
-import { money, pct, MESES } from "@/lib/format";
+import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
-import { getLubfiltrosMetricsAction, getLubfiltrosTrendAction } from "@/lib/actions/lubfiltros";
+import { getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
+import {
+  getPresupuestosLubfiltrosAction,
+  getCobranzasLubfiltrosAction,
+  getDetallesVentasLubfiltrosAction,
+  getInventarioLubfiltrosAction,
+} from "@/lib/actions/lubfiltros";
+import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
+import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
+import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
+import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
+import { MarcasMonthlyChart } from "@/components/lubfiltros/MarcasMonthlyChart";
+import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import {
   Table,
   TableHeader,
@@ -19,120 +30,211 @@ import {
 } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  ComposedChart,
-} from "recharts";
-import { Package, DollarSign } from "lucide-react";
+import { TrendingUp, Droplets } from "lucide-react";
+import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 
 export default function LubFiltrosPage() {
   const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses } = filters;
+  const sucursal = filters.sucursales[0] ?? "all";
 
   const { data: sucursales } = useSucursales();
 
-  const dateRanges = useMemo(() => {
-    return getDateRangesForMonths(anio, meses);
-  }, [anio, meses]);
-
   const handleApplyFilters = (f: FilterState) => {
-    setFilters({ anio: f.anio, meses: f.meses });
+    setFilters({
+      anio: f.anio,
+      meses: f.meses,
+      sucursales: f.sucursal ? [f.sucursal] : [],
+    });
   };
 
-  // Fetch facturación data for Lubfiltros
-  const { data: metricsData, isLoading } = useQuery({
-    queryKey: ["lubfiltros-metrics", JSON.stringify(dateRanges)],
-    queryFn: async () => {
-      const data = await getLubfiltrosMetricsAction({ ranges: dateRanges });
-      return { facturas: data };
-    },
+  const { data: presupuestosData, isLoading } = useQuery({
+    queryKey: ["presupuestos-lubfiltros", anio, JSON.stringify(meses), sucursal],
+    queryFn: () => getPresupuestosLubfiltrosAction({ anio, meses, sucursal }),
   });
 
-  // Fetch monthly trends
-  const { data: trendData } = useQuery({
-    queryKey: ["lubfiltros-trend", anio, JSON.stringify(meses)],
-    queryFn: async () => {
-      const data = await getLubfiltrosTrendAction({ anio });
-      const byMonth = Array.from({ length: 12 }, (_, i) => ({
-        mes: MESES[i].slice(0, 3),
-        ventas: 0,
-      }));
-      data.forEach((r) => {
-        if (r.mes >= 1 && r.mes <= 12) {
-          byMonth[r.mes - 1].ventas += Number(r.monto);
-        }
-      });
+  // Datos del año completo (sin filtro de mes) para el gráfico de evolución
+  // mensual, que siempre debe mostrarse hasta la fecha con el mes en revisión
+  // resaltado, no recortado al filtro de mes seleccionado.
+  const { data: presupuestosYtdData } = useQuery({
+    queryKey: ["presupuestos-lubfiltros-ytd", anio, sucursal],
+    queryFn: () => getPresupuestosLubfiltrosAction({ anio, meses: "all", sucursal }),
+  });
 
-      if (meses !== "all") {
-        const allowedShortNames = meses.map((m) => MESES[m - 1].slice(0, 3));
-        return byMonth.filter((item) => allowedShortNames.includes(item.mes));
-      } else {
-        const cap = getAllMonthsCap(anio);
-        return byMonth.slice(0, cap);
+  const { data: cobranzasData } = useQuery({
+    queryKey: ["cobranzas-lubfiltros", sucursal],
+    queryFn: () => getCobranzasLubfiltrosAction({ sucursal }),
+  });
+
+  // Año completo (sin filtro de mes) — el gráfico de marcas siempre se muestra
+  // hasta la fecha con el mes en revisión resaltado, no recortado al filtro.
+  const { data: detallesMarcas } = useQuery({
+    queryKey: ["detalles-ventas-lubfiltros"],
+    queryFn: () => getDetallesVentasLubfiltrosAction({ meses: "all" }),
+  });
+
+  const { data: inventario } = useQuery({
+    queryKey: ["inventario-lubfiltros"],
+    queryFn: () => getInventarioLubfiltrosAction(),
+  });
+
+  const sucursalMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (sucursales ?? []).forEach((s) => map.set(s.id, s.nombre));
+    return map;
+  }, [sucursales]);
+
+  const sucursalOptions = useMemo(() => {
+    return (sucursales ?? []).map((s) => ({ value: s.nombre, label: s.nombre }));
+  }, [sucursales]);
+
+  const ventasConsolidadasTotal = useMemo(() => {
+    if (!presupuestosData) return 0;
+    return presupuestosData.reduce(
+      (sum, p) =>
+        sum +
+        Number(p.ventasCcv || 0) +
+        Number(p.ventasXibi || 0) +
+        Number(p.ventasEstrategicas || 0),
+      0,
+    );
+  }, [presupuestosData]);
+
+  const cumplimientoGeneral = useMemo(() => {
+    const totalPresupuesto = (presupuestosData ?? []).reduce(
+      (sum, p) => sum + Number(p.monto || 0),
+      0,
+    );
+    return {
+      facturado: ventasConsolidadasTotal,
+      presupuesto: totalPresupuesto,
+      pct: totalPresupuesto > 0 ? (ventasConsolidadasTotal / totalPresupuesto) * 100 : 0,
+    };
+  }, [presupuestosData, ventasConsolidadasTotal]);
+
+  // Siempre muestra el año hasta el mes actual (YTD), independiente del filtro
+  // de mes — el mes en revisión se resalta en vez de recortar el resto del año.
+  const monthlyCombo = useMemo(() => {
+    const byMonth = Array.from({ length: 12 }, (_, i) => ({
+      mes: MESES[i].slice(0, 3),
+      presupuesto: 0,
+      venta: 0,
+    }));
+    (presupuestosYtdData ?? []).forEach((p) => {
+      const m = p.mes - 1;
+      if (m >= 0 && m < 12) {
+        byMonth[m].presupuesto += Number(p.monto || 0);
+        byMonth[m].venta +=
+          Number(p.ventasCcv || 0) + Number(p.ventasXibi || 0) + Number(p.ventasEstrategicas || 0);
       }
-    },
-  });
+    });
+    return byMonth.slice(0, getAllMonthsCap(anio));
+  }, [presupuestosYtdData, anio]);
 
-  // Aggregate data
-  const totales = useMemo(() => {
-    const facturado = metricsData?.facturas.reduce((a, r) => a + Number(r.monto), 0) ?? 0;
-    const count = metricsData?.facturas.reduce((a, r) => a + Number(r.cantidad ?? 1), 0) ?? 0;
-    return { facturado, count };
-  }, [metricsData]);
+  const highlightMonths = useMemo(() => getHighlightMonthLabels(meses), [meses]);
 
-  const porSucursal = useMemo(() => {
-    if (!metricsData || !sucursales) return [];
-    const map = new Map<string, { nombre: string; monto: number }>();
-    sucursales.forEach((s) => map.set(s.id, { nombre: s.nombre, monto: 0 }));
-    metricsData.facturas.forEach((r) => {
+  const porCompaniaData = useMemo(() => {
+    if (!presupuestosData) return [];
+    let totalCcv = 0;
+    let totalXibi = 0;
+    let totalEstrategicas = 0;
+    presupuestosData.forEach((p) => {
+      totalCcv += Number(p.ventasCcv || 0);
+      totalXibi += Number(p.ventasXibi || 0);
+      totalEstrategicas += Number(p.ventasEstrategicas || 0);
+    });
+    return [
+      { label: "Consorcio Venequip", facturado: totalCcv },
+      { label: "Xibi", facturado: totalXibi },
+      { label: "Estratégicas", facturado: totalEstrategicas },
+    ].filter((item) => item.facturado > 0);
+  }, [presupuestosData]);
+
+  const sucursalPerformanceData = useMemo(() => {
+    if (!presupuestosData || !sucursales) return [];
+    const map = new Map<string, { nombre: string; monto: number; presupuesto: number }>();
+    sucursales.forEach((s) => map.set(s.id, { nombre: s.nombre, monto: 0, presupuesto: 0 }));
+
+    presupuestosData.forEach((r) => {
       if (r.sucursalId && map.has(r.sucursalId)) {
-        map.get(r.sucursalId)!.monto += Number(r.monto);
+        const item = map.get(r.sucursalId)!;
+        item.monto +=
+          Number(r.ventasCcv || 0) + Number(r.ventasXibi || 0) + Number(r.ventasEstrategicas || 0);
+        item.presupuesto += Number(r.monto || 0);
       }
     });
+
     return Array.from(map.values())
-      .filter((r) => r.monto > 0)
+      .filter((r) => r.monto > 0 || r.presupuesto > 0)
+      .map((r) => ({
+        ...r,
+        pctCumplimiento: r.presupuesto > 0 ? (r.monto / r.presupuesto) * 100 : 0,
+      }))
       .sort((a, b) => b.monto - a.monto);
-  }, [metricsData, sucursales]);
+  }, [presupuestosData, sucursales]);
 
-  const topClientes = useMemo(() => {
-    const map = new Map<string, { cliente: string; monto: number }>();
-    metricsData?.facturas.forEach((r) => {
-      const k = r.cliente || "Sin cliente";
-      if (!map.has(k)) map.set(k, { cliente: k, monto: 0 });
-      map.get(k)!.monto += Number(r.monto);
+  const marcasMonthly = useMemo(() => {
+    const byMonth = Array.from({ length: 12 }, (_, i) => ({
+      mes: MESES[i].slice(0, 3),
+      Chronus: 0,
+      Donaldson: 0,
+      DonaldsonIndustrial: 0,
+      OtraMarca: 0,
+    }));
+    (detallesMarcas ?? []).forEach((d) => {
+      const m = d.mes - 1;
+      if (m < 0 || m >= 12) return;
+      const monto = Number(d.montoTotal || 0);
+      if (d.marca === "Chronus") byMonth[m].Chronus += monto;
+      else if (d.marca === "Donaldson") byMonth[m].Donaldson += monto;
+      else if (d.marca === "Donaldson Industrial") byMonth[m].DonaldsonIndustrial += monto;
+      else byMonth[m].OtraMarca += monto;
     });
-    return Array.from(map.values())
-      .sort((a, b) => b.monto - a.monto)
-      .slice(0, 10);
-  }, [metricsData]);
 
-  const PIE_COLORS = [
-    "var(--color-chart-1)",
-    "var(--color-chart-2)",
-    "var(--color-chart-3)",
-    "var(--color-chart-4)",
-    "var(--color-chart-5)",
-    "var(--color-chart-calm-2)",
-  ];
+    return byMonth.slice(0, getAllMonthsCap(anio));
+  }, [detallesMarcas, anio]);
+
+  const inventarioTotales = useMemo(() => {
+    let lubricantes = 0;
+    let filtros = 0;
+    (inventario ?? []).forEach((i) => {
+      if (i.tipo === "Lubricantes") lubricantes += Number(i.monto || 0);
+      else if (i.tipo === "Filtros") filtros += Number(i.monto || 0);
+    });
+    return { lubricantes, filtros, total: lubricantes + filtros };
+  }, [inventario]);
+
+  const inventarioPorSucursal = useMemo(() => {
+    const map = new Map<string, { tipo: string; sucursal: string; monto: number }>();
+    (inventario ?? []).forEach((i) => {
+      const key = `${i.tipo}|${i.sucursal}`;
+      const existing = map.get(key);
+      if (existing) existing.monto += Number(i.monto || 0);
+      else map.set(key, { tipo: i.tipo, sucursal: i.sucursal, monto: Number(i.monto || 0) });
+    });
+    return Array.from(map.values()).sort((a, b) => b.monto - a.monto);
+  }, [inventario]);
+
+  const receivablesRows = useMemo(() => {
+    if (!cobranzasData) return [];
+    return cobranzasData.map((c) => ({
+      id: c.id,
+      sucursalVenta: c.sucursalId
+        ? sucursalMap.get(c.sucursalId) || "Sin sucursal"
+        : "Sin sucursal",
+      cliente: c.cliente,
+      diasVencidos: c.diasVencidos ?? 0,
+      total: Number(c.saldo),
+    }));
+  }, [cobranzasData, sucursalMap]);
 
   return (
     <div className="flex flex-col gap-6 max-w-400">
       <div>
-        <h1 className="font-display text-3xl font-bold">Dashboard comercial</h1>
+        <h1 className="font-display text-3xl font-bold">Dashboard Lubricantes y Filtros</h1>
       </div>
+
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={
@@ -146,260 +248,136 @@ export default function LubFiltrosPage() {
         showAllMonths
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard
-          label="Facturación LUB/FILTROS"
-          value={money(totales.facturado)}
-          hint={`${totales.count} transacciones`}
-          accent="success"
-          icon={DollarSign}
+          label="Ventas Consolidadas"
+          value={money(ventasConsolidadasTotal)}
+          accent="ochre"
+          icon={TrendingUp}
+          hint="Total facturado CCV + Xibi + Estratégicas"
         />
         <KpiCard
-          label="Período"
-          value={meses === "all" ? `${anio}` : `${meses.join(", ")}/${anio}`}
-          hint="mes/año seleccionado"
+          label="Inventario Total"
+          value={money(inventarioTotales.total)}
           accent="primary"
-          icon={Package}
+          icon={Droplets}
+          hint={`Lubricantes ${money(inventarioTotales.lubricantes)} · Filtros ${money(inventarioTotales.filtros)}`}
         />
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card-elevated p-5">
-          <div className="mb-4">
-            <h3 className="font-display font-semibold">Ventas Mensuales LUB/FILTROS</h3>
-            <p className="text-xs text-muted-foreground">Tendencia anual {anio}</p>
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Desempeño por sucursal</h2>
+          <p className="text-xs text-muted-foreground">
+            Cumplimiento general, facturación por compañía y detalle por sucursal
+          </p>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <ComplianceGauge
+            title="Cumplimiento General LUB/FILTROS"
+            pct={cumplimientoGeneral.pct}
+            facturado={cumplimientoGeneral.facturado}
+            presupuesto={cumplimientoGeneral.presupuesto}
+          />
+          <div className="lg:col-span-2">
+            <UnitDonut data={porCompaniaData} title="Facturación por Compañía" />
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trendData ?? []}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="ventas"
-                  stroke="var(--color-primary)"
-                  strokeWidth={2.5}
-                  dot={{ r: 3 }}
-                />
-                <Bar
-                  dataKey="ventas"
-                  fill="var(--color-primary)"
-                  opacity={0.2}
-                  radius={[4, 4, 0, 0]}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
+          <div className="lg:col-span-3">
+            <SucursalPerformanceChart data={sucursalPerformanceData} />
           </div>
         </div>
+      </section>
 
-        <div className="card-elevated p-5">
-          <h3 className="font-display font-semibold">Participación por Sucursal</h3>
-          <p className="text-xs text-muted-foreground mb-4">Distribución de ingresos</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={porSucursal}
-                  dataKey="monto"
-                  nameKey="nombre"
-                  innerRadius={45}
-                  outerRadius={80}
-                  paddingAngle={2}
-                >
-                  {porSucursal.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Evolución mensual</h2>
+          <p className="text-xs text-muted-foreground">
+            Venta real vs. presupuesto, año a la fecha — mes en revisión resaltado
+          </p>
+        </header>
+        <GlobalMonthlyCombo data={monthlyCombo} highlightMonths={highlightMonths} />
+      </section>
 
-      {/* Charts Row 2 - Ventas por sucursal y Trend */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card-elevated p-5">
-          <h3 className="font-display font-semibold">Ventas por Sucursales</h3>
-          <p className="text-xs text-muted-foreground mb-4">Ranking de desempeño</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={porSucursal} layout="vertical">
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                <XAxis
-                  type="number"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
-                <YAxis
-                  dataKey="nombre"
-                  type="category"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={10}
-                  width={100}
-                />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="monto" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      <section className="flex flex-col gap-3 section-enter section-enter-3">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Ventas por marca</h2>
+          <p className="text-xs text-muted-foreground">Chronus, Donaldson y Donaldson Industrial</p>
+        </header>
+        <MarcasMonthlyChart data={marcasMonthly} highlightMonths={highlightMonths} />
+      </section>
 
-        <div className="card-elevated p-5">
-          <h3 className="font-display font-semibold">Tendencia mensual</h3>
-          <p className="text-xs text-muted-foreground mb-4">{anio} - Evolución de ventas</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData ?? []}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
-                <Tooltip
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 0,
-                    fontSize: 12,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="ventas"
-                  stroke="var(--color-primary)"
-                  strokeWidth={2.5}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Tables Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card-elevated overflow-hidden">
-          <div className="p-5 border-b border-border">
-            <h3 className="font-display font-semibold">Inventarios</h3>
-            <p className="text-xs text-muted-foreground">Lubricantes y Filtros disponibles</p>
-          </div>
-          <Table className="text-sm">
-            <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-left px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
-                  Producto
-                </TableHead>
-                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
-                  Stock
-                </TableHead>
-                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
-                  Valor
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={3} className="p-0">
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                        Tabla de inventarios en desarrollo
-                      </EmptyTitle>
-                    </EmptyHeader>
-                  </Empty>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-
-        <div className="card-elevated overflow-hidden">
-          <div className="p-5 border-b border-border">
-            <h3 className="font-display font-semibold">Clientes - Cuentas x Cobrar</h3>
-            <p className="text-xs text-muted-foreground">Top 10 por monto facturado</p>
-          </div>
-          <Table className="text-sm">
-            <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-left px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
-                  Cliente
-                </TableHead>
-                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
-                  Monto
-                </TableHead>
-                <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
-                  % Total
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topClientes.length === 0 ? (
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Inventario</h2>
+          <p className="text-xs text-muted-foreground">
+            Lubricantes y Filtros disponibles por sucursal
+          </p>
+        </header>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <UnitDonut
+            data={[
+              { label: "Lubricantes", facturado: inventarioTotales.lubricantes },
+              { label: "Filtros", facturado: inventarioTotales.filtros },
+            ].filter((d) => d.facturado > 0)}
+            title="Lubricantes vs Filtros"
+          />
+          <div className="card-elevated overflow-hidden">
+            <div className="p-5 border-b border-border">
+              <h3 className="font-display font-semibold">Inventario por Sucursal</h3>
+              <p className="text-xs text-muted-foreground">Valor en inventario</p>
+            </div>
+            <Table className="text-sm">
+              <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0">
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={3} className="p-0">
-                    <Empty>
-                      <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Sin datos
-                        </EmptyTitle>
-                      </EmptyHeader>
-                    </Empty>
-                  </TableCell>
+                  <TableHead className="text-left px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                    Tipo
+                  </TableHead>
+                  <TableHead className="text-left px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                    Sucursal
+                  </TableHead>
+                  <TableHead className="text-right px-4 py-2 font-medium text-xs tracking-wider text-primary-foreground">
+                    Monto
+                  </TableHead>
                 </TableRow>
-              ) : (
-                topClientes.map((c, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="px-4 py-2.5 font-medium">{c.cliente}</TableCell>
-                    <TableCell className="px-4 py-2.5 text-right tabular-nums">
-                      {money(c.monto)}
-                    </TableCell>
-                    <TableCell className="px-4 py-2.5 text-right tabular-nums">
-                      {pct((c.monto / (totales.facturado || 1)) * 100)}
+              </TableHeader>
+              <TableBody>
+                {inventarioPorSucursal.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={3} className="p-0">
+                      <Empty>
+                        <EmptyHeader>
+                          <EmptyTitle className="text-sm font-normal text-muted-foreground">
+                            Sin datos de inventario
+                          </EmptyTitle>
+                        </EmptyHeader>
+                      </Empty>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  inventarioPorSucursal.map((row, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="px-4 py-2.5 font-medium">{row.tipo}</TableCell>
+                      <TableCell className="px-4 py-2.5">{row.sucursal}</TableCell>
+                      <TableCell className="px-4 py-2.5 text-right tabular-nums">
+                        {money(row.monto)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <header>
+          <h2 className="font-display text-lg font-semibold">Cuentas por cobrar</h2>
+        </header>
+        <ReceivablesTable rows={receivablesRows} sucursalOptions={sucursalOptions} />
+      </section>
+
+      <ClientesPotencialesSection unidad="Lubricantes/Filtros" />
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>
