@@ -11,8 +11,18 @@ function unidadCond(col: SQLWrapper, selectedUnidades?: string[]) {
     : undefined;
 }
 
-export async function getCobranzasAction(data?: { selectedUnidades?: string[] }) {
+function sucursalCond(col: SQLWrapper, selectedSucursales?: string[]) {
+  return selectedSucursales && selectedSucursales.length > 0
+    ? inArray(col, selectedSucursales)
+    : undefined;
+}
+
+export async function getCobranzasAction(data?: {
+  selectedUnidades?: string[];
+  selectedSucursales?: string[];
+}) {
   const selectedUnidades = data?.selectedUnidades;
+  const selectedSucursales = data?.selectedSucursales;
   return withAuth(({ tx }) =>
     tx
       .select({
@@ -33,13 +43,23 @@ export async function getCobranzasAction(data?: { selectedUnidades?: string[] })
       .from(cobranzas)
       .leftJoin(sucursales, eq(cobranzas.sucursalId, sucursales.id))
       .leftJoin(unidadesNegocio, eq(cobranzas.unidadNegocioId, unidadesNegocio.id))
-      .where(and(gt(cobranzas.saldo, "0"), unidadCond(cobranzas.unidadNegocioId, selectedUnidades)))
+      .where(
+        and(
+          gt(cobranzas.saldo, "0"),
+          unidadCond(cobranzas.unidadNegocioId, selectedUnidades),
+          sucursalCond(cobranzas.sucursalId, selectedSucursales),
+        ),
+      )
       .orderBy(asc(cobranzas.fechaVencimiento)),
   );
 }
 
-export async function getCobranzasComparisonAction(data?: { selectedUnidades?: string[] }) {
+export async function getCobranzasComparisonAction(data?: {
+  selectedUnidades?: string[];
+  selectedSucursales?: string[];
+}) {
   const selectedUnidades = data?.selectedUnidades;
+  const selectedSucursales = data?.selectedSucursales;
   return withAuth(async ({ tx }) => {
     const actualRows = await tx
       .select({
@@ -49,7 +69,12 @@ export async function getCobranzasComparisonAction(data?: { selectedUnidades?: s
         sucursalId: cobranzas.sucursalId,
       })
       .from(cobranzas)
-      .where(unidadCond(cobranzas.unidadNegocioId, selectedUnidades));
+      .where(
+        and(
+          unidadCond(cobranzas.unidadNegocioId, selectedUnidades),
+          sucursalCond(cobranzas.sucursalId, selectedSucursales),
+        ),
+      );
 
     const latestSnapshot = await tx
       .select({ capturedAt: cobranzasSnapshots.capturedAt })
@@ -82,6 +107,7 @@ export async function getCobranzasComparisonAction(data?: { selectedUnidades?: s
         and(
           eq(cobranzasSnapshots.capturedAt, maxCapturedAt),
           unidadCond(cobranzasSnapshots.unidadNegocioId, selectedUnidades),
+          sucursalCond(cobranzasSnapshots.sucursalId, selectedSucursales),
         ),
       );
 

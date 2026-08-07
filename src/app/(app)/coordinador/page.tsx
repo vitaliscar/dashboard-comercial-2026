@@ -6,7 +6,7 @@ import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useUnidades } from "@/hooks/use-catalogos";
 import { MESES } from "@/lib/format";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
-import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
+import { getDateRangesForMonths, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
@@ -242,7 +242,14 @@ export default function CoordinadorPanel() {
       .sort((a, b) => b.facturado - a.facturado);
   }, [unidades, effectiveUnitIds, monthlyData, monthsInScope]);
 
-  const h1Labels = MESES.slice(0, 6);
+  // Meses abreviados (Ene, Feb, ...) para todo el año transcurrido — mismo
+  // criterio que en servicios/repuestos/equipos/alquiler/lubfiltros, en vez
+  // del placeholder fijo "primeros 6 meses" que dejaba fuera meses ya
+  // cargados y no coincidía con el resto de los cálculos de la página.
+  const h1Labels = useMemo(() => {
+    const cap = getAllMonthsCap(anio);
+    return Array.from({ length: cap }, (_, i) => MESES[i].slice(0, 3));
+  }, [anio]);
   const scopedGlobal = useMemo(
     () => combineUnits(monthlyData, effectiveUnitIds),
     [monthlyData, effectiveUnitIds],
@@ -505,7 +512,10 @@ export default function CoordinadorPanel() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 section-enter section-enter-2">
         <UnitAmountBars data={deferredCurrentPeriodByUnit} />
-        <GlobalMonthlyCombo data={deferredGlobalTrend} />
+        <GlobalMonthlyCombo
+          data={deferredGlobalTrend}
+          highlightMonths={getHighlightMonthLabels(meses)}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px] section-enter section-enter-3">

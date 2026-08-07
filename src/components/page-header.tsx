@@ -13,7 +13,7 @@ export function PageHeader({ eyebrow, title, description, action, className }: P
   return (
     <div
       className={cn(
-        "flex flex-wrap justify-between items-end gap-4 card-elevated p-5 border-l-2 border-l-primary",
+        "flex flex-wrap justify-between items-end gap-4 card-elevated p-5",
         className,
       )}
     >

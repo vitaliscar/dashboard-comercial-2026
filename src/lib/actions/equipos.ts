@@ -1,7 +1,13 @@
 "use server";
 
-import { and, eq, gte, lt, gt, inArray, sum, sql, type SQLWrapper } from "drizzle-orm";
-import { facturas, presupuestos, cobranzas, ventasPerdidas } from "@/db/schema";
+import { and, eq, gt, inArray, sum, type SQLWrapper } from "drizzle-orm";
+import {
+  presupuestos,
+  cobranzas,
+  ventasPerdidas,
+  equiposPorMarca,
+  equiposInventario,
+} from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { unidadId } from "@/lib/server/unidades";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
@@ -20,46 +26,34 @@ function mesCond(col: SQLWrapper, meses: MonthFilter, anio: number) {
   return inArray(col, meses);
 }
 
-export async function getEquiposFacturacionAction(data: { anio: number }) {
+// Fuente de verdad del cumplimiento (presupuesto vs facturado) — no `facturas`,
+// que es transaccional y no reconciliada. Mismo patrón que servicios/lubfiltros.
+export async function getPresupuestosEquiposAction(data: {
+  anio: number;
+  meses: MonthFilter;
+  sucursal: string | "all";
+}) {
   return withAuth(async ({ tx }) => {
-    const unitId = await unidadId("equipos");
-    const rows = await tx
+    return tx
       .select({
-        mes: sql<number>`EXTRACT(MONTH FROM ${facturas.fecha})::int`,
-        monto: sum(facturas.monto),
+        id: presupuestos.id,
+        anio: presupuestos.anio,
+        mes: presupuestos.mes,
+        sucursalId: presupuestos.sucursalId,
+        monto: presupuestos.monto,
+        ventasCcv: presupuestos.ventasCcv,
+        ventasXibi: presupuestos.ventasXibi,
+        ventasEstrategicas: presupuestos.ventasEstrategicas,
       })
-      .from(facturas)
-      .where(
-        and(
-          gte(facturas.fecha, `${data.anio}-01-01`),
-          lt(facturas.fecha, `${data.anio + 1}-01-01`),
-          eq(facturas.unidadNegocioId, unitId),
-        ),
-      )
-      .groupBy(sql`EXTRACT(MONTH FROM ${facturas.fecha})`);
-
-    return rows.map((r) => ({
-      mes: Number(r.mes),
-      monto: Number(r.monto ?? 0),
-    }));
-  });
-}
-
-export async function getEquiposPresupuestoAction(data: { anio: number; meses: MonthFilter }) {
-  return withAuth(async ({ tx }) => {
-    const unitId = await unidadId("equipos");
-    const rows = await tx
-      .select({ monto: sum(presupuestos.monto) })
       .from(presupuestos)
       .where(
         and(
           eq(presupuestos.anio, data.anio),
           mesCond(presupuestos.mes, data.meses, data.anio),
-          eq(presupuestos.unidadNegocioId, unitId),
+          data.sucursal !== "all" ? eq(presupuestos.sucursalId, data.sucursal) : undefined,
+          eq(presupuestos.unidadNegocioId, await unidadId("equipos")),
         ),
       );
-
-    return rows.map((r) => ({ monto: Number(r.monto ?? 0) }));
   });
 }
 
@@ -108,5 +102,28 @@ export async function getEquiposClientesCobroAction() {
       monto: String(r.monto ?? 0),
       saldo: String(r.saldo ?? 0),
     }));
+  });
+}
+
+// Participación por marca — hoja "Detalles de Ventas Equipos" (Generac, CAT, EP, Weichai...)
+export async function getEquiposPorMarcaAction(data: { anio: number; meses: MonthFilter }) {
+  return withAuth(async ({ tx }) => {
+    return tx
+      .select()
+      .from(equiposPorMarca)
+      .where(
+        and(
+          eq(equiposPorMarca.anio, data.anio),
+          mesCond(equiposPorMarca.mes, data.meses, data.anio),
+        ),
+      );
+  });
+}
+
+// Inventario disponible/tránsito por marca + tipo de equipo — snapshot semanal.
+export async function getEquiposInventarioAction() {
+  return withAuth(async ({ tx }) => {
+    const unitId = await unidadId("equipos");
+    return tx.select().from(equiposInventario).where(eq(equiposInventario.unidadNegocioId, unitId));
   });
 }

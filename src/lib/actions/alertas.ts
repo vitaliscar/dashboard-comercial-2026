@@ -17,14 +17,20 @@ function unitCond(col: SQLWrapper, unidades: string[]) {
   return unidades.length > 0 ? inArray(col, unidades) : undefined;
 }
 
+function sucursalCond(col: SQLWrapper, sucursales: string[]) {
+  return sucursales.length > 0 ? inArray(col, sucursales) : undefined;
+}
+
 export async function getAlertasSourcesAction(data: {
   anio: number;
   meses: MonthFilter;
   unidades: string[];
+  sucursales?: string[];
   ranges: DateRange[];
 }) {
   return withAuth(async ({ tx }) => {
     const { anio, meses, unidades, ranges } = data;
+    const sucursales = data.sucursales ?? [];
     const from60 = new Date();
     from60.setDate(from60.getDate() - 60);
     const from60Str = from60.toISOString().slice(0, 10);
@@ -50,7 +56,13 @@ export async function getAlertasSourcesAction(data: {
           unidadNegocioId: cobranzas.unidadNegocioId,
         })
         .from(cobranzas)
-        .where(and(gt(cobranzas.saldo, "0"), unitCond(cobranzas.unidadNegocioId, unidades))),
+        .where(
+          and(
+            gt(cobranzas.saldo, "0"),
+            unitCond(cobranzas.unidadNegocioId, unidades),
+            sucursalCond(cobranzas.sucursalId, sucursales),
+          ),
+        ),
       tx
         .select({
           id: ventasPerdidas.id,
@@ -65,6 +77,7 @@ export async function getAlertasSourcesAction(data: {
           and(
             gte(ventasPerdidas.fecha, from60Str),
             unitCond(ventasPerdidas.unidadNegocioId, unidades),
+            sucursalCond(ventasPerdidas.sucursalId, sucursales),
           ),
         ),
       tx
@@ -78,7 +91,12 @@ export async function getAlertasSourcesAction(data: {
           unidadNegocioId: minutas.unidadNegocioId,
         })
         .from(minutas)
-        .where(unitCond(minutas.unidadNegocioId, unidades)),
+        .where(
+          and(
+            unitCond(minutas.unidadNegocioId, unidades),
+            sucursalCond(minutas.sucursalId, sucursales),
+          ),
+        ),
       tx
         .select({
           id: cumplimientoAsesores.id,
@@ -95,6 +113,7 @@ export async function getAlertasSourcesAction(data: {
             eq(cumplimientoAsesores.anio, anio),
             mesCond,
             unitCond(cumplimientoAsesores.unidadNegocioId, unidades),
+            sucursalCond(cumplimientoAsesores.sucursalId, sucursales),
           ),
         ),
       tx
@@ -112,6 +131,7 @@ export async function getAlertasSourcesAction(data: {
           and(
             dateRangeCondition(cotizaciones.fecha, ranges),
             unitCond(cotizaciones.unidadNegocioId, unidades),
+            sucursalCond(cotizaciones.sucursalId, sucursales),
           ),
         ),
       tx
@@ -127,6 +147,7 @@ export async function getAlertasSourcesAction(data: {
           and(
             dateRangeCondition(facturas.fecha, ranges),
             unitCond(facturas.unidadNegocioId, unidades),
+            sucursalCond(facturas.sucursalId, sucursales),
           ),
         ),
     ]);

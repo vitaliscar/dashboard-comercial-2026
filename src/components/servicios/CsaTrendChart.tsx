@@ -1,5 +1,14 @@
 import { memo } from "react";
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip } from "recharts";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  LabelList,
+} from "recharts";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -64,6 +73,14 @@ export const CsaTrendChart = memo(function CsaTrendChart({
                       />
                     );
                   })}
+                  <LabelList
+                    dataKey="monto"
+                    position="top"
+                    fontSize={10}
+                    fontWeight={700}
+                    fill="var(--color-foreground)"
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

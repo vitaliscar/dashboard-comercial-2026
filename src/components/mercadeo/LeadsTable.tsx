@@ -37,7 +37,7 @@ export function LeadsTable({ rows }: { rows: LeadDetalle[] }) {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por cliente, contacto, correo…"
-          className="w-[280px]"
+          className="w-70"
         />
       </CardHeader>
       <CardContent className="overflow-x-auto">

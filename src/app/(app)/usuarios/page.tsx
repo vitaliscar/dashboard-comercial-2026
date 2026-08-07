@@ -63,10 +63,10 @@ import { cn } from "@/lib/utils";
 const ROLES: AppRole[] = ["gerencia", "gerente_comercial", "coordinador", "asesor"];
 
 const ROLE_COLORS: Record<AppRole, string> = {
-  gerencia: "bg-violet-500/10 text-violet-600 border-violet-500/20",
-  gerente_comercial: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  coordinador: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-  asesor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  gerencia: "bg-primary/10 text-primary border-primary/20",
+  gerente_comercial: "bg-accent/10 text-accent border-accent/20",
+  coordinador: "bg-warning/10 text-warning border-warning/20",
+  asesor: "bg-success/10 text-success border-success/20",
 };
 
 type ProfileRow = {
@@ -81,7 +81,15 @@ type ProfileRow = {
 
 // ─── Initials avatar ─────────────────────────────────────────────────────────
 
-function Avatar({ name, email, isActive }: { name?: string | null; email?: string | null; isActive?: boolean }) {
+function Avatar({
+  name,
+  email,
+  isActive,
+}: {
+  name?: string | null;
+  email?: string | null;
+  isActive?: boolean;
+}) {
   const text = name?.trim() || email?.trim() || "?";
   const initials = text
     .split(" ")
@@ -90,12 +98,12 @@ function Avatar({ name, email, isActive }: { name?: string | null; email?: strin
     .join("");
 
   const colors = [
-    "from-violet-500 to-purple-600",
-    "from-blue-500 to-cyan-600",
-    "from-amber-500 to-orange-600",
-    "from-emerald-500 to-teal-600",
-    "from-rose-500 to-pink-600",
-    "from-indigo-500 to-blue-600",
+    "from-primary to-primary/70",
+    "from-accent to-accent/70",
+    "from-warning to-warning/70",
+    "from-success to-success/70",
+    "from-destructive/90 to-destructive/70",
+    "from-foreground/50 to-foreground/35",
   ];
   const color = colors[(text.charCodeAt(0) ?? 0) % colors.length];
 
@@ -179,7 +187,7 @@ function UserCard({
             )}
 
             {profile.isAdmin && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-violet-500/10 text-violet-600 border-violet-500/20">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/20">
                 <Shield className="size-2.5" /> Admin
               </span>
             )}
@@ -245,30 +253,40 @@ function EditUserDialog({
   };
 
   const setRole = useMutation({
-    mutationFn: (newRole: AppRole) =>
-      setUserRoleAction({ userId: profile!.id, newRole }),
-    onSuccess: () => { toast.success("Rol actualizado"); invalidate(); },
+    mutationFn: (newRole: AppRole) => setUserRoleAction({ userId: profile!.id, newRole }),
+    onSuccess: () => {
+      toast.success("Rol actualizado");
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const setSucursal = useMutation({
     mutationFn: (sucursalId: string | null) =>
       setProfileSucursalAction({ userId: profile!.id, sucursalId }),
-    onSuccess: () => { toast.success("Sucursal asignada"); invalidate(); },
+    onSuccess: () => {
+      toast.success("Sucursal asignada");
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const setAdmin = useMutation({
-    mutationFn: (val: boolean) =>
-      setProfileAdminAction({ userId: profile!.id, isAdmin: val }),
-    onSuccess: () => { toast.success("Privilegios actualizados"); invalidate(); },
+    mutationFn: (val: boolean) => setProfileAdminAction({ userId: profile!.id, isAdmin: val }),
+    onSuccess: () => {
+      toast.success("Privilegios actualizados");
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const toggleUnidad = useMutation({
     mutationFn: ({ unidadId, checked }: { unidadId: string; checked: boolean }) =>
       toggleProfileUnidadAction({ profileId: profile!.id, unidadId, checked }),
-    onSuccess: () => { toast.success("Unidades actualizadas"); invalidate(); },
+    onSuccess: () => {
+      toast.success("Unidades actualizadas");
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -305,7 +323,10 @@ function EditUserDialog({
   if (!profile) return null;
 
   const initials = (profile.nombreCompleto || profile.email || "?")
-    .split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
 
   return (
     <>
@@ -341,7 +362,7 @@ function EditUserDialog({
                 </span>
               </div>
               {profile.isAdmin && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                   <Shield className="size-3" /> Administrador
                 </span>
               )}
@@ -349,17 +370,18 @@ function EditUserDialog({
 
             {/* Rol */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rol</Label>
-              <Select
-                value={currentRole}
-                onValueChange={(v) => setRole.mutate(v as AppRole)}
-              >
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Rol
+              </Label>
+              <Select value={currentRole} onValueChange={(v) => setRole.mutate(v as AppRole)}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Sin rol asignado" />
                 </SelectTrigger>
                 <SelectContent>
                   {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>
+                    <SelectItem key={r} value={r}>
+                      {roleLabel(r)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -367,7 +389,9 @@ function EditUserDialog({
 
             {/* Sucursal */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sucursal asignada</Label>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Sucursal asignada
+              </Label>
               <Select
                 value={profile.sucursalId ?? "none"}
                 onValueChange={(v) => setSucursal.mutate(v === "none" ? null : v)}
@@ -378,7 +402,9 @@ function EditUserDialog({
                 <SelectContent>
                   <SelectItem value="none">Sin sucursal</SelectItem>
                   {sucursales.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nombre}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -387,7 +413,9 @@ function EditUserDialog({
             {/* Unidades asignadas */}
             {unidades.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Unidades de negocio</Label>
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Unidades de negocio
+                </Label>
                 <div className="grid grid-cols-2 gap-2">
                   {unidades.map((u) => {
                     const checked = assignedUnidadIds.includes(u.id);
@@ -413,16 +441,15 @@ function EditUserDialog({
             {/* Admin toggle */}
             <div className="flex items-center justify-between p-3 rounded-lg border border-border">
               <div className="flex items-center gap-2">
-                <Shield className="size-4 text-violet-500" />
+                <Shield className="size-4 text-primary" />
                 <div>
                   <p className="text-sm font-medium">Administrador</p>
-                  <p className="text-xs text-muted-foreground">Acceso total sin restricciones de RLS</p>
+                  <p className="text-xs text-muted-foreground">
+                    Acceso total sin restricciones de RLS
+                  </p>
                 </div>
               </div>
-              <Checkbox
-                checked={profile.isAdmin}
-                onCheckedChange={(c) => setAdmin.mutate(!!c)}
-              />
+              <Checkbox checked={profile.isAdmin} onCheckedChange={(c) => setAdmin.mutate(!!c)} />
             </div>
 
             {/* Acciones peligrosas */}
@@ -438,7 +465,12 @@ function EditUserDialog({
               <Button
                 variant="outline"
                 size="sm"
-                className={cn("gap-1.5", isActive ? "text-amber-600 border-amber-300 hover:bg-amber-50" : "text-emerald-600 border-emerald-300 hover:bg-emerald-50")}
+                className={cn(
+                  "gap-1.5",
+                  isActive
+                    ? "text-amber-600 border-amber-300 hover:bg-amber-50"
+                    : "text-emerald-600 border-emerald-300 hover:bg-emerald-50",
+                )}
                 onClick={() => toggleActive.mutate()}
                 disabled={toggleActive.isPending}
               >
@@ -479,7 +511,9 @@ function EditUserDialog({
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResetPwOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setResetPwOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               onClick={() => resetPw.mutate()}
               disabled={newPassword.length < 8 || resetPw.isPending}
@@ -504,7 +538,9 @@ function EditUserDialog({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-2">
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               variant="destructive"
               onClick={() => deleteUser.mutate()}
@@ -557,7 +593,14 @@ function CreateUserDialog({
       }),
     onSuccess: () => {
       toast.success("Usuario creado correctamente");
-      setForm({ email: "", password: "", nombreCompleto: "", role: "asesor", sucursalId: "", unidadNegocioId: "" });
+      setForm({
+        email: "",
+        password: "",
+        nombreCompleto: "",
+        role: "asesor",
+        sucursalId: "",
+        unidadNegocioId: "",
+      });
       qc.invalidateQueries({ queryKey: ["usuarios-data"] });
       onCreated();
     },
@@ -614,21 +657,28 @@ function CreateUserDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>
+                    <SelectItem key={r} value={r}>
+                      {roleLabel(r)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Sucursal</Label>
-              <Select value={form.sucursalId || "none"} onValueChange={(v) => field("sucursalId", !v || v === "none" ? "" : v)}>
+              <Select
+                value={form.sucursalId || "none"}
+                onValueChange={(v) => field("sucursalId", !v || v === "none" ? "" : v)}
+              >
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Ninguna" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Ninguna</SelectItem>
                   {sucursales.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nombre}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -636,14 +686,19 @@ function CreateUserDialog({
             {unidades.length > 0 && (
               <div className="col-span-2 space-y-1.5">
                 <Label>Unidad de negocio (principal)</Label>
-                <Select value={form.unidadNegocioId || "none"} onValueChange={(v) => field("unidadNegocioId", !v || v === "none" ? "" : v)}>
+                <Select
+                  value={form.unidadNegocioId || "none"}
+                  onValueChange={(v) => field("unidadNegocioId", !v || v === "none" ? "" : v)}
+                >
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Ninguna" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Ninguna</SelectItem>
                     {unidades.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.nombre}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -653,12 +708,18 @@ function CreateUserDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button
             onClick={() => create.mutate()}
             disabled={!form.email || !form.password || form.password.length < 8 || create.isPending}
           >
-            {create.isPending ? <Spinner className="size-4 mr-2" /> : <Plus className="size-4 mr-2" />}
+            {create.isPending ? (
+              <Spinner className="size-4 mr-2" />
+            ) : (
+              <Plus className="size-4 mr-2" />
+            )}
             Crear usuario
           </Button>
         </DialogFooter>
@@ -713,22 +774,31 @@ export default function UsuariosPage() {
       (p) =>
         p.nombreCompleto?.toLowerCase().includes(q) ||
         p.email?.toLowerCase().includes(q) ||
-        roleLabel(rolesMap.get(p.id) ?? null).toLowerCase().includes(q),
+        roleLabel(rolesMap.get(p.id) ?? null)
+          .toLowerCase()
+          .includes(q),
     );
   }, [profilesList, rolesMap, search]);
 
   const selectedProfile = profilesList.find((p) => p.id === selectedId) ?? null;
   const selectedRole = selectedProfile ? rolesMap.get(selectedProfile.id) : undefined;
-  const selectedIsActive = selectedProfile ? (usersMap.get(selectedProfile.id)?.isActive ?? true) : true;
+  const selectedIsActive = selectedProfile
+    ? (usersMap.get(selectedProfile.id)?.isActive ?? true)
+    : true;
   const selectedUnidadIds = selectedProfile
-    ? profileUnidades.filter((pu) => pu.profileId === selectedProfile.id).map((pu) => pu.unidadNegocioId)
+    ? profileUnidades
+        .filter((pu) => pu.profileId === selectedProfile.id)
+        .map((pu) => pu.unidadNegocioId)
     : [];
 
   // Stats
   const totalActive = profilesList.filter((p) => usersMap.get(p.id)?.isActive ?? true).length;
   const totalAdmins = profilesList.filter((p) => p.isAdmin).length;
   const roleCount = ROLES.reduce(
-    (acc, r) => { acc[r] = profilesList.filter((p) => rolesMap.get(p.id) === r).length; return acc; },
+    (acc, r) => {
+      acc[r] = profilesList.filter((p) => rolesMap.get(p.id) === r).length;
+      return acc;
+    },
     {} as Record<AppRole, number>,
   );
 
@@ -759,19 +829,19 @@ export default function UsuariosPage() {
         </div>
         <div className="card-elevated p-4 rounded-xl flex flex-col gap-1">
           <p className="text-xs text-muted-foreground font-medium">Administradores</p>
-          <p className="text-2xl font-bold font-display text-violet-600">{totalAdmins}</p>
+          <p className="text-2xl font-bold font-display text-primary">{totalAdmins}</p>
           <p className="text-[11px] text-muted-foreground">con acceso total</p>
         </div>
         <div className="card-elevated p-4 rounded-xl flex flex-col gap-1">
           <p className="text-xs text-muted-foreground font-medium">Gerentes</p>
-          <p className="text-2xl font-bold font-display text-blue-600">
+          <p className="text-2xl font-bold font-display text-accent">
             {(roleCount.gerencia ?? 0) + (roleCount.gerente_comercial ?? 0)}
           </p>
           <p className="text-[11px] text-muted-foreground">nacional + comercial</p>
         </div>
         <div className="card-elevated p-4 rounded-xl flex flex-col gap-1">
           <p className="text-xs text-muted-foreground font-medium">Asesores</p>
-          <p className="text-2xl font-bold font-display text-emerald-600">
+          <p className="text-2xl font-bold font-display text-success">
             {(roleCount.asesor ?? 0) + (roleCount.coordinador ?? 0)}
           </p>
           <p className="text-[11px] text-muted-foreground">+ coordinadores</p>
@@ -797,7 +867,9 @@ export default function UsuariosPage() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
           <Users className="size-10 opacity-30" />
-          <p className="text-sm">{search ? "Sin resultados para la búsqueda" : "No hay usuarios registrados"}</p>
+          <p className="text-sm">
+            {search ? "Sin resultados para la búsqueda" : "No hay usuarios registrados"}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -806,7 +878,9 @@ export default function UsuariosPage() {
               key={p.id}
               profile={p}
               role={rolesMap.get(p.id)}
-              sucursalName={p.sucursalId ? (sucursalesMap.get(p.sucursalId) ?? undefined) : undefined}
+              sucursalName={
+                p.sucursalId ? (sucursalesMap.get(p.sucursalId) ?? undefined) : undefined
+              }
               unidadesCount={profileUnidades.filter((pu) => pu.profileId === p.id).length}
               isActive={usersMap.get(p.id)?.isActive ?? true}
               onClick={() => setSelectedId(p.id)}

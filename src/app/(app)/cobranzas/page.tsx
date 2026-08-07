@@ -11,7 +11,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
-import { useUnidades } from "@/hooks/use-catalogos";
+import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Wallet,
@@ -64,6 +64,7 @@ export default function CobranzasPage() {
   const [q, setQ] = useState("");
   const { filters, setFilters } = useSharedFilters();
   const selectedUnidades = filters.unidades;
+  const selectedSucursales = filters.sucursales;
 
   const { data: unidades } = useUnidades();
   const unitOptions = useMemo(() => {
@@ -71,17 +72,27 @@ export default function CobranzasPage() {
     return unidades.map((u) => ({ value: u.id, label: u.nombre }));
   }, [unidades]);
 
+  const { data: sucursalesData } = useSucursales();
+  const sucursalOptions = useMemo(() => {
+    if (!sucursalesData) return [];
+    return sucursalesData.map((s) => ({ value: s.id, label: s.nombre }));
+  }, [sucursalesData]);
+
   const handleSelectAllUnits = () => setFilters({ unidades: [] });
   const handleUnitSelectionChange = (unitIds: string[]) => setFilters({ unidades: unitIds });
 
+  const handleSelectAllSucursales = () => setFilters({ sucursales: [] });
+  const handleSucursalSelectionChange = (sucursalIds: string[]) =>
+    setFilters({ sucursales: sucursalIds });
+
   const { data, isLoading } = useQuery({
-    queryKey: ["cobranzas", selectedUnidades],
-    queryFn: () => getCobranzasAction({ selectedUnidades }),
+    queryKey: ["cobranzas", selectedUnidades, selectedSucursales],
+    queryFn: () => getCobranzasAction({ selectedUnidades, selectedSucursales }),
   });
 
   const { data: compData, isLoading: compLoading } = useQuery({
-    queryKey: ["cobranzas-comparison", selectedUnidades],
-    queryFn: () => getCobranzasComparisonAction({ selectedUnidades }),
+    queryKey: ["cobranzas-comparison", selectedUnidades, selectedSucursales],
+    queryFn: () => getCobranzasComparisonAction({ selectedUnidades, selectedSucursales }),
   });
 
   const enriched = useMemo(() => {
@@ -191,6 +202,47 @@ export default function CobranzasPage() {
         </div>
       )}
 
+      {sucursalOptions.length > 1 && (
+        <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
+          <span className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
+            Filtrar por sucursal:
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant={selectedSucursales.length === 0 ? "default" : "outline"}
+              size="sm"
+              onClick={handleSelectAllSucursales}
+              className={cn(
+                "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
+                selectedSucursales.length === 0
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : "text-muted-foreground",
+              )}
+            >
+              Todas
+            </Button>
+            <ToggleGroup
+              multiple
+              value={selectedSucursales}
+              onValueChange={handleSucursalSelectionChange}
+              spacing={2}
+            >
+              {sucursalOptions.map((opt) => (
+                <ToggleGroupItem
+                  key={opt.value}
+                  value={opt.value}
+                  variant="outline"
+                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:border-border border border-transparent"
+                >
+                  {opt.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </div>
+      )}
+
       {/* 2 KPI CARDS GRANDES */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard
@@ -244,7 +296,7 @@ export default function CobranzasPage() {
           Cargando tendencia semanal…
         </div>
       ) : !compData?.tieneHistorico ? (
-        <div className="card-elevated p-5 border-l-4 border-l-primary flex items-start gap-3">
+        <div className="card-elevated p-5 bg-primary/5 ring-1 ring-primary/15 flex items-start gap-3">
           <AlertCircle className="size-5 text-primary shrink-0 mt-0.5" />
           <div>
             <h4 className="font-display font-semibold text-sm">Tendencia Semanal</h4>

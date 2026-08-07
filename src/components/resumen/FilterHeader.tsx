@@ -74,10 +74,11 @@ export function FilterHeader({
   defaultUnits,
 }: FilterHeaderProps) {
   const { role, profile } = useAuth();
-  const today = new Date();
-  const [selectedMonths, setSelectedMonths] = useState<number[] | "all">(
-    defaultMes ?? [today.getMonth() + 1],
-  );
+  // No usar new Date() en el estado inicial: SSR y la primera pintada del
+  // cliente deben coincidir (hydration). Si defaultMes no llegó todavía,
+  // "all" es un placeholder determinístico — el useEffect de abajo lo
+  // corrige apenas defaultMes esté disponible.
+  const [selectedMonths, setSelectedMonths] = useState<number[] | "all">(defaultMes ?? "all");
   const [anio, setAnio] = useState(defaultAnio);
   const [sucursal, setSucursal] = useState(defaultSucursal ?? "all");
   const [selectedSucursales, setSelectedSucursales] = useState<string[]>([]);
@@ -239,7 +240,7 @@ export function FilterHeader({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
-              {Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i).map((y) => (
+              {Array.from({ length: 5 }, (_, i) => defaultAnio - 2 + i).map((y) => (
                 <SelectItem key={y} value={String(y)}>
                   {y}
                 </SelectItem>
@@ -290,6 +291,7 @@ export function FilterHeader({
           <Field orientation="horizontal" className="w-auto gap-2">
             <FieldLabel className={FILTER_LABEL_CLASS}>Sucursal</FieldLabel>
             <Select
+              items={[{ value: "all", label: "Todas" }, ...resolvedSucursalOptions]}
               value={sucursal}
               onValueChange={(v) => setSucursal(v ?? "")}
               disabled={resolvedSucursalOptions.length === 1}
@@ -319,7 +321,10 @@ export function FilterHeader({
       </div>
 
       {/* ── Row 2: Unit chips ────────────────────────────────────────── */}
-      {resolvedUnitOptions && resolvedUnitOptions.length > 0 && (
+      {/* Con 1 sola unidad asignada (gerente comercial de una sola unidad,
+          p.ej. Repuestos, Servicios o Lub/Filtros) no hay nada entre qué
+          navegar, así que el filtro no aporta — solo se muestra con 2+. */}
+      {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
         <div className="bg-card border border-t-0 border-border rounded-b-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
           <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
           <div className="flex flex-wrap items-center gap-2">

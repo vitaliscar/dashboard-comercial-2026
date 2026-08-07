@@ -9,8 +9,9 @@ import {
   getEmbudoPresupuestosAnioAction,
   getEmbudoTotalesAction,
 } from "@/lib/actions/embudo";
+import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
-import { useUnidades } from "@/hooks/use-catalogos";
+import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { money, pct, MESES } from "@/lib/format";
 import { getAllMonthsCap, getAllowedMonths } from "@/lib/date-range";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
@@ -32,37 +33,56 @@ import {
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 
 export default function EmbudoPage() {
+  const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
-  const { anio, meses, unidades: selectedUnidades } = filters;
+  const { anio, meses, unidades: selectedUnidades, sucursales: selectedSucursales } = filters;
 
   const handleApplyFilters = (f: FilterState) => {
     setFilters({
       anio: f.anio,
       meses: f.meses,
+      sucursales: f.sucursales ?? (f.sucursal ? [f.sucursal] : []),
       unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
     });
   };
 
   const { data: unidades } = useUnidades();
+  const { data: sucursales } = useSucursales();
+
+  const sucursalOptions = useMemo(() => {
+    if (!sucursales) return [];
+    return sucursales.map((s) => ({ value: s.id, label: s.nombre }));
+  }, [sucursales]);
 
   const { data: cotizacionesAnio } = useQuery({
-    queryKey: ["embudo-cotizaciones-anio", anio, selectedUnidades],
-    queryFn: () => getEmbudoCotizacionesAnioAction({ anio, unidades: selectedUnidades }),
+    queryKey: ["embudo-cotizaciones-anio", anio, selectedUnidades, selectedSucursales],
+    queryFn: () =>
+      getEmbudoCotizacionesAnioAction({
+        anio,
+        unidades: selectedUnidades,
+        sucursales: selectedSucursales,
+      }),
   });
 
   const { data: presupuestosAnio } = useQuery({
-    queryKey: ["embudo-presupuestos-anio", anio, selectedUnidades],
-    queryFn: () => getEmbudoPresupuestosAnioAction({ anio, unidades: selectedUnidades }),
+    queryKey: ["embudo-presupuestos-anio", anio, selectedUnidades, selectedSucursales],
+    queryFn: () =>
+      getEmbudoPresupuestosAnioAction({
+        anio,
+        unidades: selectedUnidades,
+        sucursales: selectedSucursales,
+      }),
   });
 
   const { data: funnelTotalsRaw, isLoading } = useQuery({
-    queryKey: ["embudo-totales", anio, JSON.stringify(meses), selectedUnidades],
+    queryKey: ["embudo-totales", anio, JSON.stringify(meses), selectedUnidades, selectedSucursales],
     queryFn: () => {
       const allowedMonths = getAllowedMonths(anio, meses);
       return getEmbudoTotalesAction({
         anio,
         meses: allowedMonths,
         unidades: selectedUnidades,
+        sucursales: selectedSucursales,
       });
     },
   });
@@ -152,6 +172,8 @@ export default function EmbudoPage() {
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         unitOptions={unidades?.map((u) => ({ value: u.id, label: u.nombre }))}
+        sucursalOptions={sucursalOptions}
+        sucursalMulti={role === "gerencia"}
         defaultMes={meses}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}

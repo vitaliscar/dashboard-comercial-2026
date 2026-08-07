@@ -94,6 +94,13 @@ export default function MinutasPage() {
     queryFn: () => getMinutasAction() as Promise<Minuta[]>,
   });
 
+  const [sucursalFilter, setSucursalFilter] = useState<string>("all");
+
+  const minutasFiltradas = useMemo(() => {
+    if (sucursalFilter === "all") return minutas ?? [];
+    return (minutas ?? []).filter((m) => m.sucursalId === sucursalFilter);
+  }, [minutas, sucursalFilter]);
+
   const [form, setForm] = useState({
     fecha: new Date().toISOString().slice(0, 10),
     cliente: "",
@@ -184,13 +191,13 @@ export default function MinutasPage() {
   const unidadNombre = (id?: string | null) => unidades?.find((u) => u.id === id)?.nombre ?? "—";
 
   const resumen = useMemo(() => {
-    const rows = minutas ?? [];
+    const rows = minutasFiltradas;
     const pendientes = rows.filter((m) => m.estado === "pendiente").length;
     const enProceso = rows.filter((m) => m.estado === "en_proceso").length;
     const cumplidas = rows.filter((m) => m.estado === "cumplido").length;
     const cumplimiento = rows.length > 0 ? (cumplidas / rows.length) * 100 : 0;
     return { total: rows.length, pendientes, enProceso, cumplidas, cumplimiento };
-  }, [minutas]);
+  }, [minutasFiltradas]);
 
   return (
     <div className="flex flex-col gap-6 max-w-400">
@@ -358,6 +365,34 @@ export default function MinutasPage() {
         />
       </div>
 
+      {sucursales && sucursales.length > 1 && (
+        <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-3 flex-wrap">
+          <Label className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
+            Filtrar por sucursal:
+          </Label>
+          <Select
+            items={[
+              { value: "all", label: "Todas" },
+              ...sucursales.map((s) => ({ value: s.id, label: s.nombre })),
+            ]}
+            value={sucursalFilter}
+            onValueChange={(v) => setSucursalFilter(v ?? "all")}
+          >
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {sucursales.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="card-elevated overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="text-sm">
@@ -402,7 +437,7 @@ export default function MinutasPage() {
                     </Empty>
                   </TableCell>
                 </TableRow>
-              ) : (minutas ?? []).length === 0 ? (
+              ) : minutasFiltradas.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={8} className="p-0">
                     <Empty>
@@ -416,7 +451,7 @@ export default function MinutasPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                (minutas ?? []).map((m) => (
+                minutasFiltradas.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell className="px-4 py-3 text-muted-foreground tabular-nums">
                       {m.fecha}

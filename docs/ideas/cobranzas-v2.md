@@ -24,6 +24,7 @@ Layout propuesto para no saturar la pantalla: KPIs de tendencia arriba (lo que c
 ## MVP Scope
 
 **Dentro:**
+
 - Ajustar el parser/loader de `cobranzas` a la nueva estructura del Excel (multi-línea por factura vía Giro, Total DO como monto, DIAS DE CREDITO).
 - Tabla `cobranzas_snapshots` + captura automática en cada `load-excel` antes del DELETE+INSERT de `cobranzas`.
 - KPI de tendencia semanal (vencido esta semana vs. semana anterior) + lista de 5 clientes que más empeoraron.

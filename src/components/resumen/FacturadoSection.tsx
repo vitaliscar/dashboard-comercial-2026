@@ -45,13 +45,18 @@ export function FacturadoSection({
   const totalFacturado = datos.reduce((sum, d) => sum + d.monto, 0);
   const showSummary = part !== "detail";
   const showDetail = part !== "summary";
-  const compact = part === "summary";
-  const gridColsClass = compact
-    ? "grid-cols-1"
-    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+  // Una sola tarjeta activa (ej. gerente_comercial con una unidad) → ocupa todo
+  // el ancho en vez de quedar confinada a una columna angosta del auto-fit.
+  const compact = datosConActividad.length <= 1;
+  // auto-fit (no columnas fijas): con pocas unidades activas la tarjeta llena
+  // el ancho disponible en vez de quedar confinada a 1/5 de la fila.
+  const gridColsClass = compact ? "grid-cols-1" : "";
+  const gridColsStyle = compact
+    ? undefined
+    : { gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" };
 
   return (
-    <div className="mb-8 section-enter section-enter-2">
+    <div className={cn("section-enter section-enter-2", part ? "" : "mb-8")}>
       {showSummary && (
         <>
           {/* Section header */}
@@ -63,7 +68,7 @@ export function FacturadoSection({
           </div>
 
           {/* Business unit cards (con filtro de tipo cliente + margen por unidad) */}
-          <div className={cn("grid gap-3", gridColsClass)}>
+          <div className={cn("grid gap-3", gridColsClass)} style={gridColsStyle}>
             {datosConActividad.map((unidad) => {
               const filter = tipoClienteFilters[unidad.unidad] ?? "TODAS";
               const ppto = unidad.presupuestoTotal || 0;
@@ -127,8 +132,9 @@ export function FacturadoSection({
                     ))}
                   </div>
 
-                  {/* Margin */}
-                  <div className="bg-card rounded-lg border border-border p-3 flex items-center justify-between gap-1">
+                  {/* Margin — mismo alto (h-14) que la línea de tiempo de Cotizaciones,
+                      para calzar en la misma fila del grid de summary. */}
+                  <div className="bg-card rounded-lg border border-border px-3 h-14 flex items-center justify-between gap-1">
                     <p className="text-xs text-muted-foreground whitespace-nowrap">Margen Est.</p>
                     <p className="text-xs font-bold text-success tabular-nums">
                       {money(unidad.margenMonto)}
@@ -143,10 +149,8 @@ export function FacturadoSection({
 
       {showDetail && (
         <div
-          className={cn(
-            "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3",
-            showSummary ? "mt-4" : "",
-          )}
+          className={cn("grid gap-3", showSummary ? "mt-4" : "")}
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}
         >
           {datosConActividad.map((unidad) => (
             <div key={`table-${unidad.unidad}`}>
@@ -162,7 +166,7 @@ export function FacturadoSection({
                           key: "sucursal" as const,
                           label: "SUC",
                           format: "abbreviateSucursal" as const,
-                          width: "w-[40px]",
+                          width: "w-[52px]",
                         },
                       ]),
                   { key: "cliente", label: "Cliente", format: "text" as const, tooltip: true },

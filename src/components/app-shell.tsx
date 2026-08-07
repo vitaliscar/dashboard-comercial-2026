@@ -261,7 +261,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         role={open ? "dialog" : undefined}
         aria-modal={open ? "true" : undefined}
         className={cn(
-          "no-print fixed lg:sticky top-0 z-40 h-screen w-[220px] flex flex-col overflow-hidden",
+          "no-print fixed lg:sticky top-0 z-40 h-screen w-55 flex flex-col overflow-hidden",
           "bg-sidebar border-r border-sidebar-border",
           "transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
           // Mobile: slide in/out
@@ -280,7 +280,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0">
           {navGroups.map((group, i) => (
             <div key={group.title} className={cn("px-2", i > 0 && "mt-3")}>
               <p className="px-2 pb-1 text-[10px] font-display font-bold uppercase tracking-wider text-white/40">
@@ -298,10 +298,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                       className={cn(
                         "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm tracking-wide",
                         "transition-[background-color,color] duration-150 ease-out",
-                        "border-l-2",
                         active
-                          ? "border-l-primary bg-primary/10 text-white font-semibold"
-                          : "border-l-transparent text-white/70 hover:text-white hover:bg-sidebar-accent/60",
+                          ? "bg-primary/10 text-white font-semibold ring-1 ring-inset ring-primary/25"
+                          : "text-white/70 hover:text-white hover:bg-sidebar-accent/60",
                       )}
                     >
                       <n.icon
@@ -325,7 +324,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             href="/auth"
             onClick={handleSignOut}
             title="Cerrar sesión"
-            className="flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-white/70 hover:text-white hover:bg-sidebar-accent/60 transition-[background-color,color] duration-150 border-l-2 border-l-transparent"
+            className="flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-white/70 hover:text-white hover:bg-sidebar-accent/60 transition-[background-color,color] duration-150"
           >
             <LogOut className="size-4 shrink-0" />
             <span className="whitespace-nowrap">Cerrar sesión</span>
@@ -433,7 +432,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             {/* Sucursal badge */}
             <div
-              className="flex items-center gap-1.5 text-xs font-semibold text-foreground bg-accent/40 border border-border px-2 sm:px-2.5 py-1 rounded-md max-w-[120px] sm:max-w-[200px] truncate"
+              className="flex items-center gap-1.5 text-xs font-semibold text-foreground bg-accent/40 border border-border px-2 sm:px-2.5 py-1 rounded-md max-w-30 sm:max-w-50 truncate"
               title={`Sucursal: ${getSucursalLabel()}`}
             >
               <Building2 className="size-3.5 text-primary shrink-0 sm:hidden" />

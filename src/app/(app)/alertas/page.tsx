@@ -13,8 +13,9 @@ import {
   Target,
 } from "lucide-react";
 import { getAlertasSourcesAction } from "@/lib/actions/alertas";
+import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
-import { useUnidades } from "@/hooks/use-catalogos";
+import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { money } from "@/lib/format";
 import { getDateRangesForMonths } from "@/lib/date-range";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
@@ -53,8 +54,9 @@ type AlertRow = {
 };
 
 export default function AlertasPage() {
+  const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
-  const { anio, meses, unidades: selectedUnidades } = filters;
+  const { anio, meses, unidades: selectedUnidades, sucursales: selectedSucursales } = filters;
 
   const dateRanges = useMemo(() => getDateRangesForMonths(anio, meses), [anio, meses]);
 
@@ -62,16 +64,35 @@ export default function AlertasPage() {
     setFilters({
       anio: f.anio,
       meses: f.meses,
+      sucursales: f.sucursales ?? (f.sucursal ? [f.sucursal] : []),
       unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
     });
   };
 
   const { data: unidades } = useUnidades();
+  const { data: sucursales } = useSucursales();
+
+  const sucursalOptions = useMemo(() => {
+    if (!sucursales) return [];
+    return sucursales.map((s) => ({ value: s.id, label: s.nombre }));
+  }, [sucursales]);
 
   const { data: sources, isLoading } = useQuery({
-    queryKey: ["alertas-sources", anio, JSON.stringify(meses), selectedUnidades],
+    queryKey: [
+      "alertas-sources",
+      anio,
+      JSON.stringify(meses),
+      selectedUnidades,
+      selectedSucursales,
+    ],
     queryFn: () =>
-      getAlertasSourcesAction({ anio, meses, unidades: selectedUnidades, ranges: dateRanges }),
+      getAlertasSourcesAction({
+        anio,
+        meses,
+        unidades: selectedUnidades,
+        sucursales: selectedSucursales,
+        ranges: dateRanges,
+      }),
   });
 
   const alertas = useMemo<AlertRow[]>(() => {
@@ -325,6 +346,8 @@ export default function AlertasPage() {
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         unitOptions={unidades?.map((u) => ({ value: u.id, label: u.nombre }))}
+        sucursalOptions={sucursalOptions}
+        sucursalMulti={role === "gerencia"}
         defaultMes={meses}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}
@@ -369,26 +392,26 @@ export default function AlertasPage() {
             {alertas.length} avisos activos
           </span>
         </div>
-        <div className="overflow-x-auto max-h-140">
+        <div className="[&_[data-slot=table-container]]:max-h-140 [&_[data-slot=table-container]]:overflow-y-auto">
           <Table className="text-sm">
-            <TableHeader className="bg-primary sticky top-0 [&_tr]:border-b-0">
+            <TableHeader className="bg-primary [&_tr]:border-b-0 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
+                <TableHead className="bg-primary text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
                   Importancia
                 </TableHead>
-                <TableHead className="text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
+                <TableHead className="bg-primary text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
                   Área
                 </TableHead>
-                <TableHead className="text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
+                <TableHead className="bg-primary text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
                   Qué pasa
                 </TableHead>
-                <TableHead className="text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
+                <TableHead className="bg-primary text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
                   Detalle
                 </TableHead>
-                <TableHead className="text-primary-foreground text-right px-4 py-2.5 text-xs tracking-wider">
+                <TableHead className="bg-primary text-primary-foreground text-right px-4 py-2.5 text-xs tracking-wider">
                   Monto
                 </TableHead>
-                <TableHead className="text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
+                <TableHead className="bg-primary text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
                   Qué hacer
                 </TableHead>
               </TableRow>

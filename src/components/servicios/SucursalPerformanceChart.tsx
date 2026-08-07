@@ -52,10 +52,10 @@ export const SucursalPerformanceChart = memo(function SucursalPerformanceChart({
   const sorted = [...data].sort((a, b) => b.pctCumplimiento - a.pctCumplimiento);
 
   return (
-    <Card className="ring-0 card-elevated flex flex-col h-full">
+    <Card className="ring-0 card-elevated h-full">
       <CardHeader>
         <CardTitle className="font-display font-semibold">{title}</CardTitle>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-1">
           {(Object.keys(STATUS_LABEL) as (keyof typeof STATUS_LABEL)[]).map((status) => (
             <span key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span
@@ -67,13 +67,13 @@ export const SucursalPerformanceChart = memo(function SucursalPerformanceChart({
           ))}
         </div>
       </CardHeader>
-      <CardContent className="flex-1 min-h-[320px]">
+      <CardContent className="flex flex-1 flex-col">
         {sorted.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+          <div className="flex h-[280px] flex-1 items-center justify-center text-xs text-muted-foreground">
             Sin datos de sucursales
           </div>
         ) : (
-          <div className="h-80 w-full">
+          <div className="min-h-[280px] w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={sorted}

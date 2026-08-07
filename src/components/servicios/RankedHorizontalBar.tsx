@@ -2,7 +2,7 @@ import { memo } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export type RankedRow = { label: string; value: number };
+export type RankedRow = { label: string; value: number; pct?: number };
 
 type Props = {
   data: RankedRow[];
@@ -21,6 +21,8 @@ type Props = {
  */
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 
+const CHART_HEIGHT = 280;
+
 export const RankedHorizontalBar = memo(function RankedHorizontalBar({
   data,
   title,
@@ -38,18 +40,21 @@ export const RankedHorizontalBar = memo(function RankedHorizontalBar({
         <CardTitle className="font-display font-semibold">{title}</CardTitle>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </CardHeader>
+      {/* Altura explícita en el contenedor del chart (no h-full): la tarjeta
+          puede usarse fuera de un grid que la estire, y ahí h-full resuelve a 0
+          y Recharts no dibuja nada ("width(-1) and height(-1)"). */}
       <CardContent className="flex-1 min-h-[260px]">
         {sorted.length === 0 ? (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
             {emptyLabel}
           </div>
         ) : (
-          <div className="h-full min-h-[260px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="w-full min-w-0" style={{ height: CHART_HEIGHT }}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
               <BarChart
                 data={sorted}
                 layout="vertical"
-                margin={{ top: 10, right: 45, left: 10, bottom: 0 }}
+                margin={{ top: 10, right: 90, left: 10, bottom: 0 }}
               >
                 <XAxis type="number" tick={false} axisLine={false} tickLine={false} />
                 <YAxis
@@ -60,7 +65,14 @@ export const RankedHorizontalBar = memo(function RankedHorizontalBar({
                   width={130}
                 />
                 <Tooltip
-                  formatter={((v: unknown) => valueFormatter(Number(v))) as never}
+                  formatter={
+                    ((_v: unknown, _n: string, item: { payload: RankedRow }) => [
+                      item.payload.pct !== undefined
+                        ? `${valueFormatter(item.payload.value)} · ${item.payload.pct.toFixed(1)}%`
+                        : valueFormatter(item.payload.value),
+                      "",
+                    ]) as never
+                  }
                   contentStyle={{
                     background: "var(--color-card)",
                     border: "1px solid var(--color-border)",
@@ -68,14 +80,45 @@ export const RankedHorizontalBar = memo(function RankedHorizontalBar({
                     fontSize: 12,
                   }}
                 />
-                <Bar dataKey="value" fill={barColor} radius={[0, 4, 4, 0]} {...chartAnimation}>
+                <Bar
+                  dataKey="value"
+                  fill={barColor}
+                  radius={[0, 4, 4, 0]}
+                  maxBarSize={22}
+                  {...chartAnimation}
+                >
                   <LabelList
                     dataKey="value"
                     position="right"
-                    fontSize={10}
-                    fontWeight={700}
-                    fill="var(--color-foreground)"
-                    formatter={((v: unknown) => valueFormatter(Number(v))) as never}
+                    content={
+                      ((props: {
+                        x?: number;
+                        y?: number;
+                        width?: number;
+                        height?: number;
+                        index?: number;
+                      }) => {
+                        const { x = 0, y = 0, width = 0, height = 0, index = 0 } = props;
+                        const row = sorted[index];
+                        if (!row) return null;
+                        const text =
+                          row.pct !== undefined
+                            ? `${valueFormatter(row.value)} · ${row.pct.toFixed(1)}%`
+                            : valueFormatter(row.value);
+                        return (
+                          <text
+                            x={x + width + 6}
+                            y={y + height / 2}
+                            dy={3}
+                            fontSize={10}
+                            fontWeight={700}
+                            fill="var(--color-foreground)"
+                          >
+                            {text}
+                          </text>
+                        );
+                      }) as never
+                    }
                   />
                 </Bar>
               </BarChart>

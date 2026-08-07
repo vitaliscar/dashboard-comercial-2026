@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Info, Shield } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function CargaPage() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
@@ -85,7 +86,23 @@ export default function CargaPage() {
         </AlertDescription>
       </Alert>
 
-      <label
+      <div
+        role="button"
+        tabIndex={busy ? -1 : 0}
+        onClick={() => !busy && fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (!busy && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (busy) return;
+          const file = e.dataTransfer.files?.[0];
+          if (file) handleFile(file);
+        }}
         className={`card-elevated flex flex-col items-center justify-center gap-3 py-16 border-2 border-dashed cursor-pointer transition-colors ${busy ? "opacity-60 pointer-events-none" : "hover:bg-muted/40"}`}
       >
         <Upload className="size-10 text-muted-foreground" />
@@ -98,15 +115,25 @@ export default function CargaPage() {
           </p>
         </div>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".xlsx,.xls"
           className="hidden"
           onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
         />
-        <Button variant="outline" size="sm" type="button" disabled={busy}>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
+        >
           Elegir archivo
         </Button>
-      </label>
+      </div>
 
       {result && (
         <Card className="ring-0 card-elevated">

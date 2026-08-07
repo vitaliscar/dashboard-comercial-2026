@@ -23,6 +23,14 @@ export interface UnidadMetrica {
   monto: number;
   porcentaje: number;
   topClientes: TopCliente[];
+  /** % de variación vs. el monto del mes anterior. `undefined` si no aplica
+   * (rango con más de un mes o "all"), `null` si el mes anterior no tuvo actividad. */
+  variacionMesAnterior?: number | null;
+  /** Monto cotizado en el mes anterior. `undefined` si no aplica (mismo criterio
+   * que `variacionMesAnterior`). */
+  montoMesAnterior?: number;
+  /** Serie mensual (ene..mes actual) del monto cotizado, para la línea de tiempo. */
+  montosMensuales?: { mes: string; monto: number }[];
 }
 
 export interface KpiMetrica {

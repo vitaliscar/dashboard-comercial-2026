@@ -173,12 +173,8 @@
           "name": "clientes_potenciales_sucursal_id_sucursales_id_fk",
           "tableFrom": "clientes_potenciales",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -271,12 +267,8 @@
           "name": "cobranzas_sucursal_id_sucursales_id_fk",
           "tableFrom": "cobranzas",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -284,12 +276,8 @@
           "name": "cobranzas_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "cobranzas",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -351,12 +339,8 @@
           "name": "cobranzas_equipos_sucursal_id_sucursales_id_fk",
           "tableFrom": "cobranzas_equipos",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -465,12 +449,8 @@
           "name": "cobranzas_snapshots_sucursal_id_sucursales_id_fk",
           "tableFrom": "cobranzas_snapshots",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -478,12 +458,8 @@
           "name": "cobranzas_snapshots_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "cobranzas_snapshots",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -550,12 +526,8 @@
           "name": "comisiones_reglas_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "comisiones_reglas",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -705,12 +677,8 @@
           "name": "cotizaciones_sucursal_id_sucursales_id_fk",
           "tableFrom": "cotizaciones",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -718,12 +686,8 @@
           "name": "cotizaciones_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "cotizaciones",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -851,12 +815,8 @@
           "name": "cumplimiento_asesores_sucursal_id_sucursales_id_fk",
           "tableFrom": "cumplimiento_asesores",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -864,12 +824,8 @@
           "name": "cumplimiento_asesores_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "cumplimiento_asesores",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -946,12 +902,8 @@
           "name": "detalles_servicios_estrategicos_sucursal_id_sucursales_id_fk",
           "tableFrom": "detalles_servicios_estrategicos",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1184,12 +1136,8 @@
           "name": "equipos_facturacion_sucursal_id_sucursales_id_fk",
           "tableFrom": "equipos_facturacion",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1197,12 +1145,8 @@
           "name": "equipos_facturacion_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "equipos_facturacion",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1269,12 +1213,8 @@
           "name": "equipos_facturacion_sucursal_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "equipos_facturacion_sucursal",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1375,12 +1315,8 @@
           "name": "equipos_inventario_sucursal_id_sucursales_id_fk",
           "tableFrom": "equipos_inventario",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1388,12 +1324,8 @@
           "name": "equipos_inventario_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "equipos_inventario",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1466,12 +1398,8 @@
           "name": "equipos_por_marca_sucursal_id_sucursales_id_fk",
           "tableFrom": "equipos_por_marca",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1479,12 +1407,8 @@
           "name": "equipos_por_marca_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "equipos_por_marca",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1545,12 +1469,8 @@
           "name": "equipos_presupuesto_sucursal_id_sucursales_id_fk",
           "tableFrom": "equipos_presupuesto",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1558,12 +1478,8 @@
           "name": "equipos_presupuesto_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "equipos_presupuesto",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1685,12 +1601,8 @@
           "name": "facturas_sucursal_id_sucursales_id_fk",
           "tableFrom": "facturas",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1698,12 +1610,8 @@
           "name": "facturas_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "facturas",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1900,12 +1808,8 @@
           "name": "mercadeo_google_business_sucursal_id_sucursales_id_fk",
           "tableFrom": "mercadeo_google_business",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2153,12 +2057,8 @@
           "name": "minutas_sucursal_id_sucursales_id_fk",
           "tableFrom": "minutas",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2166,12 +2066,8 @@
           "name": "minutas_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "minutas",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2179,12 +2075,8 @@
           "name": "minutas_created_by_users_id_fk",
           "tableFrom": "minutas",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2192,12 +2084,8 @@
           "name": "minutas_updated_by_users_id_fk",
           "tableFrom": "minutas",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2300,12 +2188,8 @@
           "name": "presupuestos_sucursal_id_sucursales_id_fk",
           "tableFrom": "presupuestos",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2313,12 +2197,8 @@
           "name": "presupuestos_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "presupuestos",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2359,12 +2239,8 @@
           "name": "profile_unidades_negocio_profile_id_profiles_id_fk",
           "tableFrom": "profile_unidades_negocio",
           "tableTo": "profiles",
-          "columnsFrom": [
-            "profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2372,12 +2248,8 @@
           "name": "profile_unidades_negocio_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "profile_unidades_negocio",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2385,10 +2257,7 @@
       "compositePrimaryKeys": {
         "profile_unidades_negocio_profile_id_unidad_negocio_id_pk": {
           "name": "profile_unidades_negocio_profile_id_unidad_negocio_id_pk",
-          "columns": [
-            "profile_id",
-            "unidad_negocio_id"
-          ]
+          "columns": ["profile_id", "unidad_negocio_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2458,12 +2327,8 @@
           "name": "profiles_id_users_id_fk",
           "tableFrom": "profiles",
           "tableTo": "users",
-          "columnsFrom": [
-            "id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2471,12 +2336,8 @@
           "name": "profiles_sucursal_id_sucursales_id_fk",
           "tableFrom": "profiles",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2484,12 +2345,8 @@
           "name": "profiles_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "profiles",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2629,12 +2486,8 @@
           "name": "servicios_sucursal_id_sucursales_id_fk",
           "tableFrom": "servicios",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2642,12 +2495,8 @@
           "name": "servicios_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "servicios",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2767,12 +2616,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2835,9 +2680,7 @@
         "sucursales_nombre_unique": {
           "name": "sucursales_nombre_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "nombre"
-          ]
+          "columns": ["nombre"]
         }
       },
       "policies": {},
@@ -2889,9 +2732,7 @@
         "unidades_negocio_nombre_unique": {
           "name": "unidades_negocio_nombre_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "nombre"
-          ]
+          "columns": ["nombre"]
         }
       },
       "policies": {},
@@ -2929,12 +2770,8 @@
           "name": "user_roles_user_id_users_id_fk",
           "tableFrom": "user_roles",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2997,9 +2834,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -3072,12 +2907,8 @@
           "name": "ventas_casa_sucursal_id_sucursales_id_fk",
           "tableFrom": "ventas_casa",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3085,12 +2916,8 @@
           "name": "ventas_casa_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "ventas_casa",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3191,12 +3018,8 @@
           "name": "ventas_perdidas_sucursal_id_sucursales_id_fk",
           "tableFrom": "ventas_perdidas",
           "tableTo": "sucursales",
-          "columnsFrom": [
-            "sucursal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sucursal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3204,12 +3027,8 @@
           "name": "ventas_perdidas_unidad_negocio_id_unidades_negocio_id_fk",
           "tableFrom": "ventas_perdidas",
           "tableTo": "unidades_negocio",
-          "columnsFrom": [
-            "unidad_negocio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unidad_negocio_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3225,31 +3044,17 @@
     "public.app_role": {
       "name": "app_role",
       "schema": "public",
-      "values": [
-        "gerencia",
-        "gerente_comercial",
-        "coordinador",
-        "asesor"
-      ]
+      "values": ["gerencia", "gerente_comercial", "coordinador", "asesor"]
     },
     "public.cotizacion_etapa": {
       "name": "cotizacion_etapa",
       "schema": "public",
-      "values": [
-        "desarrollo",
-        "propuesta_negociacion",
-        "venta_perdida",
-        "desconocido"
-      ]
+      "values": ["desarrollo", "propuesta_negociacion", "venta_perdida", "desconocido"]
     },
     "public.minuta_estado": {
       "name": "minuta_estado",
       "schema": "public",
-      "values": [
-        "pendiente",
-        "en_proceso",
-        "cumplido"
-      ]
+      "values": ["pendiente", "en_proceso", "cumplido"]
     }
   },
   "schemas": {},

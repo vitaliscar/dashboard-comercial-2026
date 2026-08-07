@@ -6,12 +6,16 @@ import { getMercadeoPostHistoriasAction } from "@/lib/actions/mercadeo";
 import type { MonthFilter } from "@/lib/date-range";
 import { KpiCard } from "@/components/kpi-card";
 import { RankedHorizontalBar } from "@/components/servicios/RankedHorizontalBar";
+import { groupSum, rankedWithPct } from "@/lib/analytics/mercadeo";
+
+interface Props {
+  meses: MonthFilter;
+}
 
 /**
- * Conteo de posts e historias de Instagram, desglosado por marca y por
- * categoría de contenido (unidadNegocio incluye branding, RRHH, eventos…).
+ * Conteo de posts e historias, desglosado por marca y categoría de contenido.
  */
-export function PostHistoriasSection({ meses }: { meses: MonthFilter }) {
+export function PostHistoriasSection({ meses }: Props) {
   const { data } = useQuery({
     queryKey: ["mercadeo-post-historias", JSON.stringify(meses)],
     queryFn: () => getMercadeoPostHistoriasAction({ meses }),
@@ -34,49 +38,55 @@ export function PostHistoriasSection({ meses }: { meses: MonthFilter }) {
   );
 
   const porMarca = useMemo(() => {
-    const grupos = new Map<string, number>();
-    (data ?? []).forEach((r) => {
-      const label = r.marca ?? "Sin marca";
-      grupos.set(label, (grupos.get(label) ?? 0) + Number(r.cantidad ?? 0));
-    });
-    return [...grupos.entries()].map(([label, value]) => ({ label, value }));
+    const raw = groupSum(
+      data ?? [],
+      (r) => r.marca ?? "Sin marca",
+      (r) => Number(r.cantidad ?? 0),
+    );
+    return rankedWithPct(raw);
   }, [data]);
 
   const porCategoria = useMemo(() => {
-    const grupos = new Map<string, number>();
-    (data ?? []).forEach((r) => {
-      const label = r.unidadNegocio ?? "Sin categoría";
-      grupos.set(label, (grupos.get(label) ?? 0) + Number(r.cantidad ?? 0));
-    });
-    return [...grupos.entries()].map(([label, value]) => ({ label, value }));
+    const raw = groupSum(
+      data ?? [],
+      (r) => r.unidadNegocio ?? "Sin categoría",
+      (r) => Number(r.cantidad ?? 0),
+    );
+    return rankedWithPct(raw);
   }, [data]);
 
   return (
     <section className="space-y-3">
+      <div>
+        <h3 className="font-display text-base font-semibold">Contenido en Instagram</h3>
+        <p className="text-xs text-muted-foreground">Posts e historias publicadas en el período</p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <KpiCard
           label="Posts"
           value={totalPosts.toLocaleString("es-VE")}
           featured
           accent="primary"
+          tooltip="Publicaciones tipo Post"
         />
         <KpiCard
           label="Historias"
           value={totalHistorias.toLocaleString("es-VE")}
           featured
-          accent="primary"
+          accent="ochre"
+          tooltip="Publicaciones tipo Historia"
         />
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         <RankedHorizontalBar
-          title="Publicaciones por marca"
+          title="Por marca"
           emptyLabel="Sin datos de publicaciones para el filtro"
           data={porMarca}
           valueFormatter={(v) => v.toLocaleString("es-VE")}
         />
         <RankedHorizontalBar
-          title="Publicaciones por categoría"
-          subtitle="Incluye categorías de contenido que no son unidades de negocio (Branding, RRHH, Eventos…)"
+          title="Por categoría"
+          subtitle="Incluye branding, RRHH, eventos… (no siempre son unidades de negocio)"
           emptyLabel="Sin datos de publicaciones para el filtro"
           data={porCategoria}
           valueFormatter={(v) => v.toLocaleString("es-VE")}

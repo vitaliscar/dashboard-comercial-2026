@@ -375,111 +375,136 @@ export default function AsesoresPage() {
 
             <TabsContent value="ranking" className="mt-4">
               <div className="bg-card border border-border shadow-sm rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="font-bold">Asesor</TableHead>
-                      <TableHead className="font-bold text-center w-24">Código</TableHead>
-                      <TableHead className="font-bold text-right">Facturado</TableHead>
-                      <TableHead className="font-bold text-right">Presupuesto</TableHead>
-                      <TableHead className="font-bold text-center w-36">Cumplimiento</TableHead>
-                      <TableHead className="font-bold text-right">Cotizado</TableHead>
-                      <TableHead className="font-bold text-right">Perdido</TableHead>
-                      <TableHead className="font-bold text-center w-20">Conversión</TableHead>
-                      <TableHead className="font-bold text-center w-20">Part.</TableHead>
-                      <TableHead className="font-bold text-center w-16">Detalle</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {list.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
-                          No se encontraron registros comercial en este período.
-                        </TableCell>
+                <div className="[&_[data-slot=table-container]]:max-h-140 [&_[data-slot=table-container]]:overflow-y-auto">
+                  <Table>
+                    <TableHeader className="bg-primary [&_tr]:border-b-0 sticky top-0 z-10">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="font-bold bg-primary text-primary-foreground">
+                          Asesor
+                        </TableHead>
+                        <TableHead className="font-bold text-center w-24 bg-primary text-primary-foreground">
+                          Código
+                        </TableHead>
+                        <TableHead className="font-bold text-right bg-primary text-primary-foreground">
+                          Facturado
+                        </TableHead>
+                        <TableHead className="font-bold text-right bg-primary text-primary-foreground">
+                          Presupuesto
+                        </TableHead>
+                        <TableHead className="font-bold text-center w-36 bg-primary text-primary-foreground">
+                          Cumplimiento
+                        </TableHead>
+                        <TableHead className="font-bold text-right bg-primary text-primary-foreground">
+                          Cotizado
+                        </TableHead>
+                        <TableHead className="font-bold text-right bg-primary text-primary-foreground">
+                          Perdido
+                        </TableHead>
+                        <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
+                          Conversión
+                        </TableHead>
+                        <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
+                          Part.
+                        </TableHead>
+                        <TableHead className="font-bold text-center w-16 bg-primary text-primary-foreground">
+                          Detalle
+                        </TableHead>
                       </TableRow>
-                    ) : (
-                      list.map((item) => {
-                        const isCasa = item.codigo === VENTAS_CASA.codigo;
-                        const status = statusFromPct(item.cumplimiento);
-                        const statusClass = TEXT_ACCENT_CLASS[status];
-
-                        return (
-                          <TableRow
-                            key={item.codigo}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setSelectedAdvisor(item)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                setSelectedAdvisor(item);
-                              }
-                            }}
-                            className={cn(
-                              "hover:bg-muted/30 cursor-pointer transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                              isCasa && "bg-secondary/40 font-semibold hover:bg-secondary/60",
-                            )}
+                    </TableHeader>
+                    <TableBody>
+                      {list.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={10}
+                            className="h-32 text-center text-muted-foreground"
                           >
-                            <TableCell className="py-3">
-                              <div>
-                                <p className="font-semibold text-sm">{item.nombre}</p>
-                                <p className="text-xs text-muted-foreground">{item.sucursal}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center font-mono text-xs">
-                              {item.codigo}
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {money(item.venta)}
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {isCasa ? "—" : money(item.meta)}
-                            </TableCell>
-                            <TableCell className="py-2.5">
-                              {isCasa ? (
-                                <div className="text-center text-xs text-muted-foreground">—</div>
-                              ) : (
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex justify-between items-center text-[11px]">
-                                    <span className={cn("font-bold", statusClass)}>
-                                      {pct(item.cumplimiento)}
-                                    </span>
-                                  </div>
-                                  <Progress
-                                    value={Math.min(item.cumplimiento, 100)}
-                                    className="h-1.5"
-                                  />
-                                </div>
+                            No se encontraron registros comercial en este período.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        list.map((item) => {
+                          const isCasa = item.codigo === VENTAS_CASA.codigo;
+                          const status = statusFromPct(item.cumplimiento);
+                          const statusClass = TEXT_ACCENT_CLASS[status];
+
+                          return (
+                            <TableRow
+                              key={item.codigo}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setSelectedAdvisor(item)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setSelectedAdvisor(item);
+                                }
+                              }}
+                              className={cn(
+                                "hover:bg-muted/30 cursor-pointer transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                isCasa && "bg-secondary/40 font-semibold hover:bg-secondary/60",
                               )}
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {money(item.cotizado)}
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {money(item.perdido)}
-                            </TableCell>
-                            <TableCell className="text-center font-semibold text-xs">
-                              {pct(item.conversion)}
-                            </TableCell>
-                            <TableCell className="text-center text-xs text-muted-foreground">
-                              {pct(item.participacion)}
-                            </TableCell>
-                            <TableCell className="text-center py-2">
-                              <Button
-                                size="icon-sm"
-                                variant="ghost"
-                                onClick={() => setSelectedAdvisor(item)}
-                                className="h-7 w-7"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                            >
+                              <TableCell className="py-3">
+                                <div>
+                                  <p className="font-semibold text-sm">{item.nombre}</p>
+                                  <p className="text-xs text-muted-foreground">{item.sucursal}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center font-mono text-xs">
+                                {item.codigo}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {money(item.venta)}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {isCasa ? "—" : money(item.meta)}
+                              </TableCell>
+                              <TableCell className="py-2.5">
+                                {isCasa ? (
+                                  <div className="text-center text-xs text-muted-foreground">—</div>
+                                ) : (
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between items-center text-[11px]">
+                                      <span className={cn("font-bold", statusClass)}>
+                                        {pct(item.cumplimiento)}
+                                      </span>
+                                    </div>
+                                    <Progress
+                                      value={Math.min(item.cumplimiento, 100)}
+                                      className="h-1.5"
+                                    />
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {money(item.cotizado)}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {money(item.perdido)}
+                              </TableCell>
+                              <TableCell className="text-center font-semibold text-xs">
+                                {pct(item.conversion)}
+                              </TableCell>
+                              <TableCell className="text-center text-xs text-muted-foreground">
+                                {pct(item.participacion)}
+                              </TableCell>
+                              <TableCell className="text-center py-2">
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  onClick={() => setSelectedAdvisor(item)}
+                                  className="h-7 w-7"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </TabsContent>
 

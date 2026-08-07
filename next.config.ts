@@ -27,7 +27,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@node-rs/argon2", "postgres"],
   experimental: {
     serverActions: {
-      bodySizeLimit: "25mb",
+      // El Excel fuente ("CCV Rendimiento.xlsx") ya pesa ~28MB y crece cada
+      // semana con la carga de datos — 25mb se quedaba corto. 50mb da margen.
+      bodySizeLimit: "50mb",
     },
   },
   async headers() {

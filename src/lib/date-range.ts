@@ -1,3 +1,5 @@
+import { MESES } from "@/lib/format";
+
 export type MonthFilter = number[] | "all";
 
 export interface DateRange {
@@ -12,6 +14,15 @@ export function getAllMonthsCap(anio: number, now = new Date()): number {
   if (anio < currentYear) return 12;
   if (anio === currentYear) return currentMonth;
   return 0;
+}
+
+/**
+ * Meses (abreviados) a resaltar en gráficos de tendencia anual: los
+ * seleccionados en el filtro, o el mes actual si el filtro es "all".
+ */
+export function getHighlightMonthLabels(meses: MonthFilter, now = new Date()): string[] {
+  if (meses === "all") return [MESES[now.getMonth()].slice(0, 3)];
+  return meses.map((m) => MESES[m - 1].slice(0, 3));
 }
 
 export function getDateRangesForMonths(
@@ -55,6 +66,26 @@ export function getDateRangesForMonths(
   });
 
   return ranges;
+}
+
+/**
+ * Rango del mes inmediatamente anterior al mes seleccionado, para comparativas
+ * "vs. mes anterior". Solo tiene sentido cuando el filtro es un único mes —
+ * con selección múltiple o "all" (YTD) no hay un "mes anterior" inequívoco.
+ */
+export function getPreviousMonthRange(anio: number, meses: MonthFilter): DateRange[] {
+  if (meses === "all" || meses.length !== 1) return [];
+
+  const mes = meses[0];
+  const prevMes = mes === 1 ? 12 : mes - 1;
+  const prevAnio = mes === 1 ? anio - 1 : anio;
+
+  return [
+    {
+      from: `${prevAnio}-${String(prevMes).padStart(2, "0")}-01`,
+      to: new Date(prevAnio, prevMes, 1).toISOString().slice(0, 10),
+    },
+  ];
 }
 
 export function applyDateRangesToQuery<T>(q: T, ranges: DateRange[], dateColumn = "fecha"): T {
