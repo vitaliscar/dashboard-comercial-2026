@@ -44,7 +44,12 @@ const ROUTES: PaletteRoute[] = [
   { to: "/cobranzas", label: "Cobranzas", module: "cobranzas", icon: Wallet },
   { to: "/embudo", label: "Embudo Comercial", module: "embudo", icon: GitBranch },
   { to: "/asesores", label: "Asesores", module: "asesores", icon: Award },
-  { to: "/cliente-360", label: "Clientes · 360° y Pareto", module: "cliente_360", icon: UserSearch },
+  {
+    to: "/cliente-360",
+    label: "Clientes · 360° y Pareto",
+    module: "cliente_360",
+    icon: UserSearch,
+  },
   { to: "/comisiones", label: "Comisiones Proyectadas", module: "comisiones", icon: Percent },
   { to: "/simulador", label: "Simulador de Presupuesto", module: "simulador", icon: Calculator },
   { to: "/alertas", label: "Torre de Control · Alertas", module: "alertas", icon: BellRing },

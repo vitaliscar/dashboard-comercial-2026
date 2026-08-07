@@ -1,8 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useUnidades } from "@/hooks/use-catalogos";
+import { canAccessModule } from "@/lib/permissions";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { money, pct } from "@/lib/format";
@@ -45,6 +47,7 @@ function findTasa(pctCumplimiento: number, reglas: ReglaComision[]) {
 }
 
 export default function ComisionesPage() {
+  const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses, unidades: selectedUnidades } = filters;
 
@@ -97,6 +100,9 @@ export default function ComisionesPage() {
     if (!unidades) return [];
     return unidades.map((u) => ({ value: u.id, label: u.nombre }));
   }, [unidades]);
+
+  // Guard DESPUÉS de todos los hooks (evita "Rendered more hooks" — ver CLAUDE.md)
+  if (!canAccessModule(role, "comisiones")) return null;
 
   return (
     <div className="space-y-6">

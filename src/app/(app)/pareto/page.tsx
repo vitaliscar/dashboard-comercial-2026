@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { resolverAsesor } from "@/lib/asesores-catalogo";
+import { canAccessModule } from "@/lib/permissions";
 
 const FUENTE_TITULO: Record<ParetoFuente, string> = {
   cotizado: "Cotizaciones acumuladas",
@@ -81,7 +82,7 @@ export default function ParetoPage() {
     setFilters({ meses: newMes === 0 ? "all" : [newMes] });
   };
 
-  const canView = role === "gerencia" || role === "gerente_comercial";
+  const canView = canAccessModule(role, "pareto");
 
   const { data, isLoading } = useQuery({
     queryKey: ["pareto", fuente, anio, mes],

@@ -8,7 +8,15 @@ function unitCond(col: SQLWrapper, unidades: string[]) {
   return unidades.length > 0 ? inArray(col, unidades) : undefined;
 }
 
-export async function getEmbudoCotizacionesAnioAction(data: { anio: number; unidades: string[] }) {
+function sucursalCond(col: SQLWrapper, sucursales: string[]) {
+  return sucursales.length > 0 ? inArray(col, sucursales) : undefined;
+}
+
+export async function getEmbudoCotizacionesAnioAction(data: {
+  anio: number;
+  unidades: string[];
+  sucursales?: string[];
+}) {
   return withAuth(({ tx }) => {
     return tx
       .select({
@@ -23,12 +31,17 @@ export async function getEmbudoCotizacionesAnioAction(data: { anio: number; unid
           gte(cotizaciones.fecha, `${data.anio}-01-01`),
           lt(cotizaciones.fecha, `${data.anio + 1}-01-01`),
           unitCond(cotizaciones.unidadNegocioId, data.unidades),
+          sucursalCond(cotizaciones.sucursalId, data.sucursales ?? []),
         ),
       );
   });
 }
 
-export async function getEmbudoPresupuestosAnioAction(data: { anio: number; unidades: string[] }) {
+export async function getEmbudoPresupuestosAnioAction(data: {
+  anio: number;
+  unidades: string[];
+  sucursales?: string[];
+}) {
   return withAuth(({ tx }) => {
     return tx
       .select({
@@ -44,6 +57,7 @@ export async function getEmbudoPresupuestosAnioAction(data: { anio: number; unid
         and(
           eq(presupuestos.anio, data.anio),
           unitCond(presupuestos.unidadNegocioId, data.unidades),
+          sucursalCond(presupuestos.sucursalId, data.sucursales ?? []),
         ),
       );
   });
@@ -53,8 +67,10 @@ export async function getEmbudoTotalesAction(data: {
   anio: number;
   meses: number[];
   unidades: string[];
+  sucursales?: string[];
 }) {
   return withAuth(async ({ tx }) => {
+    const sucursales = data.sucursales ?? [];
     const [cotRow] = await tx
       .select({ total: sql<string>`coalesce(sum(${cotizaciones.monto}), 0)` })
       .from(cotizaciones)
@@ -66,6 +82,7 @@ export async function getEmbudoTotalesAction(data: {
             ? inArray(sql`extract(month from ${cotizaciones.fecha})::int`, data.meses)
             : undefined,
           unitCond(cotizaciones.unidadNegocioId, data.unidades),
+          sucursalCond(cotizaciones.sucursalId, sucursales),
         ),
       );
 
@@ -79,13 +96,19 @@ export async function getEmbudoTotalesAction(data: {
           eq(presupuestos.anio, data.anio),
           data.meses.length > 0 ? inArray(presupuestos.mes, data.meses) : undefined,
           unitCond(presupuestos.unidadNegocioId, data.unidades),
+          sucursalCond(presupuestos.sucursalId, sucursales),
         ),
       );
 
     const [saldoRow] = await tx
       .select({ total: sql<string>`coalesce(sum(${cobranzas.saldo}), 0)` })
       .from(cobranzas)
-      .where(unitCond(cobranzas.unidadNegocioId, data.unidades));
+      .where(
+        and(
+          unitCond(cobranzas.unidadNegocioId, data.unidades),
+          sucursalCond(cobranzas.sucursalId, sucursales),
+        ),
+      );
 
     const cotizado = Number(cotRow?.total ?? 0);
     const facturado = Number(facRow?.total ?? 0);

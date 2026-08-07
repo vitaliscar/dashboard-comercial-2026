@@ -9,6 +9,9 @@ interface AdditionalInfo {
   value: string | number;
   color?: InfoColor;
   progress?: number;
+  /** Barra bidireccional (crecimiento/caída) en vez de una barra de progreso 0-150
+   * hacia una meta: se llena desde el centro y hacia la izquierda cuando es negativa. */
+  bidirectionalProgress?: number;
 }
 
 interface BusinessUnitCardProps {
@@ -98,6 +101,28 @@ export function BusinessUnitCard({
                     className={cn("progress-fill", barColors[color])}
                     style={{
                       transform: `scaleX(${Math.min(Math.max(info.progress, 0), 150) / 100})`,
+                    }}
+                  />
+                </div>
+              )}
+              {info.bidirectionalProgress !== undefined && (
+                <div
+                  className="progress-track relative"
+                  role="progressbar"
+                  aria-label={info.label}
+                  aria-valuenow={Math.round(info.bidirectionalProgress)}
+                  aria-valuemin={-100}
+                  aria-valuemax={100}
+                >
+                  <div className="absolute inset-y-0 left-1/2 w-px bg-background/60" />
+                  <div
+                    className={cn(
+                      "absolute inset-y-0 h-full transition-[width] duration-600 ease-out",
+                      barColors[color],
+                      info.bidirectionalProgress >= 0 ? "left-1/2" : "right-1/2",
+                    )}
+                    style={{
+                      width: `${Math.min(Math.abs(info.bidirectionalProgress), 100) / 2}%`,
                     }}
                   />
                 </div>

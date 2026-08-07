@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { ComposedChart, Bar, Line, LabelList, XAxis, YAxis } from "recharts";
+import { ComposedChart, Bar, Cell, Line, LabelList, XAxis, YAxis } from "recharts";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,16 +22,22 @@ const chartConfig = {
 
 export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
   data,
+  highlightMonths = [],
 }: {
   data: MonthlyRow[];
+  /** Meses (abreviados, ej. "Jul") a resaltar — el resto se atenúa. Vacío = todos iguales. */
+  highlightMonths?: string[];
 }) {
   const chartAnimation = useChartAnimation();
+  const hasHighlight = highlightMonths.length > 0;
   const chartData = data.map((row) => {
     const cumplimiento = row.presupuesto > 0 ? (row.venta / row.presupuesto) * 100 : 0;
     return { ...row, cumplimiento };
   });
 
   return (
+    // ChartContainer tiene h-[360px] fijo → ResponsiveContainer siempre
+    // mide un alto concreto y Recharts no tira "width(-1) height(-1)".
     <Card className="ring-0 card-elevated">
       <CardHeader>
         <CardTitle className="font-display font-semibold">
@@ -39,7 +45,7 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
+        <ChartContainer config={chartConfig} className="h-[360px] w-full">
           <ComposedChart data={chartData} margin={{ top: 24, right: 8, left: 8, bottom: 0 }}>
             <XAxis
               dataKey="mes"
@@ -53,7 +59,7 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
               cursor={false}
               content={<ChartTooltipContent formatter={(value) => money(Number(value))} />}
             />
-            <ChartLegend content={<ChartLegendContent />} />
+            <ChartLegend verticalAlign="top" content={<ChartLegendContent />} />
             <Bar
               dataKey="venta"
               name="Venta Total"
@@ -61,6 +67,14 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
               radius={[4, 4, 0, 0]}
               {...chartAnimation}
             >
+              {hasHighlight &&
+                chartData.map((row) => (
+                  <Cell
+                    key={row.mes}
+                    fill="var(--color-venta)"
+                    opacity={highlightMonths.includes(row.mes) ? 1 : 0.35}
+                  />
+                ))}
               <LabelList
                 dataKey="venta"
                 position="top"

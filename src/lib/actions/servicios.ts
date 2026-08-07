@@ -13,11 +13,7 @@ import { unidadId } from "@/lib/server/unidades";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
 import { getAllMonthsCap, type DateRange, type MonthFilter } from "@/lib/date-range";
 
-export async function getServiciosAction(data: {
-  ranges: DateRange[];
-  sucursal: string | "all";
-  unidades: string[];
-}) {
+export async function getServiciosAction(data: { ranges: DateRange[]; sucursal: string | "all" }) {
   return withAuth(async ({ tx }) => {
     return tx
       .select()
@@ -100,7 +96,6 @@ export async function getServiciosTrendAction(data: {
   anio: number;
   meses: MonthFilter;
   sucursal: string | "all";
-  unidades: string[];
 }) {
   return withAuth(async ({ tx }) => {
     return tx

@@ -36,13 +36,13 @@ export const ComplianceGauge = memo(function ComplianceGauge({
   const brecha = presupuesto - facturado;
 
   return (
-    <Card className="ring-0 card-elevated flex flex-col items-center border-l-2 border-l-primary">
+    <Card className="ring-0 card-elevated flex h-full flex-col items-center ring-1 ring-primary/20">
       <CardHeader className="w-full text-center pb-2">
         <CardTitle className="font-mono text-[9px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col items-center">
+      <CardContent className="flex flex-1 flex-col items-center justify-center">
         <div className="relative size-36">
           <ChartContainer config={chartConfig} className="aspect-auto size-36">
             <RadialBarChart
@@ -63,10 +63,7 @@ export const ComplianceGauge = memo(function ComplianceGauge({
             </RadialBarChart>
           </ChartContainer>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <div
-              className="font-mono text-2xl font-bold tracking-tight"
-              style={{ color }}
-            >
+            <div className="font-mono text-2xl font-bold tracking-tight" style={{ color }}>
               {displayPct.toFixed(1)}%
             </div>
           </div>

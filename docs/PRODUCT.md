@@ -1,9 +1,5 @@
 # Product
 
-## Register
-
-brand
-
 ## Users
 
 **Sales & Operations Teams** across multiple roles and organizational levels:
@@ -55,7 +51,7 @@ The dashboard reflects domain expertise and precision. Like a financial report o
 
 4. **Accessibility as default**: WCAG AA compliance. High contrast, semantic HTML, keyboard navigation. Color is never the only signal.
 
-5. **Real-time trustworthiness**: The interface is updated live from Supabase. Users see fresh data, role-scoped by RLS policies. The technical precision should feel transparent in the UI.
+5. **Real-time trustworthiness**: The interface reflects data loaded from PostgreSQL. Users see fresh data, role-scoped by RLS policies. The technical precision should feel transparent in the UI.
 
 ## Accessibility & Inclusion
 

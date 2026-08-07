@@ -74,6 +74,12 @@ These are reusable, low-level building blocks used across routes and pages.
 
 ## Design Implementation
 
+### Accent treatment
+
+- Featured KPI cards use a subtle `ring-1` in the semantic accent color — not a left border stripe.
+- Pareto 80% rows use a tinted background (`pareto-80` utility) without side-tab borders.
+- Role and status colors in admin surfaces use semantic tokens (`primary`, `accent`, `success`, `warning`) — not violet/indigo SaaS defaults.
+
 ### Typography
 
 The project uses system fonts and utility-first spacing.

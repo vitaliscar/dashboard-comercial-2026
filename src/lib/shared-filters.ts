@@ -7,9 +7,21 @@ export interface SharedFilters {
   unidades: string[];
 }
 
+/**
+ * Default determinístico para el primer render (SSR + hidratación del cliente
+ * deben coincidir). NO usa el mes actual — `new Date().getMonth()` puede dar
+ * un mes distinto en el servidor vs. el navegador si hay diferencia de huso
+ * horario/reloj cerca de un cambio de mes, causando un hydration mismatch.
+ * El mes actual real se aplica después, client-side, en SharedFiltersProvider.
+ */
 export function defaultFilters(): SharedFilters {
   const now = new Date();
-  return { anio: now.getFullYear(), meses: [now.getMonth() + 1], sucursales: [], unidades: [] };
+  return { anio: now.getFullYear(), meses: "all", sucursales: [], unidades: [] };
+}
+
+/** Mes actual según el reloj del cliente — llamar solo dentro de useEffect/client-side. */
+export function currentMonthFilter(): number[] {
+  return [new Date().getMonth() + 1];
 }
 
 export function loadFilters(): SharedFilters {
@@ -17,8 +29,7 @@ export function loadFilters(): SharedFilters {
   try {
     // Prefer localStorage (persists across tabs and browser restarts until sign-out).
     // Fall back to sessionStorage for backwards compatibility.
-    const raw =
-      localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultFilters();
     return { ...defaultFilters(), ...JSON.parse(raw) };
   } catch {

@@ -17,7 +17,9 @@ async function main() {
 
   console.log("--- ROLES DISPONIBLES ---");
   for (const u of list) {
-    console.log(`Email: ${u.email} | Nombre: ${u.nombre ?? "Sin nombre"} | Rol: ${u.isAdmin ? "gerencia (Admin)" : u.role}`);
+    console.log(
+      `Email: ${u.email} | Nombre: ${u.nombre ?? "Sin nombre"} | Rol: ${u.isAdmin ? "gerencia (Admin)" : u.role}`,
+    );
   }
   process.exit(0);
 }

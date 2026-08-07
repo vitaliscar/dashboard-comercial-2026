@@ -7,16 +7,26 @@ import { KpiCards } from "@/components/resumen/KpiCards";
 import { CotizacionesSection } from "@/components/resumen/CotizacionesSection";
 import { FacturadoSection } from "@/components/resumen/FacturadoSection";
 import { VentasPerdidasSection } from "@/components/resumen/VentasPerdidasSection";
+import { CotizacionesSectionLegacy } from "@/components/resumen/CotizacionesSectionLegacy";
+import { FacturadoSectionLegacy } from "@/components/resumen/FacturadoSectionLegacy";
+import { VentasPerdidasSectionLegacy } from "@/components/resumen/VentasPerdidasSectionLegacy";
 import { ResumenData, UnidadNegocio, TopCliente } from "@/lib/resumen-types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { canFilterSucursal, getAccessibleSucursales } from "@/lib/permissions";
+import { unidadLabelInfo } from "@/lib/unidad-labels";
 import { getResumenDataAction } from "@/lib/actions/resumen";
 import { AlertCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getDateRangesForMonths } from "@/lib/date-range";
+import {
+  getDateRangesForMonths,
+  getPreviousMonthRange,
+  getAllMonthsCap,
+  getHighlightMonthLabels,
+} from "@/lib/date-range";
+import { MESES } from "@/lib/format";
 
 function SkeletonBox({ className, style }: { className?: string; style?: CSSProperties }) {
   return <div className={`skeleton rounded ${className ?? ""}`} style={style} />;
@@ -105,6 +115,19 @@ export default function ResumenPage() {
     error: unError,
   } = useUnidades();
 
+  // Selector de unidad de negocio, vía el mismo chip row de FilterHeader que
+  // usa /gerencia-nacional (fila "Filtrar por unidad") — "Todas" mantiene el
+  // layout anterior por tipo de métrica; una unidad específica cambia a la
+  // vista por unidad que ya usa gerente_comercial (que además siempre llega
+  // acá scopeado a 1 sola unidad vía RLS, sin depender de esta selección).
+  const selectedUnidadId = sharedFilters.unidades[0] ?? null;
+  const selectedUnidadUi = useMemo<UnidadNegocio | null>(() => {
+    if (!selectedUnidadId || !unidades) return null;
+    const u = unidades.find((x) => x.id === selectedUnidadId);
+    return u ? (unidadLabelInfo(u.nombre).label as UnidadNegocio) : null;
+  }, [selectedUnidadId, unidades]);
+  const isSingleUnitView = role === "gerente_comercial" || !!selectedUnidadUi;
+
   const filters: FilterState = useMemo(() => {
     let sucursalName: string | undefined = undefined;
     if (sharedFilters.sucursales.length > 0 && sucursales) {
@@ -152,13 +175,22 @@ export default function ResumenPage() {
 
   // Set coordinator's sucursal as default and locked
   useEffect(() => {
-    if (role === "coordinador" && profile?.sucursal_id && sucursales) {
+    if (
+      role === "coordinador" &&
+      profile?.sucursal_id &&
+      sucursales &&
+      sharedFilters.sucursales[0] !== profile.sucursal_id
+    ) {
       setSharedFilters({ sucursales: [profile.sucursal_id] });
     }
-  }, [role, profile, sucursales, setSharedFilters]);
+  }, [role, profile, sucursales, sharedFilters.sucursales, setSharedFilters]);
 
   const dateRanges = useMemo(() => {
     return getDateRangesForMonths(filters.anio, filters.meses);
+  }, [filters.anio, filters.meses]);
+
+  const prevMonthRanges = useMemo(() => {
+    return getPreviousMonthRange(filters.anio, filters.meses);
   }, [filters.anio, filters.meses]);
 
   const queryKey = [
@@ -182,6 +214,7 @@ export default function ResumenPage() {
         meses: filters.meses,
         ranges: dateRanges,
         sucursalId: selectedSucursalId,
+        prevMonthRanges,
       }),
     enabled: !!unidades && !!sucursales,
   });
@@ -195,13 +228,22 @@ export default function ResumenPage() {
     const sucMap = new Map<string, string>();
     sucursales.forEach((s) => sucMap.set(s.id, s.nombre));
 
-    const categories: UnidadNegocio[] = [
+    const allCategories: UnidadNegocio[] = [
       "Servicios",
       "Repuestos",
       "Lub / Filtros",
       "Alquiler",
       "Equipos",
     ];
+    // Gerencia con una unidad seleccionada → mismo alcance de datos que ve un
+    // gerente_comercial de esa unidad (allí llega ya scopeado, vía RLS).
+    const categories: UnidadNegocio[] = selectedUnidadUi ? [selectedUnidadUi] : allCategories;
+
+    const matchesSelectedUnit = (unidadNegocioId: string | null | undefined): boolean => {
+      if (!selectedUnidadUi) return true;
+      const dbName = unidadNegocioId ? unitMap.get(unidadNegocioId) : "";
+      return !!dbName && mapDbUnidadToUi(dbName) === selectedUnidadUi;
+    };
 
     // 1. KPIs
     let totalCotizado = 0;
@@ -210,6 +252,7 @@ export default function ResumenPage() {
     let totalPerdido = 0;
 
     rawData.cotizaciones.forEach((c) => {
+      if (!matchesSelectedUnit(c.unidadNegocioId)) return;
       totalCotizado += Number(c.montoTotal || 0);
     });
     // Facturado = Ventas_CCV + Ventas_Xibi + Ventas_Estrategicas de CumplimientoBase (presupuestos),
@@ -218,17 +261,20 @@ export default function ResumenPage() {
     // sucursal+U/N), así que la meta y el facturado salen de cumplimiento_asesores en su lugar.
     if (role === "asesor") {
       rawData.cumplimientoAsesor.forEach((c) => {
+        if (!matchesSelectedUnit(c.unidadNegocioId)) return;
         totalMetaMes += Number(c.presupuesto || 0);
         totalFacturado += Number(c.venta || 0);
       });
     } else {
       rawData.presupuestos.forEach((p) => {
+        if (!matchesSelectedUnit(p.unidadNegocioId)) return;
         totalMetaMes += Number(p.monto || 0);
         totalFacturado +=
           Number(p.ventasCcv || 0) + Number(p.ventasXibi || 0) + Number(p.ventasEstrategicas || 0);
       });
     }
     rawData.ventasPerdidas.forEach((vp) => {
+      if (!matchesSelectedUnit(vp.unidadNegocioId)) return;
       totalPerdido += Number(vp.montoTotal || 0);
     });
 
@@ -268,11 +314,43 @@ export default function ResumenPage() {
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
 
+      // Variación vs. mes anterior — solo cuando el filtro es un único mes
+      // (con "all" o varios meses seleccionados no hay un "mes anterior" claro).
+      let variacionMesAnterior: number | null | undefined = undefined;
+      let montoMesAnterior: number | undefined = undefined;
+      if (prevMonthRanges.length > 0) {
+        montoMesAnterior = (rawData.cotizacionesPrevMonth || [])
+          .filter((c) => {
+            const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
+            return dbName && mapDbUnidadToUi(dbName) === cat;
+          })
+          .reduce((sum, c) => sum + Number(c.montoTotal || 0), 0);
+        variacionMesAnterior =
+          montoMesAnterior > 0 ? ((monto - montoMesAnterior) / montoMesAnterior) * 100 : null;
+      }
+
+      // Serie mensual (ene..mes actual) para la línea de tiempo de la tarjeta.
+      const monthCap = getAllMonthsCap(filters.anio);
+      const filteredMensual = (rawData.cotizacionesMensual || []).filter((c) => {
+        const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
+      const montosMensuales = Array.from({ length: monthCap }, (_, i) => {
+        const mesNum = i + 1;
+        const montoMes = filteredMensual
+          .filter((c) => Number(c.mes) === mesNum)
+          .reduce((sum, c) => sum + Number(c.montoTotal || 0), 0);
+        return { mes: MESES[i].slice(0, 3), monto: montoMes };
+      });
+
       return {
         unidad: cat,
         monto,
         porcentaje: 0,
         topClientes,
+        variacionMesAnterior,
+        montoMesAnterior,
+        montosMensuales,
       };
     });
 
@@ -439,12 +517,29 @@ export default function ResumenPage() {
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
 
+      // Variación vs. mes anterior — mismo criterio que en Cotizaciones (solo
+      // aplica cuando el filtro es un único mes).
+      let variacionMesAnterior: number | null | undefined = undefined;
+      let montoMesAnterior: number | undefined = undefined;
+      if (prevMonthRanges.length > 0) {
+        montoMesAnterior = (rawData.ventasPerdidasPrevMonth || [])
+          .filter((vp) => {
+            const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
+            return dbName && mapDbUnidadToUi(dbName) === cat;
+          })
+          .reduce((sum, vp) => sum + Number(vp.montoTotal || 0), 0);
+        variacionMesAnterior =
+          montoMesAnterior > 0 ? ((monto - montoMesAnterior) / montoMesAnterior) * 100 : null;
+      }
+
       return {
         unidad: cat,
         monto,
         porcentaje: 0,
         topClientes,
         topRazones,
+        variacionMesAnterior,
+        montoMesAnterior,
       };
     });
 
@@ -477,7 +572,7 @@ export default function ResumenPage() {
       facturado: facturadoMetricas,
       ventasPerdidas: ventasPerdidasMetricas,
     };
-  }, [rawData, unidades, sucursales, filters, role]);
+  }, [rawData, unidades, sucursales, filters, role, prevMonthRanges, selectedUnidadUi]);
 
   const handleApplyFilters = useCallback(
     (newFilters: FilterState) => {
@@ -606,12 +701,21 @@ export default function ResumenPage() {
         }
       />
 
+      {/* Mismo FilterHeader (con fila de chips "Filtrar por unidad") que usa
+          /gerencia-nacional, para coherencia de diseño. "Todas" mantiene la
+          vista consolidada por secciones; una unidad específica cambia a la
+          vista que ya usa cada gerente comercial para su unidad. */}
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursales={hideSucursalFilter ? undefined : sucursalesVisibles}
+        unitOptions={unidades?.map((u) => ({
+          value: u.id,
+          label: unidadLabelInfo(u.nombre).label,
+        }))}
         defaultMes={filters.meses}
         defaultAnio={filters.anio}
         defaultSucursal={filters.sucursal}
+        defaultUnits={sharedFilters.unidades}
       />
 
       {/* Keyboard Shortcuts Info Bar */}
@@ -662,21 +766,65 @@ export default function ResumenPage() {
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
       />
 
-      {/* Secciones por Fila: Cotizaciones, Facturado y Ventas Perdidas */}
-      <CotizacionesSection
-        datos={resumenData.cotizaciones}
-        hideSucursalColumn={role === "coordinador" || role === "asesor"}
-      />
+      {isSingleUnitView ? (
+        <>
+          {/* Vista por unidad (gerente_comercial, o gerencia con una unidad
+              elegida arriba): Cotizaciones y Facturado lado a lado, con
+              variación vs. mes anterior y línea de tiempo. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4 mb-8">
+            <CotizacionesSection
+              part="summary"
+              datos={resumenData.cotizaciones}
+              hideSucursalColumn={role === "coordinador" || role === "asesor"}
+              showVariacionMesAnterior
+              highlightMonths={getHighlightMonthLabels(filters.meses)}
+            />
 
-      <FacturadoSection
-        datos={resumenData.facturado}
-        hideSucursalColumn={role === "coordinador" || role === "asesor"}
-      />
+            <FacturadoSection
+              part="summary"
+              datos={resumenData.facturado}
+              hideSucursalColumn={role === "coordinador" || role === "asesor"}
+            />
 
-      <VentasPerdidasSection
-        datos={resumenData.ventasPerdidas}
-        hideSucursalColumn={role === "coordinador" || role === "asesor"}
-      />
+            <CotizacionesSection
+              part="detail"
+              datos={resumenData.cotizaciones}
+              hideSucursalColumn={role === "coordinador" || role === "asesor"}
+            />
+
+            <FacturadoSection
+              part="detail"
+              datos={resumenData.facturado}
+              hideSucursalColumn={role === "coordinador" || role === "asesor"}
+            />
+          </div>
+
+          <VentasPerdidasSection
+            datos={resumenData.ventasPerdidas}
+            hideSucursalColumn={role === "coordinador" || role === "asesor"}
+            showVariacionMesAnterior
+          />
+        </>
+      ) : (
+        <>
+          {/* Vista consolidada por tipo de métrica (Gerencia Nacional con
+              "Todas las unidades", y coordinador/asesor). */}
+          <CotizacionesSectionLegacy
+            datos={resumenData.cotizaciones}
+            hideSucursalColumn={role === "coordinador" || role === "asesor"}
+          />
+
+          <FacturadoSectionLegacy
+            datos={resumenData.facturado}
+            hideSucursalColumn={role === "coordinador" || role === "asesor"}
+          />
+
+          <VentasPerdidasSectionLegacy
+            datos={resumenData.ventasPerdidas}
+            hideSucursalColumn={role === "coordinador" || role === "asesor"}
+          />
+        </>
+      )}
     </div>
   );
 }

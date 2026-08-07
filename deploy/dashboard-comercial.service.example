@@ -1,0 +1,21 @@
+[Unit]
+Description=Dashboard Comercial 2026 (Next.js)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+# Ajustar al usuario/ruta reales del servidor — nunca correr como root.
+User=deploy
+WorkingDirectory=/opt/dashboard-comercial-2026
+# Carga las variables desde el .env de producción (ver .env.production.example).
+EnvironmentFile=/opt/dashboard-comercial-2026/.env.local
+ExecStart=/home/deploy/.bun/bin/bun run start
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dashboard-comercial
+
+[Install]
+WantedBy=multi-user.target

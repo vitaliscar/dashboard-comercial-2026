@@ -25,12 +25,12 @@ export interface KpiCardProps {
   subvalueLabelClassName?: string;
 }
 
-const ACCENT_BORDER: Record<string, string> = {
-  primary: "border-l-primary",
-  success: "border-l-success",
-  warning: "border-l-warning",
-  danger: "border-l-danger",
-  ochre: "border-l-ochre",
+const ACCENT_RING: Record<string, string> = {
+  primary: "ring-1 ring-primary/25",
+  success: "ring-1 ring-success/25",
+  warning: "ring-1 ring-warning/25",
+  danger: "ring-1 ring-danger/25",
+  ochre: "ring-1 ring-ochre/25",
 };
 
 const ACCENT_TEXT: Record<string, string> = {
@@ -87,8 +87,7 @@ export function KpiCard({
       className={cn(
         "relative p-5 overflow-hidden",
         "card-elevated",
-        "border-l-2",
-        featured ? ACCENT_BORDER[accent] : "border-l-transparent",
+        featured ? ACCENT_RING[accent] : "",
         "hover:border-border/80 hover:card-elevated-hover",
         "transition-[border-color,box-shadow] duration-200",
         "section-enter",
