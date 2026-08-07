@@ -30,7 +30,7 @@ export type ModuleKey =
  * rol — todavía en desarrollo/validación, no listos para los usuarios reales.
  * Quitar de aquí cuando estén listos para salir a producción.
  */
-const MODULES_HIDDEN_IN_PRODUCTION: ModuleKey[] = ["comisiones", "pareto"];
+const MODULES_HIDDEN_IN_PRODUCTION: ModuleKey[] = ["comisiones", "pareto", "mercadeo"];
 
 const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   resumen: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
