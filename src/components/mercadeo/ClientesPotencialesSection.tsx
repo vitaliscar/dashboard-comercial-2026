@@ -20,7 +20,10 @@ export function ClientesPotencialesSection({ unidad }: { unidad: UnidadNegocioLe
   const { data, isLoading } = useQuery({
     queryKey: ["clientes-potenciales-resumen", unidad],
     queryFn: () => getClientesPotencialesResumenAction({ unidad }),
+    enabled: process.env.NODE_ENV !== "production",
   });
+
+  if (process.env.NODE_ENV === "production") return null;
 
   return (
     <section className="space-y-3">

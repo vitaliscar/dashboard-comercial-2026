@@ -38,7 +38,19 @@ function condMeses(columna: PgColumn, meses: MonthFilter) {
   return Array.isArray(meses) && meses.length > 0 ? inArray(columna, meses) : undefined;
 }
 
+/**
+ * Mercadeo (incluyendo Clientes Potenciales) no pasa a producción en ningún
+ * rol ni vista. Defensa en profundidad: bloquea el action aunque alguien
+ * invoque el server action directo sin pasar por la UI gateada.
+ */
+function assertNotProduction() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Módulo Mercadeo no disponible en producción");
+  }
+}
+
 export async function getMercadeoCanalesAction(data: { meses: MonthFilter }) {
+  assertNotProduction();
   return withAuth(({ tx }) =>
     tx
       .select({
@@ -54,6 +66,7 @@ export async function getMercadeoCanalesAction(data: { meses: MonthFilter }) {
 }
 
 export async function getMercadeoInstagramAction(data: { meses: MonthFilter }) {
+  assertNotProduction();
   return withAuth(({ tx }) =>
     tx
       .select({
@@ -69,6 +82,7 @@ export async function getMercadeoInstagramAction(data: { meses: MonthFilter }) {
 
 /** Join con sucursales para devolver el nombre ya resuelto (incluye San Cristóbal). */
 export async function getMercadeoGoogleBusinessAction(data: { meses: MonthFilter }) {
+  assertNotProduction();
   return withAuth(({ tx }) =>
     tx
       .select({
@@ -85,6 +99,7 @@ export async function getMercadeoGoogleBusinessAction(data: { meses: MonthFilter
 }
 
 export async function getMercadeoPostHistoriasAction(data: { meses: MonthFilter }) {
+  assertNotProduction();
   return withAuth(({ tx }) =>
     tx
       .select({
@@ -117,6 +132,7 @@ export type UnidadNegocioLead =
 export async function getClientesPotencialesResumenAction(data: {
   unidad?: UnidadNegocioLead;
 }): Promise<{ resumen: LeadsResumen; embudo: { estatus: string; cantidad: number }[] }> {
+  assertNotProduction();
   return withAuth(async ({ tx }) => {
     const rows = await tx
       .select({
@@ -167,6 +183,7 @@ export async function getClientesPotencialesDetalleAction(data: {
   anio: number;
   meses: MonthFilter;
 }): Promise<LeadDetalle[]> {
+  assertNotProduction();
   return withAuth(async ({ tx, role }) => {
     if (role !== "gerencia") return [];
 
