@@ -148,12 +148,17 @@ export function FacturadoSection({
       )}
 
       {showDetail && (
+        // Columnas CSS (no grid): cada tarjeta fluye de forma independiente, así una
+        // unidad con pocos clientes no deja espacio en blanco reservado por la
+        // columna más alta como pasaba con `grid-template-columns`.
         <div
-          className={cn("grid gap-3", showSummary ? "mt-4" : "")}
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}
+          className={cn(
+            "columns-1 sm:columns-2 xl:columns-4 gap-3 [column-fill:balance]",
+            showSummary ? "mt-4" : "",
+          )}
         >
           {datosConActividad.map((unidad) => (
-            <div key={`table-${unidad.unidad}`}>
+            <div key={`table-${unidad.unidad}`} className="break-inside-avoid mb-3">
               <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
                 Top clientes · {unidad.unidad}
               </p>

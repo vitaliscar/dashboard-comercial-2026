@@ -229,11 +229,11 @@ export default function ResumenPage() {
     sucursales.forEach((s) => sucMap.set(s.id, s.nombre));
 
     const allCategories: UnidadNegocio[] = [
-      "Servicios",
       "Repuestos",
       "Lub / Filtros",
-      "Alquiler",
+      "Servicios",
       "Equipos",
+      "Alquiler",
     ];
     // Gerencia con una unidad seleccionada → mismo alcance de datos que ve un
     // gerente_comercial de esa unidad (allí llega ya scopeado, vía RLS).

@@ -2,7 +2,6 @@ import { UnidadMetrica } from "@/lib/resumen-types";
 import { BusinessUnitCard } from "./BusinessUnitCard";
 import { DataTable } from "./DataTable";
 import { money } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface CotizacionesSectionLegacyProps {
   datos: UnidadMetrica[];
@@ -21,9 +20,10 @@ export function CotizacionesSectionLegacy({
 }: CotizacionesSectionLegacyProps) {
   if (!datos || datos.length === 0) return null;
 
-  const datosConActividad = datos.filter((d) => d.monto > 0);
-  if (datosConActividad.length === 0) return null;
-
+  // Se muestran siempre las 5 unidades (aunque una no haya reportado nada este
+  // mes) para que el grid no se reacomode como si solo existieran las que sí
+  // tuvieron movimiento — la unidad sin datos queda visible con su tabla
+  // vacía y un mensaje explicando por qué.
   const totalCotizado = datos.reduce((sum, d) => sum + d.monto, 0);
 
   return (
@@ -36,14 +36,14 @@ export function CotizacionesSectionLegacy({
         </span>
       </div>
 
-      {/* Business unit summary cards */}
+      {/* Business unit summary cards — auto-fit: si faltan unidades (ej. 4 de 5
+          activas), las tarjetas se reparten el ancho completo en vez de dejar
+          una columna vacía como pasaba con `grid-cols-5` fijo. */}
       <div
-        className={cn(
-          "grid gap-3 mb-6",
-          "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
-        )}
+        className="grid gap-3 mb-6"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
       >
-        {datosConActividad.map((unidad) => (
+        {datos.map((unidad) => (
           <BusinessUnitCard
             key={unidad.unidad}
             label={unidad.unidad}
@@ -53,9 +53,13 @@ export function CotizacionesSectionLegacy({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        {datosConActividad.map((unidad) => (
-          <div key={`table-${unidad.unidad}`}>
+      {/* Columnas CSS con ancho auto-fit (no grid ni breakpoints fijos): cada
+          tarjeta fluye de forma independiente, así una unidad con pocos
+          clientes no deja espacio en blanco debajo, y si faltan unidades
+          activas las columnas restantes se reparten el ancho completo. */}
+      <div className="columns-[200px] gap-3 [column-fill:balance]">
+        {datos.map((unidad) => (
+          <div key={`table-${unidad.unidad}`} className="break-inside-avoid mb-3">
             <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
               Top clientes · {unidad.unidad}
             </p>
@@ -82,7 +86,7 @@ export function CotizacionesSectionLegacy({
               ]}
               data={unidad.topClientes}
               showExpandButton={true}
-              emptyMessage="Sin cotizaciones"
+              emptyMessage={`${unidad.unidad} no reportó cotizaciones en el período seleccionado`}
               maxRows={5}
             />
           </div>

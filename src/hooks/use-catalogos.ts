@@ -6,6 +6,7 @@ import {
   getSucursalesMercadeoAction,
   getUnidadesAction,
 } from "@/lib/actions/catalogos";
+import { unidadLabelInfo } from "@/lib/unidad-labels";
 
 /**
  * Catálogos casi inmutables (solo cambian vía /carga o /usuarios). staleTime
@@ -39,10 +40,20 @@ export function useSucursalesMercadeo() {
   });
 }
 
+/**
+ * Orden fijo en TODO el sistema: Repuestos, Lub / Filtros, Servicios,
+ * Equipos, Alquiler (unidadLabelInfo().order) — no el orden alfabético que
+ * devuelve la query de Postgres.
+ */
 export function useUnidades() {
   return useQuery({
     queryKey: ["unidades"],
-    queryFn: () => getUnidadesAction(),
+    queryFn: async () => {
+      const unidades = await getUnidadesAction();
+      return [...unidades].sort(
+        (a, b) => unidadLabelInfo(a.nombre).order - unidadLabelInfo(b.nombre).order,
+      );
+    },
     staleTime: Infinity,
   });
 }

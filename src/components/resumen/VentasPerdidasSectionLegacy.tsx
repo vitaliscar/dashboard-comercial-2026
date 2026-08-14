@@ -17,9 +17,9 @@ export function VentasPerdidasSectionLegacy({
 }: VentasPerdidasSectionLegacyProps) {
   if (!datos || datos.length === 0) return null;
 
-  const datosConActividad = datos.filter((d) => d.monto > 0);
-  if (datosConActividad.length === 0) return null;
-
+  // Se muestran siempre las 5 unidades (aunque una no haya reportado ventas
+  // perdidas este mes) para que el grid no se reacomode como si solo
+  // existieran las que sí tuvieron movimiento.
   const totalPerdido = datos.reduce((sum, u) => sum + u.monto, 0);
 
   const topClientes = datos
@@ -55,9 +55,14 @@ export function VentasPerdidasSectionLegacy({
         </span>
       </div>
 
-      {/* Unit summary cards */}
-      <div className="grid gap-3 mb-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {datosConActividad.map((unidad) => (
+      {/* Unit summary cards — auto-fit: si faltan unidades activas las
+          tarjetas se reparten el ancho completo en vez de dejar una columna
+          vacía. */}
+      <div
+        className="grid gap-3 mb-6"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+      >
+        {datos.map((unidad) => (
           <BusinessUnitCard
             key={unidad.unidad}
             label={unidad.unidad}
