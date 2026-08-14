@@ -4,7 +4,6 @@ import { DataTable } from "./DataTable";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { money } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface FacturadoSectionLegacyProps {
   datos: FacturadoMetrica[];
@@ -37,11 +36,11 @@ export function FacturadoSectionLegacy({
 
   if (!datos || datos.length === 0) return null;
 
-  const datosConActividad = datos.filter((d) => d.monto > 0 || (d.presupuestoTotal ?? 0) > 0);
-  if (datosConActividad.length === 0) return null;
-
+  // Se muestran siempre las 5 unidades (aunque una no haya facturado nada
+  // este mes) para que el grid no se reacomode como si solo existieran las
+  // que sí tuvieron movimiento — la unidad sin datos queda visible con su
+  // tabla vacía y un mensaje explicando por qué.
   const totalFacturado = datos.reduce((sum, d) => sum + d.monto, 0);
-  const gridColsClass = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 
   return (
     <div className="mb-8 section-enter section-enter-2">
@@ -53,9 +52,14 @@ export function FacturadoSectionLegacy({
         </span>
       </div>
 
-      {/* Business unit cards (con filtro de tipo cliente + margen por unidad) */}
-      <div className={cn("grid gap-3", gridColsClass)}>
-        {datosConActividad.map((unidad) => {
+      {/* Business unit cards (con filtro de tipo cliente + margen por unidad) —
+          auto-fit: si faltan unidades activas las tarjetas se reparten el
+          ancho completo en vez de dejar una columna vacía. */}
+      <div
+        className="grid gap-3"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+      >
+        {datos.map((unidad) => {
           const filter = tipoClienteFilters[unidad.unidad] ?? "TODAS";
           const ppto = unidad.presupuestoTotal || 0;
 
@@ -130,9 +134,13 @@ export function FacturadoSectionLegacy({
         })}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mt-4">
-        {datosConActividad.map((unidad) => (
-          <div key={`table-${unidad.unidad}`}>
+      {/* Columnas CSS con ancho auto-fit (no grid ni breakpoints fijos): cada
+          tarjeta fluye de forma independiente, así una unidad con pocos
+          clientes no deja espacio en blanco debajo, y si faltan unidades
+          activas las columnas restantes se reparten el ancho completo. */}
+      <div className="columns-[200px] gap-3 mt-4 [column-fill:balance]">
+        {datos.map((unidad) => (
+          <div key={`table-${unidad.unidad}`} className="break-inside-avoid mb-3">
             <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
               Top clientes · {unidad.unidad}
             </p>
@@ -159,7 +167,7 @@ export function FacturadoSectionLegacy({
               ]}
               data={unidad.topClientes}
               showExpandButton={true}
-              emptyMessage="Sin facturación"
+              emptyMessage={`${unidad.unidad} no reportó facturación en el período seleccionado`}
               maxRows={5}
             />
           </div>
