@@ -9,6 +9,7 @@ import {
   setProfileSucursalAction,
   setProfileAdminAction,
   toggleProfileUnidadAction,
+  toggleProfileSucursalAction,
   createUserAction,
   resetPasswordAction,
   setUserActiveAction,
@@ -57,6 +58,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusPill } from "@/components/status-pill";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { RolePermissionsPanel } from "@/components/usuarios/RolePermissionsPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -227,6 +230,7 @@ function EditUserDialog({
   currentRole,
   isActive,
   assignedUnidadIds,
+  assignedSucursalIds,
   sucursales,
   unidades,
   onClose,
@@ -237,6 +241,7 @@ function EditUserDialog({
   currentRole?: AppRole;
   isActive: boolean;
   assignedUnidadIds: string[];
+  assignedSucursalIds: string[];
   sucursales: { id: string; nombre: string }[];
   unidades: { id: string; nombre: string }[];
   onClose: () => void;
@@ -285,6 +290,16 @@ function EditUserDialog({
       toggleProfileUnidadAction({ profileId: profile!.id, unidadId, checked }),
     onSuccess: () => {
       toast.success("Unidades actualizadas");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleSucursal = useMutation({
+    mutationFn: ({ sucursalId, checked }: { sucursalId: string; checked: boolean }) =>
+      toggleProfileSucursalAction({ profileId: profile!.id, sucursalId, checked }),
+    onSuccess: () => {
+      toast.success("Sucursales actualizadas");
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -409,6 +424,34 @@ function EditUserDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Sucursales asignadas — coordinador puede cubrir más de una */}
+            {currentRole === "coordinador" && sucursales.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Sucursales asignadas
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {sucursales.map((s) => {
+                    const checked = assignedSucursalIds.includes(s.id);
+                    return (
+                      <label
+                        key={s.id}
+                        className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-background cursor-pointer hover:bg-muted/50 transition-colors text-sm"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(c) =>
+                            toggleSucursal.mutate({ sucursalId: s.id, checked: !!c })
+                          }
+                        />
+                        <span className="truncate">{s.nombre}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Unidades asignadas */}
             {unidades.length > 0 && (
@@ -746,24 +789,14 @@ export default function UsuariosPage() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [permisosOpen, setPermisosOpen] = useState(false);
 
   // ALL HOOKS MUST BE CALLED BEFORE GUARD
-  if (!canView) {
-    return (
-      <div className="card-elevated p-8 max-w-xl text-center flex flex-col gap-2">
-        <Shield className="size-10 mx-auto text-muted-foreground" />
-        <h2 className="font-display text-xl font-semibold">Acceso restringido</h2>
-        <p className="text-sm text-muted-foreground">
-          Sólo el perfil Gerencia Nacional puede administrar usuarios y roles.
-        </p>
-      </div>
-    );
-  }
-
   const profilesList = usuariosData?.profiles ?? [];
   const usersMap = new Map((usuariosData?.users ?? []).map((u) => [u.id, u]));
   const rolesMap = new Map((usuariosData?.roles ?? []).map((r) => [r.userId, r.role as AppRole]));
   const profileUnidades = usuariosData?.profileUnidades ?? [];
+  const profileSucursales = usuariosData?.profileSucursales ?? [];
 
   const sucursalesMap = new Map((sucursales ?? []).map((s) => [s.id, s.nombre]));
 
@@ -780,6 +813,18 @@ export default function UsuariosPage() {
     );
   }, [profilesList, rolesMap, search]);
 
+  if (!canView) {
+    return (
+      <div className="card-elevated p-8 max-w-xl text-center flex flex-col gap-2">
+        <Shield className="size-10 mx-auto text-muted-foreground" />
+        <h2 className="font-display text-xl font-semibold">Acceso restringido</h2>
+        <p className="text-sm text-muted-foreground">
+          Sólo el perfil Gerencia Nacional puede administrar usuarios y roles.
+        </p>
+      </div>
+    );
+  }
+
   const selectedProfile = profilesList.find((p) => p.id === selectedId) ?? null;
   const selectedRole = selectedProfile ? rolesMap.get(selectedProfile.id) : undefined;
   const selectedIsActive = selectedProfile
@@ -789,6 +834,11 @@ export default function UsuariosPage() {
     ? profileUnidades
         .filter((pu) => pu.profileId === selectedProfile.id)
         .map((pu) => pu.unidadNegocioId)
+    : [];
+  const selectedSucursalIds = selectedProfile
+    ? profileSucursales
+        .filter((ps) => ps.profileId === selectedProfile.id)
+        .map((ps) => ps.sucursalId)
     : [];
 
   // Stats
@@ -801,6 +851,25 @@ export default function UsuariosPage() {
     },
     {} as Record<AppRole, number>,
   );
+
+  if (isLoading && !usuariosData) {
+    return (
+      <div className="flex flex-col gap-6 max-w-[1400px]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-bold flex items-center gap-2">
+              <UserCog className="size-7" /> Usuarios
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Gestiona perfiles, roles y accesos de{" "}
+              <span className="text-foreground font-medium">apereccvenequip.com</span>
+            </p>
+          </div>
+        </div>
+        <PageSkeleton kpis={4} blocks={[{ cols: 4, height: 160 }]} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
@@ -815,10 +884,17 @@ export default function UsuariosPage() {
             <span className="text-foreground font-medium">apereccvenequip.com</span>
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2 self-start sm:self-auto">
-          <Plus className="size-4" /> Nuevo usuario
-        </Button>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <Button variant="outline" onClick={() => setPermisosOpen((v) => !v)} className="gap-2">
+            <Shield className="size-4" /> Permisos por rol
+          </Button>
+          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+            <Plus className="size-4" /> Nuevo usuario
+          </Button>
+        </div>
       </div>
+
+      {permisosOpen && <RolePermissionsPanel />}
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -896,6 +972,7 @@ export default function UsuariosPage() {
         currentRole={selectedRole}
         isActive={selectedIsActive}
         assignedUnidadIds={selectedUnidadIds}
+        assignedSucursalIds={selectedSucursalIds}
         sucursales={sucursales ?? []}
         unidades={unidades ?? []}
         onClose={() => setSelectedId(null)}
