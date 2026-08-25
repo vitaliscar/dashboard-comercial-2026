@@ -1064,19 +1064,34 @@ export class ExcelParser {
   /**
    * Convierte fechas de Excel (Date, dd/mm/yyyy, dd-mm-yyyy, ISO) a 'YYYY-MM-DD'.
    */
+  /**
+   * Celdas corruptas o mal interpretadas por XLSX (ej. un número de serie de
+   * fecha absurdo) producen un Date con getTime() valido pero un año
+   * disparatado (5+ digitos) — toISOString() en ese caso usa el formato ISO
+   * 8601 extendido ("+046185-01-25T..."), que al recortarse a 10 caracteres
+   * queda truncado a mitad de mes ("+046185-01") y rompe el INSERT completo
+   * en Postgres. Cualquier año fuera de un rango de negocio razonable se
+   * trata como fecha ausente en vez de propagar el dato corrupto.
+   */
+  private esAnioRazonable(anio: number): boolean {
+    return anio >= 1990 && anio <= 2100;
+  }
+
   private excelDateToISO(value: string | number | Date | undefined | null): string | null {
     if (!value) return null;
     if (value instanceof Date) {
-      return isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+      if (isNaN(value.getTime()) || !this.esAnioRazonable(value.getFullYear())) return null;
+      return value.toISOString().slice(0, 10);
     }
     const s = value.toString().trim();
     const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     if (m) {
       const [, d, mo, y] = m;
-      return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+      return this.esAnioRazonable(Number(y)) ? `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}` : null;
     }
     const d2 = new Date(s);
-    return isNaN(d2.getTime()) ? null : d2.toISOString().slice(0, 10);
+    if (isNaN(d2.getTime()) || !this.esAnioRazonable(d2.getFullYear())) return null;
+    return d2.toISOString().slice(0, 10);
   }
 
   /**

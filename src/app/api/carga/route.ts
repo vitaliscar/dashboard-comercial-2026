@@ -5,8 +5,12 @@ import { ExcelParser } from "@/lib/excel-parser";
 import { parseExcelInWorker } from "@/lib/parse-excel-in-worker";
 
 export const runtime = "nodejs";
-/** Cargas grandes (~28–50 MB); el límite de Server Actions queda en 2mb (CN-010). */
-export const maxDuration = 300;
+/**
+ * El Excel fuente solo crece con el tiempo (209MB al momento de fijar este
+ * límite) — 350MB deja margen real de crecimiento. El límite de Server
+ * Actions queda en 2mb aparte (CN-010), no aplica a esta ruta.
+ */
+export const maxDuration = 600;
 
 export async function POST(request: NextRequest) {
   const session = await getCurrentSession();
@@ -35,9 +39,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No se recibió ningún archivo." }, { status: 400 });
   }
 
-  const maxBytes = 55 * 1024 * 1024;
+  const maxBytes = 350 * 1024 * 1024;
   if (file.size > maxBytes) {
-    return NextResponse.json({ error: "El archivo supera el límite de 55 MB." }, { status: 413 });
+    return NextResponse.json({ error: "El archivo supera el límite de 350 MB." }, { status: 413 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

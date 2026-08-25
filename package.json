@@ -4,8 +4,10 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
+    "predev": "bun run build:worker",
     "dev": "next dev",
-    "build": "next build",
+    "build:worker": "bun build src/lib/excel-parse.worker.ts --target=bun --outdir=worker-dist",
+    "build": "bun run build:worker && next build",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
