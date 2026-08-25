@@ -24,12 +24,23 @@ servicio externo de base de datos — todo corre en el mismo servidor.
 
 ## 2. Clonar el proyecto
 
+**Clonar desde el repo de PRODUCCIÓN, no el de desarrollo.** Son dos repos
+distintos a propósito — el VPS nunca debe apuntar al repo de desarrollo:
+
+- Desarrollo (NO usar en el VPS): `github.com/vitaliscar/dashboard-comercial-2026`
+- **Producción (usar este)**: `github.com/jesusapn/dashboard-comercial-2026` (privado)
+
 ```bash
 sudo mkdir -p /opt/dashboard-comercial-2026
 sudo chown $USER:$USER /opt/dashboard-comercial-2026
 cd /opt/dashboard-comercial-2026
-git clone <URL_DEL_REPO> .
+git clone https://github.com/jesusapn/dashboard-comercial-2026.git .
 ```
+
+El repo de producción es privado — clonarlo por HTTPS requiere un Personal
+Access Token de una cuenta con acceso (`git clone
+https://<usuario>:<token>@github.com/jesusapn/dashboard-comercial-2026.git .`),
+o configurar una clave SSH con acceso de lectura si se prefiere ese método.
 
 ## 3. Configurar variables de entorno
 
