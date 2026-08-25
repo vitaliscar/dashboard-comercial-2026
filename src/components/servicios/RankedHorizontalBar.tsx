@@ -65,6 +65,7 @@ export const RankedHorizontalBar = memo(function RankedHorizontalBar({
                   width={130}
                 />
                 <Tooltip
+                  cursor={false}
                   formatter={
                     ((_v: unknown, _n: string, item: { payload: RankedRow }) => [
                       item.payload.pct !== undefined
@@ -79,6 +80,8 @@ export const RankedHorizontalBar = memo(function RankedHorizontalBar({
                     borderRadius: 0,
                     fontSize: 12,
                   }}
+                  labelStyle={{ color: "var(--color-foreground)" }}
+                  itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Bar
                   dataKey="value"

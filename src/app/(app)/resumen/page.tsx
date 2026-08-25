@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useEffect, useCallback, type CSSProperties } from "react";
+import { SkeletonBox } from "@/components/ui/skeleton-box";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { PageHeader } from "@/components/page-header";
 import { KpiCards } from "@/components/resumen/KpiCards";
@@ -28,10 +29,6 @@ import {
 } from "@/lib/date-range";
 import { MESES } from "@/lib/format";
 
-function SkeletonBox({ className, style }: { className?: string; style?: CSSProperties }) {
-  return <div className={`skeleton rounded ${className ?? ""}`} style={style} />;
-}
-
 function ResumenSkeleton() {
   return (
     <div className="flex flex-col gap-6">
@@ -48,10 +45,10 @@ function ResumenSkeleton() {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="card-elevated p-5 flex flex-col gap-3">
+      {/* KPI strip */}
+      <div className="card-elevated grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y divide-border lg:divide-y-0 lg:divide-x">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="p-5 flex flex-col gap-3">
             <SkeletonBox className="h-3 w-28" />
             <SkeletonBox className="h-8 w-40" />
             <SkeletonBox className="h-3 w-20" />

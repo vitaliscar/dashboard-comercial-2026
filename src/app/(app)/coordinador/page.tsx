@@ -21,7 +21,14 @@ import {
   type EquiposAlquilerRow,
 } from "@/components/coordinador/EquiposAlquilerStacked";
 import { ReceivablesTable, type ReceivableRow } from "@/components/coordinador/ReceivablesTable";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import {
   ResponsiveContainer,
   RadarChart,
@@ -31,7 +38,7 @@ import {
   Radar,
 } from "recharts";
 import { useMemo, useEffect, useDeferredValue } from "react";
-import { Shield } from "lucide-react";
+import { Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolverAsesor, normalizarNombre, VENTAS_CASA } from "@/lib/asesores-catalogo";
 import {
@@ -453,8 +460,30 @@ export default function CoordinadorPanel() {
     );
   }
 
+  if (isLoading && !yearData) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Panel Financiero — Coordinador</h1>
+          <p className="text-sm text-muted-foreground mt-1">Consolidado de toda tu sucursal</p>
+        </div>
+        <PageSkeleton
+          kpis={0}
+          blocks={[
+            { cols: 3, height: 260 },
+            { cols: 2 },
+            { cols: 2 },
+            { cols: 2 },
+            { cols: 1, height: 400 },
+            { cols: 1, height: 320 },
+          ]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-bold">Panel Financiero — Coordinador</h1>
         <p className="text-sm text-muted-foreground mt-1">Consolidado de toda tu sucursal</p>
@@ -542,9 +571,14 @@ export default function CoordinadorPanel() {
         {asesorComparativo.length === 0 ? (
           <Empty>
             <EmptyHeader>
-              <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                Sin datos suficientes para generar comparativo.
-              </EmptyTitle>
+              <EmptyMedia variant="icon">
+                <Users />
+              </EmptyMedia>
+              <EmptyTitle>Sin datos suficientes</EmptyTitle>
+              <EmptyDescription>
+                Hace falta venta registrada de al menos un asesor en este período para armar el
+                comparativo.
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (

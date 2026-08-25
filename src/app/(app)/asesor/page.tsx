@@ -10,13 +10,13 @@ import { money, pct, statusFromPct, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
 import { useMemo, useEffect } from "react";
+import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   Bar,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
   Line,
   ComposedChart,
   Legend,
@@ -25,12 +25,16 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
+  LabelList,
+  Cell,
 } from "recharts";
-import { TrendingUp, Target, Zap, Calendar, Shield } from "lucide-react";
+import { TrendingUp, Target, Zap, Shield, Ambulance, Truck, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function AsesorPage() {
+  const chartAnimation = useChartAnimation();
   const { role, profile } = useAuth();
   const canView = role === "asesor";
 
@@ -134,15 +138,31 @@ export default function AsesorPage() {
         }
       });
 
-      if (meses !== "all") {
-        const allowedShortNames = meses.map((m) => MESES[m - 1].slice(0, 3));
-        return byMonth.filter((item) => allowedShortNames.includes(item.mes));
-      } else {
-        const monthCap = getAllMonthsCap(anio);
-        return byMonth.slice(0, monthCap);
-      }
+      const monthCap = getAllMonthsCap(anio);
+      return byMonth.slice(0, monthCap).map((item, i) => ({
+        ...item,
+        seleccionado: meses !== "all" && meses.includes(i + 1),
+      }));
     },
   });
+
+  const variacion = useMemo(() => {
+    if (!trend || trend.length === 0) return 0;
+    const monthIndexes =
+      meses === "all" ? trend.map((_, i) => i + 1) : [...meses].sort((a, b) => a - b);
+    if (monthIndexes.length === 0) return 0;
+    const firstMonth = monthIndexes[0];
+    const windowSize = monthIndexes.length;
+    const currentSum = monthIndexes.reduce((acc, m) => acc + (trend[m - 1]?.ventas ?? 0), 0);
+    const prevStart = firstMonth - windowSize;
+    if (prevStart < 1) return 0;
+    let prevSum = 0;
+    for (let m = prevStart; m < firstMonth; m++) {
+      prevSum += trend[m - 1]?.ventas ?? 0;
+    }
+    if (prevSum <= 0) return 0;
+    return ((currentSum - prevSum) / prevSum) * 100;
+  }, [trend, meses]);
 
   const kpis = useMemo(() => {
     const totalFacturado = metrics?.facturacion.totalMonto ?? 0;
@@ -153,15 +173,26 @@ export default function AsesorPage() {
 
     return {
       cumplimiento,
-      variacion: 0,
+      variacion,
       totalFacturado,
       totalPresupuesto,
       totalPerdido,
-      diasAdelanto: 0,
     };
-  }, [metrics]);
+  }, [metrics, variacion]);
 
   const cumplimientoStatus = statusFromPct(kpis.cumplimiento);
+
+  const yDomainMax = useMemo(() => {
+    const maxVal = Math.max(0, ...(trend ?? []).flatMap((t) => [t.ventas, t.presupuesto]));
+    return maxVal + Math.max(30000, maxVal * 0.1);
+  }, [trend]);
+
+  const tier =
+    kpis.cumplimiento >= 90
+      ? { icon: Rocket, label: "Acelerando", accent: "text-success" }
+      : kpis.cumplimiento >= 50
+        ? { icon: Truck, label: "En camino", accent: "text-warning" }
+        : { icon: Ambulance, label: "Crítico", accent: "text-danger" };
 
   const scorecard = useMemo(() => {
     const nVentas = metrics?.facturacion.cantidad ?? 0;
@@ -209,8 +240,20 @@ export default function AsesorPage() {
     );
   }
 
+  if (isLoading && !metrics) {
+    return (
+      <PageSkeleton
+        kpis={4}
+        blocks={[
+          { cols: 3, height: 260 },
+          { cols: 1, height: 320 },
+        ]}
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Vista personal"
         title={`Bienvenido, ${profile?.nombre_completo?.split(" ")[0] ?? "Asesor"}`}
@@ -278,7 +321,7 @@ export default function AsesorPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
           label="Cumplimiento"
           value={pct(kpis.cumplimiento, 1)}
@@ -295,16 +338,9 @@ export default function AsesorPage() {
         <KpiCard
           label="Variación"
           value={`${kpis.variacion > 0 ? "+" : ""}${kpis.variacion.toFixed(1)}%`}
-          hint={`vs Meta Inicial`}
+          hint="vs. periodo anterior equivalente"
           accent={kpis.variacion >= 0 ? "success" : "danger"}
           icon={TrendingUp}
-        />
-        <KpiCard
-          label="Días Adelanto"
-          value={String(kpis.diasAdelanto)}
-          hint={`Vs. Cronograma`}
-          accent="primary"
-          icon={Calendar}
         />
         <KpiCard
           label="Totales Facturados"
@@ -316,23 +352,18 @@ export default function AsesorPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-1">
-        <div className="card-elevated p-5 lg:col-span-2">
+        <div className="card-elevated p-5 lg:col-span-2 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-display font-semibold">Ventas Mensuales {anio}</h3>
               <p className="text-xs text-muted-foreground">Línea presupuesto vs. ventas reales</p>
             </div>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="flex-1 min-h-64">
+            <ResponsiveContainer width="100%" height="100%" debounce={200}>
               <ComposedChart data={trend ?? []}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
+                <YAxis domain={[0, yDomainMax]} hide />
                 <Tooltip
                   formatter={((v: unknown) => money(Number(v))) as never}
                   contentStyle={{
@@ -341,22 +372,70 @@ export default function AsesorPage() {
                     borderRadius: 0,
                     fontSize: 12,
                   }}
+                  labelStyle={{ color: "var(--color-foreground)" }}
+                  itemStyle={{ color: "var(--color-foreground)" }}
                 />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey="presupuesto"
                   fill="var(--color-muted-foreground)"
                   name="Presupuesto"
                   radius={[4, 4, 0, 0]}
-                />
+                  {...chartAnimation}
+                >
+                  {(trend ?? []).map((item, i) => (
+                    <Cell
+                      key={i}
+                      fill={
+                        item.seleccionado ? "var(--color-primary)" : "var(--color-muted-foreground)"
+                      }
+                      fillOpacity={item.seleccionado ? 0.9 : 0.5}
+                    />
+                  ))}
+                  <LabelList
+                    dataKey="presupuesto"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill="var(--color-muted-foreground)"
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Bar>
                 <Line
                   type="monotone"
                   dataKey="ventas"
                   stroke="var(--color-primary)"
                   strokeWidth={2.5}
                   name="Ventas"
-                  dot={false}
-                />
+                  dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                    const item = (trend ?? [])[props.index ?? -1];
+                    const key = `dot-${props.index}`;
+                    if (!item?.seleccionado) {
+                      return <circle key={key} cx={props.cx} cy={props.cy} r={0} />;
+                    }
+                    return (
+                      <circle
+                        key={key}
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={5}
+                        fill="var(--color-primary)"
+                        stroke="var(--color-card)"
+                        strokeWidth={2}
+                      />
+                    );
+                  }}
+                  {...chartAnimation}
+                >
+                  <LabelList
+                    dataKey="ventas"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill="var(--color-primary)"
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Line>
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -365,6 +444,14 @@ export default function AsesorPage() {
         <div className="card-elevated p-5 flex flex-col gap-4">
           <h3 className="font-display font-semibold">Resumen</h3>
           <div className="flex flex-col gap-3 text-sm">
+            <div>
+              <p className="text-[10px] tracking-wider font-mono text-muted-foreground font-semibold mb-1">
+                Total Ventas
+              </p>
+              <p className="font-display font-semibold text-lg tabular-nums text-primary">
+                {money(kpis.totalFacturado)}
+              </p>
+            </div>
             <div>
               <p className="text-[10px] tracking-wider font-mono text-muted-foreground font-semibold mb-1">
                 Total Presupuestado
@@ -388,6 +475,16 @@ export default function AsesorPage() {
               <p className="font-display font-semibold text-lg tabular-nums">
                 {metrics?.facturacion?.cantidad ?? 0}
               </p>
+            </div>
+          </div>
+
+          <div className="mt-auto pt-3 border-t border-foreground/5 flex items-center gap-3">
+            <tier.icon className={cn("size-8 shrink-0", tier.accent)} />
+            <div>
+              <p className="text-[10px] tracking-wider font-mono text-muted-foreground font-semibold">
+                Ritmo de cumplimiento
+              </p>
+              <p className={cn("font-display font-semibold text-sm", tier.accent)}>{tier.label}</p>
             </div>
           </div>
         </div>
@@ -416,7 +513,17 @@ export default function AsesorPage() {
                   fill="var(--color-primary)"
                   fillOpacity={0.25}
                   strokeWidth={2}
-                />
+                  {...chartAnimation}
+                >
+                  <LabelList
+                    dataKey="valor"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill="var(--color-primary)"
+                    formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                  />
+                </Radar>
               </RadarChart>
             </ResponsiveContainer>
           </div>

@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { loginAction, logoutAction, meAction, type AppRole } from "@/lib/actions/auth";
 import { clearSharedFilters } from "@/lib/shared-filters";
+import { getRoleModuleAccessAction } from "@/lib/actions/permisos";
+import { setModuleAccessOverride } from "@/lib/permissions";
 
 export type { AppRole };
 
@@ -14,6 +16,7 @@ export interface UserProfile {
   unidad_negocio_id: string | null;
   is_admin: boolean;
   unidades_negocio_ids?: string[];
+  sucursales_ids?: string[];
 }
 
 interface SessionUser {
@@ -42,6 +45,7 @@ function toUserProfile(profile: {
   unidadNegocioId: string | null;
   isAdmin: boolean;
   unidadesNegocioIds: string[];
+  sucursalesIds: string[];
 }): UserProfile {
   return {
     id: profile.id,
@@ -51,6 +55,7 @@ function toUserProfile(profile: {
     unidad_negocio_id: profile.unidadNegocioId,
     is_admin: profile.isAdmin,
     unidades_negocio_ids: profile.unidadesNegocioIds,
+    sucursales_ids: profile.sucursalesIds,
   };
 }
 
@@ -66,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(me.user);
       setProfile(toUserProfile(me.profile));
       setRole(me.role);
+      getRoleModuleAccessAction().then(setModuleAccessOverride).catch(() => {});
     } else {
       setSession(null);
       setProfile(null);
@@ -91,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(result.user);
       setProfile(toUserProfile(result.profile));
       setRole(result.role);
+      getRoleModuleAccessAction().then(setModuleAccessOverride).catch(() => {});
       return { error: null };
     },
     signOut: async () => {

@@ -353,7 +353,7 @@ export function FilterHeader({
                   key={`${opt.value}-${opt.label}`}
                   value={opt.value}
                   variant="outline"
-                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground border-border hover:bg-accent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
+                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground border-border hover:bg-accent data-[pressed]:bg-primary data-[pressed]:text-primary-foreground data-[pressed]:border-primary"
                 >
                   {opt.label}
                 </ToggleGroupItem>

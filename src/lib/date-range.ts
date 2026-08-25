@@ -7,6 +7,16 @@ export interface DateRange {
   to: string;
 }
 
+/**
+ * Días vencidos desde una fecha de vencimiento, calculados en el momento
+ * (no confiar en la columna "Dias Vencidos"/"DIAS VENCIDO" del Excel — es un
+ * snapshot del día de la carga, se desactualiza cada día que pasa sin
+ * recargar). Negativo = todavía no vence.
+ */
+export function diasVencidosDesde(fechaVencimiento: string, now = new Date()): number {
+  return Math.floor((now.getTime() - new Date(fechaVencimiento).getTime()) / 86400000);
+}
+
 export function getAllMonthsCap(anio: number, now = new Date()): number {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;

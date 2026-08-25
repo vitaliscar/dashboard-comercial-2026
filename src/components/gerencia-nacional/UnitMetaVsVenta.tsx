@@ -113,9 +113,20 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
               />
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent formatter={(value) => money(Number(value))} />}
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => (
+                      <div className="flex flex-1 items-center justify-between gap-3">
+                        <span className="text-muted-foreground">{name}</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {money(Number(value))}
+                        </span>
+                      </div>
+                    )}
+                  />
+                }
               />
-              <ChartLegend content={<ChartLegendContent />} />
+              <ChartLegend verticalAlign="top" align="right" content={<ChartLegendContent />} />
               <Bar
                 dataKey="facturado"
                 name="Vendido"

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getCobranzasAction, getCobranzasComparisonAction } from "@/lib/actions/cobranzas";
 import { calcularParetoCobranzas, segmentarCobranzas } from "@/lib/analytics/cobranzas";
 import { KpiCard } from "@/components/kpi-card";
+import { Sparkline } from "@/components/ui/sparkline";
 import { StatusPill } from "@/components/status-pill";
 import { money } from "@/lib/format";
 import { useMemo, useState } from "react";
@@ -32,9 +33,17 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { CircleCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 const BUCKET_ORDER = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+90 días"] as const;
 const BUCKET_BAR_CLASS: Record<string, string> = {
@@ -153,8 +162,37 @@ export default function CobranzasPage() {
     monto: totals[k] ?? 0,
   }));
 
+  const isFiltroActivo = selectedUnidades.length > 0 || selectedSucursales.length > 0;
+  const filtroActivoLabel = [
+    ...selectedSucursales.map((id) => sucursalOptions.find((o) => o.value === id)?.label ?? id),
+    ...selectedUnidades.map((id) => unitOptions.find((o) => o.value === id)?.label ?? id),
+  ].join(", ");
+
+  if (isLoading && !data) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          eyebrow="Cartera"
+          title="Cobranzas"
+          description="Cuentas por cobrar, análisis de tendencia, riesgo y concentración"
+        />
+        <PageSkeleton
+          kpis={2}
+          blocks={[
+            { cols: 5, height: 100 },
+            { cols: 3, height: 200 },
+            { cols: 1, height: 300 },
+            { cols: 2, height: 200 },
+            { cols: 1, height: 260 },
+            { cols: 1, height: 400 },
+          ]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Cartera"
         title="Cobranzas"
@@ -192,7 +230,7 @@ export default function CobranzasPage() {
                   key={opt.value}
                   value={opt.value}
                   variant="outline"
-                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:border-border border border-transparent"
+                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[pressed]:bg-foreground data-[pressed]:text-background data-[pressed]:border-border border border-transparent"
                 >
                   {opt.label}
                 </ToggleGroupItem>
@@ -233,7 +271,7 @@ export default function CobranzasPage() {
                   key={opt.value}
                   value={opt.value}
                   variant="outline"
-                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:border-border border border-transparent"
+                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground data-[pressed]:bg-foreground data-[pressed]:text-background data-[pressed]:border-border border border-transparent"
                 >
                   {opt.label}
                 </ToggleGroupItem>
@@ -243,7 +281,7 @@ export default function CobranzasPage() {
         </div>
       )}
 
-      {/* 2 KPI CARDS GRANDES */}
+      {/* KPI DESTACADO (bento span-2) + GAUGE DE % VENCIDO */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard
           label="Total por cobrar"
@@ -251,13 +289,16 @@ export default function CobranzasPage() {
           hint={`${enriched.length} facturas`}
           accent="primary"
           icon={Wallet}
+          featured
         />
         <KpiCard
           label="Vencido"
           value={money(vencido)}
-          hint={`${totalGeneral > 0 ? ((vencido / totalGeneral) * 100).toFixed(1) : "0"}% del total`}
+          hint="% del total en cartera"
           accent="warning"
           icon={AlertCircle}
+          progress={totalGeneral > 0 ? (vencido / totalGeneral) * 100 : 0}
+          progressVariant="gauge"
         />
       </div>
 
@@ -341,6 +382,7 @@ export default function CobranzasPage() {
                       <TableHead className="py-2 px-3">Cliente</TableHead>
                       <TableHead className="py-2 px-3 text-right">Saldo anterior</TableHead>
                       <TableHead className="py-2 px-3 text-right">Saldo actual</TableHead>
+                      <TableHead className="py-2 px-3">Tendencia</TableHead>
                       <TableHead className="py-2 px-3 text-right font-semibold">
                         Incremento
                       </TableHead>
@@ -362,6 +404,13 @@ export default function CobranzasPage() {
                         </TableCell>
                         <TableCell className="py-2 px-3 text-right tabular-nums font-medium">
                           {money(c.saldoActual)}
+                        </TableCell>
+                        <TableCell className="py-2 px-3 w-24">
+                          <Sparkline
+                            data={[c.saldoAnterior, c.saldoActual]}
+                            tone="danger"
+                            height={24}
+                          />
                         </TableCell>
                         <TableCell className="py-2 px-3 text-right tabular-nums font-semibold text-danger">
                           +{money(c.delta)}
@@ -524,8 +573,20 @@ export default function CobranzasPage() {
       </div>
 
       {/* GRÁFICO DE ANTIGÜEDAD DE SALDOS */}
-      <div className="card-elevated p-5">
-        <h3 className="font-display font-semibold mb-4">Antigüedad de saldos</h3>
+      <div
+        className={cn(
+          "card-elevated p-5",
+          isFiltroActivo && "ring-1 ring-primary/40 border-primary/40",
+        )}
+      >
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="font-display font-semibold">Antigüedad de saldos</h3>
+          {isFiltroActivo ? (
+            <StatusPill kind="neutral">Filtrado: {filtroActivoLabel}</StatusPill>
+          ) : (
+            <span className="text-[11px] text-muted-foreground font-mono">Todas</span>
+          )}
+        </div>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
@@ -538,8 +599,14 @@ export default function CobranzasPage() {
                   borderRadius: 0,
                   fontSize: 12,
                 }}
+                labelStyle={{ color: "var(--color-foreground)" }}
+                itemStyle={{ color: "var(--color-foreground)" }}
               />
-              <Bar dataKey="monto" fill="var(--color-primary)" radius={[4, 4, 0, 0]}>
+              <Bar
+                dataKey="monto"
+                fill={isFiltroActivo ? "var(--color-ochre)" : "var(--color-primary)"}
+                radius={[4, 4, 0, 0]}
+              >
                 <LabelList
                   dataKey="monto"
                   position="top"
@@ -604,9 +671,14 @@ export default function CobranzasPage() {
                   <TableCell colSpan={6} className="p-0">
                     <Empty>
                       <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          No hay cuentas por cobrar pendientes
-                        </EmptyTitle>
+                        <EmptyMedia variant="icon">
+                          <CircleCheck className="text-success" />
+                        </EmptyMedia>
+                        <EmptyTitle>No hay cuentas por cobrar pendientes</EmptyTitle>
+                        <EmptyDescription>
+                          Todas las cuentas están al día para la sucursal y el período
+                          seleccionados.
+                        </EmptyDescription>
                       </EmptyHeader>
                     </Empty>
                   </TableCell>

@@ -57,7 +57,7 @@ export function SegmentedToggle<T extends string>({ value, onChange, options }: 
               else itemRefs.current.delete(opt.value);
             }}
             value={opt.value}
-            className="px-3 py-1.5 text-xs font-bold tracking-wide data-[state=on]:bg-transparent data-[state=on]:text-primary-foreground"
+            className="px-3 py-1.5 text-xs font-bold tracking-wide data-[pressed]:bg-transparent data-[pressed]:text-primary-foreground"
           >
             {opt.label}
           </ToggleGroupItem>

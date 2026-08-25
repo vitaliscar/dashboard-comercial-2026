@@ -1,7 +1,42 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import os from "os";
+import { timingSafeEqual } from "crypto";
+import { apiRateLimiter } from "@/lib/rate-limiter";
 
-export async function GET() {
+function authorizeMetrics(request: NextRequest): boolean {
+  const expected = process.env.METRICS_TOKEN;
+  if (!expected) {
+    // Sin token configurado: denegar en producción; permitir en desarrollo local.
+    return process.env.NODE_ENV !== "production";
+  }
+  const header = request.headers.get("authorization");
+  const bearer = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  const queryToken = request.nextUrl.searchParams.get("token");
+  const provided = bearer || queryToken;
+  if (!provided) return false;
+  try {
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const limit = apiRateLimiter.isRateLimited(`metrics:${ip}`);
+  if (limit.limited) {
+    return new NextResponse("rate limited", { status: 429 });
+  }
+
+  if (!authorizeMetrics(request)) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   const mem = process.memoryUsage();
   const uptime = process.uptime();
   const cpus = os.cpus().length;

@@ -1,5 +1,15 @@
 import { memo, useCallback } from "react";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+  LabelList,
+} from "recharts";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
@@ -36,24 +46,32 @@ const MARCA_LABELS: Record<string, string> = {
 interface CustomDotProps {
   cx?: number;
   cy?: number;
+  index?: number;
   payload?: { mes: string };
   stroke?: string;
 }
 
-function renderCustomDot(props: CustomDotProps, highlightMonths?: string[]) {
-  const { cx, cy, payload, stroke } = props;
+function renderCustomDot(
+  props: CustomDotProps,
+  highlightMonths: string[] | undefined,
+  totalPoints: number,
+) {
+  const { cx, cy, index, payload, stroke } = props;
   if (cx == null || cy == null) return <circle key="dot-empty" cx={0} cy={0} r={0} />;
 
   const mes = payload?.mes;
   const hasHighlight = Boolean(highlightMonths && highlightMonths.length > 0);
   const isHighlighted = hasHighlight ? Boolean(mes && highlightMonths!.includes(mes)) : true;
+  const isLastPoint = index === totalPoints - 1;
+  const isEmphasized = isHighlighted || isLastPoint;
 
-  const r = hasHighlight ? (isHighlighted ? 6 : 3) : 4;
-  const opacity = isHighlighted ? 1 : 0.35;
+  const r = hasHighlight ? (isEmphasized ? 6 : 3) : isLastPoint ? 5 : 4;
+  const opacity = isEmphasized ? 1 : 0.35;
   const color = stroke || "currentColor";
 
   return (
     <circle
+      key={`dot-${index}`}
       cx={cx}
       cy={cy}
       r={r}
@@ -72,8 +90,8 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
 }: Props) {
   const chartAnimation = useChartAnimation();
   const renderDot = useCallback(
-    (dotProps: CustomDotProps) => renderCustomDot(dotProps, highlightMonths),
-    [highlightMonths],
+    (dotProps: CustomDotProps) => renderCustomDot(dotProps, highlightMonths, data.length),
+    [highlightMonths, data.length],
   );
 
   return (
@@ -90,6 +108,7 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
                 <YAxis
                   stroke="var(--color-muted-foreground)"
@@ -104,6 +123,8 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
                     borderRadius: 0,
                     fontSize: 12,
                   }}
+                  labelStyle={{ color: "var(--color-foreground)" }}
+                  itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                 {(Object.keys(MARCA_COLORS) as (keyof typeof MARCA_COLORS)[]).map((key) => (
@@ -116,7 +137,16 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
                     strokeWidth={2.5}
                     dot={renderDot}
                     {...chartAnimation}
-                  />
+                  >
+                    <LabelList
+                      dataKey={key}
+                      position="top"
+                      fontSize={9}
+                      fontWeight={700}
+                      fill={MARCA_COLORS[key]}
+                      formatter={((v: unknown) => money(Number(v))) as never}
+                    />
+                  </Line>
                 ))}
               </LineChart>
             </ResponsiveContainer>

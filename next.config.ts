@@ -10,7 +10,7 @@ const cspHeader = `
   default-src 'self';
   script-src 'self' 'unsafe-inline' 'unsafe-eval';
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  img-src 'self' data: https:;
+  img-src 'self' data: blob:;
   font-src 'self' data: https://fonts.gstatic.com;
   connect-src 'self';
   frame-ancestors 'none';
@@ -24,12 +24,13 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  allowedDevOrigins: ["172.18.123.76"],
   serverExternalPackages: ["@node-rs/argon2", "postgres"],
   experimental: {
     serverActions: {
-      // El Excel fuente ("CCV Rendimiento.xlsx") ya pesa ~28MB y crece cada
-      // semana con la carga de datos — 25mb se quedaba corto. 50mb da margen.
-      bodySizeLimit: "50mb",
+      // Límite global bajo para login y mutaciones normales (CN-010).
+      // La carga de Excel (~28MB) usa /api/carga con límite propio.
+      bodySizeLimit: "2mb",
     },
   },
   async headers() {

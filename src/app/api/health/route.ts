@@ -1,56 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
-import os from "os";
+import { apiRateLimiter } from "@/lib/rate-limiter";
 
-export async function GET() {
-  const startTime = Date.now();
-  let dbStatus = "healthy";
-  let dbLatencyMs = 0;
+/**
+ * Health mínimo (CN-006): solo status + DB ping.
+ * Detalle de heap/CPU queda en /api/metrics (protegido).
+ */
+export async function GET(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const limit = apiRateLimiter.isRateLimited(`health:${ip}`);
+  if (limit.limited) {
+    return NextResponse.json({ status: "error", error: "rate_limited" }, { status: 429 });
+  }
 
+  let dbStatus: "healthy" | "unhealthy" = "healthy";
   try {
-    const dbStart = Date.now();
     await db.execute(sql`SELECT 1`);
-    dbLatencyMs = Date.now() - dbStart;
   } catch (error) {
     console.error("Database connection error in health check:", error);
     dbStatus = "unhealthy";
   }
 
-  const memoryUsage = process.memoryUsage();
-  const totalMem = os.totalmem();
-  const freeMem = os.freemem();
-  const cpuLoad = os.loadavg();
-
   const isHealthy = dbStatus === "healthy";
-  const statusCode = isHealthy ? 200 : 503;
-
   return NextResponse.json(
     {
       status: isHealthy ? "ok" : "error",
-      timestamp: new Date().toISOString(),
-      uptimeSeconds: Math.floor(process.uptime()),
-      latencyMs: Date.now() - startTime,
-      checks: {
-        database: {
-          status: dbStatus,
-          latencyMs: dbLatencyMs,
-        },
-        memory: {
-          rssMb: Math.round(memoryUsage.rss / 1024 / 1024),
-          heapTotalMb: Math.round(memoryUsage.heapTotal / 1024 / 1024),
-          heapUsedMb: Math.round(memoryUsage.heapUsed / 1024 / 1024),
-          systemFreeMb: Math.round(freeMem / 1024 / 1024),
-          systemTotalMb: Math.round(totalMem / 1024 / 1024),
-        },
-        cpu: {
-          loadAvg1m: cpuLoad[0],
-          loadAvg5m: cpuLoad[1],
-          loadAvg15m: cpuLoad[2],
-          cores: os.cpus().length,
-        },
-      },
+      checks: { database: dbStatus },
     },
-    { status: statusCode },
+    { status: isHealthy ? 200 : 503 },
   );
 }

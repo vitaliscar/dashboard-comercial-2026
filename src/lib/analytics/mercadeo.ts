@@ -36,17 +36,12 @@ export function mesesConDatos<T extends MesRow>(rows: T[]): number[] {
  * Meses a resaltar en barras de Mercadeo: los del filtro activo, o todos los
  * meses con datos si el filtro es "all".
  */
-export function getMercadeoHighlightLabels(
-  meses: MonthFilter,
-  mesesEnGrafico: number[],
-): string[] {
+export function getMercadeoHighlightLabels(meses: MonthFilter, mesesEnGrafico: number[]): string[] {
   if (meses === "all") {
     return mesesEnGrafico.map((m) => MESES[m - 1].slice(0, 3));
   }
   const permitidos = new Set(meses);
-  return mesesEnGrafico
-    .filter((m) => permitidos.has(m))
-    .map((m) => MESES[m - 1].slice(0, 3));
+  return mesesEnGrafico.filter((m) => permitidos.has(m)).map((m) => MESES[m - 1].slice(0, 3));
 }
 
 /**
@@ -140,9 +135,7 @@ export const CANALES_DIGITALES = [
   "Youtube",
 ] as const;
 
-const ORDEN_CANAL = new Map(
-  CANALES_DIGITALES.map((c, i) => [c.toLowerCase(), i] as const),
-);
+const ORDEN_CANAL = new Map(CANALES_DIGITALES.map((c, i) => [c.toLowerCase(), i] as const));
 
 /** Instagram en la hoja Canales es un agregado; el detalle vive en la hoja Instagram. */
 export function esCanalHojaCanales(canal: string): boolean {
@@ -170,9 +163,7 @@ export function agruparCanalesPorTipo<T>(
     if (!map.has(tipo)) map.set(tipo, new Set());
     map.get(tipo)!.add(canal);
   });
-  return new Map(
-    [...map.entries()].map(([tipo, canales]) => [tipo, ordenarCanales([...canales])]),
-  );
+  return new Map([...map.entries()].map(([tipo, canales]) => [tipo, ordenarCanales([...canales])]));
 }
 
 /**

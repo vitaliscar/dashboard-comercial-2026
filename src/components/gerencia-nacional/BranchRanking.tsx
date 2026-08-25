@@ -85,6 +85,7 @@ export const BranchRanking = memo(function BranchRanking({ rows }: { rows: Branc
               width={38}
             />
             <Tooltip
+              cursor={false}
               formatter={
                 ((v: unknown, _: unknown, item: unknown) => {
                   const payload = item as { payload?: { facturado: number } };
@@ -104,6 +105,8 @@ export const BranchRanking = memo(function BranchRanking({ rows }: { rows: Branc
                 borderRadius: 12,
                 fontSize: 12,
               }}
+              labelStyle={{ color: "var(--color-foreground)" }}
+              itemStyle={{ color: "var(--color-foreground)" }}
             />
             <Bar
               dataKey="pct"

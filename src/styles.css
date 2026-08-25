@@ -11,9 +11,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* CCV Dashboard — "Terminal Ámbar" (dark-first, data-dense)
+/* CCV Dashboard — "Panel de Instrumentos" (dark-first, data-dense)
  *
- * Sistema: base casi negra + paneles elevados + acento ámbar de marca.
+ * Sistema: base casi negra + paneles elevados + acento azul instrumentación.
  * Tipografía: Space Grotesk (display) / Inter (UI) / JetBrains Mono (números).
  * Todos los pares texto/fondo verificados a ≥4.5:1 (WCAG AA).
  * Fuente única de verdad: este bloque :root.
@@ -29,13 +29,13 @@
   --surface-primary: oklch(0.17 0.01 255);
   --surface-2: oklch(0.2 0.01 255);
   --text-primary: oklch(0.92 0.005 255);
-  --accent-gold: oklch(0.78 0.16 75);
-  --accent-gold-ink: oklch(0.78 0.16 75);
+  --accent-gold: oklch(0.72 0.09 230);
+  --accent-gold-ink: oklch(0.72 0.09 230);
   --muted: oklch(0.2 0.01 255);
   --border-color: oklch(0.26 0.01 255);
   --success: oklch(0.62 0.16 155);
   --warning: oklch(0.75 0.15 80);
-  --danger: oklch(0.62 0.22 25);
+  --danger: oklch(0.68 0.22 25);
 
   /* ── shadcn tokens ────────────────────────────────────────────────── */
   --background: oklch(0.13 0.01 255);
@@ -44,23 +44,23 @@
   --card-foreground: oklch(0.92 0.005 255);
   --popover: oklch(0.2 0.01 255);
   --popover-foreground: oklch(0.92 0.005 255);
-  --primary: oklch(0.78 0.16 75);
+  --primary: oklch(0.72 0.09 230);
   --primary-foreground: oklch(0.13 0.01 255);
   --secondary: oklch(0.2 0.01 255);
   --secondary-foreground: oklch(0.92 0.005 255);
   --muted-foreground: oklch(0.6 0.01 255);
   --accent: oklch(0.2 0.01 255);
   --accent-foreground: oklch(0.92 0.005 255);
-  --destructive: oklch(0.62 0.22 25);
+  --destructive: oklch(0.68 0.22 25);
   --destructive-foreground: oklch(0.92 0.005 255);
   --border: oklch(0.26 0.01 255);
   --input: oklch(0.26 0.01 255);
   --input-background: oklch(0.15 0.01 255);
   --switch-background: oklch(0.26 0.01 255);
-  --ring: oklch(0.78 0.16 75);
+  --ring: oklch(0.72 0.09 230);
 
   /* ── Charts ───────────────────────────────────────────────────────── */
-  --chart-1: oklch(0.78 0.16 75);
+  --chart-1: oklch(0.72 0.09 230);
   --chart-2: oklch(0.62 0.16 155);
   --chart-3: oklch(0.62 0.12 250);
   --chart-4: oklch(0.62 0.22 25);
@@ -69,24 +69,24 @@
   /* ── Sidebar ──────────────────────────────────────────────────────── */
   --sidebar: oklch(0.11 0.01 255);
   --sidebar-foreground: oklch(0.92 0.005 255);
-  --sidebar-primary: oklch(0.78 0.16 75);
+  --sidebar-primary: oklch(0.72 0.09 230);
   --sidebar-primary-foreground: oklch(0.13 0.01 255);
   --sidebar-accent: oklch(0.2 0.01 255);
   --sidebar-accent-foreground: oklch(0.92 0.005 255);
   --sidebar-border: oklch(0.22 0.01 255);
-  --sidebar-ring: oklch(0.78 0.16 75);
+  --sidebar-ring: oklch(0.72 0.09 230);
   --sidebar-collapsed-width: 56px;
   --sidebar-expanded-width: 220px;
 
   /* ── Semantic extras ──────────────────────────────────────────────── */
   --tertiary: oklch(0.92 0.005 255);
   --tertiary-foreground: oklch(0.13 0.01 255);
-  --ochre: oklch(0.78 0.16 75);
+  --ochre: oklch(0.72 0.09 230);
   --success-foreground: oklch(0.13 0.01 255);
   --warning-foreground: oklch(0.13 0.01 255);
   --danger-foreground: oklch(0.92 0.005 255);
 
-  --chart-calm-1: oklch(0.78 0.16 75 / 0.6);
+  --chart-calm-1: oklch(0.72 0.09 230 / 0.6);
   --chart-calm-2: oklch(0.62 0.16 155 / 0.6);
   --chart-calm-3: oklch(0.62 0.12 250 / 0.6);
   --chart-calm-4: oklch(0.62 0.16 155 / 0.4);
@@ -359,7 +359,7 @@
 }
 
 @utility pareto-80 {
-  background: oklch(0.78 0.16 75 / 0.14);
+  background: oklch(0.72 0.09 230 / 0.14);
 }
 
 @utility tabular-nums {

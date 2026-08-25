@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { LineChart, Line, XAxis, YAxis } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, LabelList } from "recharts";
 import { money } from "@/lib/format";
 import type { MonthlyRow } from "./GlobalMonthlyCombo";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -36,6 +36,7 @@ export const LubFiltrosComboLines = memo(function LubFiltrosComboLines({
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
           <LineChart data={data}>
+            <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
             <XAxis
               dataKey="mes"
               stroke="var(--color-muted-foreground)"
@@ -56,18 +57,49 @@ export const LubFiltrosComboLines = memo(function LubFiltrosComboLines({
               stroke="var(--color-presupuesto)"
               strokeDasharray="5 3"
               strokeWidth={2.5}
-              dot={{ r: 3 }}
               {...chartAnimation}
-            />
+            >
+              <LabelList
+                dataKey="presupuesto"
+                position="bottom"
+                fontSize={9}
+                fontWeight={700}
+                fill="var(--color-presupuesto)"
+                formatter={((v: unknown) => money(Number(v))) as never}
+              />
+            </Line>
             <Line
               type="monotone"
               dataKey="venta"
               name="Venta Total"
               stroke="var(--color-venta)"
               strokeWidth={2.5}
-              dot={{ r: 3 }}
+              dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                const { cx, cy, index } = props;
+                if (index !== data.length - 1) return <></>;
+                return (
+                  <circle
+                    key={`dot-${index}`}
+                    cx={cx}
+                    cy={cy}
+                    r={3.5}
+                    fill="var(--color-venta)"
+                    stroke="var(--card)"
+                    strokeWidth={1.5}
+                  />
+                );
+              }}
               {...chartAnimation}
-            />
+            >
+              <LabelList
+                dataKey="venta"
+                position="top"
+                fontSize={9}
+                fontWeight={700}
+                fill="var(--color-venta)"
+                formatter={((v: unknown) => money(Number(v))) as never}
+              />
+            </Line>
           </LineChart>
         </ChartContainer>
       </CardContent>

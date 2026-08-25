@@ -6,7 +6,6 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Info, Shield } from
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { uploadExcelAction } from "@/lib/actions/carga";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Item,
@@ -36,7 +35,16 @@ export default function CargaPage() {
     try {
       const formData = new FormData();
       formData.set("file", file);
-      const loadResult = await uploadExcelAction(formData);
+      const res = await fetch("/api/carga", { method: "POST", body: formData });
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || `Error HTTP ${res.status}`);
+      }
+      const loadResult = payload as {
+        success: boolean;
+        rowsAffected: Record<string, number>;
+        errors: string[];
+      };
       setResult(loadResult);
       loadResult.errors.forEach((e) => toast.error(e));
       if (loadResult.success) {

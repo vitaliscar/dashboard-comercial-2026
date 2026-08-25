@@ -89,6 +89,7 @@ export const SucursalPerformanceChart = memo(function SucursalPerformanceChart({
                   width={110}
                 />
                 <Tooltip
+                  cursor={false}
                   formatter={
                     ((_v: unknown, _n: string, item: { payload: SucursalPerformanceRow }) => [
                       `${money(item.payload.monto)} / ${money(item.payload.presupuesto)} (${pct(item.payload.pctCumplimiento)})`,
@@ -101,6 +102,8 @@ export const SucursalPerformanceChart = memo(function SucursalPerformanceChart({
                     borderRadius: 0,
                     fontSize: 12,
                   }}
+                  labelStyle={{ color: "var(--color-foreground)" }}
+                  itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Bar dataKey="monto" radius={[0, 4, 4, 0]} {...chartAnimation}>
                   {sorted.map((row) => (

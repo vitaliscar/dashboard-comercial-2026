@@ -51,6 +51,12 @@ docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comer
 docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0006_usuarios_crud_rls.sql
 docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations/0007_oval_killer_shrike.sql
 docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0007_mercadeo_rls.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0008_minutas_alertas.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0009_profile_sucursales.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0010_role_module_access.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0011_fix_update_minutas_destinatario.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0012_comisiones_reglas_rls.sql
+docker exec -i dashboard-comercial-postgres psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0013_profiles_fuerza_venta_select.sql
 ```
 
 `0003_schema_drift_fix.sql` existe porque `cobranzas.dias_vencidos`, `servicios.taller`/`servicios.csa` y la tabla `detalles_servicios_estrategicos` están en `src/db/schema.ts` pero **nunca se generó una migración Drizzle para ellas** (se aplicaron a mano contra la BD Supabase original — ver el comentario en `0001_far_the_stranger.sql`). Sin este archivo, `bun run load-excel` falla al insertar en `cobranzas`/`servicios`/`detalles_servicios_estrategicos`. Si `schema.ts` cambia, revisar primero si el drift ya está cubierto por una migración antes de asumir que `drizzle-kit push`/`generate` basta.

@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Calculator, TrendingUp, Target } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function SimuladorPage() {
   const { filters, setFilters } = useSharedFilters();
@@ -60,6 +61,19 @@ export default function SimuladorPage() {
     if (!unidades) return [];
     return unidades.map((u) => ({ value: u.id, label: u.nombre }));
   }, [unidades]);
+
+  if (isLoading && !rows) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="What-if"
+          title="Simulador de Escenarios"
+          description="Ajusta supuestos de crecimiento y conversión para ver el impacto proyectado en facturación y cumplimiento."
+        />
+        <PageSkeleton kpis={0} blocks={[{ cols: 2, height: 260 }]} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

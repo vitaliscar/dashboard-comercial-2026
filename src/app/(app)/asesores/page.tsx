@@ -28,7 +28,17 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useState, useMemo } from "react";
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ReferenceLine,
+  LabelList,
+} from "recharts";
+import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   Shield,
   TrendingUp,
@@ -86,6 +96,7 @@ export default function AsesoresPage() {
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses, sucursales: selectedSucursales, unidades: selectedUnidades } = filters;
 
+  const chartAnimation = useChartAnimation();
   const [activeTab, setActiveTab] = useState<"ranking" | "pareto">("ranking");
   const [paretoTipo, setParetoTipo] = useState<"venta" | "cotizado">("venta");
   const [selectedAdvisor, setSelectedAdvisor] = useState<AgrupacionAsesor | null>(null);
@@ -271,7 +282,7 @@ export default function AsesoresPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Vista Gerencial"
         title="Análisis de Asesores"
@@ -560,7 +571,17 @@ export default function AsesoresPage() {
                           fill="hsl(var(--primary))"
                           radius={[4, 4, 0, 0]}
                           maxBarSize={40}
-                        />
+                          {...chartAnimation}
+                        >
+                          <LabelList
+                            dataKey="value"
+                            position="top"
+                            fontSize={9}
+                            fontWeight={700}
+                            fill="hsl(var(--primary))"
+                            formatter={((v: unknown) => money(Number(v))) as never}
+                          />
+                        </Bar>
                         <Line
                           yAxisId="right"
                           type="monotone"
@@ -569,7 +590,17 @@ export default function AsesoresPage() {
                           stroke="hsl(var(--destructive))"
                           strokeWidth={2}
                           dot={{ r: 3 }}
-                        />
+                          {...chartAnimation}
+                        >
+                          <LabelList
+                            dataKey="acumulado"
+                            position="top"
+                            fontSize={9}
+                            fontWeight={700}
+                            fill="hsl(var(--destructive))"
+                            formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                          />
+                        </Line>
                         <ReferenceLine
                           yAxisId="right"
                           y={80}
@@ -687,7 +718,17 @@ export default function AsesoresPage() {
                           fill="hsl(var(--primary))"
                           radius={[4, 4, 0, 0]}
                           maxBarSize={30}
-                        />
+                          {...chartAnimation}
+                        >
+                          <LabelList
+                            dataKey="venta"
+                            position="top"
+                            fontSize={9}
+                            fontWeight={700}
+                            fill="hsl(var(--primary))"
+                            formatter={((v: unknown) => money(Number(v))) as never}
+                          />
+                        </Bar>
                         <Line
                           type="monotone"
                           dataKey="meta"
@@ -695,7 +736,17 @@ export default function AsesoresPage() {
                           stroke="hsl(var(--destructive))"
                           strokeWidth={2}
                           dot={{ r: 4 }}
-                        />
+                          {...chartAnimation}
+                        >
+                          <LabelList
+                            dataKey="meta"
+                            position="top"
+                            fontSize={9}
+                            fontWeight={700}
+                            fill="hsl(var(--destructive))"
+                            formatter={((v: unknown) => money(Number(v))) as never}
+                          />
+                        </Line>
                       </ComposedChart>
                     </ChartContainer>
                   </div>

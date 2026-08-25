@@ -19,6 +19,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useMemo, useState } from "react";
+import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   ComposedChart,
   Bar,
@@ -28,8 +29,9 @@ import {
   CartesianGrid,
   ReferenceLine,
   ResponsiveContainer,
+  LabelList,
 } from "recharts";
-import { Shield, TrendingUp, Wallet } from "lucide-react";
+import { Shield, TrendingUp, Wallet, PieChart } from "lucide-react";
 import { KpiCard } from "@/components/kpi-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
@@ -42,9 +44,16 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { resolverAsesor } from "@/lib/asesores-catalogo";
 import { canAccessModule } from "@/lib/permissions";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 const FUENTE_TITULO: Record<ParetoFuente, string> = {
   cotizado: "Cotizaciones acumuladas",
@@ -69,6 +78,7 @@ const MESES = [
 ];
 
 export default function ParetoPage() {
+  const chartAnimation = useChartAnimation();
   const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const anio = filters.anio;
@@ -132,6 +142,18 @@ export default function ParetoPage() {
           Sólo los perfiles Gerencia Nacional y Gerente Comercial pueden ver Pareto 80/20.
         </p>
       </div>
+    );
+  }
+
+  if (isLoading && !data) {
+    return (
+      <PageSkeleton
+        kpis={3}
+        blocks={[
+          { cols: 1, height: 400 },
+          { cols: 1, height: 320 },
+        ]}
+      />
     );
   }
 
@@ -273,7 +295,17 @@ export default function ParetoPage() {
                 fill="var(--color-monto)"
                 radius={[0, 4, 4, 0]}
                 barSize={18}
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="monto"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-monto)"
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                />
+              </Bar>
               <Line
                 yAxisId="right"
                 type="monotone"
@@ -281,7 +313,17 @@ export default function ParetoPage() {
                 stroke="var(--color-acumulado)"
                 strokeWidth={2.5}
                 dot={{ r: 3 }}
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="acumulado"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-acumulado)"
+                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                />
+              </Line>
               <ReferenceLine
                 yAxisId="right"
                 y={80}
@@ -329,9 +371,14 @@ export default function ParetoPage() {
                   <TableCell colSpan={5} className="p-0">
                     <Empty>
                       <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Sin datos para el período seleccionado
-                        </EmptyTitle>
+                        <EmptyMedia variant="icon">
+                          <PieChart />
+                        </EmptyMedia>
+                        <EmptyTitle>Sin datos para el período seleccionado</EmptyTitle>
+                        <EmptyDescription>
+                          No hay cotizaciones ni facturas para calcular el 80/20 en este rango de
+                          fechas.
+                        </EmptyDescription>
                       </EmptyHeader>
                     </Empty>
                   </TableCell>

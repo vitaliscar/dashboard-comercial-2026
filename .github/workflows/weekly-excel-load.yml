@@ -13,6 +13,8 @@ jobs:
   load-excel:
     runs-on: ubuntu-latest
     name: Load Excel data to Postgres
+    # Preferible: self-hosted / cron en VPS para no exponer DATABASE_ADMIN_URL a runners compartidos (CN-004).
+    environment: production
     permissions:
       contents: read
       issues: write
@@ -30,18 +32,31 @@ jobs:
       - name: Download Excel file
         env:
           EXCEL_URL: ${{ secrets.EXCEL_FILE_URL }}
+          EXCEL_SHA256: ${{ secrets.EXCEL_SHA256 }}
         run: |
           if [ -z "$EXCEL_URL" ]; then
             echo "EXCEL_URL not configured. Using local file if available."
             ls -la | grep -i "CCV Rendimiento" || echo "No Excel file found"
           else
-            curl -L "$EXCEL_URL" -o "CCV Rendimiento.xlsx"
+            case "$EXCEL_URL" in
+              https://*) ;;
+              *) echo "EXCEL_URL debe ser https://"; exit 1 ;;
+            esac
+            curl -fsSL "$EXCEL_URL" -o "CCV Rendimiento.xlsx"
+            if [ -n "$EXCEL_SHA256" ]; then
+              echo "$EXCEL_SHA256  CCV Rendimiento.xlsx" | sha256sum -c -
+            else
+              echo "::warning::EXCEL_SHA256 no configurado — saltando verificación de integridad (CN-011)"
+            fi
           fi
 
       - name: Load Excel to Postgres
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
+          # Por defecto NO reescribe passwords/roles/isActive (CN-028).
+          # Poner secret EXCEL_SYNC_IDENTITY=1 solo para sincronización explícita de identidad.
+          EXCEL_SYNC_IDENTITY: ${{ secrets.EXCEL_SYNC_IDENTITY }}
         run: bun scripts/run-full-load.ts "CCV Rendimiento.xlsx"
 
       - name: Create issue on failure

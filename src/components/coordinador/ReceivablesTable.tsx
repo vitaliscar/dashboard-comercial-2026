@@ -16,7 +16,14 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { CircleCheck } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -135,9 +142,13 @@ export const ReceivablesTable = memo(function ReceivablesTable({
       {filtered.length === 0 ? (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle className="text-sm font-normal text-muted-foreground">
-              Sin cuentas por cobrar pendientes
-            </EmptyTitle>
+            <EmptyMedia variant="icon">
+              <CircleCheck className="text-success" />
+            </EmptyMedia>
+            <EmptyTitle>Sin cuentas por cobrar pendientes</EmptyTitle>
+            <EmptyDescription>
+              No hay saldos pendientes para la sucursal seleccionada.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (

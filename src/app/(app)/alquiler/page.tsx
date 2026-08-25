@@ -7,7 +7,7 @@ import { useSucursales } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
+import { getAllMonthsCap, getHighlightMonthLabels, diasVencidosDesde } from "@/lib/date-range";
 import {
   getPresupuestosAlquilerAction,
   getAlquilerClientesCobroAction,
@@ -22,6 +22,7 @@ import { TrendingUp, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function Alquiler() {
   const { role } = useAuth();
@@ -143,8 +144,21 @@ export default function Alquiler() {
       .sort((a, b) => Number(b.saldo) - Number(a.saldo));
   }, [clientesCobro, searchClientes]);
 
+  if (isLoading && !presupuestosData) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          eyebrow="Unidad de Negocio"
+          title="Dashboard Comercial - Alquiler"
+          description="Seguimiento de facturación, cumplimiento presupuestario y cuentas por cobrar por cliente."
+        />
+        <PageSkeleton kpis={1} blocks={[{ cols: 6 }, { cols: 1 }, { cols: 1, height: 260 }]} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Unidad de Negocio"
         title="Dashboard Comercial - Alquiler"
@@ -222,8 +236,10 @@ export default function Alquiler() {
         </header>
         <ReceivablesTable
           rows={clientesFiltrados.map((r) => ({
+            id: r.id,
             cliente: r.cliente,
             sucursalVenta: sucursales?.find((s) => s.id === r.sucursalId)?.nombre,
+            diasVencidos: diasVencidosDesde(r.fechaVencimiento),
             total: Number(r.saldo),
           }))}
         />

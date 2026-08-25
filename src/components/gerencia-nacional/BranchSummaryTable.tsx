@@ -9,7 +9,14 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { Building2 } from "lucide-react";
 
 export type BranchSummaryRow = {
   id: string;
@@ -50,9 +57,13 @@ export const BranchSummaryTable = memo(function BranchSummaryTable({
         </div>
         <Empty>
           <EmptyHeader>
-            <EmptyTitle className="text-sm font-normal text-muted-foreground">
-              Sin datos para el período
-            </EmptyTitle>
+            <EmptyMedia variant="icon">
+              <Building2 />
+            </EmptyMedia>
+            <EmptyTitle>Sin datos para el período</EmptyTitle>
+            <EmptyDescription>
+              No hay facturación registrada por sucursal en el período seleccionado.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       </div>

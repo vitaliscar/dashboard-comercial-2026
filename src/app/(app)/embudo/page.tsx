@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, FileText, Receipt, Wallet } from "lucide-react";
-import { CartesianGrid, XAxis, YAxis, ComposedChart, Line } from "recharts";
+import { CartesianGrid, XAxis, YAxis, ComposedChart, Line, LabelList } from "recharts";
+import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   getEmbudoCotizacionesAnioAction,
   getEmbudoPresupuestosAnioAction,
@@ -30,12 +31,20 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function EmbudoPage() {
   const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses, unidades: selectedUnidades, sucursales: selectedSucursales } = filters;
+  const chartAnimation = useChartAnimation();
 
   const handleApplyFilters = (f: FilterState) => {
     setFilters({
@@ -158,8 +167,30 @@ export default function EmbudoPage() {
     tasaConversionResaltada: { label: "% Conversión", color: "var(--color-destructive)" },
   };
 
+  if (isLoading && !funnelTotalsRaw) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold flex items-center gap-2">
+            <TrendingUp className="h-7 w-7" /> Embudo Comercial
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Cotizado → Facturado → Cobrado — eficiencia comercial
+          </p>
+        </div>
+        <PageSkeleton
+          kpis={4}
+          blocks={[
+            { cols: 2, height: 288 },
+            { cols: 1, height: 320 },
+          ]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-bold flex items-center gap-2">
           <TrendingUp className="h-7 w-7" /> Embudo Comercial
@@ -236,7 +267,17 @@ export default function EmbudoPage() {
                 dot={false}
                 legendType="none"
                 name="Cotizado (año)"
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="cotizado"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-cotizado)"
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                />
+              </Line>
               <Line
                 type="monotone"
                 dataKey="facturado"
@@ -246,7 +287,17 @@ export default function EmbudoPage() {
                 dot={false}
                 legendType="none"
                 name="Facturado (año)"
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="facturado"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-facturado)"
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                />
+              </Line>
               <Line
                 type="monotone"
                 dataKey="cotizadoResaltado"
@@ -255,7 +306,17 @@ export default function EmbudoPage() {
                 dot={{ r: 4 }}
                 connectNulls={false}
                 name="Cotizado"
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="cotizadoResaltado"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-cotizado)"
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                />
+              </Line>
               <Line
                 type="monotone"
                 dataKey="facturadoResaltado"
@@ -264,7 +325,17 @@ export default function EmbudoPage() {
                 dot={{ r: 4 }}
                 connectNulls={false}
                 name="Facturado"
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="facturadoResaltado"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-facturado)"
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                />
+              </Line>
             </ComposedChart>
           </ChartContainer>
         </div>
@@ -305,7 +376,17 @@ export default function EmbudoPage() {
                 dot={false}
                 legendType="none"
                 name="% Conversión (año)"
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="tasaConversion"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-tasaConversion)"
+                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                />
+              </Line>
               <Line
                 type="monotone"
                 dataKey="tasaConversionResaltada"
@@ -314,7 +395,17 @@ export default function EmbudoPage() {
                 dot={{ r: 4 }}
                 connectNulls={false}
                 name="% Conversión"
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="tasaConversionResaltada"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-tasaConversion)"
+                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                />
+              </Line>
             </ComposedChart>
           </ChartContainer>
         </div>
@@ -348,9 +439,13 @@ export default function EmbudoPage() {
                   <TableCell colSpan={4} className="p-0">
                     <Empty>
                       <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Sin datos para el período seleccionado
-                        </EmptyTitle>
+                        <EmptyMedia variant="icon">
+                          <TrendingUp />
+                        </EmptyMedia>
+                        <EmptyTitle>Sin datos para el período seleccionado</EmptyTitle>
+                        <EmptyDescription>
+                          No hay cotizaciones ni facturas registradas en el rango de meses elegido.
+                        </EmptyDescription>
                       </EmptyHeader>
                     </Empty>
                   </TableCell>

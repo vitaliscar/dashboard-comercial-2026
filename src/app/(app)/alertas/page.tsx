@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BellRing,
   AlertTriangle,
@@ -11,13 +11,20 @@ import {
   FileText,
   DollarSign,
   Target,
+  CircleCheck,
+  Check,
+  Plus,
 } from "lucide-react";
-import { getAlertasSourcesAction } from "@/lib/actions/alertas";
+import { getAlertasAction } from "@/lib/actions/alertas";
+import {
+  resolveAlertaAction,
+  getDestinatariosDisponiblesAction,
+  createMinutaAction,
+} from "@/lib/actions/minutas";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { money } from "@/lib/format";
-import { getDateRangesForMonths } from "@/lib/date-range";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
 import {
   Table,
@@ -27,11 +34,37 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { StatusPill } from "@/components/status-pill";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
-import { resolverAsesor, VENTAS_CASA, normalizarNombre } from "@/lib/asesores-catalogo";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 type Severity = "alta" | "media" | "baja";
 type AlertType =
@@ -43,22 +76,25 @@ type AlertType =
   | "cotizacion_factura"
   | "cotizaciones_viejas";
 
-type AlertRow = {
-  id: string;
-  tipo: AlertType;
-  severidad: Severity;
-  titulo: string;
-  detalle: string;
-  monto?: number;
-  accion?: string;
-};
+type AlertaServerItem = Awaited<ReturnType<typeof getAlertasAction>>[number];
 
 export default function AlertasPage() {
   const { role } = useAuth();
+  const qc = useQueryClient();
   const { filters, setFilters } = useSharedFilters();
   const { anio, meses, unidades: selectedUnidades, sucursales: selectedSucursales } = filters;
 
-  const dateRanges = useMemo(() => getDateRangesForMonths(anio, meses), [anio, meses]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const [minutaForm, setMinutaForm] = useState({
+    destinatarioId: "",
+    cliente: "",
+    descripcion: "",
+    fechaLimite: "",
+  });
+
+  const canCreateMinuta = role !== "asesor";
 
   const handleApplyFilters = (f: FilterState) => {
     setFilters({
@@ -73,223 +109,124 @@ export default function AlertasPage() {
   const { data: sucursales } = useSucursales();
 
   const sucursalOptions = useMemo(() => {
-    if (!sucursales) return [];
+    if (!sucursales || role === "asesor") return [];
     return sucursales.map((s) => ({ value: s.id, label: s.nombre }));
-  }, [sucursales]);
+  }, [sucursales, role]);
 
-  const { data: sources, isLoading } = useQuery({
-    queryKey: [
-      "alertas-sources",
-      anio,
-      JSON.stringify(meses),
-      selectedUnidades,
-      selectedSucursales,
-    ],
-    queryFn: () =>
-      getAlertasSourcesAction({
-        anio,
-        meses,
-        unidades: selectedUnidades,
-        sucursales: selectedSucursales,
-        ranges: dateRanges,
-      }),
+  const unitOptions = useMemo(() => {
+    if (!unidades || role === "asesor") return [];
+    return unidades.map((u) => ({ value: u.id, label: u.nombre }));
+  }, [unidades, role]);
+
+  const { data: rawAlertas, isLoading } = useQuery({
+    queryKey: ["alertas-abiertas"],
+    queryFn: () => getAlertasAction(),
   });
 
-  const alertas = useMemo<AlertRow[]>(() => {
-    if (!sources) return [];
-    const rows: AlertRow[] = [];
+  const { data: destinatarios } = useQuery({
+    queryKey: ["destinatarios-disponibles"],
+    queryFn: () => getDestinatariosDisponiblesAction(),
+    enabled: canCreateMinuta,
+  });
 
-    // 1. COBRANZAS: Clientes con facturas vencidas
-    const cobranzasVencidas = sources.cobranzas.filter((r) => r.fechaVencimiento < sources.today);
-    const cobranzasPorVencer = sources.cobranzas.filter(
-      (r) => r.fechaVencimiento >= sources.today && r.fechaVencimiento <= sources.next7,
-    );
+  const resolveMutation = useMutation({
+    mutationFn: async (alertaId: string) => {
+      await resolveAlertaAction(alertaId);
+    },
+    onSuccess: (_, alertaId) => {
+      toast.success("Alerta resuelta");
+      setSelectedIds((prev) => prev.filter((id) => id !== alertaId));
+      qc.invalidateQueries({ queryKey: ["alertas-abiertas"] });
+      qc.invalidateQueries({ queryKey: ["minutas"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
-    const carteraPorCliente = new Map<string, { saldo: number; facturas: number }>();
-    cobranzasVencidas.forEach((r) => {
-      const key = (r.cliente ?? "").trim();
-      const curr = carteraPorCliente.get(key) ?? { saldo: 0, facturas: 0 };
-      curr.saldo += Number(r.saldo ?? 0);
-      curr.facturas += 1;
-      carteraPorCliente.set(key, curr);
-    });
-
-    carteraPorCliente.forEach((v, cliente) => {
-      if (v.saldo >= 50000) {
-        rows.push({
-          id: `cx-alta-${cliente}`,
-          tipo: "cobranzas",
-          severidad: "alta",
-          titulo: `${cliente} tiene facturas vencidas`,
-          detalle: `${v.facturas} facturas vencidas, debe ${money(v.saldo)}`,
-          monto: v.saldo,
-          accion: "Llamar a cobrar",
-        });
-      }
-    });
-
-    cobranzasPorVencer.forEach((r) => {
-      rows.push({
-        id: `cx-prox-${r.id}`,
-        tipo: "cobranzas",
-        severidad: "media",
-        titulo: `Factura por vencer: ${r.facturaNumero ?? "s/n"}`,
-        detalle: `${r.cliente} vence el ${r.fechaVencimiento}`,
-        monto: Number(r.saldo ?? 0),
-        accion: "Recordar pago",
+  const createMinutaMutation = useMutation({
+    mutationFn: async () => {
+      const dest = destinatarios?.find((d) => d.id === minutaForm.destinatarioId);
+      await createMinutaAction({
+        fecha: new Date().toISOString().slice(0, 10),
+        destinatarioId: minutaForm.destinatarioId,
+        cliente: minutaForm.cliente.trim() || null,
+        descripcion: minutaForm.descripcion,
+        fechaLimite: minutaForm.fechaLimite || null,
+        sucursalId: dest?.sucursalId ?? null,
+        unidadNegocioId: dest?.unidadNegocioId ?? null,
+        estado: "pendiente",
+        alertaIds: selectedIds,
       });
-    });
+    },
+    onSuccess: () => {
+      toast.success("Minuta creada con las alertas seleccionadas");
+      setSelectedIds([]);
+      setDialogOpen(false);
+      qc.invalidateQueries({ queryKey: ["minutas"] });
+      qc.invalidateQueries({ queryKey: ["alertas-abiertas"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
-    const asesorAliases = new Map<string, string>();
-    sources.asesores.forEach((r) => {
-      const normName = normalizarNombre(r.asesor ?? "");
-      const code = String(r.codigoAsesor ?? "").trim();
-      if (normName && code) asesorAliases.set(normName, code);
-    });
-
-    // 2. VENTAS PERDIDAS: Asesores que pierden muchas ventas
-    const perdidasPorAsesor = new Map<string, { count: number; monto: number }>();
-    sources.perdidas.forEach((r) => {
-      const resolved = resolverAsesor({ nombre: r.asesor }, asesorAliases);
-      if (resolved.codigo === VENTAS_CASA.codigo) return;
-      const key = resolved.nombre;
-      const curr = perdidasPorAsesor.get(key) ?? { count: 0, monto: 0 };
-      curr.count += 1;
-      curr.monto += Number(r.monto ?? 0);
-      perdidasPorAsesor.set(key, curr);
-    });
-
-    const facturasPorAsesor = new Map<string, number>();
-    sources.facturas.forEach((r) => {
-      const resolved = resolverAsesor({ nombre: r.asesor }, asesorAliases);
-      if (resolved.codigo === VENTAS_CASA.codigo) return;
-      const key = resolved.nombre;
-      facturasPorAsesor.set(key, (facturasPorAsesor.get(key) ?? 0) + Number(r.monto ?? 0));
-    });
-
-    perdidasPorAsesor.forEach((v, asesor) => {
-      const facturado = facturasPorAsesor.get(asesor) ?? 0;
-      const total = v.monto + facturado;
-      const tasaPerdida = total > 0 ? (v.monto / total) * 100 : 0;
-
-      if (tasaPerdida >= 40) {
-        rows.push({
-          id: `vp-asesor-${asesor}`,
-          tipo: "ventas_perdidas",
-          severidad: tasaPerdida >= 60 ? "alta" : "media",
-          titulo: `${asesor} pierde muchas ventas`,
-          detalle: `Pierde ${tasaPerdida.toFixed(0)}% (${v.count} ventas perdidas, ${money(v.monto)})`,
-          monto: v.monto,
-          accion: "Ayudar al asesor",
-        });
+  const alertas = useMemo<AlertaServerItem[]>(() => {
+    if (!rawAlertas) return [];
+    return rawAlertas.filter((a) => {
+      if (selectedSucursales.length > 0) {
+        if (!a.sucursalId || !selectedSucursales.includes(a.sucursalId)) {
+          return false;
+        }
       }
-    });
-
-    // 3. MINUTAS: Compromisos vencidos sin cerrar
-    sources.minutas.forEach((r) => {
-      if (!r.fechaLimite || r.estado === "cumplido") return;
-      if (r.fechaLimite < sources.today) {
-        rows.push({
-          id: `min-${r.id}`,
-          tipo: "minutas",
-          severidad: "media",
-          titulo: `Compromiso vencido: ${r.cliente}`,
-          detalle: `${r.descripcion?.slice(0, 50)}... — Responsable: ${r.responsable}`,
-          accion: "Dar seguimiento",
-        });
+      if (selectedUnidades.length > 0) {
+        if (!a.unidadNegocioId || !selectedUnidades.includes(a.unidadNegocioId)) {
+          return false;
+        }
       }
+      return true;
     });
-
-    // 4. CUMPLIMIENTO: Asesores que van atrasados en su meta
-    sources.asesores.forEach((r) => {
-      const resolved = resolverAsesor({ codigo: r.codigoAsesor, nombre: r.asesor }, asesorAliases);
-      if (resolved.codigo === VENTAS_CASA.codigo) return;
-      const cumplimiento = Number(r.pctCumplimiento ?? 0);
-      const gap = sources.expectedRunRate - cumplimiento;
-      if (gap >= 20) {
-        rows.push({
-          id: `rr-${r.id}`,
-          tipo: "cumplimiento",
-          severidad: gap >= 35 ? "alta" : "media",
-          titulo: `${resolved.nombre} va atrasado en su meta`,
-          detalle: `Lleva ${cumplimiento.toFixed(1)}% y debería llevar ${sources.expectedRunRate.toFixed(1)}% a esta fecha`,
-          monto: Number(r.venta ?? 0),
-          accion: "Hablar con el asesor",
-        });
-      }
-    });
-
-    // 5. DEPENDENCIA: Clientes que representan mucho de la cartera
-    const totalCartera = Array.from(carteraPorCliente.values()).reduce(
-      (sum, v) => sum + v.saldo,
-      0,
-    );
-    carteraPorCliente.forEach((v, cliente) => {
-      const concentracion = totalCartera > 0 ? (v.saldo / totalCartera) * 100 : 0;
-      if (concentracion >= 30) {
-        rows.push({
-          id: `conc-${cliente}`,
-          tipo: "dependencia",
-          severidad: "alta",
-          titulo: `Muy dependiente de ${cliente}`,
-          detalle: `${concentracion.toFixed(0)}% de toda la cartera vencida es de este cliente (${money(v.saldo)})`,
-          monto: v.saldo,
-          accion: "Buscar más clientes",
-        });
-      }
-    });
-
-    // 6. COTIZACIÓN A FACTURA: Poco de lo cotizado se factura
-    const totalCotizado = sources.cotizaciones.reduce((sum, c) => sum + Number(c.monto ?? 0), 0);
-    const totalFacturado = sources.facturas.reduce((sum, f) => sum + Number(f.monto ?? 0), 0);
-    const tasaConversion = totalCotizado > 0 ? (totalFacturado / totalCotizado) * 100 : 0;
-
-    if (tasaConversion < 50 && totalCotizado > 0) {
-      rows.push({
-        id: "conv-baja",
-        tipo: "cotizacion_factura",
-        severidad: "media",
-        titulo: "Poco de lo cotizado se factura",
-        detalle: `Solo ${tasaConversion.toFixed(1)}% se factura (cotizado ${money(totalCotizado)}, facturado ${money(totalFacturado)})`,
-        monto: totalFacturado,
-        accion: "Revisar cotizaciones",
-      });
-    }
-
-    // 7. COTIZACIONES VIEJAS: Mucho tiempo sin respuesta
-    const now = Date.now();
-    const envejecidas = sources.cotizaciones.filter((c) => {
-      if (c.etapa === "propuesta_negociacion" || c.etapa === "venta_perdida") return false;
-      const ageDays = Math.floor((now - new Date(c.fecha).getTime()) / 86400000);
-      return ageDays >= 30;
-    });
-
-    if (envejecidas.length > 0) {
-      const montoTotal = envejecidas.reduce((sum, c) => sum + Number(c.monto ?? 0), 0);
-      rows.push({
-        id: "envejecidas",
-        tipo: "cotizaciones_viejas",
-        severidad: envejecidas.length >= 10 ? "alta" : "media",
-        titulo: `${envejecidas.length} cotizaciones sin respuesta (+30 días)`,
-        detalle: `Monto total: ${money(montoTotal)}`,
-        monto: montoTotal,
-        accion: "Seguimiento a clientes",
-      });
-    }
-
-    return rows.sort((a, b) => {
-      const weight = { alta: 3, media: 2, baja: 1 };
-      return weight[b.severidad] - weight[a.severidad];
-    });
-  }, [sources]);
+  }, [rawAlertas, selectedSucursales, selectedUnidades]);
 
   const totals = useMemo(() => {
     const alta = alertas.filter((a) => a.severidad === "alta").length;
     const media = alertas.filter((a) => a.severidad === "media").length;
     const baja = alertas.filter((a) => a.severidad === "baja").length;
-    const montoTotal = alertas.reduce((sum, a) => sum + (a.monto ?? 0), 0);
+    const montoTotal = alertas.reduce((sum, a) => sum + (a.contexto?.monto ?? 0), 0);
     return { alta, media, baja, total: alertas.length, montoTotal };
   }, [alertas]);
+
+  const allVisibleSelected = useMemo(() => {
+    if (alertas.length === 0) return false;
+    return alertas.every((a) => selectedIds.includes(a.id));
+  }, [alertas, selectedIds]);
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const visibleIds = alertas.map((a) => a.id);
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    } else {
+      const visibleSet = new Set(alertas.map((a) => a.id));
+      setSelectedIds((prev) => prev.filter((id) => !visibleSet.has(id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+    }
+  };
+
+  const openCreateMinutaDialog = () => {
+    const selectedAlerts = alertas.filter((a) => selectedIds.includes(a.id));
+    const summary = selectedAlerts.map((a) => a.titulo).join(", ");
+    setMinutaForm({
+      destinatarioId: "",
+      cliente: "",
+      descripcion:
+        selectedAlerts.length > 0 ? `Atacar ${selectedAlerts.length} alertas: ${summary}` : "",
+      fechaLimite: "",
+    });
+    setDialogOpen(true);
+  };
 
   const severityKind = (s: Severity) => {
     if (s === "alta") return "danger" as const;
@@ -335,8 +272,21 @@ export default function AlertasPage() {
     }
   };
 
+  if (isLoading && !rawAlertas) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          eyebrow="Torre de control"
+          title="Alertas"
+          description="Avisos importantes sobre cobranzas, cumplimiento y riesgos comerciales"
+        />
+        <PageSkeleton kpis={4} blocks={[{ cols: 1, height: 400 }]} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Torre de control"
         title="Alertas"
@@ -345,7 +295,7 @@ export default function AlertasPage() {
 
       <FilterHeader
         onApplyFilters={handleApplyFilters}
-        unitOptions={unidades?.map((u) => ({ value: u.id, label: u.nombre }))}
+        unitOptions={unitOptions}
         sucursalOptions={sucursalOptions}
         sucursalMulti={role === "gerencia"}
         defaultMes={meses}
@@ -384,6 +334,18 @@ export default function AlertasPage() {
         />
       </div>
 
+      {canCreateMinuta && selectedIds.length > 0 && (
+        <div className="flex items-center justify-between gap-4 p-3 bg-muted/60 border border-border rounded-lg shadow-sm">
+          <span className="text-sm font-medium">
+            {selectedIds.length} alerta{selectedIds.length > 1 ? "s" : ""} seleccionada
+            {selectedIds.length > 1 ? "s" : ""}
+          </span>
+          <Button size="sm" onClick={openCreateMinutaDialog}>
+            <Plus data-icon="inline-start" /> Crear minuta con estas alertas
+          </Button>
+        </div>
+      )}
+
       <div className="card-elevated overflow-hidden">
         <div className="p-4 border-b border-border flex items-center gap-2">
           <BellRing className="size-5" />
@@ -396,6 +358,13 @@ export default function AlertasPage() {
           <Table className="text-sm">
             <TableHeader className="bg-primary [&_tr]:border-b-0 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-10 bg-primary text-primary-foreground text-center px-3 py-2.5">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    onCheckedChange={(c) => toggleSelectAll(Boolean(c))}
+                    aria-label="Seleccionar todas"
+                  />
+                </TableHead>
                 <TableHead className="bg-primary text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
                   Importancia
                 </TableHead>
@@ -414,35 +383,50 @@ export default function AlertasPage() {
                 <TableHead className="bg-primary text-primary-foreground text-left px-4 py-2.5 text-xs tracking-wider">
                   Qué hacer
                 </TableHead>
+                <TableHead className="bg-primary text-primary-foreground text-right px-4 py-2.5 text-xs tracking-wider">
+                  Acciones
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="p-8 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="p-8 text-center text-muted-foreground">
                     Revisando datos…
                   </TableCell>
                 </TableRow>
               ) : alertas.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="p-0">
+                  <TableCell colSpan={8} className="p-0">
                     <Empty>
                       <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Todo en orden. No hay avisos pendientes.
-                        </EmptyTitle>
+                        <EmptyMedia variant="icon">
+                          <CircleCheck className="text-success" />
+                        </EmptyMedia>
+                        <EmptyTitle>Todo en orden</EmptyTitle>
+                        <EmptyDescription>
+                          No hay avisos pendientes para los filtros actuales.
+                        </EmptyDescription>
                       </EmptyHeader>
                     </Empty>
                   </TableCell>
                 </TableRow>
               ) : (
                 alertas.map((a) => {
-                  const Icon = tipoIcon(a.tipo);
+                  const Icon = tipoIcon(a.tipo as AlertType);
+                  const isSelected = selectedIds.includes(a.id);
                   return (
                     <TableRow
                       key={a.id}
                       className="border-b border-border/50 last:border-0 hover:bg-muted/40"
                     >
+                      <TableCell className="px-3 py-3 text-center">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(c) => toggleSelectRow(a.id, Boolean(c))}
+                          aria-label={`Seleccionar alerta ${a.titulo}`}
+                        />
+                      </TableCell>
                       <TableCell className="px-4 py-3">
                         <StatusPill kind={severityKind(a.severidad)}>
                           {a.severidad === "alta"
@@ -454,18 +438,36 @@ export default function AlertasPage() {
                       </TableCell>
                       <TableCell className="px-4 py-3">
                         <Icon className="inline size-4 mr-1.5 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{tipoLabel(a.tipo)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {tipoLabel(a.tipo as AlertType)}
+                        </span>
                       </TableCell>
                       <TableCell className="px-4 py-3 font-medium text-sm">{a.titulo}</TableCell>
                       <TableCell className="px-4 py-3 text-muted-foreground text-xs max-w-xs truncate">
-                        {a.detalle}
+                        {a.contexto?.detalle ?? "—"}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-right tabular-nums font-medium">
-                        {a.monto ? money(a.monto) : "—"}
+                        {a.contexto?.monto ? money(a.contexto.monto) : "—"}
                       </TableCell>
                       <TableCell className="px-4 py-3">
-                        {a.accion && (
-                          <span className="text-xs font-medium text-primary">{a.accion}</span>
+                        {a.contexto?.accion && (
+                          <span className="text-xs font-medium text-primary">
+                            {a.contexto.accion}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-right">
+                        {canCreateMinuta && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs gap-1"
+                            disabled={resolveMutation.isPending}
+                            onClick={() => resolveMutation.mutate(a.id)}
+                          >
+                            <Check className="size-3.5" />
+                            Marcar resuelta
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
@@ -476,6 +478,83 @@ export default function AlertasPage() {
           </Table>
         </div>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Crear minuta con alertas seleccionadas</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div className="flex flex-col gap-1 col-span-2">
+              <Label>Destinatario</Label>
+              <Select
+                items={destinatarios?.map((d) => ({
+                  value: d.id,
+                  label: `${d.nombreCompleto} (${d.role})`,
+                }))}
+                value={minutaForm.destinatarioId || undefined}
+                onValueChange={(v) => setMinutaForm((f) => ({ ...f, destinatarioId: v ?? "" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar destinatario..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {destinatarios?.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.nombreCompleto} ({d.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1 col-span-2">
+              <Label>Cliente (Opcional)</Label>
+              <Input
+                placeholder="Nombre del cliente..."
+                value={minutaForm.cliente}
+                onChange={(e) => setMinutaForm((f) => ({ ...f, cliente: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 col-span-2">
+              <Label>Descripción del compromiso</Label>
+              <Textarea
+                rows={4}
+                value={minutaForm.descripcion}
+                onChange={(e) => setMinutaForm((f) => ({ ...f, descripcion: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 col-span-2">
+              <Label>Fecha límite (Opcional)</Label>
+              <Input
+                type="date"
+                value={minutaForm.fechaLimite}
+                onChange={(e) => setMinutaForm((f) => ({ ...f, fechaLimite: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => createMinutaMutation.mutate()}
+              disabled={
+                createMinutaMutation.isPending ||
+                !minutaForm.destinatarioId ||
+                !minutaForm.descripcion.trim()
+              }
+            >
+              {createMinutaMutation.isPending ? "Creando..." : "Crear minuta"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
