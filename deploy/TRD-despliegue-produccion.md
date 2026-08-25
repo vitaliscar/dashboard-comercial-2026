@@ -19,12 +19,41 @@ coordinadores y asesores.
 
 **Modalidad de este despliegue**: carga de datos **solo manual**, vía botón
 en la app — el workflow automático semanal de GitHub Actions **no se
-habilita** en este VPS (ver §7). Consecuencia directa: Postgres no necesita
+habilita** en este VPS (ver §8). Consecuencia directa: Postgres no necesita
 salir a internet, solo el reverse proxy (puertos 80/443).
 
 ---
 
-## 2. Bloqueantes conocidos — resolver antes de desplegar
+## 2. Repositorio — desarrollo vs. producción
+
+Hay **dos repositorios GitHub separados a propósito**. El VPS clona
+únicamente del segundo:
+
+| | Repositorio | Uso |
+|---|---|---|
+| Desarrollo | `github.com/vitaliscar/dashboard-comercial-2026` (público) | Donde se escribe y prueba código. **El VPS nunca clona de aquí.** |
+| **Producción** | `github.com/jesusapn/dashboard-comercial-2026` (privado) | **El VPS clona de aquí.** Espejo completo (historial + branches) del repo de desarrollo al momento de este despliegue. |
+
+**Flujo de actualización**: cuando desarrollo tiene una versión lista para
+liberar, alguien con acceso al repo de desarrollo corre un `git push
+--mirror` (o el equivalente que el equipo defina) desde dev hacia el repo de
+producción. El VPS **no** hace `git pull` directo del repo de desarrollo en
+ningún momento — siempre pasa por ese paso intermedio de sincronización
+manual, para que sistemas nunca despliegue código que desarrollo todavía no
+marcó como listo.
+
+- **Acceso**: el repo de producción es privado. Sistemas necesita un
+  Personal Access Token (o clave SSH) de una cuenta con permiso de lectura
+  sobre `jesusapn/dashboard-comercial-2026` para poder clonarlo y
+  hacer `git pull` en las actualizaciones (`deploy/deploy.sh`, paso 12).
+- **No mezclar remotos**: si en algún momento `git remote -v` dentro de
+  `/opt/dashboard-comercial-2026` muestra algo distinto a
+  `jesusapn/dashboard-comercial-2026`, detenerse — algo se clonó
+  mal.
+
+---
+
+## 3. Bloqueantes conocidos — resolver antes de desplegar
 
 Estos 3 hallazgos se corrigieron en esta misma revisión de los archivos de
 `deploy/`; si sistemas ya tenía una copia anterior de este repo, debe volver
@@ -56,7 +85,7 @@ desarrollo:**
 
 ---
 
-## 3. Arquitectura técnica
+## 4. Arquitectura técnica
 
 ```
 Internet ──443/80──▶ Nginx/Caddy (TLS) ──127.0.0.1:3000──▶ Next.js (bun run start)
@@ -84,25 +113,25 @@ Internet ──443/80──▶ Nginx/Caddy (TLS) ──127.0.0.1:3000──▶ N
 
 ---
 
-## 4. Requisitos de infraestructura
+## 5. Requisitos de infraestructura
 
 | Recurso | Mínimo | Recomendado | Nota |
 |---|---|---|---|
 | CPU | 2 vCPU | 4 vCPU | El build de producción (`bun run build`) es CPU-intensivo; en 4 vCPU tarda ~20-30s. |
 | RAM | 4 GB | 8 GB | Postgres tiene un límite de 2 GB fijado en `docker-compose.prod.yml` (`deploy.resources.limits.memory`); el resto para Next.js + el propio SO. |
-| Disco | 20 GB | 40 GB+ | Incluye imagen Docker de Postgres, `node_modules`, `.next/`, y crecimiento del volumen de datos. No incluye backups — ver §9. |
+| Disco | 20 GB | 40 GB+ | Incluye imagen Docker de Postgres, `node_modules`, `.next/`, y crecimiento del volumen de datos. No incluye backups — ver §10. |
 | SO | Ubuntu/Debian LTS (o equivalente) | — | Con acceso root/sudo para instalar Docker, Bun, Nginx. |
 | Red saliente | Requerida | — | `bun install` descarga `xlsx` directo desde `cdn.sheetjs.com` (no está en el registro npm público) — el VPS necesita salida a internet hacia ese host en el momento del install. |
 
 Estos números **no están medidos en el VPS real** — son estimaciones a
-partir del stack. La prueba de carga (§8) sí se corrió, pero contra el
+partir del stack. La prueba de carga (§9) sí se corrió, pero contra el
 entorno de desarrollo local, no contra hardware equivalente al VPS. Repetir
 la prueba contra el VPS ya desplegado es la única forma de confirmar que
 estos recursos alcanzan con el tráfico real esperado.
 
 ---
 
-## 5. Requisitos de red y seguridad
+## 6. Requisitos de red y seguridad
 
 - **Puertos públicos**: solo 80 (redirect) y 443 (HTTPS). Postgres
   (`127.0.0.1:55432` por defecto) **nunca** debe exponerse a la red pública
@@ -124,7 +153,7 @@ estos recursos alcanzan con el tráfico real esperado.
 
 ---
 
-## 6. Variables de entorno requeridas
+## 7. Variables de entorno requeridas
 
 Ver plantilla completa en [`deploy/.env.production.example`](./.env.production.example).
 Resumen de lo obligatorio:
@@ -150,7 +179,7 @@ deberían verlos.
 
 ---
 
-## 7. Alcance de este despliegue — decisiones ya tomadas
+## 8. Alcance de este despliegue — decisiones ya tomadas
 
 - **Carga de Excel**: solo manual, vía botón "Cargar Excel" en `/carga`
   (rol `gerencia`). El workflow `.github/workflows/weekly-excel-load.yml`
@@ -158,13 +187,13 @@ deberían verlos.
   "Disable workflow") para que no falle solo por no tener configurados los
   secrets `DATABASE_URL`/`DATABASE_ADMIN_URL` contra este VPS.
 - **Módulos excluidos de producción**: `comisiones`, `simulador`, `pareto`,
-  `mercadeo` — ocultos automáticamente por `NODE_ENV=production` (§6), no
+  `mercadeo` — ocultos automáticamente por `NODE_ENV=production` (§7), no
   requiere configuración adicional de sistemas.
 - **Proceso**: systemd (no pm2) — `deploy/dashboard-comercial.service.example`.
 
 ---
 
-## 8. Resultado de la prueba de carga (baseline de referencia)
+## 9. Resultado de la prueba de carga (baseline de referencia)
 
 Se corrió una prueba con los 51 usuarios reales del sistema (2 gerencia, 4
 gerente_comercial, 13 coordinador, 32 asesor), todos logueándose de forma
@@ -187,11 +216,11 @@ una garantía de lo que dará el VPS:
 desplegado (guardar el script usado, disponible en el historial de esta
 sesión) y confirmar que P95 de consultas se mantiene bajo ~3s con los 51
 usuarios reales. Si el VPS da números sustancialmente peores que estos,
-revisar recursos (§4) antes de dar por cerrado el despliegue.
+revisar recursos (§5) antes de dar por cerrado el despliegue.
 
 ---
 
-## 9. Fuera de alcance de este documento (a definir con el usuario)
+## 10. Fuera de alcance de este documento (a definir con el usuario)
 
 - **Backups de Postgres**: `docker-compose.prod.yml` deja un comentario
   indicando dónde montar un volumen adicional para `pg_dump` vía cron, pero
@@ -206,7 +235,7 @@ revisar recursos (§4) antes de dar por cerrado el despliegue.
 
 ---
 
-## 10. Plan de rollback
+## 11. Plan de rollback
 
 Si el despliegue falla o el health check no pasa después de `deploy.sh`:
 
@@ -223,12 +252,12 @@ Si el despliegue falla o el health check no pasa después de `deploy.sh`:
 
 ---
 
-## 11. Checklist de aceptación final (firma de sistemas)
+## 12. Checklist de aceptación final (firma de sistemas)
 
-- [ ] §2 — Bloqueantes conocidos resueltos (las 6 migraciones confirmadas
+- [ ] §3 — Bloqueantes conocidos resueltos (las 6 migraciones confirmadas
       commiteadas antes de clonar)
-- [ ] Infraestructura provisionada según §4
-- [ ] Firewall configurado según §5 (solo 80/443 públicos)
+- [ ] Infraestructura provisionada según §5
+- [ ] Firewall configurado según §6 (solo 80/443 públicos)
 - [ ] Todos los pasos de `deploy/README.md` completados y su checklist
       interno marcado
 - [ ] `curl https://<dominio>/api/health` responde 200 desde fuera del VPS
@@ -238,11 +267,11 @@ Si el despliegue falla o el health check no pasa después de `deploy.sh`:
       para ningún rol (confirma que `NODE_ENV=production` quedó activo)
 - [ ] Carga de Excel probada una vez desde `/carga` con datos reales
 - [ ] Workflow `weekly-excel-load.yml` deshabilitado en GitHub Actions
-- [ ] Prueba de carga de §8 repetida contra el VPS, resultados documentados
+- [ ] Prueba de carga de §9 repetida contra el VPS, resultados documentados
 
 ---
 
-## 12. Contactos / responsables
+## 13. Contactos / responsables
 
 | Rol | Nombre | Contacto |
 |---|---|---|
