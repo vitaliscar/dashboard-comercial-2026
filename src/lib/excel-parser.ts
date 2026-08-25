@@ -63,7 +63,7 @@ export interface ClientePotencialItem {
   montoFacturadoBase: number;
 }
 
-interface RawRowData {
+export interface RawRowData {
   [key: string]: any;
 }
 
@@ -410,7 +410,24 @@ export class ExcelParser {
   // en vez de descartarse en silencio.
   private unidadesNoReconocidas = new Map<string, number>();
 
-  constructor(source: string | Buffer) {
+  /**
+   * `preParsed` permite saltarse XLSX.read()/sheet_to_json() aquí (trabajo
+   * síncrono pesado que bloquea el event loop) cuando esas hojas ya fueron
+   * extraídas en un worker thread — ver parseExcelInWorker() y su uso en
+   * src/lib/actions/carga.ts. Uso normal (CLI, scripts): solo pasar `source`.
+   */
+  constructor(
+    source: string | Buffer,
+    preParsed?: { sheetNames: string[]; sheets: Record<string, RawRowData[]> },
+  ) {
+    if (preParsed) {
+      this.workbook = { SheetNames: preParsed.sheetNames, Sheets: {} } as XLSX.WorkBook;
+      for (const [nombre, datos] of Object.entries(preParsed.sheets)) {
+        this.hojaCache.set(nombre, datos);
+      }
+      console.log("\n🔍 HOJAS DETECTADAS EN EL EXCEL (pre-parseadas):", preParsed.sheetNames, "\n");
+      return;
+    }
     const fileBuffer = typeof source === "string" ? fs.readFileSync(source) : source;
     this.workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: true });
     console.log("\n🔍 HOJAS DETECTADAS EN EL EXCEL:", this.workbook.SheetNames, "\n");
@@ -1541,7 +1558,7 @@ export class ExcelParser {
       const facturaNumero = this.normalizarTexto(row["Factura"]);
       const key = `${sucursal}|${clienteCod}|${clienteNom}|${facturaNumero}`;
 
-      const montoDO = this.parseAccountingNumber(row["Total DO"]);
+      const montoDO = this.parseAccountingNumber(row["TOTAL $"]);
 
       if (!grupos.has(key)) {
         grupos.set(key, {
