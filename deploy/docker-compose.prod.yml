@@ -1,12 +1,14 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgres:18.6
     container_name: dashboard-comercial-postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?falta POSTGRES_USER en .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
       POSTGRES_DB: ${POSTGRES_DB:-dashboard_comercial}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?falta APP_ADMIN_PASSWORD en .env}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:?falta APP_USER_PASSWORD en .env}
     # Solo accesible desde localhost — Next.js corre en la misma máquina.
     # No exponer el puerto de Postgres a la red pública.
     ports:
