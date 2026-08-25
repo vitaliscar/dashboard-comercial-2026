@@ -40,33 +40,27 @@ cp deploy/.env.production.example .env.local
 Editar `.env.local` y completar:
 
 - `POSTGRES_PASSWORD`: generar una contraseña fuerte (`openssl rand -base64 32`).
-- `DATABASE_URL` / `DATABASE_ADMIN_URL`: deben usar las **mismas** contraseñas
-  que vas a poner en el paso 4 (roles `app_user` / `app_admin`).
+- `APP_ADMIN_PASSWORD` / `APP_USER_PASSWORD`: dos contraseñas fuertes,
+  distintas entre sí y distintas de `POSTGRES_PASSWORD` (paso 4 las usa).
+- `DATABASE_URL` / `DATABASE_ADMIN_URL`: deben usar las **mismas**
+  contraseñas que pusiste en `APP_USER_PASSWORD` / `APP_ADMIN_PASSWORD`.
 
 **Nunca** commitear `.env.local` al repo (ya está en `.gitignore`).
 
-## 4. Configurar las contraseñas de los roles de Postgres
+## 4. Roles de Postgres (`app_admin` / `app_user`)
 
-El script de inicialización de Postgres (`docker/postgres-init/00-roles.sql`)
-trae contraseñas de **desarrollo** hardcodeadas (`app_admin_dev_pw` /
-`app_user_dev_pw`). Para producción hay que reemplazarlo **antes** del primer
-arranque del contenedor (el script solo corre una vez, cuando el volumen de
-Postgres se crea por primera vez):
+El script `docker/postgres-init/00-roles.sh` crea los dos roles de aplicación
+al arrancar el contenedor **por primera vez** (el volumen de Postgres se crea
+una sola vez), leyendo las contraseñas de las variables de entorno
+`APP_ADMIN_PASSWORD` / `APP_USER_PASSWORD` que definiste en el paso 3. No hay
+ningún archivo que editar a mano — basta con que esas dos variables estén en
+`.env.local` **antes** de levantar el contenedor (paso 5).
 
-```bash
-cp deploy/00-roles.prod.sql.example docker/postgres-init/00-roles.sql
-```
-
-Editar `docker/postgres-init/00-roles.sql` y reemplazar
-`<CAMBIAR_APP_ADMIN_PW>` / `<CAMBIAR_APP_USER_PW>` por contraseñas generadas
-(distintas entre sí, y distintas de `POSTGRES_PASSWORD`). Usar esas mismas
-contraseñas en `DATABASE_URL` / `DATABASE_ADMIN_URL` de `.env.local` (paso 3).
-
-> ⚠️ Si el contenedor de Postgres ya arrancó antes de este paso, el volumen ya
-> existe y este script **no** se re-ejecuta solo. En ese caso cambiar las
-> contraseñas manualmente con `ALTER ROLE app_admin WITH PASSWORD '...'`
-> dentro del contenedor, o borrar el volumen (`docker compose down -v`) si
-> todavía no hay datos reales que perder.
+> ⚠️ Si el contenedor de Postgres ya arrancó antes de fijar esas variables,
+> el volumen ya existe y el script **no** se re-ejecuta solo. En ese caso
+> cambiar las contraseñas manualmente con `ALTER ROLE app_admin WITH
+> PASSWORD '...'` dentro del contenedor, o borrar el volumen (`docker compose
+> down -v`) si todavía no hay datos reales que perder.
 
 ## 5. Levantar Postgres
 
@@ -79,7 +73,9 @@ Verificar que el healthcheck diga `healthy` antes de seguir.
 
 ## 6. Aplicar las migraciones (primera vez — base de datos nueva)
 
-Correr en este orden exacto (ver también el `CLAUDE.md` del repo):
+Correr en este orden exacto (verificado contra el journal de Drizzle y las
+fechas de commit — es más completo que el bloque de `CLAUDE.md`, que no
+incluye las últimas 10 migraciones):
 
 ```bash
 CONTAINER=dashboard-comercial-postgres
@@ -96,11 +92,27 @@ docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migr
 docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations/0004_lame_maestro.sql
 docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations/0005_lean_sally_floyd.sql
 docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations/0006_cool_mathemanic.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations/0007_oval_killer_shrike.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0007_mercadeo_rls.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0008_minutas_alertas.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0009_profile_sucursales.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0010_role_module_access.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0011_fix_update_minutas_destinatario.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0012_comisiones_reglas_rls.sql
+docker exec -i $CONTAINER psql -U app_admin -d dashboard_comercial < src/db/migrations-manual/0013_profiles_fuerza_venta_select.sql
 ```
 
-> Si al momento de desplegar hay migraciones más nuevas que estas, revisar
+> ⚠️ **Bloqueante:** al momento de escribir esto, las 6 migraciones
+> `migrations-manual/0008` a `0013` existen solo en el disco de desarrollo —
+> **no están commiteadas al repo**. Si el VPS clona el repo tal cual está
+> hoy, esos 6 archivos no van a existir. Confirmar con el equipo de
+> desarrollo que ya fueron commiteados y pusheados antes de clonar en el VPS
+> (`git log --oneline -- src/db/migrations-manual/0013_profiles_fuerza_venta_select.sql`
+> debe devolver un commit real, no vacío).
+>
+> Si al momento de desplegar hay migraciones más nuevas que estas 21, revisar
 > `src/db/migrations/` y `src/db/migrations-manual/` por fecha y aplicar las
-> que falten — deben ir en orden cronológico. En caso de duda, preguntar antes
+> que falten al final, en orden cronológico. En caso de duda, preguntar antes
 > de aplicar nada contra una base de datos con datos reales.
 
 ## 7. Instalar dependencias y compilar
@@ -217,12 +229,14 @@ Hay dos formas de actualizar los datos desde el Excel:
 
 ## Checklist rápido de primer despliegue
 
+- [ ] **Confirmado con desarrollo que `migrations-manual/0008` a `0013` ya
+      están commiteados y pusheados al repo** (bloqueante — ver nota en paso 6)
 - [ ] Docker + Bun + Nginx instalados
 - [ ] Repo clonado en `/opt/dashboard-comercial-2026`
-- [ ] `.env.local` completado con contraseñas reales (paso 3)
-- [ ] `docker/postgres-init/00-roles.sql` reemplazado con contraseñas reales (paso 4)
-- [ ] Postgres levantado y `healthy` (paso 5)
-- [ ] Migraciones aplicadas en orden (paso 6)
+- [ ] `.env.local` completado con contraseñas reales, incluyendo
+      `APP_ADMIN_PASSWORD` / `APP_USER_PASSWORD` (paso 3)
+- [ ] Postgres levantado y `healthy`, roles creados via `00-roles.sh` (pasos 4-5)
+- [ ] Migraciones aplicadas en orden — las 21, no solo las primeras 13 (paso 6)
 - [ ] `bun run build` exitoso (paso 7)
 - [ ] Datos cargados desde el Excel (paso 8)
 - [ ] Servicio systemd activo (paso 9)
