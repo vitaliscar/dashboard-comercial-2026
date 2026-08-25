@@ -87,15 +87,10 @@ export async function getEquiposClientesCobroAction() {
   return withAuth(async ({ tx }) => {
     const unitId = await unidadId("equipos");
     const rows = await tx
-      .select({
-        cliente: cobranzas.cliente,
-        sucursalId: cobranzas.sucursalId,
-        monto: sum(cobranzas.monto),
-        saldo: sum(cobranzas.saldo),
-      })
+      .select()
       .from(cobranzas)
       .where(and(gt(cobranzas.saldo, "0"), eq(cobranzas.unidadNegocioId, unitId)))
-      .groupBy(cobranzas.cliente, cobranzas.sucursalId);
+      .orderBy(cobranzas.fechaVencimiento);
 
     return rows.map((r) => ({
       ...r,

@@ -32,6 +32,8 @@ import {
   Search,
   Building2,
   Megaphone,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useState, useRef, useEffect, type ReactNode } from "react";
@@ -166,6 +168,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
 
+  // Colapso del sidebar (solo desktop) — arranca sin animar y sin leer
+  // localStorage para que coincida con el render del servidor; una vez
+  // montado, sincroniza la preferencia guardada y recién ahí habilita la
+  // transición, así no "flashea" un colapso animado en cada carga.
+  const [collapsed, setCollapsed] = useState(false);
+  const [collapseReady, setCollapseReady] = useState(false);
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("ccv-sidebar-collapsed") === "1");
+    setCollapseReady(true);
+  }, []);
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("ccv-sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  };
+
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
 
@@ -254,24 +274,34 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* ── Sidebar: fixed 220px, always expanded ───────────────────────── */}
+      {/* ── Sidebar: 220px, colapsable a 56px en desktop ────────────────── */}
       <aside
         ref={sidebarRef}
         aria-label="Navegación principal"
         role={open ? "dialog" : undefined}
         aria-modal={open ? "true" : undefined}
+        style={{
+          width: collapsed ? "var(--sidebar-collapsed-width)" : "var(--sidebar-expanded-width)",
+        }}
         className={cn(
-          "no-print fixed lg:sticky top-0 z-40 h-screen w-55 flex flex-col overflow-hidden",
+          "no-print fixed lg:sticky top-0 z-40 h-screen flex flex-col overflow-hidden",
           "bg-sidebar border-r border-sidebar-border",
           "transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
-          // Mobile: slide in/out
+          collapseReady &&
+            "lg:transition-[width] lg:duration-200 lg:ease-[cubic-bezier(0.32,0.72,0,1)]",
+          // Mobile: slide in/out (el ancho colapsado solo aplica en desktop)
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         {/* Logo area */}
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-sidebar-border shrink-0">
+        <div
+          className={cn(
+            "flex items-center gap-3 px-3 py-4 border-b border-sidebar-border shrink-0",
+            collapsed && "lg:justify-center lg:px-0",
+          )}
+        >
           <img src="/Logo_CCV.png" alt="CCV" className="size-8 object-contain shrink-0" />
-          <div className="min-w-0">
+          <div className={cn("min-w-0", collapsed && "lg:hidden")}>
             <div className="font-display font-bold text-white text-sm leading-tight">CCV</div>
             <div className="text-[9px] tracking-widest text-primary font-display font-bold uppercase">
               {roleLabel(role)}
@@ -279,11 +309,38 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
+        {/* Collapse toggle — solo desktop, el mobile usa el overlay completo */}
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+          title={collapsed ? "Expandir menú" : "Colapsar menú"}
+          className={cn(
+            "hidden lg:flex items-center gap-2 mx-2 mt-2 px-2 py-1.5 rounded-md shrink-0",
+            "text-white/50 hover:text-white hover:bg-sidebar-accent/60",
+            "transition-colors duration-150 ease-out",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            collapsed && "justify-center",
+          )}
+        >
+          {collapsed ? (
+            <ChevronsRight className="size-4 shrink-0" />
+          ) : (
+            <ChevronsLeft className="size-4 shrink-0" />
+          )}
+          {!collapsed && <span className="text-xs font-display">Colapsar</span>}
+        </button>
+
         {/* Nav items */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0">
           {navGroups.map((group, i) => (
             <div key={group.title} className={cn("px-2", i > 0 && "mt-3")}>
-              <p className="px-2 pb-1 text-[10px] font-display font-bold uppercase tracking-wider text-white/40">
+              <p
+                className={cn(
+                  "px-2 pb-1 text-[10px] font-display font-bold uppercase tracking-wider text-white/40",
+                  collapsed && "lg:hidden",
+                )}
+              >
                 {group.title}
               </p>
               <div className="space-y-0.5">
@@ -301,6 +358,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                         active
                           ? "bg-primary/10 text-white font-semibold ring-1 ring-inset ring-primary/25"
                           : "text-white/70 hover:text-white hover:bg-sidebar-accent/60",
+                        collapsed && "lg:justify-center",
                       )}
                     >
                       <n.icon
@@ -309,7 +367,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                           active ? "text-primary" : "text-sidebar-accent-foreground/50",
                         )}
                       />
-                      <span className="whitespace-nowrap">{n.label}</span>
+                      <span className={cn("whitespace-nowrap", collapsed && "lg:hidden")}>
+                        {n.label}
+                      </span>
                     </Link>
                   );
                 })}
@@ -324,19 +384,27 @@ export function AppShell({ children }: { children: ReactNode }) {
             href="/auth"
             onClick={handleSignOut}
             title="Cerrar sesión"
-            className="flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-white/70 hover:text-white hover:bg-sidebar-accent/60 transition-[background-color,color] duration-150"
+            className={cn(
+              "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-white/70 hover:text-white hover:bg-sidebar-accent/60 transition-[background-color,color] duration-150",
+              collapsed && "lg:justify-center",
+            )}
           >
             <LogOut className="size-4 shrink-0" />
-            <span className="whitespace-nowrap">Cerrar sesión</span>
+            <span className={cn("whitespace-nowrap", collapsed && "lg:hidden")}>Cerrar sesión</span>
           </Link>
 
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="size-7 rounded-full bg-sidebar-accent border border-sidebar-border flex items-center justify-center text-primary font-display font-bold text-xs shrink-0">
+          <div
+            className={cn("flex items-center gap-3 px-2 py-2", collapsed && "lg:justify-center")}
+          >
+            <div
+              title={collapsed ? (profile?.nombre_completo ?? "Usuario") : undefined}
+              className="size-7 rounded-full bg-sidebar-accent border border-sidebar-border flex items-center justify-center text-primary font-display font-bold text-xs shrink-0"
+            >
               {profile?.nombre_completo?.[0]?.toUpperCase() ??
                 profile?.email?.[0]?.toUpperCase() ??
                 "U"}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
               <div className="text-xs font-semibold text-white truncate">
                 {profile?.nombre_completo ?? "Usuario"}
               </div>

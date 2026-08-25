@@ -39,7 +39,12 @@ function createRateLimiter(windowMs = 60 * 1000, maxRequests = 100) {
         logger.warn(
           `[Rate Limit Exceeded] IP/User ${identifier} sent ${record.count} reqs in ${windowMs}ms`,
         );
-        return { limited: true, current: record.count, remaining: 0, resetMs: record.resetTime - now };
+        return {
+          limited: true,
+          current: record.count,
+          remaining: 0,
+          resetMs: record.resetTime - now,
+        };
       }
 
       return {

@@ -7,7 +7,7 @@ import { useSucursales } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
+import { getAllMonthsCap, getHighlightMonthLabels, diasVencidosDesde } from "@/lib/date-range";
 import {
   getPresupuestosRepuestosAction,
   getCobranzasRepuestosAction,
@@ -23,6 +23,7 @@ import { CompanyMonthlyStackedLines } from "@/components/servicios/CompanyMonthl
 import { useMemo } from "react";
 import { TrendingUp, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 
 export default function RepuestosPage() {
@@ -50,8 +51,8 @@ export default function RepuestosPage() {
   });
 
   const { data: cobranzasData } = useQuery({
-    queryKey: ["cobranzas-repuestos", sucursal],
-    queryFn: () => getCobranzasRepuestosAction({ sucursal }),
+    queryKey: ["cobranzas-repuestos", sucursal, anio, JSON.stringify(meses)],
+    queryFn: () => getCobranzasRepuestosAction({ sucursal, anio, meses }),
   });
 
   // Año completo — igual que presupuestosYtdData: los meses aún no cerrados en
@@ -209,13 +210,26 @@ export default function RepuestosPage() {
         ? sucursalMap.get(c.sucursalId) || "Sin sucursal"
         : "Sin sucursal",
       cliente: c.cliente,
-      diasVencidos: c.diasVencidos ?? 0,
+      diasVencidos: diasVencidosDesde(c.fechaVencimiento),
       total: Number(c.saldo),
     }));
   }, [cobranzasData, sucursalMap]);
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          eyebrow="Unidad de Negocio"
+          title="Dashboard de Repuestos"
+          description="Facturación, cumplimiento presupuestario, marcas y cuentas por cobrar."
+        />
+        <PageSkeleton kpis={2} blocks={[{ cols: 6 }, { cols: 2, height: 260 }]} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Unidad de Negocio"
         title="Dashboard de Repuestos"
@@ -309,12 +323,13 @@ export default function RepuestosPage() {
         <header>
           <h2 className="font-display text-lg font-semibold">Cuentas por cobrar</h2>
         </header>
-        <ReceivablesTable rows={receivablesRows} sucursalOptions={sucursalOptions} />
+        <ReceivablesTable
+          rows={receivablesRows}
+          sucursalOptions={role === "gerencia" ? sucursalOptions : undefined}
+        />
       </section>
 
       <ClientesPotencialesSection unidad="Repuestos" />
-
-      {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>
   );
 }

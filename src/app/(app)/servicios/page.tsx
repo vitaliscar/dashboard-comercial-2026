@@ -15,7 +15,12 @@ import {
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getDateRangesForMonths, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
+import {
+  getDateRangesForMonths,
+  getAllMonthsCap,
+  getHighlightMonthLabels,
+  diasVencidosDesde,
+} from "@/lib/date-range";
 import { useMemo } from "react";
 import { Zap, Wrench, User, TrendingUp } from "lucide-react";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
@@ -27,6 +32,7 @@ import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerform
 import { TalleresMonthlyChart } from "@/components/servicios/TalleresMonthlyChart";
 import { CsaTrendChart } from "@/components/servicios/CsaTrendChart";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function ServiciosPage() {
   const { role, profile } = useAuth();
@@ -307,7 +313,7 @@ export default function ServiciosPage() {
         ? sucursalMap.get(c.sucursalId) || "Sin sucursal"
         : "Sin sucursal",
       cliente: c.cliente,
-      diasVencidos: c.diasVencidos ?? 0,
+      diasVencidos: diasVencidosDesde(c.fechaVencimiento),
       total: Number(c.saldo),
     }));
   }, [cobranzasData, sucursalMap]);
@@ -319,8 +325,22 @@ export default function ServiciosPage() {
 
   const isLoading = isLoadingServicios || isLoadingPresupuestos || isLoadingServiciosInterno;
 
+  if (isLoading && !presupuestosData) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Dashboard de Servicios</h1>
+        </div>
+        <PageSkeleton
+          kpis={4}
+          blocks={[{ cols: 6 }, { cols: 1 }, { cols: 2 }, { cols: 2 }, { cols: 1, height: 260 }]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-bold">Dashboard de Servicios</h1>
       </div>

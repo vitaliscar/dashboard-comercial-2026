@@ -1,5 +1,15 @@
 import { memo, useCallback } from "react";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+  LabelList,
+} from "recharts";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -26,24 +36,32 @@ const WORKSHOP_COLORS: Record<string, string> = {
 interface CustomDotProps {
   cx?: number;
   cy?: number;
+  index?: number;
   payload?: { mes: string };
   stroke?: string;
 }
 
-function renderCustomDot(props: CustomDotProps, selectedMonths?: string[]) {
-  const { cx, cy, payload, stroke } = props;
+function renderCustomDot(
+  props: CustomDotProps,
+  selectedMonths: string[] | undefined,
+  totalPoints: number,
+) {
+  const { cx, cy, index, payload, stroke } = props;
   if (cx == null || cy == null) return <circle key="dot-empty" cx={0} cy={0} r={0} />;
 
   const mes = payload?.mes;
   const hasSelection = Boolean(selectedMonths && selectedMonths.length > 0);
   const isSelected = hasSelection ? Boolean(mes && selectedMonths!.includes(mes)) : true;
+  const isLastPoint = index === totalPoints - 1;
+  const isEmphasized = isSelected || isLastPoint;
 
-  const r = hasSelection ? (isSelected ? 6 : 3) : 4;
-  const opacity = isSelected ? 1 : 0.35;
+  const r = hasSelection ? (isEmphasized ? 6 : 3) : isLastPoint ? 5 : 4;
+  const opacity = isEmphasized ? 1 : 0.35;
   const color = stroke || "currentColor";
 
   return (
     <circle
+      key={`dot-${index}`}
       cx={cx}
       cy={cy}
       r={r}
@@ -64,16 +82,16 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
 }: Props) {
   const chartAnimation = useChartAnimation();
   const renderCrmDot = useCallback(
-    (dotProps: CustomDotProps) => renderCustomDot(dotProps, selectedMonths),
-    [selectedMonths],
+    (dotProps: CustomDotProps) => renderCustomDot(dotProps, selectedMonths, data.length),
+    [selectedMonths, data.length],
   );
   const renderCnrcDot = useCallback(
-    (dotProps: CustomDotProps) => renderCustomDot(dotProps, selectedMonths),
-    [selectedMonths],
+    (dotProps: CustomDotProps) => renderCustomDot(dotProps, selectedMonths, data.length),
+    [selectedMonths, data.length],
   );
   const renderMachineShopDot = useCallback(
-    (dotProps: CustomDotProps) => renderCustomDot(dotProps, selectedMonths),
-    [selectedMonths],
+    (dotProps: CustomDotProps) => renderCustomDot(dotProps, selectedMonths, data.length),
+    [selectedMonths, data.length],
   );
 
   return (
@@ -90,6 +108,7 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
                 <YAxis
                   stroke="var(--color-muted-foreground)"
@@ -104,6 +123,8 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
                     borderRadius: 0,
                     fontSize: 12,
                   }}
+                  labelStyle={{ color: "var(--color-foreground)" }}
+                  itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                 <Line
@@ -114,7 +135,16 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
                   strokeWidth={2.5}
                   dot={renderCrmDot}
                   {...chartAnimation}
-                />
+                >
+                  <LabelList
+                    dataKey="CRM"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill={WORKSHOP_COLORS.CRM}
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Line>
                 <Line
                   type="monotone"
                   dataKey="CNRC"
@@ -123,7 +153,16 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
                   strokeWidth={2.5}
                   dot={renderCnrcDot}
                   {...chartAnimation}
-                />
+                >
+                  <LabelList
+                    dataKey="CNRC"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill={WORKSHOP_COLORS.CNRC}
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Line>
                 <Line
                   type="monotone"
                   dataKey="MachineShop"
@@ -132,7 +171,16 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
                   strokeWidth={2.5}
                   dot={renderMachineShopDot}
                   {...chartAnimation}
-                />
+                >
+                  <LabelList
+                    dataKey="MachineShop"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill={WORKSHOP_COLORS.MachineShop}
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Line>
               </LineChart>
             </ResponsiveContainer>
           </div>

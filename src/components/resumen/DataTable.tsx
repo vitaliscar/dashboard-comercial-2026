@@ -13,12 +13,13 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyHeader, EmptyTitle, EmptyMedia } from "@/components/ui/empty";
+import { Inbox } from "lucide-react";
 
 interface Column {
   key: string;
   label: string;
-  format?: "currency" | "percentage" | "text" | "abbreviateSucursal";
+  format?: "currency" | "percentage" | "text" | "abbreviateSucursal" | "rank";
   tooltip?: boolean;
   width?: string;
   align?: "left" | "right";
@@ -147,8 +148,11 @@ export const DataTable = memo(function DataTable({
 
   if (data.length === 0) {
     return (
-      <Empty className="rounded-lg border-border bg-card p-4">
-        <EmptyHeader>
+      <Empty className="rounded-lg border-border bg-card p-4 gap-2">
+        <EmptyHeader className="gap-1.5">
+          <EmptyMedia variant="icon" className="mb-0 size-6 [&_svg]:size-3.5">
+            <Inbox />
+          </EmptyMedia>
           <EmptyTitle className="text-xs font-normal text-muted-foreground">
             {emptyMessage}
           </EmptyTitle>
@@ -273,7 +277,22 @@ export const DataTable = memo(function DataTable({
                             : "text-left",
                         )}
                       >
-                        {col.tooltip ? (
+                        {col.format === "rank" ? (
+                          <span
+                            className={cn(
+                              "inline-flex size-5 items-center justify-center rounded-full font-mono text-[9px] font-bold tabular-nums",
+                              idx === 0
+                                ? "bg-warning/15 text-warning"
+                                : idx === 1
+                                  ? "bg-muted-foreground/15 text-muted-foreground"
+                                  : idx === 2
+                                    ? "bg-primary/10 text-primary"
+                                    : "bg-muted/40 text-muted-foreground/70",
+                            )}
+                          >
+                            {idx + 1}
+                          </span>
+                        ) : col.tooltip ? (
                           <Tooltip>
                             <TooltipTrigger
                               render={
@@ -297,7 +316,13 @@ export const DataTable = memo(function DataTable({
                               col.align === "right" ? "justify-end" : "justify-start",
                             )}
                           >
-                            <span className="truncate">{val}</span>
+                            {col.format === "abbreviateSucursal" ? (
+                              <span className="inline-flex shrink-0 items-center rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-wide text-muted-foreground">
+                                {val}
+                              </span>
+                            ) : (
+                              <span className="truncate">{val}</span>
+                            )}
                             {col.deltaKey && (
                               <DeltaBadge current={row[col.key]} previous={row[col.deltaKey]} />
                             )}

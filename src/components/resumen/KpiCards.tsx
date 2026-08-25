@@ -40,8 +40,9 @@ export function KpiCards({
         : "text-success";
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="card-elevated grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y divide-border lg:divide-y-0 lg:divide-x mb-6">
       <KpiCard
+        flush
         label="Total Cotizado"
         value={money(cotizado)}
         icon={ClipboardList}
@@ -49,6 +50,7 @@ export function KpiCards({
         tooltip="Suma total de cotizaciones creadas en el período seleccionado para todas las unidades de negocio activas."
       />
       <KpiCard
+        flush
         label="Meta del Mes"
         value={money(metaMes)}
         icon={Goal}
@@ -56,6 +58,7 @@ export function KpiCards({
         tooltip="Presupuesto total planificado para el período actual, consolidando todas las sucursales y líneas de negocio."
       />
       <KpiCard
+        flush
         label="Total Facturado"
         value={money(facturado)}
         icon={TrendingUp}
@@ -67,6 +70,7 @@ export function KpiCards({
         tooltip="Monto facturado en base al módulo de presupuestos consolidando Ventas CCV, Xibi y Estratégicas del mes."
       />
       <KpiCard
+        flush
         label="Ventas Perdidas"
         value={money(ventasPerdidas)}
         icon={XOctagon}

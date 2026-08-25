@@ -18,11 +18,57 @@ export interface KpiCardProps {
   subvalueAlign?: "inline" | "below";
   tooltip?: string;
   progress?: number;
+  progressVariant?: "linear" | "gauge";
   sparklineData?: number[];
   className?: string;
   valueClassName?: string;
   subvalueClassName?: string;
   subvalueLabelClassName?: string;
+  flush?: boolean;
+}
+
+const ACCENT_STROKE: Record<string, string> = {
+  primary: "var(--color-primary)",
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger)",
+  ochre: "var(--color-ochre)",
+};
+
+function RadialGauge({ progress, accent }: { progress: number; accent: string }) {
+  const pct = Math.min(Math.max(progress, 0), 100);
+  const radius = 26;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - pct / 100);
+  return (
+    <div className="relative size-16 shrink-0">
+      <svg viewBox="0 0 64 64" className="size-16 -rotate-90">
+        <circle
+          cx={32}
+          cy={32}
+          r={radius}
+          fill="none"
+          stroke="var(--color-border)"
+          strokeWidth={5}
+        />
+        <circle
+          cx={32}
+          cy={32}
+          r={radius}
+          fill="none"
+          stroke={ACCENT_STROKE[accent]}
+          strokeWidth={5}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-[stroke-dashoffset] duration-700 ease-out"
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center font-mono text-[13px] font-bold tabular-nums">
+        {Math.round(pct)}%
+      </span>
+    </div>
+  );
 }
 
 const ACCENT_RING: Record<string, string> = {
@@ -50,11 +96,11 @@ const ACCENT_PROGRESS: Record<string, string> = {
 };
 
 const ACCENT_GLOW: Record<string, string> = {
-  primary: "shadow-[0_0_6px_oklch(0.78_0.16_75/0.5)]",
+  primary: "shadow-[0_0_6px_oklch(0.72_0.09_230/0.5)]",
   success: "shadow-[0_0_6px_oklch(0.62_0.16_155/0.5)]",
   warning: "shadow-[0_0_6px_oklch(0.75_0.15_80/0.5)]",
   danger: "shadow-[0_0_6px_oklch(0.62_0.22_25/0.5)]",
-  ochre: "shadow-[0_0_6px_oklch(0.78_0.16_75/0.5)]",
+  ochre: "shadow-[0_0_6px_oklch(0.72_0.09_230/0.5)]",
 };
 
 export function KpiCard({
@@ -72,11 +118,13 @@ export function KpiCard({
   subvalueAlign = "below",
   tooltip,
   progress,
+  progressVariant = "linear",
   sparklineData,
   className,
   valueClassName,
   subvalueClassName,
   subvalueLabelClassName,
+  flush = false,
 }: KpiCardProps) {
   const computedTrendTone = trendTone ?? (trend?.positive ? "success" : "danger");
   const sparklineTone =
@@ -86,11 +134,15 @@ export function KpiCard({
     <div
       className={cn(
         "relative p-5 overflow-hidden",
-        "card-elevated",
-        featured ? ACCENT_RING[accent] : "",
-        "hover:border-border/80 hover:card-elevated-hover",
-        "transition-[border-color,box-shadow] duration-200",
-        "section-enter",
+        flush
+          ? "hover:bg-foreground/[0.02] transition-colors duration-200"
+          : cn(
+              "card-elevated",
+              featured ? ACCENT_RING[accent] : "",
+              "hover:border-border/80 hover:card-elevated-hover",
+              "transition-[border-color,box-shadow] duration-200",
+              "section-enter",
+            ),
         className,
       )}
     >
@@ -116,7 +168,7 @@ export function KpiCard({
             </TooltipProvider>
           )}
         </div>
-        {Icon && (
+        {Icon && !(progress !== undefined && progressVariant === "gauge") && (
           <Icon
             className={cn(
               "size-3.5 shrink-0",
@@ -181,8 +233,15 @@ export function KpiCard({
         </div>
       )}
 
+      {/* Radial gauge — alternative to the linear bar for target-attainment KPIs */}
+      {progress !== undefined && progressVariant === "gauge" && (
+        <div className="absolute top-4 right-5">
+          <RadialGauge progress={progress} accent={accent} />
+        </div>
+      )}
+
       {/* Progress bar — 2px with glow */}
-      {progress !== undefined && (
+      {progress !== undefined && progressVariant === "linear" && (
         <div className="mt-3 h-[2px] w-full bg-foreground/8 rounded-full overflow-hidden">
           <div
             className={cn(

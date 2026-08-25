@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { LineChart, Line, XAxis, YAxis } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, LabelList } from "recharts";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -36,6 +36,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
           <LineChart data={data}>
+            <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
             <XAxis
               dataKey="mes"
               stroke="var(--color-muted-foreground)"
@@ -55,27 +56,96 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
               name="CCV"
               stroke="var(--color-ccv)"
               strokeWidth={2.5}
-              dot={{ r: 3 }}
+              dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                const { cx, cy, index } = props;
+                if (index !== data.length - 1) return <></>;
+                return (
+                  <circle
+                    key={`dot-${index}`}
+                    cx={cx}
+                    cy={cy}
+                    r={3.5}
+                    fill="var(--color-ccv)"
+                    stroke="var(--card)"
+                    strokeWidth={1.5}
+                  />
+                );
+              }}
               {...chartAnimation}
-            />
+            >
+              <LabelList
+                dataKey="ccv"
+                position="top"
+                fontSize={9}
+                fontWeight={700}
+                fill="var(--color-ccv)"
+                formatter={((v: unknown) => money(Number(v))) as never}
+              />
+            </Line>
             <Line
               type="monotone"
               dataKey="xibi"
               name="Xibi"
               stroke="var(--color-xibi)"
               strokeWidth={2.5}
-              dot={{ r: 3 }}
+              dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                const { cx, cy, index } = props;
+                if (index !== data.length - 1) return <></>;
+                return (
+                  <circle
+                    key={`dot-${index}`}
+                    cx={cx}
+                    cy={cy}
+                    r={3.5}
+                    fill="var(--color-xibi)"
+                    stroke="var(--card)"
+                    strokeWidth={1.5}
+                  />
+                );
+              }}
               {...chartAnimation}
-            />
+            >
+              <LabelList
+                dataKey="xibi"
+                position="top"
+                fontSize={9}
+                fontWeight={700}
+                fill="var(--color-xibi)"
+                formatter={((v: unknown) => money(Number(v))) as never}
+              />
+            </Line>
             <Line
               type="monotone"
               dataKey="estrategicas"
               name="Ventas Estratégicas"
               stroke="var(--color-estrategicas)"
               strokeWidth={2.5}
-              dot={{ r: 3 }}
+              dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                const { cx, cy, index } = props;
+                if (index !== data.length - 1) return <></>;
+                return (
+                  <circle
+                    key={`dot-${index}`}
+                    cx={cx}
+                    cy={cy}
+                    r={3.5}
+                    fill="var(--color-estrategicas)"
+                    stroke="var(--card)"
+                    strokeWidth={1.5}
+                  />
+                );
+              }}
               {...chartAnimation}
-            />
+            >
+              <LabelList
+                dataKey="estrategicas"
+                position="top"
+                fontSize={9}
+                fontWeight={700}
+                fill="var(--color-estrategicas)"
+                formatter={((v: unknown) => money(Number(v))) as never}
+              />
+            </Line>
           </LineChart>
         </ChartContainer>
       </CardContent>

@@ -62,9 +62,7 @@ export function CanalesSection({ anio, meses }: Props) {
 
   const filasCanal = useMemo(
     () =>
-      canal === TODOS_LOS_CANALES
-        ? filasCanales
-        : filasCanales.filter((r) => r.canal === canal),
+      canal === TODOS_LOS_CANALES ? filasCanales : filasCanales.filter((r) => r.canal === canal),
     [filasCanales, canal],
   );
 

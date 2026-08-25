@@ -61,6 +61,8 @@ export const CsaTrendChart = memo(function CsaTrendChart({
                     borderRadius: 0,
                     fontSize: 12,
                   }}
+                  labelStyle={{ color: "var(--color-foreground)" }}
+                  itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Bar dataKey="monto" name="Ventas CSA" radius={[4, 4, 0, 0]} {...chartAnimation}>
                   {data.map((row) => {

@@ -1,17 +1,30 @@
 "use server";
 
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/db";
-import { users, sessions, profiles, userRoles, profileUnidadesNegocio } from "@/db/schema";
+import {
+  users,
+  sessions,
+  profiles,
+  userRoles,
+  profileUnidadesNegocio,
+  profileSucursales,
+} from "@/db/schema";
 import { authRateLimiter } from "@/lib/rate-limiter";
 import { verifyPassword } from "@/lib/auth/password";
 import { sessionExpiryDate, isSessionExpired, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { logAuthFailure } from "@/lib/logger";
 
 export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 const isProd = process.env.NODE_ENV === "production";
+
+/** Hash argon2id de un password dummy — iguala el costo de verify cuando el email no existe (anti-timing). */
+const DUMMY_PASSWORD_HASH =
+  process.env.AUTH_DUMMY_PASSWORD_HASH ??
+  "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 async function setSessionCookie(sessionId: string, expiresAt: Date) {
   const store = await cookies();
@@ -22,6 +35,18 @@ async function setSessionCookie(sessionId: string, expiresAt: Date) {
     path: "/",
     expires: expiresAt,
   });
+}
+
+async function clientMeta(): Promise<{ ip?: string; userAgent?: string }> {
+  try {
+    const h = await headers();
+    const forwarded = h.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined;
+    const userAgent = h.get("user-agent") || undefined;
+    return { ip, userAgent };
+  } catch {
+    return {};
+  }
 }
 
 /** Misma forma que loadAuthPayload en la versión TanStack Start — profile + role + scope. */
@@ -46,6 +71,18 @@ async function loadAuthPayload(userId: string) {
         ? [profile.unidadNegocioId]
         : [];
 
+  const sucursalBridgeRows = await dbAdmin
+    .select({ sucursalId: profileSucursales.sucursalId })
+    .from(profileSucursales)
+    .where(eq(profileSucursales.profileId, userId));
+
+  const sucursalesIds =
+    sucursalBridgeRows.length > 0
+      ? sucursalBridgeRows.map((r) => r.sucursalId)
+      : profile.sucursalId
+        ? [profile.sucursalId]
+        : [];
+
   let role: AppRole | null = null;
   if (profile.isAdmin) {
     role = "gerencia";
@@ -55,28 +92,41 @@ async function loadAuthPayload(userId: string) {
     role = priority.find((rr) => roleNames.includes(rr)) ?? null;
   }
 
-  return { profile: { ...profile, unidadesNegocioIds }, role };
+  return { profile: { ...profile, unidadesNegocioIds, sucursalesIds }, role };
 }
 
 export async function loginAction(data: { email: string; password: string }) {
   const fail = (error: string) => ({ error, user: null, profile: null, role: null }) as const;
+  const meta = await clientMeta();
 
   const cleanEmail = (data.email || "").trim().toLowerCase();
-  const cleanPassword = (data.password || "").trim();
+  // No hacer trim del password: espacios significativos deben preservarse (CN-033).
+  const cleanPassword = data.password || "";
 
-  const limitCheck = authRateLimiter.isRateLimited(cleanEmail || "unknown");
+  const rateKey = [cleanEmail || "unknown", meta.ip || "noip"].join("|");
+  const limitCheck = authRateLimiter.isRateLimited(rateKey);
   if (limitCheck.limited) {
+    logAuthFailure(cleanEmail || "unknown", "rate_limited", meta);
     return fail("Demasiados intentos de inicio de sesión. Por favor, intente más tarde.");
   }
 
   const [user] = await dbAdmin.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
-  if (!user || !user.isActive) return fail("Correo o contraseña incorrectos.");
 
-  const valid = await verifyPassword(user.passwordHash, cleanPassword);
-  if (!valid) return fail("Correo o contraseña incorrectos.");
+  // Siempre verificar contra un hash (real o dummy) para no filtrar existencia por timing (CN-031).
+  const hashToVerify = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+  const valid = await verifyPassword(hashToVerify, cleanPassword);
+
+  if (!user || !user.isActive || !valid) {
+    const reason = !user ? "unknown_user" : !user.isActive ? "inactive" : "bad_password";
+    logAuthFailure(cleanEmail || "unknown", reason, meta);
+    return fail("Correo o contraseña incorrectos.");
+  }
 
   const payload = await loadAuthPayload(user.id);
-  if (!payload) return fail("No se pudo cargar el perfil del usuario.");
+  if (!payload) {
+    logAuthFailure(cleanEmail, "missing_profile", meta);
+    return fail("No se pudo cargar el perfil del usuario.");
+  }
 
   const expiresAt = sessionExpiryDate();
   const [session] = await dbAdmin
@@ -117,16 +167,24 @@ export const getCurrentSession = cache(async () => {
         store.delete(SESSION_COOKIE_NAME);
       } catch {
         // Cookie deletion is only allowed in Server Actions / Route Handlers.
-        // When called from a Server Component render we silently skip it.
+      }
+      return null;
+    }
+
+    const [user] = await dbAdmin.select().from(users).where(eq(users.id, session.userId)).limit(1);
+    // CN-026: usuarios desactivados no conservan sesión válida.
+    if (!user || !user.isActive) {
+      await dbAdmin.delete(sessions).where(eq(sessions.userId, session.userId));
+      try {
+        store.delete(SESSION_COOKIE_NAME);
+      } catch {
+        // Ignore cookie deletion errors in read-only render context
       }
       return null;
     }
 
     const payload = await loadAuthPayload(session.userId);
     if (!payload) return null;
-
-    const [user] = await dbAdmin.select().from(users).where(eq(users.id, session.userId)).limit(1);
-    if (!user) return null;
 
     return { user: { id: user.id, email: user.email }, ...payload };
   } catch (error) {

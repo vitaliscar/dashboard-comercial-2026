@@ -7,7 +7,12 @@ import { useSucursales } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getDateRangesForMonths, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
+import {
+  getDateRangesForMonths,
+  getAllMonthsCap,
+  getHighlightMonthLabels,
+  diasVencidosDesde,
+} from "@/lib/date-range";
 import {
   getPresupuestosEquiposAction,
   getEquiposVentasPerdidasAction,
@@ -31,8 +36,15 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function Equipos() {
   const { role } = useAuth();
@@ -198,8 +210,22 @@ export default function Equipos() {
       .sort((a, b) => Number(b.saldo) - Number(a.saldo));
   }, [clientesCobro, searchClientes]);
 
+  if (isLoading && !presupuestosData) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Dashboard de Equipos</h1>
+        </div>
+        <PageSkeleton
+          kpis={2}
+          blocks={[{ cols: 6 }, { cols: 1 }, { cols: 1 }, { cols: 1, height: 260 }]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-bold">Dashboard de Equipos</h1>
       </div>
@@ -310,9 +336,14 @@ export default function Equipos() {
                   <TableCell colSpan={6} className="p-0">
                     <Empty>
                       <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Sin datos de inventario
-                        </EmptyTitle>
+                        <EmptyMedia variant="icon">
+                          <Package />
+                        </EmptyMedia>
+                        <EmptyTitle>Sin datos de inventario</EmptyTitle>
+                        <EmptyDescription>
+                          El inventario de equipos no está cargado para la sucursal o unidad
+                          seleccionada.
+                        </EmptyDescription>
                       </EmptyHeader>
                     </Empty>
                   </TableCell>
@@ -411,8 +442,10 @@ export default function Equipos() {
         </header>
         <ReceivablesTable
           rows={clientesFiltrados.map((r) => ({
+            id: r.id,
             cliente: r.cliente,
             sucursalVenta: sucursales?.find((s) => s.id === r.sucursalId)?.nombre,
+            diasVencidos: diasVencidosDesde(r.fechaVencimiento),
             total: Number(r.saldo),
           }))}
         />

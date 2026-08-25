@@ -133,7 +133,7 @@ export async function getAsesorTrendAction(data: {
   unidades: string[];
 }) {
   return withAuth(async ({ tx }) => {
-    const { anio, meses, unidades } = data;
+    const { anio, unidades } = data;
 
     const [fRows, pRows] = await Promise.all([
       tx
@@ -159,7 +159,6 @@ export async function getAsesorTrendAction(data: {
         .where(
           and(
             eq(cumplimientoAsesores.anio, anio),
-            mesCond(cumplimientoAsesores.mes, meses, anio),
             inCond(cumplimientoAsesores.unidadNegocioId, unidades),
           ),
         )

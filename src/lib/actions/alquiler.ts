@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gt, inArray, sum, type SQLWrapper } from "drizzle-orm";
+import { and, eq, gt, inArray, type SQLWrapper } from "drizzle-orm";
 import { presupuestos, cobranzas } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { unidadId } from "@/lib/server/unidades";
@@ -53,21 +53,10 @@ export async function getPresupuestosAlquilerAction(data: {
 export async function getAlquilerClientesCobroAction() {
   return withAuth(async ({ tx }) => {
     const unitId = await unidadId("alquiler");
-    const rows = await tx
-      .select({
-        cliente: cobranzas.cliente,
-        sucursalId: cobranzas.sucursalId,
-        monto: sum(cobranzas.monto),
-        saldo: sum(cobranzas.saldo),
-      })
+    return tx
+      .select()
       .from(cobranzas)
       .where(and(gt(cobranzas.saldo, "0"), eq(cobranzas.unidadNegocioId, unitId)))
-      .groupBy(cobranzas.cliente, cobranzas.sucursalId);
-
-    return rows.map((r) => ({
-      ...r,
-      monto: String(r.monto ?? 0),
-      saldo: String(r.saldo ?? 0),
-    }));
+      .orderBy(cobranzas.fechaVencimiento);
   });
 }

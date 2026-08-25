@@ -1,6 +1,7 @@
 import { memo } from "react";
-import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
+import { Line, LineChart, ResponsiveContainer, YAxis, LabelList } from "recharts";
 import { cn } from "@/lib/utils";
+import { money } from "@/lib/format";
 
 export interface SparklineProps {
   data: number[];
@@ -50,7 +51,34 @@ export const Sparkline = memo(function Sparkline({
             strokeWidth={1.5}
             dot={false}
             isAnimationActive={false}
-          />
+          >
+            {/* Solo el último punto: en 28-32px de alto no cabe una etiqueta
+                por punto sin superponerse — ver docstring de este componente. */}
+            <LabelList
+              dataKey="valor"
+              position="top"
+              fontSize={8}
+              fontWeight={700}
+              fill={TONE_VAR[tone]}
+              content={
+                ((props: { x?: number; y?: number; index?: number; value?: number }) => {
+                  if (props.index !== chartData.length - 1) return null;
+                  return (
+                    <text
+                      x={props.x}
+                      y={(props.y ?? 0) - 4}
+                      textAnchor="end"
+                      fontSize={8}
+                      fontWeight={700}
+                      fill={TONE_VAR[tone]}
+                    >
+                      {money(props.value ?? 0)}
+                    </text>
+                  );
+                }) as never
+              }
+            />
+          </Line>
         </LineChart>
       </ResponsiveContainer>
     </div>

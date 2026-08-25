@@ -11,6 +11,7 @@ import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
 import { getSucursalMetricsAction, getSucursalTrendAction } from "@/lib/actions/sucursal";
 import { useMemo } from "react";
+import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   Bar,
   XAxis,
@@ -21,10 +22,13 @@ import {
   Line,
   ComposedChart,
   Legend,
+  LabelList,
 } from "recharts";
 import { TrendingUp, Target, Zap, Calendar } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function SucursalPage() {
+  const chartAnimation = useChartAnimation();
   const { role, profile } = useAuth();
   const hideSucursalFilter = role === "coordinador" || role === "asesor";
   const { filters, setFilters } = useSharedFilters();
@@ -146,8 +150,19 @@ export default function SucursalPage() {
     return true;
   });
 
+  if (isLoading && !metrics) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Dashboard comercial</h1>
+        </div>
+        <PageSkeleton kpis={4} blocks={[{ cols: 2 }]} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       {/* Header */}
       <div>
         <h1 className="font-display text-3xl font-bold">Dashboard comercial</h1>
@@ -260,6 +275,8 @@ export default function SucursalPage() {
                     borderRadius: 0,
                     fontSize: 12,
                   }}
+                  labelStyle={{ color: "var(--color-foreground)" }}
+                  itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
@@ -267,7 +284,17 @@ export default function SucursalPage() {
                   fill="var(--color-muted-foreground)"
                   name="Presupuesto"
                   radius={[4, 4, 0, 0]}
-                />
+                  {...chartAnimation}
+                >
+                  <LabelList
+                    dataKey="presupuesto"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill="var(--color-muted-foreground)"
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Bar>
                 <Line
                   type="monotone"
                   dataKey="ventas"
@@ -275,7 +302,17 @@ export default function SucursalPage() {
                   strokeWidth={2.5}
                   dot={{ r: 3 }}
                   name="Ventas"
-                />
+                  {...chartAnimation}
+                >
+                  <LabelList
+                    dataKey="ventas"
+                    position="top"
+                    fontSize={9}
+                    fontWeight={700}
+                    fill="var(--color-primary)"
+                    formatter={((v: unknown) => money(Number(v))) as never}
+                  />
+                </Line>
               </ComposedChart>
             </ResponsiveContainer>
           </div>

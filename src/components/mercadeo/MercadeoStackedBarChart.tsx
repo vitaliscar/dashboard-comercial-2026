@@ -1,7 +1,18 @@
 "use client";
 
 import { memo, useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ResponsiveContainer } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  Cell,
+  ResponsiveContainer,
+  LabelList,
+} from "recharts";
 import { formatMercadeoNumero } from "@/lib/analytics/mercadeo";
 import { MERCADEO_COLORES, MercadeoChartTooltip } from "@/components/mercadeo/mercadeo-chart";
 
@@ -65,6 +76,14 @@ export const MercadeoStackedBarChart = memo(function MercadeoStackedBarChart({
                     opacity={highlightMonths.includes(String(row.mes)) ? 1 : 0.35}
                   />
                 ))}
+              <LabelList
+                dataKey={key}
+                position="center"
+                fontSize={9}
+                fontWeight={700}
+                fill="var(--card)"
+                formatter={((v: unknown) => formatMercadeoNumero(Number(v))) as never}
+              />
             </Bar>
           ))}
         </BarChart>

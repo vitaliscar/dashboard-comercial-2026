@@ -123,17 +123,22 @@ export function CotizacionesSection({
       )}
 
       {showDetail && (
-        // Columnas CSS (no grid): cada tarjeta fluye de forma independiente, así una
-        // unidad con pocos clientes (ej. Equipos) no deja espacio en blanco reservado
-        // por la columna más alta como pasaba con `grid-template-columns`.
-        <div className="columns-1 sm:columns-2 xl:columns-4 gap-3 [column-fill:balance]">
+        // Mismo grid auto-fit que las tarjetas de resumen arriba, para que las
+        // columnas de "Top clientes" calcen en ancho con Cotizaciones/Facturado.
+        <div
+          className={cn("grid gap-3", compact ? "grid-cols-1" : "")}
+          style={
+            compact ? undefined : { gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }
+          }
+        >
           {datosConActividad.map((unidad) => (
-            <div key={`table-${unidad.unidad}`} className="break-inside-avoid mb-3">
+            <div key={`table-${unidad.unidad}`}>
               <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
                 Top clientes · {unidad.unidad}
               </p>
               <DataTable
                 columns={[
+                  { key: "rank", label: "#", format: "rank" as const, width: "w-[28px]" },
                   ...(hideSucursalColumn
                     ? []
                     : [

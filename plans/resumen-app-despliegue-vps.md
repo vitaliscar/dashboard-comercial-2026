@@ -90,9 +90,11 @@ servidor (glibc vs musl, x64 vs arm64).
 
 `xlsx` se instala directamente desde el CDN oficial de SheetJS (no desde el
 registro npm), porque la versión pública dejó de actualizarse:
+
 ```
 https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
 ```
+
 Esto es invisible para `npm audit`/Dependabot. El VPS necesita salida a
 internet hacia `cdn.sheetjs.com` en el momento del `bun install`, o bien
 tener el tarball cacheado/verificado localmente (el hash SHA-512 está fijado
@@ -108,6 +110,7 @@ POSTGRES_PASSWORD=...
 POSTGRES_DB=dashboard_comercial
 POSTGRES_PORT=55432   # o el que se use en el VPS
 ```
+
 `DATABASE_URL` usa el rol `app_user` (sin bypass de RLS) — es el que sirve
 tráfico real. `DATABASE_ADMIN_URL` usa `app_admin` (BYPASSRLS) — solo para
 migraciones y carga de Excel. Nunca intercambiar los dos.
@@ -128,9 +131,11 @@ migraciones y carga de Excel. Nunca intercambiar los dos.
      `.env.local` a la vez (igual que se documenta para desarrollo local).
 
 3. **Levantar Postgres**
+
    ```bash
    docker compose up -d
    ```
+
    Esto crea el volumen `postgres_data` y ejecuta una sola vez
    `docker/postgres-init/00-roles.sql`, que crea los roles `app_admin`
    (BYPASSRLS) y `app_user` (sin bypass).
@@ -142,20 +147,24 @@ migraciones y carga de Excel. Nunca intercambiar los dos.
 5. **Cargar los datos iniciales desde el Excel**
    Para la primera carga (antes de tener la app corriendo) se puede usar la
    CLI una sola vez:
+
    ```bash
    bun install
    bun run load-excel   # alter-schema + carga completa desde el .xlsx
    ```
+
    Las cargas siguientes se harán **siempre desde el botón "Cargar Excel"**
    en `/carga`, ya con la app desplegada — solo necesita que el rol
    `gerencia` tenga sesión iniciada, no requiere acceso por SSH ni CLI.
 
 6. **Build y arranque de la app**
+
    ```bash
    bun install
    bun run build
    bun run start   # next start; detrás de nginx/Caddy con TLS
    ```
+
    Mantener el proceso vivo con un supervisor (pm2, systemd o similar) —
    el repo no trae uno configurado por defecto.
 

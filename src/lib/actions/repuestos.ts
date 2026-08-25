@@ -4,7 +4,8 @@ import { and, eq, gt, inArray } from "drizzle-orm";
 import { presupuestos, cobranzas, detallesVentasRepuestos } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { unidadId } from "@/lib/server/unidades";
-import { getAllMonthsCap, type MonthFilter } from "@/lib/date-range";
+import { dateRangeCondition } from "@/lib/server/query-helpers";
+import { getAllMonthsCap, getDateRangesForMonths, type MonthFilter } from "@/lib/date-range";
 
 // Fuente de verdad del cumplimiento (presupuesto vs facturado) — no `facturas`,
 // que es transaccional y no reconciliada. Mismo patrón que servicios/lubfiltros.
@@ -47,8 +48,19 @@ export async function getPresupuestosRepuestosAction(data: {
   });
 }
 
-export async function getCobranzasRepuestosAction(data: { sucursal: string | "all" }) {
+// La hoja "Cuentas por Cobrar" no trae fecha de creación del saldo — se usa
+// Fecha Emisión como referencia para poder filtrar por mes (igual que el
+// resto del dashboard).
+export async function getCobranzasRepuestosAction(data: {
+  sucursal: string | "all";
+  anio?: number;
+  meses?: MonthFilter;
+}) {
   return withAuth(async ({ tx }) => {
+    const dateCond =
+      data.anio && data.meses
+        ? dateRangeCondition(cobranzas.fechaEmision, getDateRangesForMonths(data.anio, data.meses))
+        : undefined;
     return tx
       .select()
       .from(cobranzas)
@@ -57,6 +69,7 @@ export async function getCobranzasRepuestosAction(data: { sucursal: string | "al
           gt(cobranzas.saldo, "0"),
           data.sucursal !== "all" ? eq(cobranzas.sucursalId, data.sucursal) : undefined,
           eq(cobranzas.unidadNegocioId, await unidadId("repuestos")),
+          dateCond,
         ),
       )
       .orderBy(cobranzas.fechaVencimiento);

@@ -26,9 +26,13 @@ export function esClienteVentasCasa(cliente?: string | null): boolean {
   return CLIENTES_VENTAS_CASA_NORMALIZADOS.has(normalizarNombre(cliente));
 }
 
+// Lista vigente al 2026-08-17 — reemplaza el catálogo anterior completo.
+// Salieron de la compañía: Milton Marrufo (44707), Juan Valera (77470),
+// Lucia Torres (78077), Maria Eugenia Duran (79261). Se agrega Anjjel
+// Tellerias (81300, Caracas), nuevo en la nómina.
 export const ASESORES_CANONICOS: AsesorCanonico[] = [
-  { sucursal: "Puerto Ordaz", nombre: "Abiezer Guerra", codigo: "75610" },
   { sucursal: "Puerto Ordaz", nombre: "Islanis Romero", codigo: "81238" },
+  { sucursal: "Puerto Ordaz", nombre: "Abiezer Guerra", codigo: "75610" },
   { sucursal: "Puerto Ordaz", nombre: "Hermes Heredia", codigo: "75595" },
   { sucursal: "Puerto Ordaz", nombre: "Onesimo Rodriguez", codigo: "44711" },
   { sucursal: "Puerto Ordaz", nombre: "Felix Conde", codigo: "57995" },
@@ -40,30 +44,27 @@ export const ASESORES_CANONICOS: AsesorCanonico[] = [
   { sucursal: "Barquisimeto", nombre: "Javier Gomez", codigo: "95520" },
   { sucursal: "Barquisimeto", nombre: "Ivan Gonzalez", codigo: "48179" },
   { sucursal: "Barquisimeto", nombre: "Jose Martinez", codigo: "45499" },
-  { sucursal: "Barquisimeto", nombre: "Melvin Ramirez", codigo: "81459" },
   { sucursal: "Barquisimeto", nombre: "Samael Barillas", codigo: "48162" },
+  { sucursal: "Barquisimeto", nombre: "Melvin Ramirez", codigo: "81459" },
   { sucursal: "Valencia", nombre: "Juan Otaiza", codigo: "19415" },
   { sucursal: "Valencia", nombre: "Henry Urdaneta", codigo: "45497" },
-  { sucursal: "Valencia", nombre: "Jesus Chavez", codigo: "78297" },
   { sucursal: "Valencia", nombre: "Jhon Hernandez", codigo: "49935" },
+  { sucursal: "Valencia", nombre: "Jesus Chavez", codigo: "78297" },
   { sucursal: "Valencia", nombre: "Diana Rangel", codigo: "81592" },
+  { sucursal: "Caracas", nombre: "Ismael Farrera", codigo: "25593" },
   { sucursal: "Caracas", nombre: "Omar Mendoza", codigo: "27124" },
-  { sucursal: "Caracas", nombre: "Juan Valera", codigo: "77470" },
+  { sucursal: "Caracas", nombre: "Anjjel Tellerias", codigo: "81300" },
   { sucursal: "Maracaibo", nombre: "Manuel Barrios", codigo: "33236" },
   { sucursal: "Maracaibo", nombre: "Jose Montilla", codigo: "29177" },
   { sucursal: "Maracaibo", nombre: "Eudo Prieto", codigo: "61812" },
   { sucursal: "Maracaibo", nombre: "Omer Galban", codigo: "45511" },
   { sucursal: "Maracaibo", nombre: "Elsio Romero", codigo: "93031" },
+  { sucursal: "Maracaibo", nombre: "Jose Urdaneta", codigo: "60493" },
   { sucursal: "Punto Fijo", nombre: "Leonel Avila", codigo: "45501" },
   { sucursal: "Maturín", nombre: "Fernando Diaz", codigo: "34771" },
   { sucursal: "Maturín", nombre: "Americo Alcalá Martinez", codigo: "31344" },
   { sucursal: "Maturín", nombre: "Hector Rojas", codigo: "31602" },
   { sucursal: "Maturín", nombre: "Jose Padron", codigo: "17622" },
-  { sucursal: "Caracas", nombre: "Ismael Farrera", codigo: "25593" },
-  { sucursal: "Barquisimeto", nombre: "Milton Marrufo", codigo: "44707" },
-  { sucursal: "Maracaibo", nombre: "Jose Urdaneta", codigo: "60493" },
-  { sucursal: "Valencia", nombre: "Lucia Torres", codigo: "78077" },
-  { sucursal: "Caracas", nombre: "Maria Eugenia Duran", codigo: "79261" },
 ];
 
 // Nota: el código 80890 aparece en el Excel (hoja CumplimientoAsesoresBase)

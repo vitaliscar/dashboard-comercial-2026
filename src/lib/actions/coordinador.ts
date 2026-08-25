@@ -7,6 +7,7 @@ import {
   cotizaciones,
   facturas,
   minutas,
+  profiles,
   cumplimientoAsesores,
 } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
@@ -137,13 +138,14 @@ export async function getCoordinadorScorecardAction(data: {
         .groupBy(facturas.asesor),
       tx
         .select({
-          responsable: minutas.responsable,
+          responsable: profiles.nombreCompleto,
           estado: minutas.estado,
           cantidad: count(minutas.id),
         })
         .from(minutas)
+        .leftJoin(profiles, eq(profiles.id, minutas.destinatarioId))
         .where(and(...minConds))
-        .groupBy(minutas.responsable, minutas.estado),
+        .groupBy(profiles.nombreCompleto, minutas.estado),
       tx
         .select({
           codigoAsesor: cumplimientoAsesores.codigoAsesor,

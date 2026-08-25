@@ -134,18 +134,20 @@ export function FacturadoSectionLegacy({
         })}
       </div>
 
-      {/* Columnas CSS con ancho auto-fit (no grid ni breakpoints fijos): cada
-          tarjeta fluye de forma independiente, así una unidad con pocos
-          clientes no deja espacio en blanco debajo, y si faltan unidades
-          activas las columnas restantes se reparten el ancho completo. */}
-      <div className="columns-[200px] gap-3 mt-4 [column-fill:balance]">
+      {/* Mismo grid auto-fit que las tarjetas de arriba, para que las columnas
+          de "Top clientes" calcen en ancho con las tarjetas de unidad. */}
+      <div
+        className="grid gap-3 mt-4"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+      >
         {datos.map((unidad) => (
-          <div key={`table-${unidad.unidad}`} className="break-inside-avoid mb-3">
+          <div key={`table-${unidad.unidad}`}>
             <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
               Top clientes · {unidad.unidad}
             </p>
             <DataTable
               columns={[
+                { key: "rank", label: "#", format: "rank" as const, width: "w-[28px]" },
                 ...(hideSucursalColumn
                   ? []
                   : [

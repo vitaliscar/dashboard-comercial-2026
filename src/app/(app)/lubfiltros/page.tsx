@@ -7,7 +7,7 @@ import { useSucursales } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
+import { getAllMonthsCap, getHighlightMonthLabels, diasVencidosDesde } from "@/lib/date-range";
 import {
   getPresupuestosLubfiltrosAction,
   getCobranzasLubfiltrosAction,
@@ -28,10 +28,17 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { useMemo } from "react";
 import { TrendingUp, Droplets } from "lucide-react";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function LubFiltrosPage() {
   const { role } = useAuth();
@@ -224,13 +231,27 @@ export default function LubFiltrosPage() {
         ? sucursalMap.get(c.sucursalId) || "Sin sucursal"
         : "Sin sucursal",
       cliente: c.cliente,
-      diasVencidos: c.diasVencidos ?? 0,
+      diasVencidos: diasVencidosDesde(c.fechaVencimiento),
       total: Number(c.saldo),
     }));
   }, [cobranzasData, sucursalMap]);
 
+  if (isLoading && !presupuestosData) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Dashboard Lubricantes y Filtros</h1>
+        </div>
+        <PageSkeleton
+          kpis={2}
+          blocks={[{ cols: 6 }, { cols: 1 }, { cols: 1 }, { cols: 2, height: 260 }]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-400">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-bold">Dashboard Lubricantes y Filtros</h1>
       </div>
@@ -320,6 +341,8 @@ export default function LubFiltrosPage() {
               { label: "Filtros", facturado: inventarioTotales.filtros },
             ].filter((d) => d.facturado > 0)}
             title="Lubricantes vs Filtros"
+            innerRadius="45%"
+            outerRadius="75%"
           />
           <div className="card-elevated overflow-hidden">
             <div className="p-5 border-b border-border">
@@ -346,9 +369,14 @@ export default function LubFiltrosPage() {
                     <TableCell colSpan={3} className="p-0">
                       <Empty>
                         <EmptyHeader>
-                          <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                            Sin datos de inventario
-                          </EmptyTitle>
+                          <EmptyMedia variant="icon">
+                            <Droplets />
+                          </EmptyMedia>
+                          <EmptyTitle>Sin datos de inventario</EmptyTitle>
+                          <EmptyDescription>
+                            El inventario de lubricantes y filtros no está cargado para la sucursal
+                            seleccionada.
+                          </EmptyDescription>
                         </EmptyHeader>
                       </Empty>
                     </TableCell>

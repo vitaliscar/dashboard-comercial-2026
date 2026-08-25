@@ -51,9 +51,7 @@ export function MercadeoResumenKpis({ anio, meses, leadsTotal }: Props) {
       mesesPermitidos,
     );
     const visitasWeb = sumCantidad(
-      (canales ?? []).filter(
-        (r) => r.tipo === "Visitas Sitio Web" && r.canal === "Pagina Web",
-      ),
+      (canales ?? []).filter((r) => r.tipo === "Visitas Sitio Web" && r.canal === "Pagina Web"),
       mesesPermitidos,
     );
     const interaccionesGmb = sumCantidad(

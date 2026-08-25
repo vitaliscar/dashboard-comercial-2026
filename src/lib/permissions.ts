@@ -30,13 +30,13 @@ export type ModuleKey =
  * rol — todavía en desarrollo/validación, no listos para los usuarios reales.
  * Quitar de aquí cuando estén listos para salir a producción.
  */
-const MODULES_HIDDEN_IN_PRODUCTION: ModuleKey[] = ["comisiones", "pareto", "mercadeo"];
+const MODULES_HIDDEN_IN_PRODUCTION: ModuleKey[] = ["comisiones", "simulador", "pareto", "mercadeo"];
 
 const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   resumen: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
   dashboard: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
   minutas: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
-  cobranzas: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
+  cobranzas: ["gerencia", "gerente_comercial", "coordinador"],
   pareto: ["gerencia", "gerente_comercial"],
   asesores: ["gerencia", "gerente_comercial", "coordinador"],
   alertas: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
@@ -54,14 +54,47 @@ const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   sucursal: ["coordinador"],
   repuestos: ["gerencia", "gerente_comercial", "coordinador"],
   cliente_360: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
-  comisiones: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
+  comisiones: ["gerencia", "gerente_comercial", "coordinador"],
   simulador: ["gerencia", "gerente_comercial"],
 };
+
+/**
+ * Override en runtime cargado desde la tabla `role_module_access` (config
+ * editable desde /usuarios) — reemplaza el MODULE_ACCESS estático de abajo
+ * como fuente de verdad una vez que `setModuleAccessOverride` corrió al
+ * cargar sesión (ver AuthProvider en use-auth.tsx). Null = todavía no cargó,
+ * se usa el fallback estático para que el nav no parpadee vacío.
+ *
+ * Nota: esto es SOLO visibilidad de UI. El scope de datos (sucursal/unidad/
+ * asesor) sigue resuelto 100% por RLS, no por esta tabla.
+ */
+let moduleAccessOverride: Record<string, boolean> | null = null;
+
+function overrideKey(role: AppRole, module: ModuleKey) {
+  return `${role}:${module}`;
+}
+
+export function setModuleAccessOverride(
+  rows: { role: AppRole; module: string; canView: boolean }[],
+) {
+  const map: Record<string, boolean> = {};
+  rows.forEach((r) => {
+    map[`${r.role}:${r.module}`] = r.canView;
+  });
+  moduleAccessOverride = map;
+}
 
 export function canAccessModule(role: AppRole | null, module: ModuleKey): boolean {
   if (!role) return false;
   if (process.env.NODE_ENV === "production" && MODULES_HIDDEN_IN_PRODUCTION.includes(module)) {
     return false;
+  }
+  // Gerencia siempre tiene acceso total, sin importar la config — mismo
+  // criterio que can_read_row() en RLS. Evita que un error de configuración
+  // deje a gerencia sin poder entrar a /usuarios a corregirlo.
+  if (role === "gerencia") return true;
+  if (moduleAccessOverride) {
+    return moduleAccessOverride[overrideKey(role, module)] ?? false;
   }
   return MODULE_ACCESS[module].includes(role);
 }

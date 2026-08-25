@@ -32,6 +32,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   ComposedChart,
   Bar,
@@ -41,6 +42,7 @@ import {
   CartesianGrid,
   ReferenceLine,
   ResponsiveContainer,
+  LabelList,
 } from "recharts";
 import {
   Table,
@@ -50,8 +52,15 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 // ─── constantes ───────────────────────────────────────────────────────────────
 
@@ -125,6 +134,7 @@ function Clientes360Tab({
   selectedUnidades: string[];
   initialSearch: string;
 }) {
+  const chartAnimation = useChartAnimation();
   const { role, profile } = useAuth();
   const canView = canAccessModule(role, "cliente_360");
   const [search, setSearch] = useState(initialSearch);
@@ -318,6 +328,18 @@ function Clientes360Tab({
     );
   }
 
+  if (isLoading && !data) {
+    return (
+      <PageSkeleton
+        kpis={6}
+        blocks={[
+          { cols: 1, height: 400 },
+          { cols: 1, height: 320 },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Fuente tabs */}
@@ -423,7 +445,17 @@ function Clientes360Tab({
                 fill="var(--color-montoPareto)"
                 radius={[0, 4, 4, 0]}
                 barSize={18}
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="montoPareto"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-montoPareto)"
+                  formatter={((v: unknown) => money(Number(v))) as never}
+                />
+              </Bar>
               <Line
                 yAxisId="right"
                 type="monotone"
@@ -431,7 +463,17 @@ function Clientes360Tab({
                 stroke="var(--color-acumulado)"
                 strokeWidth={2.5}
                 dot={{ r: 3 }}
-              />
+                {...chartAnimation}
+              >
+                <LabelList
+                  dataKey="acumulado"
+                  position="top"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="var(--color-acumulado)"
+                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                />
+              </Line>
               <ReferenceLine
                 yAxisId="right"
                 y={80}
@@ -513,9 +555,14 @@ function Clientes360Tab({
                   <TableCell colSpan={10} className="p-0">
                     <Empty>
                       <EmptyHeader>
-                        <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                          Sin clientes para mostrar
-                        </EmptyTitle>
+                        <EmptyMedia variant="icon">
+                          <Users />
+                        </EmptyMedia>
+                        <EmptyTitle>Sin clientes para mostrar</EmptyTitle>
+                        <EmptyDescription>
+                          Ningún cliente coincide con la búsqueda o los filtros de sucursal/unidad
+                          actuales.
+                        </EmptyDescription>
                       </EmptyHeader>
                     </Empty>
                   </TableCell>

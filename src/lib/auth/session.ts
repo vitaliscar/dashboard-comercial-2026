@@ -1,4 +1,5 @@
-export const SESSION_TTL_DAYS = 30;
+/** TTL de sesión (CN-014): 14 días reduce la ventana si se roba la cookie. */
+export const SESSION_TTL_DAYS = 14;
 export const SESSION_COOKIE_NAME = "ccv_session";
 
 export function sessionExpiryDate(from: Date = new Date()): Date {

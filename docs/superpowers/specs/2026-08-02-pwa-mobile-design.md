@@ -11,13 +11,13 @@ El objetivo es convertir la misma app Next.js en una **PWA instalable** (ícono 
 
 ### Por qué PWA y no app store
 
-| Criterio | PWA sobre Next.js actual |
-|----------|--------------------------|
-| Instalación | Add to Home Screen, sin tiendas |
-| Backend | Mismas Server Actions y RLS |
-| Mantenimiento | Un solo código, un deploy |
-| Push | Web Push API + VAPID (suficiente para alertas) |
-| Campo | Minutas, alertas, cobranzas en móvil con la misma sesión |
+| Criterio      | PWA sobre Next.js actual                                 |
+| ------------- | -------------------------------------------------------- |
+| Instalación   | Add to Home Screen, sin tiendas                          |
+| Backend       | Mismas Server Actions y RLS                              |
+| Mantenimiento | Un solo código, un deploy                                |
+| Push          | Web Push API + VAPID (suficiente para alertas)           |
+| Campo         | Minutas, alertas, cobranzas en móvil con la misma sesión |
 
 ### Fuera de alcance v1
 
@@ -38,11 +38,11 @@ Módulos prototipados: **Resumen**, **Cobranzas**, **Alertas**, **Minutas**.
 
 Reutilizar `src/hooks/use-mobile.ts` (`MOBILE_BREAKPOINT = 768`) y extender con tablet:
 
-| Rango | Token | Navegación | Layout |
-|-------|-------|------------|--------|
-| `< 768px` | `mobile` | Barra inferior fija (5 slots) + sheet "Más" | Adaptación completa |
-| `768px – 1023px` | `tablet` | Sidebar colapsable (`--sidebar-collapsed-width: 56px` en `styles.css`) | Grillas más densas; tablas donde quepan |
-| `≥ 1024px` | `desktop` | Sidebar expandido (comportamiento actual) | Sin cambios |
+| Rango            | Token     | Navegación                                                             | Layout                                  |
+| ---------------- | --------- | ---------------------------------------------------------------------- | --------------------------------------- |
+| `< 768px`        | `mobile`  | Barra inferior fija (5 slots) + sheet "Más"                            | Adaptación completa                     |
+| `768px – 1023px` | `tablet`  | Sidebar colapsable (`--sidebar-collapsed-width: 56px` en `styles.css`) | Grillas más densas; tablas donde quepan |
+| `≥ 1024px`       | `desktop` | Sidebar expandido (comportamiento actual)                              | Sin cambios                             |
 
 ### Cuatro reglas de adaptación (teléfono)
 
@@ -59,13 +59,13 @@ El sidebar actual tiene **20+ destinos**. En teléfono solo caben **5** en la ba
 
 ### Propuesta v1 (configurable en código)
 
-| Slot | Destino | Ruta / acción |
-|------|---------|---------------|
-| Resumen | KPIs globales | `/resumen` |
-| Módulos | Sheet con unidades de negocio visibles por rol | `UNIT_NAV` filtrado |
-| Alertas | Centro de alertas | `/alertas` |
-| Minutas | Captura en campo | `/minutas` |
-| Más | Sheet con el resto del nav (mismo filtro `canAccessModule`) | drawer |
+| Slot    | Destino                                                     | Ruta / acción       |
+| ------- | ----------------------------------------------------------- | ------------------- |
+| Resumen | KPIs globales                                               | `/resumen`          |
+| Módulos | Sheet con unidades de negocio visibles por rol              | `UNIT_NAV` filtrado |
+| Alertas | Centro de alertas                                           | `/alertas`          |
+| Minutas | Captura en campo                                            | `/minutas`          |
+| Más     | Sheet con el resto del nav (mismo filtro `canAccessModule`) | drawer              |
 
 **Decisión a validar con usuarios:** si Cobranzas se consulta más que Minutas en campo, intercambiar el slot 4. La implementación debe centralizar los 5 ítems en `src/lib/mobile-nav.ts` para cambiar sin tocar cada página.
 
@@ -103,15 +103,15 @@ En tablet/desktop la barra inferior **no se muestra** (`lg:hidden`).
 
 Tabla `push_subscriptions`:
 
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| `id` | uuid PK | |
-| `user_id` | uuid FK → `users` | Una fila por dispositivo/navegador |
-| `endpoint` | text UNIQUE | URL del push service |
-| `p256dh` | text | Clave del cliente |
-| `auth` | text | Secreto del cliente |
-| `user_agent` | text nullable | Debug |
-| `created_at` | timestamptz | |
+| Columna      | Tipo              | Notas                              |
+| ------------ | ----------------- | ---------------------------------- |
+| `id`         | uuid PK           |                                    |
+| `user_id`    | uuid FK → `users` | Una fila por dispositivo/navegador |
+| `endpoint`   | text UNIQUE       | URL del push service               |
+| `p256dh`     | text              | Clave del cliente                  |
+| `auth`       | text              | Secreto del cliente                |
+| `user_agent` | text nullable     | Debug                              |
+| `created_at` | timestamptz       |                                    |
 
 RLS: el usuario solo ve/inserta/borra **sus** suscripciones (`user_id = current_app_user_id()`).
 
@@ -163,14 +163,14 @@ Generación: `npx web-push generate-vapid-keys`
 
 ## 7. Componentes compartidos nuevos
 
-| Componente | Ubicación | Uso |
-|------------|-----------|-----|
-| `useBreakpoint()` | `src/hooks/use-breakpoint.ts` | `mobile` \| `tablet` \| `desktop` |
-| `MobileBottomNav` | `src/components/mobile/MobileBottomNav.tsx` | 5 slots, `lg:hidden` |
-| `MoreNavSheet` | `src/components/mobile/MoreNavSheet.tsx` | Resto del menú |
-| `ResponsiveDataList` | `src/components/mobile/ResponsiveDataList.tsx` | Tabla desktop / cards móvil |
-| `InstallPrompt` | `src/components/mobile/InstallPrompt.tsx` | `beforeinstallprompt` |
-| `PushPermissionBanner` | `src/components/mobile/PushPermissionBanner.tsx` | Opt-in push |
+| Componente             | Ubicación                                        | Uso                               |
+| ---------------------- | ------------------------------------------------ | --------------------------------- |
+| `useBreakpoint()`      | `src/hooks/use-breakpoint.ts`                    | `mobile` \| `tablet` \| `desktop` |
+| `MobileBottomNav`      | `src/components/mobile/MobileBottomNav.tsx`      | 5 slots, `lg:hidden`              |
+| `MoreNavSheet`         | `src/components/mobile/MoreNavSheet.tsx`         | Resto del menú                    |
+| `ResponsiveDataList`   | `src/components/mobile/ResponsiveDataList.tsx`   | Tabla desktop / cards móvil       |
+| `InstallPrompt`        | `src/components/mobile/InstallPrompt.tsx`        | `beforeinstallprompt`             |
+| `PushPermissionBanner` | `src/components/mobile/PushPermissionBanner.tsx` | Opt-in push                       |
 
 ## 8. Verificación y QA
 

@@ -26,27 +26,29 @@
 
 ## Estado actual del repo (verificado 2026-08-02)
 
-| Pieza | Estado |
-|-------|--------|
-| `src/hooks/use-mobile.ts` | Existe (`< 768px`) — extender, no reemplazar |
-| `src/hooks/use-online-status.ts` | Indicador Online en header — reutilizar en banner offline |
-| `src/components/app-shell.tsx` | Sidebar slide-in en móvil (`lg:`), sin bottom nav |
-| `src/styles.css` | `--sidebar-collapsed-width: 56px` definido, poco usado en app-shell actual |
-| Manifest / SW / push | **No existe** |
-| Iconos PWA dedicados | Solo `public/Logo_CCV.png` (no maskable ni 512) |
-| Módulo Mercadeo | Implementado (`2cd1f08`) — incluir en sheet "Más" cuando aplique rol |
+| Pieza                            | Estado                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `src/hooks/use-mobile.ts`        | Existe (`< 768px`) — extender, no reemplazar                               |
+| `src/hooks/use-online-status.ts` | Indicador Online en header — reutilizar en banner offline                  |
+| `src/components/app-shell.tsx`   | Sidebar slide-in en móvil (`lg:`), sin bottom nav                          |
+| `src/styles.css`                 | `--sidebar-collapsed-width: 56px` definido, poco usado en app-shell actual |
+| Manifest / SW / push             | **No existe**                                                              |
+| Iconos PWA dedicados             | Solo `public/Logo_CCV.png` (no maskable ni 512)                            |
+| Módulo Mercadeo                  | Implementado (`2cd1f08`) — incluir en sheet "Más" cuando aplique rol       |
 
 ---
 
 ### Task 1: Infraestructura PWA — dependencia, manifest e iconos
 
 **Files:**
+
 - Modify: `package.json`, `next.config.ts`
 - Create: `public/icons/icon-192.png`, `public/icons/icon-512.png`, `public/icons/icon-maskable-512.png`
 - Modify: `src/app/layout.tsx` (metadata PWA)
 - Modify: `.env.example` (comentario HTTPS)
 
 **Interfaces:**
+
 - Produces: app instalable en Chrome/Edge (Android/desktop); `display: standalone`; Lighthouse PWA parcial (falta SW hasta Task 2).
 
 - [ ] **Step 1: Instalar `@ducanh2912/next-pwa`**
@@ -58,6 +60,7 @@ bun add @ducanh2912/next-pwa
 - [ ] **Step 2: Generar iconos PWA**
 
 Desde `public/Logo_CCV.png`, generar (ImageMagick, sharp script o herramienta online) y guardar en `public/icons/`:
+
 - `icon-192.png` (192×192)
 - `icon-512.png` (512×512)
 - `icon-maskable-512.png` (512×512 con padding safe-zone ~20%)
@@ -135,11 +138,13 @@ git commit -m "feat: infraestructura PWA con manifest e iconos"
 ### Task 2: Service Worker en producción + prompt de instalación
 
 **Files:**
+
 - Create: `src/components/mobile/InstallPrompt.tsx`
 - Modify: `src/components/app-shell.tsx` (montar prompt)
 - Create: `src/hooks/use-install-prompt.ts`
 
 **Interfaces:**
+
 - Produces: SW registrado en producción; banner discreto "Instalar app" cuando `beforeinstallprompt` dispara.
 
 - [ ] **Step 1: Hook `useInstallPrompt`**
@@ -170,6 +175,7 @@ git commit -m "feat: prompt de instalación PWA"
 ### Task 3: Breakpoints y shell móvil (bottom nav)
 
 **Files:**
+
 - Create: `src/hooks/use-breakpoint.ts`
 - Create: `src/lib/mobile-nav.ts`
 - Create: `src/components/mobile/MobileBottomNav.tsx`
@@ -178,6 +184,7 @@ git commit -m "feat: prompt de instalación PWA"
 - Modify: `src/styles.css` (safe-area)
 
 **Interfaces:**
+
 - Consumes: `canAccessModule`, `NAV_GROUPS` / `UNIT_NAV` de app-shell.
 - Produces: navegación inferior en `< lg`; padding `pb-safe` en main.
 
@@ -194,7 +201,13 @@ Reutilizar la misma lógica de `matchMedia` que `use-mobile.ts` (considerar refa
 
 ```ts
 export const MOBILE_TAB_SLOTS = [
-  { id: "resumen", label: "Resumen", href: "/resumen", icon: BarChart3, module: "resumen" as const },
+  {
+    id: "resumen",
+    label: "Resumen",
+    href: "/resumen",
+    icon: BarChart3,
+    module: "resumen" as const,
+  },
   { id: "modulos", label: "Módulos", action: "unit-sheet" as const, icon: Package },
   { id: "alertas", label: "Alertas", href: "/alertas", icon: Bell, module: "alertas" as const },
   { id: "minutas", label: "Minutas", href: "/minutas", icon: FileText, module: "minutas" as const },
@@ -244,12 +257,14 @@ git commit -m "feat: shell móvil con barra de navegación inferior"
 ### Task 4: Schema `push_subscriptions` + RLS
 
 **Files:**
+
 - Modify: `src/db/schema.ts`
 - Create: `src/db/migrations/0008_*.sql` (drizzle-kit generate)
 - Create: `src/db/migrations-manual/0008_push_subscriptions_rls.sql`
 - Modify: `CLAUDE.md` (orden migraciones)
 
 **Interfaces:**
+
 - Produces: tabla `push_subscriptions`; policies por `user_id`.
 
 - [ ] **Step 1: Tabla en schema**
@@ -305,6 +320,7 @@ git commit -m "feat: tabla push_subscriptions con RLS"
 ### Task 5: Web Push — subscribe/unsubscribe + banner de permisos
 
 **Files:**
+
 - Modify: `package.json` (`web-push`)
 - Create: `src/lib/push/vapid.ts`
 - Create: `src/lib/actions/push.ts`
@@ -313,6 +329,7 @@ git commit -m "feat: tabla push_subscriptions con RLS"
 - Modify: `.env.example`
 
 **Interfaces:**
+
 - Produces: `subscribePushAction`, `unsubscribePushAction`, `getVapidPublicKeyAction`.
 
 - [ ] **Step 1: Dependencia y VAPID**
@@ -336,6 +353,7 @@ Todo bajo `withAuth`.
 - [ ] **Step 3: Cliente — registrar SW push handler**
 
 En el componente de suscripción, tras permiso `granted`:
+
 1. `navigator.serviceWorker.ready`
 2. `pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`
 3. Llamar `subscribePushAction`
@@ -361,6 +379,7 @@ git commit -m "feat: suscripción Web Push con VAPID"
 ### Task 6: Envío de push desde alertas (cron)
 
 **Files:**
+
 - Create: `src/lib/push/send.ts`
 - Create: `src/lib/push/evaluate-alerts.ts`
 - Create: `scripts/send-push-alerts.ts`
@@ -368,6 +387,7 @@ git commit -m "feat: suscripción Web Push con VAPID"
 - Modify: `deploy/README.md` o `docs/RUNBOOK.md`
 
 **Interfaces:**
+
 - Consumes: lógica de severidad de `src/lib/actions/alertas.ts` (extraer a módulo puro si hace falta).
 - Produces: script CLI invocable por cron; máx. 1 push/usuario/tipo/día.
 
@@ -412,10 +432,12 @@ git commit -m "feat: envío programado de push por alertas de negocio"
 ### Task 7: Primitive `ResponsiveDataList` (tabla ↔ tarjetas)
 
 **Files:**
+
 - Create: `src/components/mobile/ResponsiveDataList.tsx`
 - Create: `src/components/mobile/DataCard.tsx`
 
 **Interfaces:**
+
 - Produces: `<ResponsiveDataList columns={...} rows={...} renderCard={...} />` — tabla en `md:`, cards en móvil.
 
 - [ ] **Step 1: API del componente**
@@ -446,11 +468,13 @@ git commit -m "feat: componente ResponsiveDataList para vistas móvil"
 ### Task 8: Resumen — layout móvil
 
 **Files:**
+
 - Modify: `src/app/(app)/resumen/page.tsx`
 - Modify: `src/components/resumen/BusinessUnitCard.tsx` (si aplica)
 - Modify: `src/components/resumen/FilterHeader.tsx` (colapso en móvil)
 
 **Interfaces:**
+
 - Consumes: mockup artifact § Resumen — KPIs 4→2, gráficos apilados.
 
 - [ ] **Step 1: Rejilla KPIs**
@@ -478,15 +502,18 @@ git commit -m "feat: layout móvil del módulo Resumen"
 ### Task 9: Cobranzas — tabla a tarjetas en móvil
 
 **Files:**
+
 - Create: `src/components/cobranzas/CobranzaMobileCard.tsx`
 - Modify: `src/app/(app)/cobranzas/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `ResponsiveDataList` (Task 7); mockup — franja de severidad por días vencidos.
 
 - [ ] **Step 1: `CobranzaMobileCard`**
 
 Tarjeta con:
+
 - Franja izquierda `w-1` color por severidad (danger/warning/muted)
 - Cliente, factura, saldo, días — tipografía `text-sm`
 - Target táctil: toda la card `min-h-[72px]`
@@ -512,9 +539,11 @@ git commit -m "feat: vista móvil de Cobranzas con tarjetas por factura"
 ### Task 10: Alertas — pulido móvil
 
 **Files:**
+
 - Modify: `src/app/(app)/alertas/page.tsx`
 
 **Interfaces:**
+
 - Mockup: lista con severidad en color y borde — ya cercano; pulir espaciado.
 
 - [ ] **Step 1: Cards de alerta**
@@ -538,10 +567,12 @@ git commit -m "feat: pulido móvil del módulo Alertas"
 ### Task 11: Minutas — formulario táctil + layout tablet
 
 **Files:**
+
 - Modify: `src/app/(app)/minutas/page.tsx`
 - Optional: `src/components/minutas/MinutaForm.tsx` (extraer formulario)
 
 **Interfaces:**
+
 - Mockup: targets 44px; tablet lista+formulario lado a lado.
 
 - [ ] **Step 1: Inputs táctiles**
@@ -567,9 +598,11 @@ git commit -m "feat: formulario táctil y layout tablet en Minutas"
 ### Task 12: FilterHeader compartido — modo móvil
 
 **Files:**
+
 - Modify: `src/components/resumen/FilterHeader.tsx`
 
 **Interfaces:**
+
 - Consumido por Resumen, Cobranzas, Alertas, Mercadeo y otros — un solo cambio beneficia muchos módulos.
 
 - [ ] **Step 1: Detectar `useBreakpoint()`**
@@ -593,6 +626,7 @@ git commit -m "feat: FilterHeader colapsable en móvil"
 ### Task 13: Tests E2E móvil + documentación final
 
 **Files:**
+
 - Create: `e2e/mobile-shell.spec.ts`
 - Create: `e2e/pwa-manifest.spec.ts` (opcional)
 - Modify: `CLAUDE.md`
@@ -600,6 +634,7 @@ git commit -m "feat: FilterHeader colapsable en móvil"
 - Modify: `docs/RUNBOOK.md` (push cron)
 
 **Interfaces:**
+
 - Produces: cobertura Playwright viewports móvil; docs operativas.
 
 - [ ] **Step 1: Playwright viewports**
@@ -614,6 +649,7 @@ test("resumen muestra grid 2 columnas de KPIs", async ({ page }) => { ... });
 - [ ] **Step 2: Documentar en CLAUDE.md**
 
 Sección "PWA y móvil":
+
 - Paquete next-pwa, HTTPS, variables VAPID
 - `MOBILE_TAB_SLOTS` en `src/lib/mobile-nav.ts`
 - Cron `scripts/send-push-alerts.ts`
@@ -664,12 +700,12 @@ Task 13 al final
 
 ## Estimación orientativa
 
-| Fase | Tasks | Esfuerzo |
-|------|-------|----------|
-| PWA core | 1–2 | 1–2 días |
-| Shell móvil | 3 | 1 día |
-| Web Push | 4–6 | 2–3 días |
-| UI módulos piloto | 7–12 | 3–5 días |
-| QA + docs | 13 | 1 día |
+| Fase              | Tasks | Esfuerzo |
+| ----------------- | ----- | -------- |
+| PWA core          | 1–2   | 1–2 días |
+| Shell móvil       | 3     | 1 día    |
+| Web Push          | 4–6   | 2–3 días |
+| UI módulos piloto | 7–12  | 3–5 días |
+| QA + docs         | 13    | 1 día    |
 
 **Total:** ~8–12 días de desarrollo incremental, desplegable por fases (PWA instalable puede salir antes que push).

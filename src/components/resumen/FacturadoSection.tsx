@@ -148,22 +148,20 @@ export function FacturadoSection({
       )}
 
       {showDetail && (
-        // Columnas CSS (no grid): cada tarjeta fluye de forma independiente, así una
-        // unidad con pocos clientes no deja espacio en blanco reservado por la
-        // columna más alta como pasaba con `grid-template-columns`.
+        // Mismo grid auto-fit que las tarjetas de resumen arriba, para que las
+        // columnas de "Top clientes" calcen en ancho con Cotizaciones/Facturado.
         <div
-          className={cn(
-            "columns-1 sm:columns-2 xl:columns-4 gap-3 [column-fill:balance]",
-            showSummary ? "mt-4" : "",
-          )}
+          className={cn("grid gap-3", gridColsClass, showSummary ? "mt-4" : "")}
+          style={gridColsStyle}
         >
           {datosConActividad.map((unidad) => (
-            <div key={`table-${unidad.unidad}`} className="break-inside-avoid mb-3">
+            <div key={`table-${unidad.unidad}`}>
               <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
                 Top clientes · {unidad.unidad}
               </p>
               <DataTable
                 columns={[
+                  { key: "rank", label: "#", format: "rank" as const, width: "w-[28px]" },
                   ...(hideSucursalColumn
                     ? []
                     : [

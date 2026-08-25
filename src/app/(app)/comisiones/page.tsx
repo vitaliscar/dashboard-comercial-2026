@@ -21,9 +21,16 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { useMemo } from "react";
 import { DollarSign, TrendingUp, Users } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface ReglaComision {
   id: string;
@@ -66,7 +73,7 @@ export default function ComisionesPage() {
     queryFn: () => getComisionesReglasAction(),
   });
 
-  const { data: rows } = useQuery({
+  const { data: rows, isLoading } = useQuery({
     queryKey: ["comisiones", "cumplimiento", anio, meses, selectedUnidades],
     queryFn: () =>
       getComisionesCumplimientoAction({ anio, meses, unidades: selectedUnidades ?? [] }),
@@ -104,6 +111,19 @@ export default function ComisionesPage() {
   // Guard DESPUÉS de todos los hooks (evita "Rendered more hooks" — ver CLAUDE.md)
   if (!canAccessModule(role, "comisiones")) return null;
 
+  if (isLoading && !rows) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Incentivos"
+          title="Comisiones Proyectadas"
+          description="Comisión estimada por asesor según cumplimiento de presupuesto."
+        />
+        <PageSkeleton kpis={3} blocks={[{ cols: 1, height: 320 }]} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -137,7 +157,14 @@ export default function ComisionesPage() {
       {calculos.list.length === 0 ? (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>No hay datos de cumplimiento para el período seleccionado.</EmptyTitle>
+            <EmptyMedia variant="icon">
+              <DollarSign />
+            </EmptyMedia>
+            <EmptyTitle>Sin datos de cumplimiento</EmptyTitle>
+            <EmptyDescription>
+              No hay ventas ni presupuesto cargados para el período seleccionado — probá con otro
+              mes.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (

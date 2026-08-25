@@ -22,6 +22,7 @@ import {
 import { getAllowedMonths } from "@/lib/date-range";
 import { useMemo, useCallback } from "react";
 import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 type Acc = { meta: number; facturado: number };
 const emptyAcc = (): Acc => ({ meta: 0, facturado: 0 });
@@ -208,8 +209,20 @@ export default function GerenciaNacionalPage() {
     );
   }
 
+  if (isLoading && !resumenAnual) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader eyebrow="Analytics / National" title="Dashboard comercial" />
+        <PageSkeleton
+          kpis={0}
+          blocks={[{ cols: 3, height: 260 }, { cols: 2 }, { cols: 1, height: 420 }]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6">
       <PageHeader eyebrow="Analytics / National" title="Dashboard comercial" />
       <FilterHeader
         onApplyFilters={handleApplyFilters}

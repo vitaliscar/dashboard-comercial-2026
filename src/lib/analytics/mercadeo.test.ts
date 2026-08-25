@@ -108,7 +108,11 @@ describe("agruparCanalesPorTipo", () => {
       { canal: "Linkedin", tipo: "Visualizaciones", mes: 1, cantidad: 2 },
       { canal: "Facebook", tipo: "Visualizaciones", mes: 1, cantidad: 3 },
     ];
-    const map = agruparCanalesPorTipo(rows, (r) => r.canal, (r) => r.tipo);
+    const map = agruparCanalesPorTipo(
+      rows,
+      (r) => r.canal,
+      (r) => r.tipo,
+    );
     expect(map.get("Alcance")).toEqual(["Facebook"]);
     expect(map.get("Visualizaciones")).toEqual(["Linkedin", "Facebook"]);
   });
@@ -133,11 +137,7 @@ describe("buildMercadeoStackedSeries", () => {
       { mes: 1, cantidad: 10, canal: "Facebook" },
       { mes: 1, cantidad: 5, canal: "Linkedin" },
     ];
-    const serie = buildMercadeoStackedSeries(
-      rows,
-      ["Facebook", "Linkedin"],
-      (r) => r.canal,
-    );
+    const serie = buildMercadeoStackedSeries(rows, ["Facebook", "Linkedin"], (r) => r.canal);
     expect(serie[0].Facebook).toBe(10);
     expect(serie[0].Linkedin).toBe(5);
   });
