@@ -20,6 +20,10 @@ import { logAuthFailure } from "@/lib/logger";
 export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 const isProd = process.env.NODE_ENV === "production";
+// La cookie de sesion solo debe ser Secure si realmente se sirve por HTTPS.
+// isProd por si solo rompe el login en despliegues HTTP-only de red local
+// (el navegador descarta cookies Secure fuera de HTTPS).
+const isHttps = process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://") ?? isProd;
 
 /** Hash argon2id de un password dummy — iguala el costo de verify cuando el email no existe (anti-timing). */
 const DUMMY_PASSWORD_HASH =
@@ -30,7 +34,7 @@ async function setSessionCookie(sessionId: string, expiresAt: Date) {
   const store = await cookies();
   store.set(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
-    secure: isProd,
+    secure: isHttps,
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
