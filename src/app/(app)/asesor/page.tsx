@@ -28,7 +28,8 @@ import {
   LabelList,
   Cell,
 } from "recharts";
-import { TrendingUp, Target, Zap, Shield, Ambulance, Truck, Rocket } from "lucide-react";
+import { TrendingUp, Target, Zap, Shield, Ambulance, Truck, Rocket, FileBarChart } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -313,12 +314,13 @@ export default function AsesorPage() {
             </kbd>
           </span>
         </div>
-        <div className="hidden sm:inline-flex items-center gap-1.5" aria-keyshortcuts="Control+P">
-          Imprimir / PDF:{" "}
-          <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-            Ctrl + P
-          </kbd>
-        </div>
+        <Link
+          href="/evaluacion/asesor"
+          className="hidden sm:inline-flex items-center gap-1.5 text-primary hover:underline"
+        >
+          <FileBarChart className="h-3.5 w-3.5" />
+          Ver Evaluación de Desempeño
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
