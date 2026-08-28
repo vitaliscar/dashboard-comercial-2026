@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Note on HSTS (Strict-Transport-Security):
 // HSTS is intentionally omitted here as it should be configured at the reverse proxy level (Nginx/Caddy) in production.
@@ -12,7 +13,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' data: blob:;
   font-src 'self' data: https://fonts.gstatic.com;
-  connect-src 'self';
+  connect-src 'self' ${process.env.NEXT_PUBLIC_GLITCHTIP_ORIGIN || ""};
   frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';
@@ -77,4 +78,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  // GlitchTip no tiene API de "orgs/projects" de Sentry SaaS para subir sourcemaps
+  // automáticamente durante el build — se omite deliberadamente ese paso.
+  sourcemaps: { disable: true },
+  disableLogger: true,
+});
