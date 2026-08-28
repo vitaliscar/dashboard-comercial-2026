@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, LabelList } from "recharts";
+import { LineChart, Line, XAxis, YAxis, LabelList } from "recharts";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -36,7 +36,6 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
           <LineChart data={data}>
-            <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
             <XAxis
               dataKey="mes"
               stroke="var(--color-muted-foreground)"

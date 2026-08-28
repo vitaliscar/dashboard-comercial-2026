@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { AreaChart, Area, LabelList, XAxis, YAxis, CartesianGrid } from "recharts";
+import { AreaChart, Area, LabelList, XAxis, YAxis } from "recharts";
 import { money } from "@/lib/format";
 import type { MonthlyRow } from "./GlobalMonthlyCombo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,6 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
           <AreaChart data={data} margin={{ top: 24, right: 8, left: 8, bottom: 0 }}>
-            <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
             <XAxis
               dataKey="mes"
               stroke="var(--color-muted-foreground)"

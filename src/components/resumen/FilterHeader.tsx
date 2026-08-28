@@ -327,14 +327,14 @@ export function FilterHeader({
       {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
         <div className="bg-card border border-t-0 border-border rounded-b-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
           <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto">
             <Button
               type="button"
               variant={selectedUnits.length === 0 ? "default" : "outline"}
               size="sm"
               onClick={handleSelectAllUnits}
               className={cn(
-                "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
+                "h-auto shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
                 selectedUnits.length === 0
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "text-muted-foreground border-border hover:bg-accent",
@@ -347,13 +347,14 @@ export function FilterHeader({
               value={selectedUnits}
               onValueChange={applyUnitSelection}
               spacing={2}
+              className="flex-nowrap"
             >
               {resolvedUnitOptions.map((opt) => (
                 <ToggleGroupItem
                   key={`${opt.value}-${opt.label}`}
                   value={opt.value}
                   variant="outline"
-                  className="rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground border-border hover:bg-accent data-[pressed]:bg-primary data-[pressed]:text-primary-foreground data-[pressed]:border-primary"
+                  className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold text-muted-foreground border-border hover:bg-accent data-[pressed]:bg-primary data-[pressed]:text-primary-foreground data-[pressed]:border-primary"
                 >
                   {opt.label}
                 </ToggleGroupItem>

@@ -18,7 +18,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
 } from "recharts";
 
 const anioActual = new Date().getFullYear();
@@ -154,9 +153,8 @@ export default function EvaluacionSucursalPage() {
                     p.presupuesto > 0 ? Math.round((p.venta / p.presupuesto) * 1000) / 10 : 0,
                 }))}
               >
-                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="mes" />
-                <YAxis unit="%" />
+                <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
                 <Tooltip formatter={(v) => `${v}%`} />
                 <Line
                   type="monotone"

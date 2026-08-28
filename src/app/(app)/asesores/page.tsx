@@ -34,7 +34,6 @@ import {
   Line,
   XAxis,
   YAxis,
-  CartesianGrid,
   ReferenceLine,
   LabelList,
 } from "recharts";
@@ -539,7 +538,6 @@ export default function AsesoresPage() {
                         data={paretoChartData}
                         margin={{ top: 10, right: 10, bottom: 20, left: 10 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis
                           dataKey="name"
                           tick={{ fontSize: 10 }}
@@ -548,12 +546,21 @@ export default function AsesoresPage() {
                           interval={0}
                           height={50}
                         />
-                        <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+                        <YAxis
+                          yAxisId="left"
+                          tick={false}
+                          axisLine={false}
+                          tickLine={false}
+                          width={0}
+                        />
                         <YAxis
                           yAxisId="right"
                           orientation="right"
                           domain={[0, 100]}
-                          tick={{ fontSize: 10 }}
+                          tick={false}
+                          axisLine={false}
+                          tickLine={false}
+                          width={0}
                         />
                         <ChartTooltip
                           content={
@@ -706,9 +713,8 @@ export default function AsesoresPage() {
                         data={drilldownData.monthlyData}
                         margin={{ top: 10, right: 10, bottom: 0, left: 10 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} />
+                        <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
                         <ChartTooltip
                           content={<ChartTooltipContent labelKey="mes" indicator="dot" />}
                         />

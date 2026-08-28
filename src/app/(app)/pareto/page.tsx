@@ -26,7 +26,6 @@ import {
   Line,
   XAxis,
   YAxis,
-  CartesianGrid,
   ReferenceLine,
   ResponsiveContainer,
   LabelList,
@@ -247,11 +246,6 @@ export default function ParetoPage() {
               layout="vertical"
               margin={{ left: 10, right: 60, top: 5, bottom: 5 }}
             >
-              <CartesianGrid
-                stroke="var(--color-border)"
-                strokeDasharray="3 3"
-                horizontal={false}
-              />
               <XAxis
                 type="number"
                 stroke="var(--color-muted-foreground)"
@@ -271,9 +265,10 @@ export default function ParetoPage() {
                 type="number"
                 yAxisId="right"
                 orientation="right"
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => `${v}%`}
+                tick={false}
+                axisLine={false}
+                tickLine={false}
+                width={0}
                 domain={[0, 100]}
               />
               <ChartTooltip

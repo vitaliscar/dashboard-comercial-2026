@@ -7,7 +7,6 @@ import {
   YAxis,
   Tooltip,
   Legend,
-  CartesianGrid,
   LabelList,
 } from "recharts";
 import { money } from "@/lib/format";
@@ -108,13 +107,8 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
+                <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
                 <Tooltip
                   formatter={((v: unknown, name: string) => [money(Number(v)), name]) as never}
                   contentStyle={{

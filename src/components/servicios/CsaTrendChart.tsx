@@ -48,11 +48,7 @@ export const CsaTrendChart = memo(function CsaTrendChart({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
+                <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
                 <Tooltip
                   formatter={((v: unknown) => [money(Number(v)), "Ventas CSA"]) as never}
                   contentStyle={{

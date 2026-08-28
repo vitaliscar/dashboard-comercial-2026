@@ -161,7 +161,6 @@ export function FacturadoSection({
               </p>
               <DataTable
                 columns={[
-                  { key: "rank", label: "#", format: "rank" as const, width: "w-[28px]" },
                   ...(hideSucursalColumn
                     ? []
                     : [

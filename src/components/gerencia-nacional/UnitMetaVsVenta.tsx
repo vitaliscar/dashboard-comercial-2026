@@ -64,11 +64,7 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
           {mode === "pct" ? (
             <ComposedChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
               <XAxis dataKey="label" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => `${v}%`}
-              />
+              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent formatter={(value) => fmtPct(Number(value))} />}
@@ -106,11 +102,7 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
           ) : (
             <ComposedChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
               <XAxis dataKey="label" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => money(v)}
-              />
+              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
               <ChartTooltip
                 cursor={false}
                 content={

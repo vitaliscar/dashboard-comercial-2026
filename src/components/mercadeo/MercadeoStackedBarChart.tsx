@@ -6,7 +6,6 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   Legend,
   Cell,
@@ -55,9 +54,8 @@ export const MercadeoStackedBarChart = memo(function MercadeoStackedBarChart({
     <div className="w-full min-w-0" style={{ height: CHART_HEIGHT }}>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
           <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} tickFormatter={formatMercadeoNumero} width={48} />
+          <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
           <Tooltip content={<MercadeoChartTooltip />} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           {segmentKeys.map((key, i) => (

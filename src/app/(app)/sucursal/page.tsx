@@ -18,7 +18,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
   Line,
   ComposedChart,
   Legend,
@@ -271,13 +270,8 @@ export default function SucursalPage() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={trend ?? []}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickFormatter={(v) => money(v)}
-                />
+                <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
                 <Tooltip
                   formatter={((v: unknown) => money(Number(v))) as never}
                   contentStyle={{

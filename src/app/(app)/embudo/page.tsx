@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, FileText, Receipt, Wallet } from "lucide-react";
-import { CartesianGrid, XAxis, YAxis, ComposedChart, Line, LabelList } from "recharts";
+import { XAxis, YAxis, ComposedChart, Line, LabelList } from "recharts";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   getEmbudoCotizacionesAnioAction,
@@ -250,13 +250,8 @@ export default function EmbudoPage() {
           </p>
           <ChartContainer config={funnelChartConfig} className="h-72 w-full">
             <ComposedChart data={chartData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
               <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => money(v)}
-              />
+              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Line
                 type="monotone"
@@ -347,12 +342,12 @@ export default function EmbudoPage() {
           </p>
           <ChartContainer config={conversionChartConfig} className="h-72 w-full">
             <ComposedChart data={chartData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
               <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
               <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => `${v}%`}
+                tick={false}
+                axisLine={false}
+                tickLine={false}
+                width={0}
                 domain={[0, 100]}
                 allowDataOverflow
               />
