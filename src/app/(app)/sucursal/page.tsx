@@ -24,7 +24,8 @@ import {
   Legend,
   LabelList,
 } from "recharts";
-import { TrendingUp, Target, Zap, Calendar } from "lucide-react";
+import { TrendingUp, Target, Zap, Calendar, FileBarChart } from "lucide-react";
+import Link from "next/link";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function SucursalPage() {
@@ -208,6 +209,16 @@ export default function SucursalPage() {
         defaultUnits={selectedUnidades}
         showAllMonths
       />
+
+      {role !== "asesor" && (
+        <Link
+          href="/evaluacion/sucursal"
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+        >
+          <FileBarChart className="h-3.5 w-3.5" />
+          Ver Evaluación de Desempeño
+        </Link>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -4,8 +4,10 @@ import { chromium } from "playwright";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { getCurrentSession } from "@/lib/actions/auth";
 
-const RUTAS_POR_TIPO: Record<string, string> = {
-  asesor: "/evaluacion/asesor",
+const RUTAS_POR_TIPO: Record<string, (params: URLSearchParams) => string> = {
+  asesor: () => "/evaluacion/asesor",
+  sucursal: (params) => `/evaluacion/sucursal?sucursalId=${params.get("sucursalId") ?? ""}`,
+  unidad: (params) => `/evaluacion/unidad?unidadId=${params.get("unidadId") ?? ""}`,
 };
 
 /**
@@ -20,10 +22,11 @@ export async function GET(req: NextRequest) {
   }
 
   const tipo = req.nextUrl.searchParams.get("tipo") ?? "asesor";
-  const ruta = RUTAS_POR_TIPO[tipo];
-  if (!ruta) {
+  const rutaFn = RUTAS_POR_TIPO[tipo];
+  if (!rutaFn) {
     return NextResponse.json({ error: `Tipo de evaluación desconocido: ${tipo}` }, { status: 400 });
   }
+  const ruta = rutaFn(req.nextUrl.searchParams);
 
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);

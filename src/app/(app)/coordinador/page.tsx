@@ -38,7 +38,8 @@ import {
   Radar,
 } from "recharts";
 import { useMemo, useEffect, useDeferredValue } from "react";
-import { Shield, Users } from "lucide-react";
+import { Shield, Users, FileBarChart } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { resolverAsesor, normalizarNombre, VENTAS_CASA } from "@/lib/asesores-catalogo";
 import {
@@ -521,12 +522,13 @@ export default function CoordinadorPanel() {
             </kbd>
           </span>
         </div>
-        <div className="hidden sm:inline-flex items-center gap-1.5" aria-keyshortcuts="Control+P">
-          Imprimir / PDF:{" "}
-          <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-            Ctrl + P
-          </kbd>
-        </div>
+        <Link
+          href="/evaluacion/unidad"
+          className="hidden sm:inline-flex items-center gap-1.5 text-primary hover:underline"
+        >
+          <FileBarChart className="h-3.5 w-3.5" />
+          Ver Evaluación de Desempeño
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-1">
