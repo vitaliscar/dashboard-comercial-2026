@@ -34,6 +34,7 @@ import {
   Megaphone,
   ChevronsLeft,
   ChevronsRight,
+  FileBarChart,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useState, useRef, useEffect, type ReactNode } from "react";
@@ -103,6 +104,29 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Mercadeo",
     items: [{ to: "/mercadeo", label: "Mercadeo", icon: Megaphone, module: "mercadeo" }],
   },
+  {
+    title: "Evaluación de Desempeño",
+    items: [
+      {
+        to: "/evaluacion/asesor",
+        label: "Mi Evaluación",
+        icon: FileBarChart,
+        module: "evaluacion_asesor",
+      },
+      {
+        to: "/evaluacion/sucursal",
+        label: "Evaluación Sucursal",
+        icon: FileBarChart,
+        module: "evaluacion_sucursal",
+      },
+      {
+        to: "/evaluacion/unidad",
+        label: "Evaluación Unidad",
+        icon: FileBarChart,
+        module: "evaluacion_unidad",
+      },
+    ],
+  },
   // "Unidad de Negocios" se arma en runtime a partir de
   // UNIT_NAV filtrado por unidades asignadas — ver visibleUnitNav.
   {
@@ -152,7 +176,18 @@ const PAGE_TITLES = {
   "/cliente-360": "Clientes",
   "/comisiones": "Comisiones Proyectadas",
   "/simulador": "Simulador de Presupuesto",
+  "/evaluacion/asesor": "Mi Evaluación de Desempeño",
+  "/evaluacion/sucursal": "Evaluación de Desempeño — Sucursal",
+  "/evaluacion/unidad": "Evaluación de Desempeño — Unidad de Negocio",
 } as const;
+
+// Rutas que ya tienen su propia página de Evaluación de Desempeño con PDF real
+// (Playwright) — el botón global "Exportar PDF" navega ahí en vez de imprimir
+// crudo. El resto de las páginas cae al window.print() de siempre.
+const EVALUACION_ROUTE_BY_PATH: Record<string, string> = {
+  "/sucursal": "/evaluacion/sucursal",
+  "/coordinador": "/evaluacion/unidad",
+};
 
 function pageTitle(pathname: string): string {
   return PAGE_TITLES[pathname as keyof typeof PAGE_TITLES] ?? "Dashboard";
@@ -489,7 +524,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.print()}
+                onClick={() => {
+                  const evaluacionRoute = EVALUACION_ROUTE_BY_PATH[pathname];
+                  if (evaluacionRoute) {
+                    router.push(evaluacionRoute);
+                  } else {
+                    window.print();
+                  }
+                }}
                 aria-label="Exportar PDF"
                 className="border-border bg-transparent hover:bg-accent"
               >

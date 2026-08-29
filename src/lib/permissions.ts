@@ -23,7 +23,10 @@ export type ModuleKey =
   | "repuestos"
   | "cliente_360"
   | "comisiones"
-  | "simulador";
+  | "simulador"
+  | "evaluacion_asesor"
+  | "evaluacion_sucursal"
+  | "evaluacion_unidad";
 
 /**
  * Módulos ocultos en producción (NODE_ENV=production) independientemente del
@@ -56,6 +59,9 @@ const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   cliente_360: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
   comisiones: ["gerencia", "gerente_comercial", "coordinador"],
   simulador: ["gerencia", "gerente_comercial"],
+  evaluacion_asesor: ["asesor"],
+  evaluacion_sucursal: ["gerencia", "gerente_comercial", "coordinador"],
+  evaluacion_unidad: ["gerencia", "gerente_comercial", "coordinador"],
 };
 
 /**
