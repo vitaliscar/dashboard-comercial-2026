@@ -26,7 +26,8 @@ export type ModuleKey =
   | "simulador"
   | "evaluacion_asesor"
   | "evaluacion_sucursal"
-  | "evaluacion_unidad";
+  | "evaluacion_unidad"
+  | "ajustes_manuales";
 
 /**
  * Módulos ocultos en producción (NODE_ENV=production) independientemente del
@@ -62,6 +63,7 @@ const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   evaluacion_asesor: ["asesor"],
   evaluacion_sucursal: ["gerencia", "gerente_comercial", "coordinador"],
   evaluacion_unidad: ["gerencia", "gerente_comercial", "coordinador"],
+  ajustes_manuales: ["gerencia"],
 };
 
 /**

@@ -37,6 +37,7 @@ const MODULE_LABELS: Record<ModuleKey, string> = {
   evaluacion_asesor: "Evaluación de Desempeño (Asesor)",
   evaluacion_sucursal: "Evaluación de Desempeño (Sucursal)",
   evaluacion_unidad: "Evaluación de Desempeño (Unidad)",
+  ajustes_manuales: "Ajustes Manuales",
 };
 
 const MODULE_ORDER = Object.keys(MODULE_LABELS) as ModuleKey[];

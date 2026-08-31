@@ -473,6 +473,36 @@ export const presupuestos = pgTable(
   ],
 );
 
+/**
+ * Ajustes manuales de venta/facturado, solo rol gerencia. Vive fuera del
+ * ciclo DELETE+INSERT de la carga automática (Excel/automatización) a
+ * propósito: esas cargas reemplazan `facturas`/`presupuestos` por completo en
+ * cada corrida, y un ajuste manual guardado ahí se perdería sin aviso en la
+ * siguiente carga. Se suma aparte en las consultas de reporte, nunca se
+ * mezcla en las tablas que la automatización controla.
+ */
+export const ajustesManuales = pgTable(
+  "ajustes_manuales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    anio: integer("anio").notNull(),
+    mes: integer("mes").notNull(),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    monto: numeric("monto", { precision: 14, scale: 2 }).notNull(),
+    motivo: text("motivo").notNull(),
+    creadoPor: uuid("creado_por")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ajustes_manuales_anio_mes_idx").on(t.anio, t.mes),
+    index("ajustes_manuales_sucursal_id_idx").on(t.sucursalId),
+    index("ajustes_manuales_unidad_negocio_id_idx").on(t.unidadNegocioId),
+  ],
+);
+
 // Única tabla con el nombre completo del asesor junto a su código.
 export const cumplimientoAsesores = pgTable(
   "cumplimiento_asesores",

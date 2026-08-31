@@ -134,6 +134,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/carga", label: "Cargar Excel", icon: FileUp, module: "carga" },
       { to: "/usuarios", label: "Usuarios", icon: UserCog, module: "usuarios" },
+      {
+        to: "/ajustes-manuales",
+        label: "Ajustes Manuales",
+        icon: FileBarChart,
+        module: "ajustes_manuales",
+      },
     ],
   },
 ] as const;
@@ -179,6 +185,7 @@ const PAGE_TITLES = {
   "/evaluacion/asesor": "Mi Evaluación de Desempeño",
   "/evaluacion/sucursal": "Evaluación de Desempeño — Sucursal",
   "/evaluacion/unidad": "Evaluación de Desempeño — Unidad de Negocio",
+  "/ajustes-manuales": "Ajustes Manuales",
 } as const;
 
 // Rutas que ya tienen su propia página de Evaluación de Desempeño con PDF real
