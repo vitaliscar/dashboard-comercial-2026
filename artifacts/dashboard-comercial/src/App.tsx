@@ -27,8 +27,9 @@ import {
   X,
 } from "lucide-react";
 import { Link, Route, Switch, useLocation } from "wouter";
+import { ModulePage } from "./components/module-pages";
 
-type Module = {
+export type Module = {
   path: string;
   label: string;
   group: string;
@@ -172,24 +173,6 @@ function Overview() {
           </article>
         ))}
       </section>
-    </div>
-  );
-}
-
-function ModulePage({ module }: { module: Module }) {
-  const Icon = module.icon;
-  return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon size={23} /></span>
-            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{module.group}</p><h2 className="mt-1 font-display text-2xl font-semibold">{module.label}</h2><p className="mt-1 text-sm text-muted-foreground">{module.description}</p></div>
-          </div>
-          <button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110">Ver detalle</button>
-        </div>
-      </section>
-      <Overview />
     </div>
   );
 }
