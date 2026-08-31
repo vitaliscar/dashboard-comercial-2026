@@ -7,6 +7,7 @@ import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { StatusPill } from "@/components/status-pill";
 import { money, pct, statusFromPct, MESES } from "@/lib/format";
+import { createChartLabel, createLastPointLabel } from "@/lib/chart-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
 import { getSucursalMetricsAction, getSucursalTrendAction } from "@/lib/actions/sucursal";
@@ -293,11 +294,12 @@ export default function SucursalPage() {
                 >
                   <LabelList
                     dataKey="presupuesto"
-                    position="top"
-                    fontSize={9}
-                    fontWeight={700}
-                    fill="var(--color-muted-foreground)"
-                    formatter={((v: unknown) => money(Number(v))) as never}
+                    content={createChartLabel({
+                      formatter: (v) => money(v),
+                      fill: "var(--color-muted-foreground)",
+                      dy: -8,
+                      fontSize: 9,
+                    })}
                   />
                 </Bar>
                 <Line
@@ -311,11 +313,12 @@ export default function SucursalPage() {
                 >
                   <LabelList
                     dataKey="ventas"
-                    position="top"
-                    fontSize={9}
-                    fontWeight={700}
-                    fill="var(--color-primary)"
-                    formatter={((v: unknown) => money(Number(v))) as never}
+                    content={createLastPointLabel(
+                      (trend ?? []).length,
+                      (v) => money(v),
+                      "var(--color-primary)",
+                      0,
+                    )}
                   />
                 </Line>
               </ComposedChart>

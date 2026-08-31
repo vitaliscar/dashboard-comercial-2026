@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, LabelList } from "recharts";
 import { money } from "@/lib/format";
+import { createChartLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -64,11 +65,12 @@ export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({
             >
               <LabelList
                 dataKey="equiposVenta"
-                position="center"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--card)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createChartLabel({
+                  formatter: (v) => money(v),
+                  fill: "var(--card)",
+                  fontSize: 9,
+                  minSegmentHeight: 24,
+                })}
               />
             </Bar>
             <Bar
@@ -81,11 +83,12 @@ export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({
             >
               <LabelList
                 dataKey="alquilerVenta"
-                position="center"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--card)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createChartLabel({
+                  formatter: (v) => money(v),
+                  fill: "var(--card)",
+                  fontSize: 9,
+                  minSegmentHeight: 24,
+                })}
               />
             </Bar>
             <Line
@@ -100,11 +103,12 @@ export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({
             >
               <LabelList
                 dataKey="presupuestoTotal"
-                position="top"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--color-presupuestoTotal)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createChartLabel({
+                  formatter: (v) => money(v),
+                  fill: "var(--color-presupuestoTotal)",
+                  dy: 14,
+                  fontSize: 9,
+                })}
               />
             </Line>
           </ComposedChart>

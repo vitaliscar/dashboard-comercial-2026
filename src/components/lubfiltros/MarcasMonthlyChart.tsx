@@ -10,6 +10,7 @@ import {
   LabelList,
 } from "recharts";
 import { money } from "@/lib/format";
+import { createLastPointLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 
@@ -121,7 +122,7 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
                   itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
-                {(Object.keys(MARCA_COLORS) as (keyof typeof MARCA_COLORS)[]).map((key) => (
+                {(Object.keys(MARCA_COLORS) as (keyof typeof MARCA_COLORS)[]).map((key, lane) => (
                   <Line
                     key={key}
                     type="monotone"
@@ -134,11 +135,12 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
                   >
                     <LabelList
                       dataKey={key}
-                      position="top"
-                      fontSize={9}
-                      fontWeight={700}
-                      fill={MARCA_COLORS[key]}
-                      formatter={((v: unknown) => money(Number(v))) as never}
+                      content={createLastPointLabel(
+                        data.length,
+                        (v) => money(v),
+                        MARCA_COLORS[key],
+                        lane,
+                      )}
                     />
                   </Line>
                 ))}

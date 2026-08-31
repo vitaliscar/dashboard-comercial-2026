@@ -7,6 +7,7 @@ import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { money, pct, statusFromPct } from "@/lib/format";
+import { createChartLabel, createLastPointLabel } from "@/lib/chart-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,8 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  CHART_CATEGORY_AXIS,
+  CHART_Y_AXIS_HIDDEN,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { getAsesoresRawDataAction, getAsesoresDrilldownAction } from "@/lib/actions/asesores";
@@ -582,11 +585,12 @@ export default function AsesoresPage() {
                         >
                           <LabelList
                             dataKey="value"
-                            position="top"
-                            fontSize={9}
-                            fontWeight={700}
-                            fill="hsl(var(--primary))"
-                            formatter={((v: unknown) => money(Number(v))) as never}
+                            content={createChartLabel({
+                              formatter: (v) => money(v),
+                              fill: "hsl(var(--primary))",
+                              dy: -8,
+                              fontSize: 9,
+                            })}
                           />
                         </Bar>
                         <Line
@@ -601,11 +605,12 @@ export default function AsesoresPage() {
                         >
                           <LabelList
                             dataKey="acumulado"
-                            position="top"
-                            fontSize={9}
-                            fontWeight={700}
-                            fill="hsl(var(--destructive))"
-                            formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                            content={createChartLabel({
+                              formatter: (v) => `${v.toFixed(1)}%`,
+                              fill: "hsl(var(--destructive))",
+                              dy: 14,
+                              fontSize: 9,
+                            })}
                           />
                         </Line>
                         <ReferenceLine
@@ -713,8 +718,8 @@ export default function AsesoresPage() {
                         data={drilldownData.monthlyData}
                         margin={{ top: 10, right: 10, bottom: 0, left: 10 }}
                       >
-                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                        <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+                        <XAxis dataKey="mes" {...CHART_CATEGORY_AXIS} />
+                        <YAxis {...CHART_Y_AXIS_HIDDEN} />
                         <ChartTooltip
                           content={<ChartTooltipContent labelKey="mes" indicator="dot" />}
                         />
@@ -746,11 +751,12 @@ export default function AsesoresPage() {
                         >
                           <LabelList
                             dataKey="meta"
-                            position="top"
-                            fontSize={9}
-                            fontWeight={700}
-                            fill="hsl(var(--destructive))"
-                            formatter={((v: unknown) => money(Number(v))) as never}
+                            content={createLastPointLabel(
+                              drilldownData.monthlyData.length,
+                              (v) => money(v),
+                              "hsl(var(--destructive))",
+                              0,
+                            )}
                           />
                         </Line>
                       </ComposedChart>

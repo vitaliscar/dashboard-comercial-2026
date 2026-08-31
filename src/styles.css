@@ -507,3 +507,8 @@
     border: 1px solid #444 !important;
   }
 }
+
+.recharts-cartesian-grid,
+.recharts-polar-grid {
+  display: none;
+}

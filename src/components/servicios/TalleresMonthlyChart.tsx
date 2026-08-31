@@ -10,6 +10,7 @@ import {
   LabelList,
 } from "recharts";
 import { money } from "@/lib/format";
+import { createLastPointLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type MonthlyWorkshopRow = {
@@ -132,11 +133,12 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
                 >
                   <LabelList
                     dataKey="CRM"
-                    position="top"
-                    fontSize={9}
-                    fontWeight={700}
-                    fill={WORKSHOP_COLORS.CRM}
-                    formatter={((v: unknown) => money(Number(v))) as never}
+                    content={createLastPointLabel(
+                      data.length,
+                      (v) => money(v),
+                      WORKSHOP_COLORS.CRM,
+                      0,
+                    )}
                   />
                 </Line>
                 <Line
@@ -150,11 +152,12 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
                 >
                   <LabelList
                     dataKey="CNRC"
-                    position="top"
-                    fontSize={9}
-                    fontWeight={700}
-                    fill={WORKSHOP_COLORS.CNRC}
-                    formatter={((v: unknown) => money(Number(v))) as never}
+                    content={createLastPointLabel(
+                      data.length,
+                      (v) => money(v),
+                      WORKSHOP_COLORS.CNRC,
+                      1,
+                    )}
                   />
                 </Line>
                 <Line
@@ -168,11 +171,12 @@ export const TalleresMonthlyChart = memo(function TalleresMonthlyChart({
                 >
                   <LabelList
                     dataKey="MachineShop"
-                    position="top"
-                    fontSize={9}
-                    fontWeight={700}
-                    fill={WORKSHOP_COLORS.MachineShop}
-                    formatter={((v: unknown) => money(Number(v))) as never}
+                    content={createLastPointLabel(
+                      data.length,
+                      (v) => money(v),
+                      WORKSHOP_COLORS.MachineShop,
+                      2,
+                    )}
                   />
                 </Line>
               </LineChart>

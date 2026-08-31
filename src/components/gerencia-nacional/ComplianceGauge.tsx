@@ -43,14 +43,20 @@ export const ComplianceGauge = memo(function ComplianceGauge({
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col items-center justify-center">
-        <div className="relative size-36">
-          <ChartContainer config={chartConfig} className="aspect-auto size-36">
+        <div className="relative size-36 shrink-0">
+          <ChartContainer
+            config={chartConfig}
+            className="!min-h-0 size-36 min-w-0"
+            initialDimension={{ width: 144, height: 144 }}
+          >
             <RadialBarChart
-              innerRadius="78%"
+              innerRadius="82%"
               outerRadius="100%"
               data={[{ value: Math.min(100, displayPct) }]}
               startAngle={225}
               endAngle={-45}
+              cx="50%"
+              cy="52%"
             >
               <PolarAngleAxis type="number" domain={[0, 100]} tick={false} axisLine={false} />
               <RadialBar
@@ -62,8 +68,11 @@ export const ComplianceGauge = memo(function ComplianceGauge({
               />
             </RadialBarChart>
           </ChartContainer>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <div className="font-mono text-2xl font-bold tracking-tight" style={{ color }}>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center pt-6">
+            <div
+              className="font-mono text-xl font-bold leading-none tracking-tight"
+              style={{ color }}
+            >
               {displayPct.toFixed(1)}%
             </div>
           </div>

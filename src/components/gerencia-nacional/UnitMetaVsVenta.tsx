@@ -9,6 +9,8 @@ import {
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
+  CHART_CATEGORY_AXIS,
+  CHART_Y_AXIS_HIDDEN,
   type ChartConfig,
 } from "@/components/ui/chart";
 
@@ -63,8 +65,8 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
         <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
           {mode === "pct" ? (
             <ComposedChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
-              <XAxis dataKey="label" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+              <XAxis dataKey="label" {...CHART_CATEGORY_AXIS} />
+              <YAxis {...CHART_Y_AXIS_HIDDEN} />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent formatter={(value) => fmtPct(Number(value))} />}
@@ -101,8 +103,8 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
             </ComposedChart>
           ) : (
             <ComposedChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
-              <XAxis dataKey="label" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+              <XAxis dataKey="label" {...CHART_CATEGORY_AXIS} />
+              <YAxis {...CHART_Y_AXIS_HIDDEN} />
               <ChartTooltip
                 cursor={false}
                 content={
@@ -165,13 +167,6 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
                 strokeWidth={2.5}
                 dot={{ r: 4 }}
                 {...chartAnimation}
-                label={{
-                  position: "top",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  fill: "var(--color-success)",
-                  formatter: ((v: unknown) => money(Number(v))) as never,
-                }}
               />
             </ComposedChart>
           )}

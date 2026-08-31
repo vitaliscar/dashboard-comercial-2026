@@ -13,7 +13,14 @@ export function GoalFeedback({ pct, brecha }: Props) {
         <div className="goal-feedback-label text-danger">
           {`Faltaron ${money(brecha)} para la meta`}
         </div>
-        <img src="/ambulancia.svg" alt="" width={120} height={74} />
+        <img
+          src="/ambulancia.svg"
+          alt=""
+          width={120}
+          height={74}
+          className="goal-feedback-asset"
+          aria-hidden="true"
+        />
       </div>
     );
   }
@@ -24,7 +31,14 @@ export function GoalFeedback({ pct, brecha }: Props) {
         <div className="goal-feedback-label text-warning">
           {`Faltaron ${money(brecha)} para la meta`}
         </div>
-        <img src="/camion.svg" alt="" width={84} height={84} />
+        <img
+          src="/camion.svg"
+          alt=""
+          width={84}
+          height={84}
+          className="goal-feedback-asset"
+          aria-hidden="true"
+        />
       </div>
     );
   }
@@ -34,7 +48,14 @@ export function GoalFeedback({ pct, brecha }: Props) {
       <div className="goal-feedback-label text-success">
         {`Superó la meta por ${money(Math.abs(brecha))}`}
       </div>
-      <img src="/cohete.svg" alt="" width={84} height={84} />
+      <img
+        src="/cohete.svg"
+        alt=""
+        width={84}
+        height={84}
+        className="goal-feedback-asset"
+        aria-hidden="true"
+      />
     </div>
   );
 }

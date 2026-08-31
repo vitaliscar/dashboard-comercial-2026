@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { AreaChart, Area, LabelList, XAxis, YAxis } from "recharts";
 import { money } from "@/lib/format";
+import { createLastPointLabel } from "@/lib/chart-labels";
 import type { MonthlyRow } from "./GlobalMonthlyCombo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -58,11 +59,12 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
             >
               <LabelList
                 dataKey="presupuesto"
-                position="top"
-                fontSize={10}
-                fontWeight={700}
-                fill="var(--color-muted-foreground)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createLastPointLabel(
+                  data.length,
+                  (v) => money(v),
+                  "var(--color-muted-foreground)",
+                  1,
+                )}
               />
             </Area>
             <Area
@@ -92,11 +94,7 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
             >
               <LabelList
                 dataKey="venta"
-                position="top"
-                fontSize={10}
-                fontWeight={700}
-                fill="var(--color-venta)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createLastPointLabel(data.length, (v) => money(v), "var(--color-venta)", 0)}
               />
             </Area>
           </AreaChart>

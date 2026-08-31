@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { money, pct, MESES } from "@/lib/format";
+import { createHighlightedLabel } from "@/lib/chart-labels";
 import { getAllMonthsCap, getAllowedMonths } from "@/lib/date-range";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
 import { KpiCard } from "@/components/kpi-card";
@@ -21,6 +22,8 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  CHART_CATEGORY_AXIS,
+  CHART_Y_AXIS_HIDDEN,
   type ChartConfig,
 } from "@/components/ui/chart";
 import {
@@ -250,8 +253,8 @@ export default function EmbudoPage() {
           </p>
           <ChartContainer config={funnelChartConfig} className="h-72 w-full">
             <ComposedChart data={chartData}>
-              <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+              <XAxis dataKey="mes" {...CHART_CATEGORY_AXIS} />
+              <YAxis {...CHART_Y_AXIS_HIDDEN} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Line
                 type="monotone"
@@ -263,16 +266,7 @@ export default function EmbudoPage() {
                 legendType="none"
                 name="Cotizado (año)"
                 {...chartAnimation}
-              >
-                <LabelList
-                  dataKey="cotizado"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-cotizado)"
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                />
-              </Line>
+              />
               <Line
                 type="monotone"
                 dataKey="facturado"
@@ -283,16 +277,7 @@ export default function EmbudoPage() {
                 legendType="none"
                 name="Facturado (año)"
                 {...chartAnimation}
-              >
-                <LabelList
-                  dataKey="facturado"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-facturado)"
-                  formatter={((v: unknown) => money(Number(v))) as never}
-                />
-              </Line>
+              />
               <Line
                 type="monotone"
                 dataKey="cotizadoResaltado"
@@ -305,11 +290,7 @@ export default function EmbudoPage() {
               >
                 <LabelList
                   dataKey="cotizadoResaltado"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-cotizado)"
-                  formatter={((v: unknown) => money(Number(v))) as never}
+                  content={createHighlightedLabel((v) => money(v), "var(--color-cotizado)", 0)}
                 />
               </Line>
               <Line
@@ -324,11 +305,7 @@ export default function EmbudoPage() {
               >
                 <LabelList
                   dataKey="facturadoResaltado"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-facturado)"
-                  formatter={((v: unknown) => money(Number(v))) as never}
+                  content={createHighlightedLabel((v) => money(v), "var(--color-facturado)", 1)}
                 />
               </Line>
             </ComposedChart>
@@ -342,15 +319,8 @@ export default function EmbudoPage() {
           </p>
           <ChartContainer config={conversionChartConfig} className="h-72 w-full">
             <ComposedChart data={chartData}>
-              <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
-              <YAxis
-                tick={false}
-                axisLine={false}
-                tickLine={false}
-                width={0}
-                domain={[0, 100]}
-                allowDataOverflow
-              />
+              <XAxis dataKey="mes" {...CHART_CATEGORY_AXIS} />
+              <YAxis {...CHART_Y_AXIS_HIDDEN} domain={[0, 100]} allowDataOverflow />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
@@ -372,16 +342,7 @@ export default function EmbudoPage() {
                 legendType="none"
                 name="% Conversión (año)"
                 {...chartAnimation}
-              >
-                <LabelList
-                  dataKey="tasaConversion"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-tasaConversion)"
-                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
-                />
-              </Line>
+              />
               <Line
                 type="monotone"
                 dataKey="tasaConversionResaltada"
@@ -394,11 +355,10 @@ export default function EmbudoPage() {
               >
                 <LabelList
                   dataKey="tasaConversionResaltada"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-tasaConversion)"
-                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                  content={createHighlightedLabel(
+                    (v) => `${v.toFixed(1)}%`,
+                    "var(--color-tasaConversion)",
+                  )}
                 />
               </Line>
             </ComposedChart>

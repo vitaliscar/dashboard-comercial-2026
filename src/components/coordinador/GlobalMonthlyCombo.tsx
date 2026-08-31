@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { ComposedChart, Bar, Cell, Line, LabelList, XAxis, YAxis } from "recharts";
 import { money } from "@/lib/format";
+import { createChartLabel, createLastPointLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -77,20 +78,21 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
                 ))}
               <LabelList
                 dataKey="venta"
-                position="top"
-                fontSize={10}
-                fontWeight={700}
-                fill="var(--color-foreground)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createChartLabel({
+                  formatter: (v) => money(v),
+                  fill: "var(--color-foreground)",
+                  dy: -8,
+                })}
               />
               <LabelList
                 dataKey="cumplimiento"
-                position="insideBottom"
-                offset={8}
-                fontSize={10}
-                fontWeight={700}
-                fill="var(--color-foreground)"
-                formatter={((v: unknown) => `${Number(v).toFixed(0)}%`) as never}
+                content={createChartLabel({
+                  formatter: (v) => `${v.toFixed(0)}%`,
+                  fill: "var(--color-foreground)",
+                  fontSize: 9,
+                  minSegmentHeight: 32,
+                  skipEmpty: false,
+                })}
               />
             </Bar>
             <Line
@@ -104,12 +106,12 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
             >
               <LabelList
                 dataKey="presupuesto"
-                position="top"
-                offset={10}
-                fontSize={10}
-                fontWeight={700}
-                fill="var(--color-muted-foreground)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createChartLabel({
+                  formatter: (v) => money(v),
+                  fill: "var(--color-muted-foreground)",
+                  dy: 14,
+                  fontSize: 9,
+                })}
               />
             </Line>
           </ComposedChart>

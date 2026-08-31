@@ -10,6 +10,7 @@ import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
 import { getCliente360DataAction, type Cliente360Fuente } from "@/lib/actions/cliente-360";
 import { money, pct, diasEntre } from "@/lib/format";
+import { createHorizontalBarLabel, createHorizontalLineLabel } from "@/lib/chart-labels";
 import { canAccessModule } from "@/lib/permissions";
 import { computeHealthScore, healthBand, type HealthBand } from "@/lib/analytics/health-score";
 import { computeParetoSummary, type ParetoInputRow } from "@/lib/analytics/pareto";
@@ -30,6 +31,8 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  CHART_X_AXIS_VALUE_HIDDEN,
+  CHART_Y_AXIS_HIDDEN,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
@@ -396,12 +399,7 @@ function Clientes360Tab({
               layout="vertical"
               margin={{ left: 10, right: 60, top: 5, bottom: 5 }}
             >
-              <XAxis
-                type="number"
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => money(v)}
-              />
+              <XAxis type="number" {...CHART_X_AXIS_VALUE_HIDDEN} />
               <YAxis
                 type="category"
                 yAxisId="left"
@@ -410,16 +408,15 @@ function Clientes360Tab({
                 fontSize={11}
                 width={160}
                 tick={{ textAnchor: "end" }}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
                 type="number"
                 yAxisId="right"
                 orientation="right"
-                tick={false}
-                axisLine={false}
-                tickLine={false}
-                width={0}
                 domain={[0, 100]}
+                {...CHART_Y_AXIS_HIDDEN}
               />
               <ChartTooltip
                 content={
@@ -444,11 +441,7 @@ function Clientes360Tab({
               >
                 <LabelList
                   dataKey="montoPareto"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-montoPareto)"
-                  formatter={((v: unknown) => money(Number(v))) as never}
+                  content={createHorizontalBarLabel((v) => money(v), "var(--color-montoPareto)")}
                 />
               </Bar>
               <Line
@@ -462,11 +455,10 @@ function Clientes360Tab({
               >
                 <LabelList
                   dataKey="acumulado"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-acumulado)"
-                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                  content={createHorizontalLineLabel(
+                    (v) => `${v.toFixed(1)}%`,
+                    "var(--color-acumulado)",
+                  )}
                 />
               </Line>
               <ReferenceLine

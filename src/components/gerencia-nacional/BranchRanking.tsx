@@ -3,6 +3,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import { abbreviateSucursal, money, statusFromPct90 } from "@/lib/format";
 import type { BranchSummaryRow } from "./BranchSummaryTable";
 
+import { CHART_X_AXIS_VALUE_HIDDEN } from "@/components/ui/chart";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 
 export type BranchRow = BranchSummaryRow;
@@ -52,7 +53,7 @@ export const BranchRanking = memo(function BranchRanking({ rows }: { rows: Branc
   }));
 
   const maxPct = Math.max(...rows.map((r) => r.pct), 0);
-  const { domain, ticks } = getAxisConfig(maxPct);
+  const { domain } = getAxisConfig(maxPct);
 
   return (
     <div className="card-elevated section-enter flex h-full flex-col p-4">
@@ -69,20 +70,15 @@ export const BranchRanking = memo(function BranchRanking({ rows }: { rows: Branc
             layout="vertical"
             margin={{ top: 5, right: 40, left: 0, bottom: 5 }}
           >
-            <XAxis
-              type="number"
-              domain={domain}
-              ticks={ticks}
-              stroke="var(--color-muted-foreground)"
-              fontSize={10}
-              tickFormatter={(v) => `${v}%`}
-            />
+            <XAxis type="number" domain={domain} {...CHART_X_AXIS_VALUE_HIDDEN} />
             <YAxis
               type="category"
               dataKey="shortLabel"
               stroke="var(--color-muted-foreground)"
               fontSize={10}
               width={38}
+              tickLine={false}
+              axisLine={false}
             />
             <Tooltip
               cursor={false}

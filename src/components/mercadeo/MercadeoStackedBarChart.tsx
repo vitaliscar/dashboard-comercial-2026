@@ -13,6 +13,7 @@ import {
   LabelList,
 } from "recharts";
 import { formatMercadeoNumero } from "@/lib/analytics/mercadeo";
+import { createChartLabel } from "@/lib/chart-labels";
 import { MERCADEO_COLORES, MercadeoChartTooltip } from "@/components/mercadeo/mercadeo-chart";
 
 const CHART_HEIGHT = 320;
@@ -76,11 +77,12 @@ export const MercadeoStackedBarChart = memo(function MercadeoStackedBarChart({
                 ))}
               <LabelList
                 dataKey={key}
-                position="center"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--card)"
-                formatter={((v: unknown) => formatMercadeoNumero(Number(v))) as never}
+                content={createChartLabel({
+                  formatter: (v) => formatMercadeoNumero(v),
+                  fill: "var(--card)",
+                  fontSize: 9,
+                  minSegmentHeight: 22,
+                })}
               />
             </Bar>
           ))}

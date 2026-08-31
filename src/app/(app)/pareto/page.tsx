@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getParetoDataAction, type ParetoFuente } from "@/lib/actions/pareto";
 import { money, pct } from "@/lib/format";
+import { createHorizontalBarLabel, createHorizontalLineLabel } from "@/lib/chart-labels";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,8 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  CHART_X_AXIS_VALUE_HIDDEN,
+  CHART_Y_AXIS_HIDDEN,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useMemo, useState } from "react";
@@ -246,12 +249,7 @@ export default function ParetoPage() {
               layout="vertical"
               margin={{ left: 10, right: 60, top: 5, bottom: 5 }}
             >
-              <XAxis
-                type="number"
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickFormatter={(v) => money(v)}
-              />
+              <XAxis type="number" {...CHART_X_AXIS_VALUE_HIDDEN} />
               <YAxis
                 type="category"
                 yAxisId="left"
@@ -260,16 +258,15 @@ export default function ParetoPage() {
                 fontSize={11}
                 width={160}
                 tick={{ textAnchor: "end" }}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
                 type="number"
                 yAxisId="right"
                 orientation="right"
-                tick={false}
-                axisLine={false}
-                tickLine={false}
-                width={0}
                 domain={[0, 100]}
+                {...CHART_Y_AXIS_HIDDEN}
               />
               <ChartTooltip
                 content={
@@ -294,11 +291,7 @@ export default function ParetoPage() {
               >
                 <LabelList
                   dataKey="monto"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-monto)"
-                  formatter={((v: unknown) => money(Number(v))) as never}
+                  content={createHorizontalBarLabel((v) => money(v), "var(--color-monto)")}
                 />
               </Bar>
               <Line
@@ -312,11 +305,10 @@ export default function ParetoPage() {
               >
                 <LabelList
                   dataKey="acumulado"
-                  position="top"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill="var(--color-acumulado)"
-                  formatter={((v: unknown) => `${Number(v).toFixed(1)}%`) as never}
+                  content={createHorizontalLineLabel(
+                    (v) => `${v.toFixed(1)}%`,
+                    "var(--color-acumulado)",
+                  )}
                 />
               </Line>
               <ReferenceLine

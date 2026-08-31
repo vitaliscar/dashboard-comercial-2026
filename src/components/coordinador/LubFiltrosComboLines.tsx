@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { LineChart, Line, XAxis, YAxis, LabelList } from "recharts";
 import { money } from "@/lib/format";
+import { createLastPointLabel } from "@/lib/chart-labels";
 import type { MonthlyRow } from "./GlobalMonthlyCombo";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -60,11 +61,12 @@ export const LubFiltrosComboLines = memo(function LubFiltrosComboLines({
             >
               <LabelList
                 dataKey="presupuesto"
-                position="bottom"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--color-presupuesto)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createLastPointLabel(
+                  data.length,
+                  (v) => money(v),
+                  "var(--color-presupuesto)",
+                  1,
+                )}
               />
             </Line>
             <Line
@@ -92,11 +94,7 @@ export const LubFiltrosComboLines = memo(function LubFiltrosComboLines({
             >
               <LabelList
                 dataKey="venta"
-                position="top"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--color-venta)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createLastPointLabel(data.length, (v) => money(v), "var(--color-venta)", 0)}
               />
             </Line>
           </LineChart>

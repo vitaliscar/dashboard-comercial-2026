@@ -16,6 +16,13 @@
   text-transform: uppercase;
 }
 
+.goal-feedback-asset {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
 .goal-feedback-amb {
   border: 1px solid oklch(0.62 0.22 25 / 0.35);
   background: oklch(0.62 0.22 25 / 0.08);

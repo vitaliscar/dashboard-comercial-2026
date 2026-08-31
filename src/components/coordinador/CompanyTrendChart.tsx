@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { LineChart, Line, XAxis, YAxis, LabelList } from "recharts";
 import { money } from "@/lib/format";
+import { createLastPointLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -74,11 +75,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
             >
               <LabelList
                 dataKey="ccv"
-                position="top"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--color-ccv)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createLastPointLabel(data.length, (v) => money(v), "var(--color-ccv)", 0)}
               />
             </Line>
             <Line
@@ -106,11 +103,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
             >
               <LabelList
                 dataKey="xibi"
-                position="top"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--color-xibi)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createLastPointLabel(data.length, (v) => money(v), "var(--color-xibi)", 1)}
               />
             </Line>
             <Line
@@ -138,11 +131,12 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
             >
               <LabelList
                 dataKey="estrategicas"
-                position="top"
-                fontSize={9}
-                fontWeight={700}
-                fill="var(--color-estrategicas)"
-                formatter={((v: unknown) => money(Number(v))) as never}
+                content={createLastPointLabel(
+                  data.length,
+                  (v) => money(v),
+                  "var(--color-estrategicas)",
+                  2,
+                )}
               />
             </Line>
           </LineChart>

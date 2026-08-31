@@ -10,6 +10,7 @@ import {
   LabelList,
 } from "recharts";
 import { money } from "@/lib/format";
+import { createLastPointLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 
@@ -128,7 +129,8 @@ export const CompanyMonthlyStackedLines = memo(function CompanyMonthlyStackedLin
                   itemStyle={{ color: "var(--color-foreground)" }}
                 />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
-                {(Object.keys(COMPANY_COLORS) as (keyof typeof COMPANY_COLORS)[]).map((key) => (
+                {(Object.keys(COMPANY_COLORS) as (keyof typeof COMPANY_COLORS)[]).map(
+                  (key, lane) => (
                   <Area
                     key={key}
                     type="monotone"
@@ -144,14 +146,16 @@ export const CompanyMonthlyStackedLines = memo(function CompanyMonthlyStackedLin
                   >
                     <LabelList
                       dataKey={key}
-                      position="top"
-                      fontSize={9}
-                      fontWeight={700}
-                      fill={COMPANY_COLORS[key]}
-                      formatter={((v: unknown) => money(Number(v))) as never}
+                      content={createLastPointLabel(
+                        data.length,
+                        (v) => money(v),
+                        COMPANY_COLORS[key],
+                        lane,
+                      )}
                     />
                   </Area>
-                ))}
+                ),
+                )}
               </AreaChart>
             </ResponsiveContainer>
           </div>
