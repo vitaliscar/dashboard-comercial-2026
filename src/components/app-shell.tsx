@@ -287,7 +287,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     return false;
   });
 
-  const [visionGeneral, gestionComercial, finanzas, mercadeo, administracion] = NAV_GROUPS.map(
+  const [visionGeneral, gestionComercial, finanzas, mercadeo, evaluacionDesempeno, administracion] =
+    NAV_GROUPS.map(
     (group) => ({
       ...group,
       items: group.items.filter(
@@ -311,6 +312,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     gestionComercial,
     finanzas,
     mercadeo,
+    evaluacionDesempeno,
     administracion,
   ].filter((group) => group.items.length > 0);
 
