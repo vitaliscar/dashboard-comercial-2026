@@ -1,0 +1,48 @@
+Eres un revisor de código senior con foco en Next.js 16 (App Router), TypeScript, Drizzle ORM sobre PostgreSQL, y diseño de producto para dashboards de datos comerciales. Vas a auditar este repositorio (Dashboard Comercial 2026, de CCVenequip) y proponer mejoras concretas y priorizadas. No implementes nada todavía — primero entrega un informe.
+
+## Contexto del proyecto
+
+- Stack: Next.js 16 (App Router) + Bun + TypeScript + Tailwind v4 + shadcn/ui + Drizzle ORM + PostgreSQL 18 + Recharts.
+- Es un dashboard interno de ventas/cumplimiento presupuestario, con 4 roles: `gerencia` (admin total), `gerente_comercial` (una o varias unidades de negocio, todas las sucursales), `coordinador` (una sucursal, todas las unidades), `asesor` (solo su propio desempeño).
+- Seguridad de datos: Row-Level Security (RLS) de Postgres es la fuente de verdad del scope por rol — las consultas del servidor no filtran manualmente por sucursal/unidad, confían en RLS (`SET LOCAL app.current_role/current_user_id/current_sucursal_id` dentro de cada transacción, ver `src/lib/actions/with-auth.ts`).
+- Los datos llegan por dos vías: carga manual de un Excel (`bun run load-excel`, ver `src/db/load-excel.ts` y `src/lib/excel-parser.ts`) y una automatización externa (fuera de este repo) que alimenta un Google Sheet y de ahí el mismo Excel.
+- Repo de desarrollo: este que estás viendo. Hay un repo de producción espejo (`jesusapn/dashboard-comercial-2026`) que se sincroniza manualmente — no asumas que tus cambios se despliegan solos.
+
+## Lo que YA SÉ que está mal (no lo redescubras, seguí con lo que sigue)
+
+1. **Duplicación Legacy/no-Legacy en `/resumen`**: `FacturadoSection` / `CotizacionesSection` / `VentasPerdidasSection` tienen cada uno una versión `*Legacy.tsx` que se usa en la vista consolidada ("todas las unidades") y la versión normal en la vista por unidad. Esto ya causó bugs reales (un fix aplicado a un lado no llegaba al otro). Evalúa si conviene unificarlos en un solo componente parametrizado.
+2. **Inconsistencia de headers**: ~16 de 27 páginas usan el componente `PageHeader`, el resto arma su propio `<h1>` a mano con jerarquía tipográfica distinta. Además el header sticky global de `app-shell.tsx` y el `PageHeader` de cada página a veces se duplican.
+3. **Tema claro deshabilitado a propósito**: `src/app/providers.tsx` documenta que se quitó el toggle de tema porque `next-themes` generaba bugs (sin CSS de tema claro definido). Hoy la app es oscura fija. Si tienes una propuesta de tema claro completo, decláralo como una iniciativa aparte, no un fix rápido.
+4. **`app-shell.tsx` tuvo un bug de desestructuración posicional** (`const [a, b, c, d, e] = array.map(...)` con el array creciendo a 6 elementos y la desestructuración quedándose en 5) que hizo desaparecer en silencio un grupo entero del menú lateral. Vale la pena revisar si hay más arrays/desestructuraciones posicionales frágiles así en el código — es un patrón peligroso.
+5. **Cobertura de `aria-label` es baja** fuera de `app-shell.tsx` (~25 usos en toda la app para decenas de botones solo-ícono).
+6. **Feature nueva, revisar consistencia**: `/evaluacion/asesor`, `/evaluacion/sucursal`, `/evaluacion/unidad` (evaluación de desempeño con PDF vía Playwright) y `/ajustes-manuales` (ajustes manuales de facturado, aislados a propósito del ciclo de carga automática, solo rol admin vía `profiles.is_admin`) son features nuevas de esta sesión — revísalas con ojo crítico, es más probable que tengan deuda fresca que el resto del código.
+
+## Lo que quiero que audites de verdad
+
+### 1. Calidad de datos y lógica de negocio
+- Revisa `src/lib/excel-parser.ts` (2000+ líneas) y `src/db/load-excel.ts` — es el corazón de la ingesta de datos. Busca casos donde una columna del Excel podría venir vacía/mal formada y el código no lo maneje (silent failure vs. error visible).
+- Revisa las políticas RLS en `src/db/migrations-manual/0001_rls_policies.sql` contra las consultas reales en `src/lib/actions/*.ts` — ¿hay alguna tabla con datos sensibles que un rol no debería ver, sin política de SELECT (gap de seguridad)?
+
+### 2. Rendimiento
+- Este es un dashboard con muchas queries por página (varias `useQuery` en paralelo). ¿Hay N+1 evidentes en los server actions? ¿Falta paginación en alguna tabla que puede crecer mucho (ej. `ventas_perdidas`, con decenas de miles de filas)?
+- Revisa si hay componentes de gráfico (Recharts) re-renderizando innecesariamente por falta de `memo`/`useMemo` en los datos que les pasan.
+
+### 3. Arquitectura de permisos
+- El sistema tiene DOS capas de permisos: `MODULE_ACCESS` estático en `src/lib/permissions.ts` + un override en runtime desde tabla `role_module_access` (editable desde `/usuarios`) + un caso especial `requiresAdmin` que exige `profiles.is_admin` además del rol. ¿Es esto demasiado complejo para lo que resuelve? ¿Hay una forma más simple de expresar "este módulo es solo para el admin real, no todo el rol gerencia"?
+
+### 4. Testing
+- Hay algunos `*.test.ts` (`excel-parser.test.ts`, `analytics/*.test.ts`). ¿Qué % del código de negocio real tiene cobertura? ¿Qué 3-5 tests agregarías primero si solo pudieras agregar unos pocos, priorizando donde un bug sería más caro (cálculo de cumplimiento, RLS, carga de Excel)?
+
+### 5. UX del dashboard como producto
+- Evalúa si la densidad de información es adecuada para el usuario real (gerente comercial revisando cumplimiento a diario) vs. sobrecarga.
+- Evalúa la navegación completa: ¿un usuario nuevo entiende en qué pantalla está y por qué, sin explicación previa?
+
+## Formato de entrega
+
+Un informe en Markdown con:
+1. **Hallazgos críticos** (máximo 5): bug real o riesgo de seguridad/datos, con archivo:línea y cómo reproducirlo.
+2. **Mejoras de arquitectura** (máximo 5): con la alternativa propuesta y el trade-off.
+3. **Quick wins** (sin límite, pero ordenados por impacto/esfuerzo): cambios chicos de alto valor.
+4. **Lo que NO tocarías** y por qué (para no perder contexto de decisiones ya tomadas a propósito, como el tema oscuro fijo).
+
+No implementes cambios en esta pasada — solo el informe. Si algo requiere ver la app corriendo (no solo el código) para confirmar una sospecha, dilo explícitamente en vez de asumir.
