@@ -12,16 +12,52 @@ import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { money, pct, MESES } from "@/lib/format";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { createChartLabel } from "@/lib/chart-labels";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const anioActual = new Date().getFullYear();
+
+type EvaluacionUnidad = Awaited<ReturnType<typeof getEvaluacionUnidadAction>>;
+
+function narrativaUnidad(data: EvaluacionUnidad): string {
+  const puntosConDatos = data.puntos
+    .filter((p) => p.presupuesto > 0)
+    .sort((a, b) => a.mes - b.mes);
+  if (puntosConDatos.length === 0) {
+    return "Todavía no hay datos de presupuesto cargados para este año.";
+  }
+  const ultimo = puntosConDatos[puntosConDatos.length - 1];
+  const cumplUltimo = (ultimo.venta / ultimo.presupuesto) * 100;
+  const mesUltimo = MESES[ultimo.mes - 1];
+
+  const nivelTexto =
+    data.score.score >= 90
+      ? "un desempeño sobresaliente"
+      : data.score.score >= 50
+        ? "un desempeño dentro de rango, con espacio para mejorar"
+        : "un desempeño por debajo de lo esperado";
+
+  const tendenciaTexto =
+    data.score.tendencia > 55
+      ? "mejorando mes a mes"
+      : data.score.tendencia < 45
+        ? "en descenso respecto a meses anteriores"
+        : "estable, sin cambios marcados";
+
+  const sucursales = [...data.desglosePorSucursal].sort((a, b) => b.cumplimiento - a.cumplimiento);
+  const desgloseTexto =
+    sucursales.length > 0
+      ? `La sucursal con mejor cumplimiento es ${sucursales[0].sucursal} (${pct(
+          sucursales[0].cumplimiento,
+          1,
+        )}); la más rezagada es ${sucursales[sucursales.length - 1].sucursal} (${pct(
+          sucursales[sucursales.length - 1].cumplimiento,
+          1,
+        )}).`
+      : "";
+
+  return `En ${mesUltimo} cerró con ${pct(cumplUltimo, 1)} de cumplimiento, lo que refleja ${nivelTexto}, con una tendencia ${tendenciaTexto}. ${desgloseTexto}`;
+}
 
 export default function EvaluacionUnidadPage() {
   const { role } = useAuth();
@@ -112,45 +148,62 @@ export default function EvaluacionUnidadPage() {
         <PageSkeleton kpis={4} />
       ) : (
         <>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h3 className="mb-2 text-sm font-medium text-muted-foreground">Análisis</h3>
+            <p className="text-sm leading-relaxed text-foreground">{narrativaUnidad(data)}</p>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <KpiCard
               label="Score de Desempeño"
               value={String(data.score.score)}
-              hint="Cumplimiento 50% + Tendencia 30% + Ticket 20%"
+              hint="Combina Cumplimiento (50%) y Tendencia (30%). Sin comparación entre unidades — no aplica ticket relativo aquí."
               accent={data.score.banda}
             />
             <KpiCard
               label="Cumplimiento"
               value={pct(data.score.cumplimiento, 1)}
+              hint="Venta total del año dividida entre presupuesto total del año, para esta unidad."
               accent={data.score.cumplimiento >= 90 ? "success" : "warning"}
             />
             <KpiCard
-              label="Tendencia (ene→último mes)"
+              label="Tendencia"
               value={pct(data.score.tendencia, 0)}
-              hint="50 = estable, >50 mejora, <50 empeora"
+              hint="Compara el cumplimiento de enero contra el del último mes con datos. 50 = estable, más de 50 = mejorando."
             />
           </div>
 
           <div className="rounded-lg border border-border bg-card p-4">
             <h3 className="mb-4 text-sm font-medium text-muted-foreground">
-              Evolución de cumplimiento — {anioActual}
+              Evolución de cumplimiento por mes — {anioActual}
             </h3>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={300}>
               <LineChart
-                data={data.puntos.map((p) => ({
-                  mes: MESES[p.mes - 1] ?? `M${p.mes}`,
-                  cumplimiento:
-                    p.presupuesto > 0 ? Math.round((p.venta / p.presupuesto) * 1000) / 10 : 0,
-                }))}
+                data={[...data.puntos]
+                  .sort((a, b) => a.mes - b.mes)
+                  .map((p) => ({
+                    mes: MESES[p.mes - 1] ?? `M${p.mes}`,
+                    cumplimiento:
+                      p.presupuesto > 0 ? Math.round((p.venta / p.presupuesto) * 1000) / 10 : null,
+                  }))}
+                margin={{ top: 24, right: 16, left: 0, bottom: 0 }}
               >
-                <XAxis dataKey="mes" />
+                <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
                 <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
-                <Tooltip formatter={(v) => `${v}%`} />
+                <Tooltip formatter={(v) => (v == null ? "Sin datos" : `${v}%`)} />
                 <Line
                   type="monotone"
                   dataKey="cumplimiento"
                   stroke="var(--color-primary)"
                   strokeWidth={2}
+                  dot={{ r: 4 }}
+                  connectNulls
+                  label={createChartLabel({
+                    formatter: (v) => `${v}%`,
+                    fill: "var(--color-primary)",
+                    dy: -12,
+                    fontSize: 11,
+                  })}
                 />
               </LineChart>
             </ResponsiveContainer>
