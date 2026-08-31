@@ -30,7 +30,8 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 const anioActual = new Date().getFullYear();
 
 export default function AjustesManualesPage() {
-  const { role } = useAuth();
+  const { profile } = useAuth();
+  const isAdmin = profile?.is_admin ?? false;
   const queryClient = useQueryClient();
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -47,7 +48,7 @@ export default function AjustesManualesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["ajustes-manuales", anioActual],
     queryFn: () => getAjustesManualesAction(anioActual),
-    enabled: role === "gerencia",
+    enabled: isAdmin,
   });
 
   const createMutation = useMutation({
@@ -70,10 +71,10 @@ export default function AjustesManualesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (role !== "gerencia") {
+  if (!isAdmin) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        Solo gerencia puede administrar ajustes manuales.
+        Solo el administrador de la aplicación puede administrar ajustes manuales.
       </div>
     );
   }
@@ -103,7 +104,7 @@ export default function AjustesManualesPage() {
       <PageHeader
         eyebrow="Administración"
         title="Ajustes Manuales"
-        description={`Año ${anioActual} — solo gerencia. Estos ajustes viven aparte de las cargas automáticas y nunca se pierden al recargar datos.`}
+        description={`Año ${anioActual} — solo administrador. Estos ajustes viven aparte de las cargas automáticas y nunca se pierden al recargar datos.`}
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger

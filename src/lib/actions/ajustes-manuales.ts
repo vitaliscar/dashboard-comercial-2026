@@ -4,15 +4,15 @@ import { eq, desc } from "drizzle-orm";
 import { ajustesManuales, sucursales, unidadesNegocio, profiles } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 
-function requireGerencia(role: string | null) {
-  if (role !== "gerencia") {
-    throw new Error("Solo gerencia puede administrar ajustes manuales");
+function requireAdmin(isAdmin: boolean) {
+  if (!isAdmin) {
+    throw new Error("Solo el administrador de la aplicación puede administrar ajustes manuales");
   }
 }
 
 export async function getAjustesManualesAction(anio: number) {
-  return withAuth(async ({ tx, role }) => {
-    requireGerencia(role);
+  return withAuth(async ({ tx, profile }) => {
+    requireAdmin(profile.isAdmin);
 
     const rows = await tx
       .select({
@@ -55,8 +55,8 @@ export async function createAjusteManualAction(data: {
   monto: number;
   motivo: string;
 }) {
-  return withAuth(async ({ tx, role, userId }) => {
-    requireGerencia(role);
+  return withAuth(async ({ tx, profile, userId }) => {
+    requireAdmin(profile.isAdmin);
 
     if (!data.motivo.trim()) {
       throw new Error("El motivo es obligatorio");
@@ -78,8 +78,8 @@ export async function createAjusteManualAction(data: {
 }
 
 export async function deleteAjusteManualAction(id: string) {
-  return withAuth(async ({ tx, role }) => {
-    requireGerencia(role);
+  return withAuth(async ({ tx, profile }) => {
+    requireAdmin(profile.isAdmin);
     await tx.delete(ajustesManuales).where(eq(ajustesManuales.id, id));
   });
 }

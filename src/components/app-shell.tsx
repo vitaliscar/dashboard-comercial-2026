@@ -50,6 +50,10 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   module: ModuleKey;
+  /** Además del módulo, exige profile.isAdmin (no basta con role="gerencia") —
+   * para acciones sensibles que solo el administrador de la app debe ver,
+   * aunque en el futuro haya más de un usuario con rol gerencia. */
+  requiresAdmin?: boolean;
 }
 
 const UNIT_ROUTE_MAP = {
@@ -139,6 +143,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Ajustes Manuales",
         icon: FileBarChart,
         module: "ajustes_manuales",
+        requiresAdmin: true,
       },
     ],
   },
@@ -285,7 +290,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [visionGeneral, gestionComercial, finanzas, mercadeo, administracion] = NAV_GROUPS.map(
     (group) => ({
       ...group,
-      items: group.items.filter((item) => canAccessModule(role, item.module)),
+      items: group.items.filter(
+        (item) =>
+          canAccessModule(role, item.module) && (!item.requiresAdmin || profile?.is_admin),
+      ),
     }),
   );
 
