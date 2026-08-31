@@ -57,7 +57,7 @@ export function CotizacionesSection({
           <div
             className={cn("grid gap-3", showDetail ? "mb-6" : "", compact ? "grid-cols-1" : "")}
             style={
-              compact ? undefined : { gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }
+              compact ? undefined : { gridTemplateColumns: `repeat(${datosConActividad.length}, minmax(0, 1fr))` }
             }
           >
             {datosConActividad.map((unidad) => {
@@ -128,7 +128,7 @@ export function CotizacionesSection({
         <div
           className={cn("grid gap-3", compact ? "grid-cols-1" : "")}
           style={
-            compact ? undefined : { gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }
+            compact ? undefined : { gridTemplateColumns: `repeat(${datosConActividad.length}, minmax(0, 1fr))` }
           }
         >
           {datosConActividad.map((unidad) => (

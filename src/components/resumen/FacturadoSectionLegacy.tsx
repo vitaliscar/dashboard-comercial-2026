@@ -57,7 +57,7 @@ export function FacturadoSectionLegacy({
           ancho completo en vez de dejar una columna vacía. */}
       <div
         className="grid gap-3"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+        style={{ gridTemplateColumns: `repeat(${datos.length}, minmax(0, 1fr))` }}
       >
         {datos.map((unidad) => {
           const filter = tipoClienteFilters[unidad.unidad] ?? "TODAS";
@@ -138,7 +138,7 @@ export function FacturadoSectionLegacy({
           de "Top clientes" calcen en ancho con las tarjetas de unidad. */}
       <div
         className="grid gap-3 mt-4"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+        style={{ gridTemplateColumns: `repeat(${datos.length}, minmax(0, 1fr))` }}
       >
         {datos.map((unidad) => (
           <div key={`table-${unidad.unidad}`}>

@@ -51,9 +51,12 @@ export function FacturadoSection({
   // auto-fit (no columnas fijas): con pocas unidades activas la tarjeta llena
   // el ancho disponible en vez de quedar confinada a 1/5 de la fila.
   const gridColsClass = compact ? "grid-cols-1" : "";
+  // Columnas exactas (no auto-fit): las unidades activas siempre caben en una
+  // sola fila, encogiéndose si hace falta, en vez de que auto-fit mande la
+  // última a una segunda línea cuando el contenedor no alcanza para 5 de 240px.
   const gridColsStyle = compact
     ? undefined
-    : { gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" };
+    : { gridTemplateColumns: `repeat(${datosConActividad.length}, minmax(0, 1fr))` };
 
   return (
     <div className={cn("section-enter section-enter-2", part ? "" : "mb-8")}>

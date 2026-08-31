@@ -60,7 +60,7 @@ export function VentasPerdidasSectionLegacy({
           vacía. */}
       <div
         className="grid gap-3 mb-6"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+        style={{ gridTemplateColumns: `repeat(${datos.length}, minmax(0, 1fr))` }}
       >
         {datos.map((unidad) => (
           <BusinessUnitCard

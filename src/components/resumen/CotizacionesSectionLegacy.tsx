@@ -41,7 +41,7 @@ export function CotizacionesSectionLegacy({
           una columna vacía como pasaba con `grid-cols-5` fijo. */}
       <div
         className="grid gap-3 mb-6"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+        style={{ gridTemplateColumns: `repeat(${datos.length}, minmax(0, 1fr))` }}
       >
         {datos.map((unidad) => (
           <BusinessUnitCard
@@ -57,7 +57,7 @@ export function CotizacionesSectionLegacy({
           de "Top clientes" calcen en ancho con las tarjetas de unidad. */}
       <div
         className="grid gap-3"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+        style={{ gridTemplateColumns: `repeat(${datos.length}, minmax(0, 1fr))` }}
       >
         {datos.map((unidad) => (
           <div key={`table-${unidad.unidad}`}>
