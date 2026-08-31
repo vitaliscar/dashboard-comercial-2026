@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Dashboard Comercial"
+description = "A commercial performance dashboard for analyzing sales, service, rental, collections, marketing, and branch operations across the business."
+version = "1.0.0"
+id = "artifacts/dashboard-comercial"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21032
+
+[services.development]
+run = "pnpm --filter @workspace/dashboard-comercial run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dashboard-comercial", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/dashboard-comercial/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21032"
+BASE_PATH = "/"

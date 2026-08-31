@@ -1,0 +1,259 @@
+import { useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  BarChart3,
+  Bell,
+  Building2,
+  Calculator,
+  ChevronRight,
+  CircleDollarSign,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  Gauge,
+  LayoutDashboard,
+  Menu,
+  Megaphone,
+  Package,
+  Receipt,
+  Search,
+  Settings,
+  Target,
+  TrendingUp,
+  Truck,
+  UserCheck,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
+import { Link, Route, Switch, useLocation } from "wouter";
+
+type Module = {
+  path: string;
+  label: string;
+  group: string;
+  icon: typeof BarChart3;
+  description: string;
+};
+
+const modules: Module[] = [
+  { path: "/resumen", label: "Resumen", group: "Visión general", icon: BarChart3, description: "Pulso comercial consolidado" },
+  { path: "/dashboard", label: "Dashboard", group: "Visión general", icon: LayoutDashboard, description: "Vista ejecutiva por rol" },
+  { path: "/alertas", label: "Alertas", group: "Visión general", icon: Bell, description: "Riesgos y oportunidades" },
+  { path: "/embudo", label: "Embudo", group: "Gestión comercial", icon: Target, description: "Conversión de cotizaciones" },
+  { path: "/cliente-360", label: "Clientes", group: "Gestión comercial", icon: Users, description: "Valor y actividad por cliente" },
+  { path: "/asesores", label: "Asesores", group: "Gestión comercial", icon: UserCheck, description: "Rendimiento de la fuerza de ventas" },
+  { path: "/minutas", label: "Minutas", group: "Gestión comercial", icon: FileText, description: "Compromisos y seguimiento" },
+  { path: "/simulador", label: "Simulador", group: "Gestión comercial", icon: Calculator, description: "Escenarios de cumplimiento" },
+  { path: "/cobranzas", label: "Cobranzas", group: "Finanzas", icon: Receipt, description: "Cartera, mora y recuperación" },
+  { path: "/comisiones", label: "Comisiones", group: "Finanzas", icon: CircleDollarSign, description: "Reglas y liquidación comercial" },
+  { path: "/pareto", label: "Pareto", group: "Finanzas", icon: Gauge, description: "Concentración de ingresos" },
+  { path: "/mercadeo", label: "Mercadeo", group: "Crecimiento", icon: Megaphone, description: "Leads, canales y campañas" },
+  { path: "/servicios", label: "Servicios", group: "Unidades de negocio", icon: Wrench, description: "Talleres y servicios estratégicos" },
+  { path: "/repuestos", label: "Repuestos", group: "Unidades de negocio", icon: Package, description: "Ventas, meta e inventario" },
+  { path: "/lubfiltros", label: "Lub / Filtros", group: "Unidades de negocio", icon: Filter, description: "Desempeño por marca y sucursal" },
+  { path: "/equipos", label: "Equipos", group: "Unidades de negocio", icon: Truck, description: "Facturación, pipeline e inventario" },
+  { path: "/alquiler", label: "Alquiler", group: "Unidades de negocio", icon: Building2, description: "Ocupación y rendimiento" },
+  { path: "/carga", label: "Cargar Excel", group: "Administración", icon: FileSpreadsheet, description: "Actualización de fuentes comerciales" },
+  { path: "/usuarios", label: "Usuarios", group: "Administración", icon: Users, description: "Roles, permisos y cobertura" },
+  { path: "/ajustes-manuales", label: "Ajustes manuales", group: "Administración", icon: Settings, description: "Metas y correcciones autorizadas" },
+];
+
+const trend = [42, 48, 45, 56, 61, 58, 67, 72, 69, 78, 84, 88];
+
+function MetricCard({
+  label,
+  value,
+  delta,
+  tone = "primary",
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  tone?: "primary" | "success" | "warning";
+}) {
+  const toneClass = {
+    primary: "text-primary",
+    success: "text-emerald-400",
+    warning: "text-amber-400",
+  }[tone];
+  return (
+    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40">
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <div className="mt-4 flex items-end justify-between gap-4">
+        <strong className="font-mono text-2xl font-semibold tracking-tight text-foreground">{value}</strong>
+        <span className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${toneClass}`}>{delta}</span>
+      </div>
+    </article>
+  );
+}
+
+function Overview() {
+  return (
+    <div className="space-y-6">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Facturación acumulada" value="$ 4.82M" delta="+12.4%" tone="success" />
+        <MetricCard label="Cumplimiento de meta" value="87.6%" delta="+5.2 pts" />
+        <MetricCard label="Pipeline activo" value="$ 1.36M" delta="42 cuentas" />
+        <MetricCard label="Cartera en riesgo" value="$ 284K" delta="-8.1%" tone="warning" />
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.65fr_1fr]">
+        <article className="overflow-hidden rounded-2xl border border-border bg-card">
+          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Rendimiento 2026</p>
+              <h2 className="mt-1 font-display text-xl font-semibold">Ventas vs. meta comercial</h2>
+            </div>
+            <span className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground">Ene — Dic</span>
+          </header>
+          <div className="p-5">
+            <div className="flex h-64 items-end gap-2 sm:gap-3" aria-label="Tendencia mensual de ventas">
+              {trend.map((value, index) => (
+                <div key={index} className="group flex h-full flex-1 items-end">
+                  <div
+                    className="relative w-full rounded-t-md bg-gradient-to-t from-primary/55 to-primary transition-all duration-500 group-hover:brightness-125"
+                    style={{ height: `${value}%` }}
+                  >
+                    <span className="absolute -top-7 left-1/2 hidden -translate-x-1/2 rounded bg-background px-2 py-1 font-mono text-[10px] group-hover:block">
+                      {value}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-12 text-center text-[10px] uppercase tracking-wide text-muted-foreground">
+              {"EFMAMJJASOND".split("").map((month, index) => <span key={index}>{month}</span>)}
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Foco de gestión</p>
+              <h2 className="mt-1 font-display text-xl font-semibold">Prioridades de hoy</h2>
+            </div>
+            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><AlertTriangle size={19} /></span>
+          </div>
+          <div className="mt-5 space-y-3">
+            {[
+              ["Cartera vencida > 60 días", "12 clientes", "Alta"],
+              ["Cotizaciones sin seguimiento", "28 oportunidades", "Media"],
+              ["Sucursales bajo 75% de meta", "3 sucursales", "Media"],
+              ["Clientes con recompra probable", "19 cuentas", "Oportunidad"],
+            ].map(([title, detail, level], index) => (
+              <button key={title} className="group flex w-full items-center gap-3 rounded-xl border border-border bg-background/55 p-3 text-left transition hover:border-primary/45 hover:bg-primary/5">
+                <span className={`size-2 rounded-full ${index === 0 ? "bg-rose-400" : index === 3 ? "bg-emerald-400" : "bg-amber-400"}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{title}</span>
+                  <span className="text-xs text-muted-foreground">{detail} · {level}</span>
+                </span>
+                <ChevronRight size={16} className="text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+              </button>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        {[
+          ["Servicios", "94%", "$ 1.18M", "Mejor desempeño del período"],
+          ["Repuestos", "86%", "$ 940K", "Mayor oportunidad en Oriente"],
+          ["Equipos", "78%", "$ 1.42M", "Pipeline fuerte para septiembre"],
+        ].map(([name, pct, amount, note]) => (
+          <article key={name} className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between">
+              <div><p className="font-display text-lg font-semibold">{name}</p><p className="mt-1 text-xs text-muted-foreground">{note}</p></div>
+              <strong className="font-mono text-primary">{pct}</strong>
+            </div>
+            <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-background"><div className="h-full rounded-full bg-primary" style={{ width: pct }} /></div>
+            <p className="mt-3 font-mono text-sm text-foreground">{amount} facturado</p>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function ModulePage({ module }: { module: Module }) {
+  const Icon = module.icon;
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon size={23} /></span>
+            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{module.group}</p><h2 className="mt-1 font-display text-2xl font-semibold">{module.label}</h2><p className="mt-1 text-sm text-muted-foreground">{module.description}</p></div>
+          </div>
+          <button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110">Ver detalle</button>
+        </div>
+      </section>
+      <Overview />
+    </div>
+  );
+}
+
+function DashboardApp() {
+  const [location] = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const current = modules.find((item) => location === item.path) ?? modules[0];
+  const groups = useMemo(() => [...new Set(modules.map((item) => item.group))], []);
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {menuOpen && <button className="fixed inset-0 z-30 bg-black/70 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
+      <aside className={`fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-sidebar-border bg-sidebar transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
+          <img src={`${import.meta.env.BASE_URL}Logo_CCV.png`} alt="CCV" className="size-10 rounded-xl object-contain" />
+          <div className="min-w-0 flex-1"><p className="font-display text-sm font-bold tracking-wide">DASHBOARD</p><p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/55">Comercial 2026</p></div>
+          <button className="text-sidebar-foreground/60 lg:hidden" onClick={() => setMenuOpen(false)}><X size={19} /></button>
+        </div>
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
+          {groups.map((group) => (
+            <div key={group} className="mb-5">
+              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40">{group}</p>
+              <div className="space-y-1">
+                {modules.filter((item) => item.group === group).map((item) => {
+                  const Icon = item.icon;
+                  const active = location === item.path || (location === "/" && item.path === "/resumen");
+                  return (
+                    <Link key={item.path} href={item.path} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
+                      <Icon size={17} /><span className="flex-1">{item.label}</span>{active && <span className="size-1.5 rounded-full bg-current" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+        <div className="border-t border-sidebar-border p-4">
+          <div className="rounded-xl bg-sidebar-accent p-3"><p className="text-xs font-semibold">Gerencia Nacional</p><p className="mt-1 text-[11px] text-sidebar-foreground/55">Datos actualizados hoy, 08:42</p></div>
+        </div>
+      </aside>
+
+      <main className="min-h-screen lg:pl-[272px]">
+        <header className="sticky top-0 z-20 flex h-20 items-center gap-4 border-b border-border bg-background/88 px-4 backdrop-blur-xl sm:px-6">
+          <button className="flex size-10 items-center justify-center rounded-xl border border-border lg:hidden" onClick={() => setMenuOpen(true)}><Menu size={19} /></button>
+          <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">{current.group}</p><h1 className="truncate font-display text-lg font-semibold">{current.label}</h1></div>
+          <button className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 sm:flex"><Search size={16} />Buscar</button>
+          <button className="relative flex size-10 items-center justify-center rounded-xl border border-border bg-card"><Bell size={17} /><span className="absolute right-2 top-2 size-2 rounded-full border-2 border-card bg-rose-400" /></button>
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">GN</div>
+        </header>
+        <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div><p className="text-sm text-muted-foreground">Centro de decisiones comerciales</p><h2 className="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Buenos días, Gerencia</h2></div>
+            <div className="flex gap-2"><button className="rounded-xl border border-border bg-card px-3 py-2 text-sm">Todas las sucursales</button><button className="rounded-xl border border-border bg-card px-3 py-2 text-sm">Agosto 2026</button></div>
+          </div>
+          <Switch>
+            <Route path="/"><Overview /></Route>
+            {modules.map((item) => <Route key={item.path} path={item.path}><ModulePage module={item} /></Route>)}
+            <Route><Overview /></Route>
+          </Switch>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default DashboardApp;
