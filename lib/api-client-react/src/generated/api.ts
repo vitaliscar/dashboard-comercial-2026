@@ -21,10 +21,13 @@ import type {
 
 import type {
   AuthPayload,
+  CatalogosResponse,
+  GetResumenParams,
   HealthStatus,
   LoginRequest,
   Logout200,
-  Problem
+  Problem,
+  ResumenResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -125,13 +128,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getLoginUrl = () => {
 
 
@@ -273,13 +269,6 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getLogoutUrl = () => {
 
 
@@ -351,3 +340,157 @@ export const useLogout = <TError = ErrorType<unknown>,
       return useMutation(getLogoutMutationOptions(options));
     }
 
+export const getGetCatalogosUrl = () => {
+
+
+
+
+  return `/api/catalogos`
+}
+
+/**
+ * @summary Get commercial catalogs
+ */
+export const getCatalogos = async ( options?: Parameters<typeof customFetch>[1]): Promise<CatalogosResponse> => {
+
+  return customFetch<CatalogosResponse>(getGetCatalogosUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCatalogosQueryKey = () => {
+    return [
+    `/api/catalogos`
+    ] as const;
+    }
+
+
+export const getGetCatalogosQueryOptions = <TData = Awaited<ReturnType<typeof getCatalogos>>, TError = ErrorType<Problem>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCatalogos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCatalogosQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCatalogos>>> = ({ signal }) => getCatalogos({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCatalogos>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCatalogosQueryResult = NonNullable<Awaited<ReturnType<typeof getCatalogos>>>
+export type GetCatalogosQueryError = ErrorType<Problem>
+
+
+/**
+ * @summary Get commercial catalogs
+ */
+
+export function useGetCatalogos<TData = Awaited<ReturnType<typeof getCatalogos>>, TError = ErrorType<Problem>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCatalogos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCatalogosQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetResumenUrl = (params: GetResumenParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/resumen?${stringifiedParams}` : `/api/resumen`
+}
+
+/**
+ * @summary Get the commercial summary
+ */
+export const getResumen = async (params: GetResumenParams, options?: Parameters<typeof customFetch>[1]): Promise<ResumenResponse> => {
+
+  return customFetch<ResumenResponse>(getGetResumenUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetResumenQueryKey = (params?: GetResumenParams,) => {
+    return [
+    `/api/resumen`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetResumenQueryOptions = <TData = Awaited<ReturnType<typeof getResumen>>, TError = ErrorType<Problem>>(params: GetResumenParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getResumen>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetResumenQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getResumen>>> = ({ signal }) => getResumen(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getResumen>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetResumenQueryResult = NonNullable<Awaited<ReturnType<typeof getResumen>>>
+export type GetResumenQueryError = ErrorType<Problem>
+
+
+/**
+ * @summary Get the commercial summary
+ */
+
+export function useGetResumen<TData = Awaited<ReturnType<typeof getResumen>>, TError = ErrorType<Problem>>(
+ params: GetResumenParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getResumen>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetResumenQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

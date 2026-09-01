@@ -5,6 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface CatalogosResponse { [key: string]: unknown }
+
+export interface ResumenResponse { [key: string]: unknown }
+
 export interface HealthStatus {
   status: string;
 }
@@ -56,5 +60,15 @@ export interface Problem {
 
 export type Logout200 = {
   success: boolean;
+};
+
+export type GetResumenParams = {
+anio: number;
+/**
+ * Comma-separated month numbers, or all
+ */
+meses?: string;
+sucursalId?: string;
+unidadNegocioId?: string;
 };
 

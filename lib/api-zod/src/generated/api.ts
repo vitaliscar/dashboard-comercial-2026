@@ -24,24 +24,24 @@ export const HealthCheckResponse = zod.object({
 
 
 export const LoginBody = zod.object({
-  "email": zod.email(),
+  "email": zod.string().email(),
   "password": zod.string().min(1)
 })
 
 export const LoginResponse = zod.object({
   "user": zod.object({
-  "id": zod.uuid(),
-  "email": zod.email()
+  "id": zod.string().uuid(),
+  "email": zod.string().email()
 }),
   "profile": zod.object({
-  "id": zod.uuid(),
-  "email": zod.email(),
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
   "nombreCompleto": zod.string().nullable(),
-  "sucursalId": zod.uuid().nullable(),
-  "unidadNegocioId": zod.uuid().nullable(),
+  "sucursalId": zod.string().uuid().nullable(),
+  "unidadNegocioId": zod.string().uuid().nullable(),
   "isAdmin": zod.boolean(),
-  "unidadesNegocioIds": zod.array(zod.uuid()),
-  "sucursalesIds": zod.array(zod.uuid())
+  "unidadesNegocioIds": zod.array(zod.string().uuid()),
+  "sucursalesIds": zod.array(zod.string().uuid())
 }),
   "role": zod.union([zod.enum(['gerencia', 'gerente_comercial', 'coordinador', 'asesor']),zod.null()])
 })
@@ -52,18 +52,18 @@ export const LoginResponse = zod.object({
  */
 export const GetCurrentUserResponse = zod.object({
   "user": zod.object({
-  "id": zod.uuid(),
-  "email": zod.email()
+  "id": zod.string().uuid(),
+  "email": zod.string().email()
 }),
   "profile": zod.object({
-  "id": zod.uuid(),
-  "email": zod.email(),
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
   "nombreCompleto": zod.string().nullable(),
-  "sucursalId": zod.uuid().nullable(),
-  "unidadNegocioId": zod.uuid().nullable(),
+  "sucursalId": zod.string().uuid().nullable(),
+  "unidadNegocioId": zod.string().uuid().nullable(),
   "isAdmin": zod.boolean(),
-  "unidadesNegocioIds": zod.array(zod.uuid()),
-  "sucursalesIds": zod.array(zod.uuid())
+  "unidadesNegocioIds": zod.array(zod.string().uuid()),
+  "sucursalesIds": zod.array(zod.string().uuid())
 }),
   "role": zod.union([zod.enum(['gerencia', 'gerente_comercial', 'coordinador', 'asesor']),zod.null()])
 })
@@ -75,5 +75,24 @@ export const GetCurrentUserResponse = zod.object({
 export const LogoutResponse = zod.object({
   "success": zod.boolean()
 })
+
+
+/**
+ * @summary Get commercial catalogs
+ */
+export const GetCatalogosResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Get the commercial summary
+ */
+export const GetResumenQueryParams = zod.object({
+  "anio": zod.coerce.number().int(),
+  "meses": zod.coerce.string().optional().describe('Comma-separated month numbers, or all'),
+  "sucursalId": zod.coerce.string().uuid().optional(),
+  "unidadNegocioId": zod.coerce.string().uuid().optional()
+})
+
+export const GetResumenResponse = zod.record(zod.string(), zod.unknown())
 
 

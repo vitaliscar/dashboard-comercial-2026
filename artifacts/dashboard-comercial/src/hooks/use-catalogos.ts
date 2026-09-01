@@ -1,11 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  getSucursalesAction,
-  getSucursalesMercadeoAction,
-  getUnidadesAction,
-} from "@/lib/actions/catalogos";
+import { getCatalogosData } from "@/lib/api-data";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
 
 /**
@@ -19,12 +15,17 @@ import { unidadLabelInfo } from "@/lib/unidad-labels";
  * shape, así que la primera ruta en montar "ganaba" el caché para todas las
  * demás. Centralizar el select en un solo hook elimina ese bug latente.
  */
-export function useSucursales() {
+function useCatalogos() {
   return useQuery({
-    queryKey: ["sucursales"],
-    queryFn: () => getSucursalesAction(),
+    queryKey: ["catalogos"],
+    queryFn: getCatalogosData,
     staleTime: Infinity,
   });
+}
+
+export function useSucursales() {
+  const query = useCatalogos();
+  return { ...query, data: query.data?.sucursales };
 }
 
 /**
@@ -33,11 +34,8 @@ export function useSucursales() {
  * ["sucursales"] contaminaría el caché del resto de las rutas.
  */
 export function useSucursalesMercadeo() {
-  return useQuery({
-    queryKey: ["sucursales-mercadeo"],
-    queryFn: () => getSucursalesMercadeoAction(),
-    staleTime: Infinity,
-  });
+  const query = useCatalogos();
+  return { ...query, data: query.data?.sucursales };
 }
 
 /**
@@ -46,14 +44,13 @@ export function useSucursalesMercadeo() {
  * devuelve la query de Postgres.
  */
 export function useUnidades() {
-  return useQuery({
-    queryKey: ["unidades"],
-    queryFn: async () => {
-      const unidades = await getUnidadesAction();
-      return [...unidades].sort(
+  const query = useCatalogos();
+  return {
+    ...query,
+    data: query.data?.unidades
+      ? [...query.data.unidades].sort(
         (a, b) => unidadLabelInfo(a.nombre).order - unidadLabelInfo(b.nombre).order,
-      );
-    },
-    staleTime: Infinity,
-  });
+      )
+      : undefined,
+  };
 }

@@ -100,6 +100,70 @@ paths:
                   success:
                     type: boolean
                 required: [success]
+  /catalogos:
+    get:
+      operationId: getCatalogos
+      tags: [data]
+      summary: Get commercial catalogs
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Branches and business units available to the current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogosResponse"
+        "401":
+          description: Missing or expired session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /resumen:
+    get:
+      operationId: getResumen
+      tags: [data]
+      summary: Get the commercial summary
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: anio
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: meses
+          in: query
+          required: false
+          description: Comma-separated month numbers, or all
+          schema:
+            type: string
+        - name: sucursalId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: unidadNegocioId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Commercial summary data scoped to the current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumenResponse"
+        "401":
+          description: Missing or expired session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   securitySchemes:
     cookieAuth:
@@ -107,6 +171,12 @@ components:
       in: cookie
       name: ccv_session
   schemas:
+    CatalogosResponse:
+      type: object
+      additionalProperties: true
+    ResumenResponse:
+      type: object
+      additionalProperties: true
     HealthStatus:
       type: object
       properties:

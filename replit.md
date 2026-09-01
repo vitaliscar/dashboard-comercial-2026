@@ -18,7 +18,7 @@ Centro de decisiones comerciales para visualizar ventas, metas, cartera, oportun
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
+- Validation: Zod 3, `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 

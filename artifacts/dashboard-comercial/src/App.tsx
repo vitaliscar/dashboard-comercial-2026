@@ -30,6 +30,9 @@ import {
 import { Link, Route, Switch, useLocation } from "wouter";
 import { getHealthCheckQueryKey, useHealthCheck } from "@workspace/api-client-react";
 import { ModulePage } from "./components/module-pages";
+import ResumenPage from "./pages/resumen";
+import { useAuth } from "./hooks/use-auth";
+import { AuthForm } from "./components/auth-form";
 
 export type Module = {
   path: string;
@@ -165,6 +168,12 @@ function DemoRoleDashboardRoute({ path, role }: { path: string; role: DemoRole }
   const requiredRole = DEMO_DASHBOARD_ALIASES[path];
   const dashboard = modules.find((module) => module.path === "/dashboard")!;
   return requiredRole === role ? <DemoModuleRoute module={dashboard} role={role} /> : <AccessDenied role={role} />;
+}
+
+function ResumenRoute({ module, role }: { module: Module; role: DemoRole }) {
+  const { session, loading } = useAuth();
+  if (!loading && session) return <ResumenPage />;
+  return <DemoModuleRoute module={module} role={role} />;
 }
 
 function MetricCard({
@@ -360,6 +369,10 @@ function DashboardApp() {
     notify(`Vista demo: ${DEMO_ROLE_LABELS[nextRole]}`);
   };
 
+  if (location === "/auth") {
+    return <AuthForm />;
+  }
+
   return (
     <div className="ccv-shell min-h-screen bg-background text-foreground">
       {menuOpen && <button type="button" className="fixed inset-0 z-30 bg-black/70 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
@@ -425,7 +438,7 @@ function DashboardApp() {
           <Switch>
             <Route path="/"><Overview /></Route>
             {Object.keys(DEMO_DASHBOARD_ALIASES).map((path) => <Route key={path} path={path}><DemoRoleDashboardRoute path={path} role={demoRole} /></Route>)}
-             {modules.map((item) => <Route key={item.path} path={item.path}><DemoModuleRoute module={item} role={demoRole} /></Route>)}
+             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
             <Route><Overview /></Route>
           </Switch>
         </div>

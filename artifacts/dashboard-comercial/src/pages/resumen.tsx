@@ -18,7 +18,7 @@ import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { canFilterSucursal, getAccessibleSucursales } from "@/lib/permissions";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
-import { getResumenDataAction } from "@/lib/actions/resumen";
+import { getResumenData } from "@/lib/api-data";
 import { AlertCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -206,12 +206,10 @@ export default function ResumenPage() {
   } = useQuery({
     queryKey,
     queryFn: () =>
-      getResumenDataAction({
+      getResumenData({
         anio: filters.anio,
-        meses: filters.meses,
-        ranges: dateRanges,
+        meses: filters.meses === "all" ? "all" : filters.meses.join(","),
         sucursalId: selectedSucursalId,
-        prevMonthRanges,
       }),
     enabled: !!unidades && !!sucursales,
   });

@@ -49,7 +49,7 @@ function clearFailures(key: string) {
   failures.delete(key);
 }
 
-async function getPool(): Promise<Queryable | null> {
+export async function getPool(): Promise<Queryable | null> {
   if (!process.env.DATABASE_URL) return null;
   try {
     const database = await import("@workspace/db");
@@ -59,7 +59,7 @@ async function getPool(): Promise<Queryable | null> {
   }
 }
 
-async function loadPayload(pool: Queryable, userId: string) {
+export async function loadPayload(pool: Queryable, userId: string) {
   const profileResult = await pool.query(
     `SELECT id, email, nombre_completo, sucursal_id, unidad_negocio_id, is_admin
      FROM profiles WHERE id = $1 LIMIT 1`,
@@ -106,7 +106,7 @@ async function loadPayload(pool: Queryable, userId: string) {
   };
 }
 
-async function currentSession(req: Request) {
+export async function currentSession(req: Request) {
   const sessionId = req.cookies?.[SESSION_COOKIE_NAME];
   if (!sessionId) return null;
   const pool = await getPool();
