@@ -80,6 +80,8 @@ function PageIntro({
   action?: string;
   actionIcon?: typeof Plus;
 }) {
+  const [actionAcknowledged, setActionAcknowledged] = useState(false);
+
   return (
     <section className="rounded-2xl border border-border bg-card p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -91,6 +93,7 @@ function PageIntro({
         {action && (
           <button
             type="button"
+            onClick={() => setActionAcknowledged(true)}
             data-testid={`button-${module.path.slice(1)}-primary-action`}
             className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
           >
@@ -99,6 +102,11 @@ function PageIntro({
           </button>
         )}
       </div>
+      {actionAcknowledged && (
+        <p className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary" role="status">
+          {action} registrado en la vista demo. La ejecución real quedará conectada al API de este módulo.
+        </p>
+      )}
     </section>
   );
 }
@@ -362,7 +370,40 @@ function UnitView({ module }: { module: Module }) {
 }
 
 function LoadView({ module }: { module: Module }) {
-  return <div className="space-y-6"><PageIntro module={module} eyebrow="Administración de datos" action="Descargar plantilla" actionIcon={Download} /><div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]"><Section title="Nueva carga comercial" description="Valida el archivo antes de publicar cambios en el dashboard"><div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-primary/50 bg-primary/5 p-6 text-center"><span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><FileUp size={24} /></span><h4 className="mt-4 font-display text-lg font-semibold">Suelta tu archivo Excel aquí</h4><p className="mt-1 max-w-sm text-xs text-muted-foreground">Usa la plantilla comercial 2026. La carga se valida y se muestra como vista previa antes de reemplazar datos.</p><button type="button" className="mt-5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground" data-testid="button-load-file">Seleccionar archivo</button></div></Section><Section title="Última carga" description="Estado de las fuentes comerciales"><div className="rounded-xl border border-border p-4"><div className="flex items-center gap-3"><CheckCircle2 className="text-emerald-400" size={19} /><div><strong className="block text-sm">Comercial_Agosto_2026.xlsx</strong><span className="text-xs text-muted-foreground">Actualizada hoy a las 08:42 · 18,642 filas procesadas</span></div></div><div className="mt-5 grid grid-cols-2 gap-3"><Metric label="Filas válidas" value="18,616" detail="99.9% del archivo" tone="success" /><Metric label="Advertencias" value="26" detail="Revisar antes de publicar" tone="warning" /></div></div></Section></div></div>;
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-6">
+      <PageIntro module={module} eyebrow="Administración de datos" action="Descargar plantilla" actionIcon={Download} />
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+        <Section title="Nueva carga comercial" description="Valida el archivo antes de publicar cambios en el dashboard">
+          <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-primary/50 bg-primary/5 p-6 text-center">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><FileUp size={24} /></span>
+            <h4 className="mt-4 font-display text-lg font-semibold">Selecciona un archivo Excel</h4>
+            <p className="mt-1 max-w-sm text-xs text-muted-foreground">La selección funciona en esta vista demo. La publicación real quedará conectada al endpoint de carga con validación y vista previa.</p>
+            <input
+              id="demo-load-file"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="sr-only"
+              data-testid="input-load-file"
+              onChange={(event) => setSelectedFile(event.target.files?.[0]?.name ?? null)}
+            />
+            <label htmlFor="demo-load-file" className="mt-5 cursor-pointer rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground transition hover:brightness-110" data-testid="button-load-file">
+              Seleccionar archivo
+            </label>
+            {selectedFile && <p className="mt-3 text-xs font-semibold text-emerald-400" role="status">Archivo seleccionado: {selectedFile}</p>}
+          </div>
+        </Section>
+        <Section title="Última carga" description="Estado de las fuentes comerciales">
+          <div className="rounded-xl border border-border p-4">
+            <div className="flex items-center gap-3"><CheckCircle2 className="text-emerald-400" size={19} /><div><strong className="block text-sm">Comercial_Agosto_2026.xlsx</strong><span className="text-xs text-muted-foreground">Actualizada hoy a las 08:42 · 18,642 filas procesadas</span></div></div>
+            <div className="mt-5 grid grid-cols-2 gap-3"><Metric label="Filas válidas" value="18,616" detail="99.9% del archivo" tone="success" /><Metric label="Advertencias" value="26" detail="Revisar antes de publicar" tone="warning" /></div>
+          </div>
+        </Section>
+      </div>
+    </div>
+  );
 }
 
 function AdminView({ module, adjustments = false }: { module: Module; adjustments?: boolean }) {
