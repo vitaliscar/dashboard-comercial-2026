@@ -21,6 +21,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { Module } from "../App";
+import { Link } from "wouter";
 
 const money = (value: number) =>
   new Intl.NumberFormat("es-BO", {
@@ -78,7 +79,7 @@ function PageIntro({
     <section className="rounded-2xl border border-border bg-card p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{eyebrow ?? module.group}</p>
+          <div className="mb-2 flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{eyebrow ?? module.group}</p><span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">Datos demo</span></div>
           <h2 className="mt-1 font-display text-2xl font-semibold">{module.label}</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{module.description}</p>
         </div>
@@ -145,6 +146,15 @@ function HorizontalBars({ values, color = "bg-primary" }: { values: Array<{ labe
 }
 
 function DashboardView({ module }: { module: Module }) {
+  const [resolved, setResolved] = useState<number[]>([]);
+  const [feedback, setFeedback] = useState("");
+  const decisions = [
+    ["Destrabar cartera crítica", "12 clientes superan 60 días · $ 126K expuestos", "Crítica"],
+    ["Recuperar seguimiento de Equipos", "12 oportunidades vencen en 7 días", "Atención"],
+    ["Activar recompra en Oriente", "19 cuentas con señal de compra · $ 146K potencial", "Oportunidad"],
+    ["Revisar cobertura de Santa Cruz", "68% de meta · 12 puntos bajo objetivo", "Atención"],
+  ];
+  const act = (message: string) => { setFeedback(message); window.setTimeout(() => setFeedback(""), 2200); };
   return (
     <div className="space-y-6">
       <PageIntro module={module} eyebrow="Sala de control" action="Exportar briefing" actionIcon={Download} />
@@ -154,39 +164,35 @@ function DashboardView({ module }: { module: Module }) {
         <Metric label="Cobertura pipeline" value="2.2x" detail="+0.3x sobre objetivo" tone="success" />
         <Metric label="Riesgos abiertos" value="17" detail="5 requieren atención" tone="warning" />
       </div>
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <Section title="Pulso por unidad" description="Lectura ejecutiva del avance contra meta" action="Ver comparativo">
-          <div className="space-y-5">
-            {[
-              ["Servicios", 94, "$ 1.18M", "Sobre meta"],
-              ["Repuestos", 86, "$ 940K", "Recuperable"],
-              ["Equipos", 78, "$ 1.42M", "Pipeline fuerte"],
-              ["Alquiler", 71, "$ 328K", "Bajo observación"],
-            ].map(([name, value, amount, status], index) => (
-              <div key={name} className="grid grid-cols-[88px_1fr_auto] items-center gap-3" data-testid={`dashboard-unit-${index}`}>
-                <span className="text-sm font-medium">{name}</span>
-                <div className="h-2 overflow-hidden rounded-full bg-background"><div className={`h-full rounded-full ${Number(value) >= 85 ? "bg-emerald-400" : "bg-primary"}`} style={{ width: `${value}%` }} /></div>
-                <span className="text-right"><strong className="font-mono text-sm">{value}%</strong><small className="ml-2 text-xs text-muted-foreground">{status}</small></span>
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+        <Section title="Ventas vs. meta comercial" description="Tendencia mensual · datos de demostración" action="Ver comparativo">
+          <div className="ccv-local-chart" role="img" aria-label="Gráfico de ventas facturadas y meta de enero a diciembre">
+            <svg viewBox="0 0 600 190" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="sales-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#d4ab54" stopOpacity=".3" /><stop offset="1" stopColor="#d4ab54" stopOpacity="0" /></linearGradient></defs><path d="M0 158 L50 145 L100 151 L150 127 L200 136 L250 112 L300 118 L350 88 L400 98 L450 60 L500 70 L550 38 L600 47 L600 190 L0 190Z" fill="url(#sales-area)" /><polyline points="0,158 50,145 100,151 150,127 200,136 250,112 300,118 350,88 400,98 450,60 500,70 550,38 600,47" fill="none" stroke="#d4ab54" strokeWidth="3" vectorEffect="non-scaling-stroke" /><polyline points="0,169 50,159 100,151 150,143 200,132 250,128 300,115 350,105 400,94 450,83 500,73 550,62 600,52" fill="none" stroke="#6ec4b4" strokeWidth="2" strokeDasharray="6 5" vectorEffect="non-scaling-stroke" /></svg>
+            <div className="ccv-chart-legend"><span><i className="ccv-legend-dot signal" />Facturado</span><span><i className="ccv-legend-dot teal" />Meta</span></div>
+            <div className="ccv-chart-months">{["Ene","Mar","May","Jul","Sep","Nov","Dic"].map((month) => <span key={month}>{month}</span>)}</div>
+          </div>
+        </Section>
+        <Section title="Decisiones prioritarias" description="Acciones con mayor impacto esta semana">
+          <div className="space-y-3">
+            {decisions.map(([title, text, priority], index) => (
+              <div key={title} className={`flex items-start gap-3 rounded-xl border border-border bg-background/50 p-3 transition hover:border-primary/50 ${resolved.includes(index) ? "opacity-50" : ""}`} data-testid={`decision-${index}`}>
+                <span className={`mt-1 size-2 shrink-0 rounded-full ${index === 0 ? "bg-rose-400" : index === 2 ? "bg-emerald-400" : "bg-amber-400"}`} />
+                <button type="button" aria-label={`Abrir decisión ${title}`} onClick={() => act(`Abriendo acción: ${title}`)} className="min-w-0 flex-1 text-left"><strong className={`block text-sm ${resolved.includes(index) ? "line-through" : ""}`}>{title}</strong><span className="mt-1 block text-xs text-muted-foreground">{text}</span></button>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{resolved.includes(index) ? "Atendida" : priority}</span>
+                <button type="button" aria-label={`Marcar ${title} como atendida`} onClick={() => { setResolved((items) => [...items, index]); act("Decisión marcada como atendida"); }} className="rounded-lg border border-border p-1 text-emerald-400 hover:border-primary"><CheckCircle2 size={14} /></button>
               </div>
             ))}
           </div>
         </Section>
-        <Section title="Decisiones sugeridas" description="Acciones con mayor impacto esta semana">
-          <div className="space-y-3">
-            {[
-              ["Reasignar foco", "12 oportunidades de Equipos vencen en 7 días", "Alta"],
-              ["Destrabar cartera", "$ 84K tienen promesa de pago esta semana", "Media"],
-              ["Activar recompra", "19 clientes están listos para una nueva oferta", "Oportunidad"],
-            ].map(([title, text, priority], index) => (
-              <button type="button" key={title} data-testid={`decision-${index}`} className="flex w-full items-start gap-3 rounded-xl border border-border bg-background/50 p-3 text-left transition hover:border-primary/50">
-                <span className={`mt-1 size-2 shrink-0 rounded-full ${index === 0 ? "bg-rose-400" : index === 1 ? "bg-amber-400" : "bg-emerald-400"}`} />
-                <span className="min-w-0 flex-1"><strong className="block text-sm">{title}</strong><span className="mt-1 block text-xs text-muted-foreground">{text}</span></span>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{priority}</span>
-              </button>
-            ))}
-          </div>
-        </Section>
       </div>
+      <div className="grid gap-6 lg:grid-cols-[1.35fr_.8fr_.7fr]">
+        <Section title="Resultado por unidad" description="Avance contra meta y señal de gestión">
+          <div className="space-y-3">{[["Servicios",94,"$ 1.18M","Sobre meta"],["Repuestos",86,"$ 940K","Recuperable"],["Equipos",78,"$ 1.42M","Pipeline fuerte"],["Alquiler",71,"$ 328K","Bajo observación"]].map(([name,pct,amount,status]) => <div key={name} className="ccv-unit-line"><span>{name}</span><div className="ccv-unit-track"><i className={Number(pct) >= 85 ? "good" : ""} style={{ width: `${pct}%` }} /></div><strong>{pct}%</strong><small>{amount} · {status}</small></div>)}</div>
+        </Section>
+        <Section title="Señales rápidas" description="Salud del negocio"><div className="ccv-signal-stack"><div className="good"><strong>+$ 84K</strong><span>promesas de pago esta semana</span></div><div><strong>19</strong><span>recompras probables</span></div><div className="risk"><strong>3</strong><span>sucursales bajo 75%</span></div></div></Section>
+        <Section title="Próximo hito" description="Ritmo del día"><div className="ccv-next-hito"><strong>16:00</strong><span>Comité comercial nacional</span><small>4 compromisos · 6 líderes de unidad</small><button type="button" onClick={() => act("Minuta abierta para el comité")} className="mt-4 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:border-primary">Abrir minuta</button></div></Section>
+      </div>
+      {feedback && <div className="ccv-toast" role="status">{feedback}</div>}
     </div>
   );
 }
@@ -227,15 +233,22 @@ function AlertsView({ module }: { module: Module }) {
 }
 
 function FunnelView({ module }: { module: Module }) {
+  const [query, setQuery] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [filter, setFilter] = useState("Todas");
   const funnel = [
     ["Cotizaciones creadas", 412, "$ 2.84M", 100],
     ["Con seguimiento", 286, "$ 2.16M", 69],
     ["En negociación", 164, "$ 1.36M", 40],
     ["Ganadas", 97, "$ 784K", 24],
   ];
+  const opportunities = [["AgroBolivia S.A.","Equipos","$ 246K","Negociación","María F. Rojas"],["Constructora El Alto","Servicios","$ 184K","Sin actividad","Carlos Méndez"],["Transportes Andinos","Repuestos","$ 142K","Vence mañana","Andrea Salvatierra"],["Minera San Cristóbal","Lub / Filtros","$ 98K","Negociación","Luis Vargas"]];
+  const notify = (message: string) => { setFeedback(message); window.setTimeout(() => setFeedback(""), 2200); };
+  const visible = opportunities.filter((item) => item[0].toLowerCase().includes(query.toLowerCase()) && (filter === "Todas" || item[3] === filter));
   return (
     <div className="space-y-6">
       <PageIntro module={module} eyebrow="Conversión comercial" action="Nueva oportunidad" actionIcon={Plus} />
+      <div className="flex items-center gap-2 border-b border-border"><span className="border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary">Embudo</span><Link href="/cobranzas" className="px-1 pb-2 text-sm text-muted-foreground hover:text-primary">Cobranzas</Link></div>
       <div className="grid gap-4 sm:grid-cols-3"><Metric label="Pipeline activo" value="$ 1.36M" detail="+12.4% en el mes" tone="success" /><Metric label="Conversión a venta" value="23.5%" detail="+3.8 pts vs. 2025" tone="success" /><Metric label="Ciclo promedio" value="18 días" detail="−2 días de mejora" tone="success" /></div>
       <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
         <Section title="Embudo de oportunidades" description="Volumen y valor en cada etapa">
@@ -249,9 +262,14 @@ function FunnelView({ module }: { module: Module }) {
           </div>
         </Section>
         <Section title="Cuellos de botella" description="Dónde se está perdiendo velocidad">
-          <div className="space-y-4"><HorizontalBars values={[{ label: "Sin próxima actividad", value: 61, note: "126 oportunidades" }, { label: "Más de 14 días estancadas", value: 38, note: "78 oportunidades" }, { label: "Sin decisor identificado", value: 26, note: "54 oportunidades" }]} color="bg-rose-400" /><button type="button" className="mt-2 flex items-center gap-2 text-xs font-semibold text-primary" data-testid="button-funnel-action">Ver oportunidades críticas <ChevronRight size={14} /></button></div>
+           <div className="space-y-4"><HorizontalBars values={[{ label: "Sin próxima actividad", value: 61, note: "126 oportunidades" }, { label: "Más de 14 días estancadas", value: 38, note: "78 oportunidades" }, { label: "Sin decisor identificado", value: 26, note: "54 oportunidades" }]} color="bg-rose-400" /><button type="button" onClick={() => { setFilter("Sin actividad"); notify("Filtro aplicado: sin próxima actividad"); }} className="mt-2 flex items-center gap-2 text-xs font-semibold text-primary" data-testid="button-funnel-action">Ver oportunidades críticas <ChevronRight size={14} /></button></div>
         </Section>
       </div>
+        <Section title="Bandeja de trabajo" description="La siguiente acción está a un clic de distancia">
+          <div className="mb-4 flex flex-wrap gap-2"><label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2"><Search size={15} className="text-muted-foreground" /><input aria-label="Buscar oportunidades" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente..." className="w-full bg-transparent text-sm outline-none" data-testid="input-funnel-search" /></label>{["Todas","Negociación","Sin actividad","Vence mañana"].map((item) => <button type="button" key={item} aria-pressed={filter === item} onClick={() => setFilter(item)} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${filter === item ? "border-primary bg-primary/10 text-primary" : "border-border"}`}>{item}</button>)}</div>
+          <div className="overflow-x-auto"><table aria-label="Oportunidades que necesitan movimiento" className="w-full min-w-[650px] text-left text-sm"><caption className="sr-only">Bandeja de oportunidades comerciales</caption><thead><tr className="border-b border-border text-xs uppercase text-muted-foreground"><th className="pb-3">Cliente</th><th className="pb-3">Unidad</th><th className="pb-3">Valor</th><th className="pb-3">Estado</th><th className="pb-3">Responsable</th><th /></tr></thead><tbody>{visible.map((item,index) => <tr key={item[0]} className="border-b border-border/60"><td className="py-3 font-semibold">{item[0]}</td><td className="py-3 text-muted-foreground">{item[1]}</td><td className="py-3 font-mono">{item[2]}</td><td className="py-3"><span className={item[3] === "Sin actividad" ? "status-danger rounded-full px-2 py-1 text-[10px]" : "status-warning rounded-full px-2 py-1 text-[10px]"}>{item[3]}</span></td><td className="py-3 text-muted-foreground">{item[4]}</td><td className="py-3 text-right"><button type="button" onClick={() => notify(`Siguiente acción abierta para ${item[0]}`)} className="rounded-lg border border-border px-2 py-1 text-xs font-semibold text-primary hover:border-primary" data-testid={`button-funnel-next-${index}`}>Siguiente acción</button></td></tr>)}</tbody></table>{visible.length === 0 && <p className="p-5 text-center text-sm text-muted-foreground">No hay oportunidades con estos filtros.</p>}</div>
+        </Section>
+        {feedback && <div className="ccv-toast" role="status">{feedback}</div>}
     </div>
   );
 }
@@ -301,7 +319,13 @@ function SimulatorView({ module }: { module: Module }) {
 
 function CollectionsView({ module }: { module: Module }) {
   const aging = [{ label: "Al día", value: 54, note: "$ 612K" }, { label: "1–30 días", value: 21, note: "$ 238K" }, { label: "31–60 días", value: 14, note: "$ 158K" }, { label: "+60 días", value: 11, note: "$ 126K" }];
-  return <div className="space-y-6"><PageIntro module={module} eyebrow="Salud financiera" action="Registrar gestión" actionIcon={Plus} /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Cartera total" value="$ 1.13M" detail="+2.8% mensual" /><Metric label="Vencida" value="$ 284K" detail="25.1% de cartera" tone="warning" /><Metric label="Recuperado mes" value="$ 176K" detail="+18.4% vs. julio" tone="success" /><Metric label="Promesas vigentes" value="42" detail="$ 84K comprometidos" tone="success" /></div><div className="grid gap-6 lg:grid-cols-2"><Section title="Antigüedad de cartera" description="Distribución del saldo por días"><HorizontalBars values={aging} color="bg-amber-400" /></Section><Section title="Cuentas que requieren llamada" description="Mayor saldo y mayor probabilidad de recuperación"><div className="space-y-3">{[["Transportes Andinos", "$ 42.8K", "Promesa vencida"], ["Hotel Los Tajibos", "$ 31.2K", "Sin contacto 12 días"], ["Industrias Vinto", "$ 24.6K", "Compromiso mañana"]].map((item, index) => <div key={item[0]} className="flex items-center gap-3 rounded-xl border border-border p-3" data-testid={`collection-account-${index}`}><span className="flex size-9 items-center justify-center rounded-lg bg-rose-400/10 text-rose-400"><Flame size={16} /></span><div className="min-w-0 flex-1"><strong className="block truncate text-sm">{item[0]}</strong><span className="text-xs text-muted-foreground">{item[2]}</span></div><strong className="font-mono text-sm">{item[1]}</strong></div>)}</div></Section></div></div>;
+  const [selectedAge, setSelectedAge] = useState("Todas");
+  const [managed, setManaged] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState("");
+  const accounts = [["Transportes Andinos", "$ 42.8K", "Promesa vencida", "+60 días"], ["Hotel Los Tajibos", "$ 31.2K", "Sin contacto 12 días", "31–60 días"], ["Industrias Vinto", "$ 24.6K", "Compromiso mañana", "1–30 días"], ["AgroBolivia S.A.", "$ 18.4K", "Sin gestión registrada", "+60 días"]];
+  const notify = (message: string) => { setFeedback(message); window.setTimeout(() => setFeedback(""), 2200); };
+  const visible = accounts.filter((item) => !managed.includes(item[0]) && (selectedAge === "Todas" || item[3] === selectedAge));
+  return <div className="space-y-6"><PageIntro module={module} eyebrow="Salud financiera" action="Registrar gestión" actionIcon={Plus} /><div className="flex items-center gap-2 border-b border-border"><Link href="/embudo" className="px-1 pb-2 text-sm text-muted-foreground hover:text-primary">Embudo</Link><span className="border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary">Cobranzas</span></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Cartera total" value="$ 1.13M" detail="+2.8% mensual" /><Metric label="Vencida" value="$ 284K" detail="25.1% de cartera" tone="warning" /><Metric label="Recuperado mes" value="$ 176K" detail="+18.4% vs. julio" tone="success" /><Metric label="Promesas vigentes" value="42" detail="$ 84K comprometidos" tone="success" /></div><div className="grid gap-6 lg:grid-cols-2"><Section title="Dónde recuperar primero" description="Distribución del saldo por días · datos demo"><div className="ccv-aging-visual">{aging.map((item) => <div key={item.label} className="ccv-aging-item"><strong>{item.note}</strong><i style={{ height: `${Math.max(12, item.value * 2)}%` }} /><span>{item.label}</span></div>)}</div><div className="mt-4 flex flex-wrap gap-2">{["Todas","1–30 días","31–60 días","+60 días"].map((age) => <button type="button" key={age} aria-pressed={selectedAge === age} onClick={() => setSelectedAge(age)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${selectedAge === age ? "border-primary bg-primary/10 text-primary" : "border-border"}`}>{age}</button>)}</div></Section><Section title="Cuentas a gestionar" description="Mayor saldo y probabilidad de recuperación"><div className="space-y-3">{visible.map((item, index) => <div key={item[0]} className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3" data-testid={`collection-account-${index}`}><span className="flex size-9 items-center justify-center rounded-lg bg-rose-400/10 text-rose-400"><Flame size={16} /></span><div className="min-w-[150px] flex-1"><strong className="block truncate text-sm">{item[0]}</strong><span className="text-xs text-muted-foreground">{item[2]} · {item[3]}</span></div><strong className="font-mono text-sm">{item[1]}</strong><button type="button" onClick={() => { setManaged((items) => [...items, item[0]]); notify(`Gestión registrada para ${item[0]}`); }} className="rounded-lg border border-border px-2 py-1 text-xs font-semibold text-primary hover:border-primary" data-testid={`button-collection-manage-${index}`}>Gestionar</button></div>)}{visible.length === 0 && <p className="p-5 text-center text-sm text-muted-foreground">No hay cuentas pendientes en este tramo.</p>}</div></Section></div>{feedback && <div className="ccv-toast" role="status">{feedback}</div>}</div>;
 }
 
 function CommissionsView({ module }: { module: Module }) {

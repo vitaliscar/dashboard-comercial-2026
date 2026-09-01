@@ -1,0 +1,1 @@
+- [UX prototyping to production](ux-prototyping-to-production.md) — Validate CCV palette and action-first hierarchy in the mockup sandbox before graduating them to the dashboard.

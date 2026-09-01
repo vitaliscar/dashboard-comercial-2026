@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -19,39 +19,39 @@
   --font-size: 14px;
 
   /* ── Base ─────────────────────────────────────────────────────────── */
-  --bg-primary: oklch(0.13 0.01 255);
-  --surface-primary: oklch(0.17 0.01 255);
-  --surface-2: oklch(0.2 0.01 255);
-  --text-primary: oklch(0.92 0.005 255);
-  --accent-gold: oklch(0.72 0.09 230);
-  --accent-gold-ink: oklch(0.72 0.09 230);
-  --muted: oklch(0.2 0.01 255);
-  --border-color: oklch(0.26 0.01 255);
-  --success: oklch(0.62 0.16 155);
-  --warning: oklch(0.75 0.15 80);
-  --danger: oklch(0.68 0.22 25);
+  --bg-primary: #0b1215;
+  --surface-primary: #152126;
+  --surface-2: #1b2a30;
+  --text-primary: #e8edf0;
+  --accent-gold: #d4ab54;
+  --accent-gold-ink: #d4ab54;
+  --muted: #1b2a30;
+  --border-color: #2b3c42;
+  --success: #6ec4b4;
+  --warning: #d4ab54;
+  --danger: #e47e76;
 
   /* ── shadcn tokens ────────────────────────────────────────────────── */
-  --background: oklch(0.13 0.01 255);
-  --foreground: oklch(0.92 0.005 255);
-  --card: oklch(0.17 0.01 255);
-  --card-foreground: oklch(0.92 0.005 255);
-  --popover: oklch(0.2 0.01 255);
-  --popover-foreground: oklch(0.92 0.005 255);
-  --primary: oklch(0.72 0.09 230);
-  --primary-foreground: oklch(0.13 0.01 255);
-  --secondary: oklch(0.2 0.01 255);
-  --secondary-foreground: oklch(0.92 0.005 255);
-  --muted-foreground: oklch(0.6 0.01 255);
-  --accent: oklch(0.2 0.01 255);
-  --accent-foreground: oklch(0.92 0.005 255);
-  --destructive: oklch(0.68 0.22 25);
-  --destructive-foreground: oklch(0.92 0.005 255);
-  --border: oklch(0.26 0.01 255);
-  --input: oklch(0.26 0.01 255);
-  --input-background: oklch(0.15 0.01 255);
-  --switch-background: oklch(0.26 0.01 255);
-  --ring: oklch(0.72 0.09 230);
+  --background: #0b1215;
+  --foreground: #e8edf0;
+  --card: #152126;
+  --card-foreground: #e8edf0;
+  --popover: #1b2a30;
+  --popover-foreground: #e8edf0;
+  --primary: #d4ab54;
+  --primary-foreground: #0b1215;
+  --secondary: #1b2a30;
+  --secondary-foreground: #e8edf0;
+  --muted-foreground: #8fa2a7;
+  --accent: #1b2a30;
+  --accent-foreground: #e8edf0;
+  --destructive: #e47e76;
+  --destructive-foreground: #e8edf0;
+  --border: #2b3c42;
+  --input: #2b3c42;
+  --input-background: #10191d;
+  --switch-background: #2b3c42;
+  --ring: #d4ab54;
 
   /* ── Charts ───────────────────────────────────────────────────────── */
   --chart-1: oklch(0.72 0.09 230);
@@ -61,14 +61,14 @@
   --chart-5: oklch(0.62 0.16 300);
 
   /* ── Sidebar ──────────────────────────────────────────────────────── */
-  --sidebar: oklch(0.11 0.01 255);
-  --sidebar-foreground: oklch(0.92 0.005 255);
-  --sidebar-primary: oklch(0.72 0.09 230);
-  --sidebar-primary-foreground: oklch(0.13 0.01 255);
-  --sidebar-accent: oklch(0.2 0.01 255);
-  --sidebar-accent-foreground: oklch(0.92 0.005 255);
-  --sidebar-border: oklch(0.22 0.01 255);
-  --sidebar-ring: oklch(0.72 0.09 230);
+  --sidebar: #0c1417;
+  --sidebar-foreground: #e8edf0;
+  --sidebar-primary: #d4ab54;
+  --sidebar-primary-foreground: #0b1215;
+  --sidebar-accent: #1b2a30;
+  --sidebar-accent-foreground: #e8edf0;
+  --sidebar-border: #2b3c42;
+  --sidebar-ring: #d4ab54;
   --sidebar-collapsed-width: 56px;
   --sidebar-expanded-width: 220px;
 
@@ -86,8 +86,8 @@
   --chart-calm-4: oklch(0.62 0.16 155 / 0.4);
   --chart-calm-5: oklch(0.62 0.22 25 / 0.6);
 
-  --font-display: "Space Grotesk Variable", "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* Sombras — en dark mode el peso lo lleva el borde, no la sombra */
@@ -505,4 +505,80 @@
 .recharts-cartesian-grid,
 .recharts-polar-grid {
   display: none;
+}
+
+/* Production shell: visual language shared with the approved CCV direction. */
+.ccv-shell {
+  background:
+    radial-gradient(circle at 94% -10%, rgba(212, 171, 84, .1), transparent 28rem),
+    radial-gradient(circle at -8% 90%, rgba(110, 196, 180, .06), transparent 25rem),
+    #0b1215;
+  font-family: "Outfit", ui-sans-serif, sans-serif;
+}
+.ccv-shell .bg-card {
+  background: linear-gradient(145deg, rgba(27, 42, 48, .96), rgba(20, 32, 37, .96));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+}
+.ccv-shell button,
+.ccv-shell a,
+.ccv-shell select,
+.ccv-shell input {
+  outline-offset: 3px;
+}
+.ccv-shell button:focus-visible,
+.ccv-shell a:focus-visible,
+.ccv-shell select:focus-visible,
+.ccv-shell input:focus-visible {
+  outline: 2px solid var(--primary);
+  box-shadow: 0 0 0 4px rgba(212, 171, 84, .16);
+}
+.ccv-toast {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 60;
+  border: 1px solid rgba(110, 196, 180, .38);
+  border-radius: .75rem;
+  background: #1b2a30;
+  color: #e8edf0;
+  padding: .7rem 1rem;
+  font-size: .75rem;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .24);
+}
+.ccv-command-panel {
+  animation: ccv-fade-in-up 180ms var(--ease-out) both;
+}
+.ccv-local-chart { position: relative; min-height: 230px; padding: 1rem 0 1.5rem; }
+.ccv-local-chart svg { display: block; width: 100%; height: 190px; border-bottom: 1px solid var(--border); }
+.ccv-chart-legend { display: flex; gap: 1rem; margin-top: .75rem; color: var(--muted-foreground); font-size: .7rem; }
+.ccv-legend-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--primary); }
+.ccv-legend-dot.teal { background: var(--success); }
+.ccv-chart-months { display: flex; justify-content: space-between; color: var(--muted-foreground); font: .65rem var(--font-mono); margin-top: .45rem; }
+.ccv-unit-line { display: grid; grid-template-columns: 82px minmax(70px, 1fr) 42px minmax(130px, auto); align-items: center; gap: .7rem; padding: .65rem 0; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); font-size: .75rem; }
+.ccv-unit-line strong, .ccv-unit-line small { font-family: var(--font-mono); }
+.ccv-unit-line small { color: var(--muted-foreground); font-size: .63rem; }
+.ccv-unit-track { height: 7px; overflow: hidden; border-radius: 99px; background: color-mix(in oklab, var(--foreground) 10%, transparent); }
+.ccv-unit-track i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+.ccv-unit-track i.good { background: var(--success); }
+.ccv-signal-stack { display: grid; gap: .8rem; }
+.ccv-signal-stack > div { border-left: 2px solid var(--primary); padding: .2rem 0 .2rem .75rem; }
+.ccv-signal-stack > div.good { border-color: var(--success); }
+.ccv-signal-stack > div.risk { border-color: var(--danger); }
+.ccv-signal-stack strong { display: block; font: 600 1.2rem var(--font-mono); }
+.ccv-signal-stack span, .ccv-next-hito small { display: block; color: var(--muted-foreground); font-size: .68rem; }
+.ccv-next-hito > strong { display: block; color: var(--primary); font: 600 1.5rem var(--font-mono); }
+.ccv-next-hito > span { display: block; margin: .55rem 0 .25rem; font-weight: 600; font-size: .75rem; }
+.ccv-aging-visual { display: flex; align-items: end; gap: .8rem; height: 190px; padding: 0 .5rem; border-bottom: 1px solid var(--border); }
+.ccv-aging-item { display: flex; flex: 1; height: 100%; flex-direction: column; align-items: center; justify-content: end; gap: .45rem; }
+.ccv-aging-item strong { font: .65rem var(--font-mono); color: var(--muted-foreground); }
+.ccv-aging-item i { display: block; width: 100%; min-height: 12px; border-radius: 7px 7px 2px 2px; background: var(--primary); }
+.ccv-aging-item:first-child i { background: var(--success); }
+.ccv-aging-item:last-child i { background: var(--danger); }
+.ccv-aging-item span { color: var(--muted-foreground); font-size: .65rem; }
+@media (max-width: 640px) {
+  .ccv-unit-line { grid-template-columns: 72px minmax(50px, 1fr) 40px; }
+  .ccv-unit-line small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ccv-command-panel { animation: none; }
 }
