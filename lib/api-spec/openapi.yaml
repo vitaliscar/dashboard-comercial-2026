@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Session authentication
 paths:
   /healthz:
     get:
@@ -24,7 +26,86 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated user and scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthPayload"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current session
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current authenticated user and scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthPayload"
+        "401":
+          description: Missing or expired session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Session ended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
 components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: ccv_session
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +114,75 @@ components:
           type: string
       required:
         - status
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+      required: [email, password]
+    AppRole:
+      type: string
+      enum: [gerencia, gerente_comercial, coordinador, asesor]
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+      required: [id, email]
+    AuthProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        nombreCompleto:
+          type: [string, "null"]
+        sucursalId:
+          type: [string, "null"]
+          format: uuid
+        unidadNegocioId:
+          type: [string, "null"]
+          format: uuid
+        isAdmin:
+          type: boolean
+        unidadesNegocioIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        sucursalesIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required: [id, email, nombreCompleto, sucursalId, unidadNegocioId, isAdmin, unidadesNegocioIds, sucursalesIds]
+    AuthPayload:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+        profile:
+          $ref: "#/components/schemas/AuthProfile"
+        role:
+          anyOf:
+            - $ref: "#/components/schemas/AppRole"
+            - type: "null"
+      required: [user, profile, role]
+    Problem:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
 

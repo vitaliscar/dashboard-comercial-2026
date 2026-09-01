@@ -1,12 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { loginAction, logoutAction, meAction, type AppRole } from "@/lib/actions/auth";
 import { clearSharedFilters } from "@/lib/shared-filters";
-import { getRoleModuleAccessAction } from "@/lib/actions/permisos";
-import { setModuleAccessOverride } from "@/lib/permissions";
 
-export type { AppRole };
+export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 export interface UserProfile {
   id: string;
@@ -22,6 +19,21 @@ export interface UserProfile {
 interface SessionUser {
   id: string;
   email: string;
+}
+
+interface AuthPayload {
+  user: SessionUser;
+  profile: {
+    id: string;
+    email: string;
+    nombreCompleto: string | null;
+    sucursalId: string | null;
+    unidadNegocioId: string | null;
+    isAdmin: boolean;
+    unidadesNegocioIds: string[];
+    sucursalesIds: string[];
+  };
+  role: AppRole | null;
 }
 
 interface AuthContextValue {
@@ -59,6 +71,20 @@ function toUserProfile(profile: {
   };
 }
 
+async function requestAuth(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`/api/auth${path}`, {
+    ...init,
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...init?.headers },
+  });
+}
+
+async function readAuthPayload(response: Response): Promise<AuthPayload | null> {
+  if (!response.ok) return null;
+  const payload = (await response.json()) as AuthPayload;
+  return payload?.user && payload?.profile ? payload : null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SessionUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -66,13 +92,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadFromMe = async () => {
-    const me = await meAction();
-    if (me) {
-      setSession(me.user);
-      setProfile(toUserProfile(me.profile));
-      setRole(me.role);
-      getRoleModuleAccessAction().then(setModuleAccessOverride).catch(() => {});
-    } else {
+    try {
+      const me = await readAuthPayload(await requestAuth("/me"));
+      if (me) {
+        setSession(me.user);
+        setProfile(toUserProfile(me.profile));
+        setRole(me.role);
+        return;
+      }
+    } catch {
+      // The demo shell remains usable while the API is unavailable.
+    }
+    {
       setSession(null);
       setProfile(null);
       setRole(null);
@@ -90,19 +121,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role,
     loading,
     signIn: async (email: string, password: string) => {
-      const result = await loginAction({ email, password });
-      if (result.error || !result.user || !result.profile) {
-        return { error: new Error(result.error ?? "No se pudo iniciar sesión.") };
+      try {
+        const response = await requestAuth("/login", {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        });
+        const result = await readAuthPayload(response);
+        if (!result) {
+          const body = (await response.clone().json().catch(() => null)) as { message?: string } | null;
+          return { error: new Error(body?.message ?? "Correo o contraseña incorrectos.") };
+        }
+        setSession(result.user);
+        setProfile(toUserProfile(result.profile));
+        setRole(result.role);
+        return { error: null };
+      } catch {
+        return { error: new Error("No se pudo conectar con el servidor de autenticación.") };
       }
-      setSession(result.user);
-      setProfile(toUserProfile(result.profile));
-      setRole(result.role);
-      getRoleModuleAccessAction().then(setModuleAccessOverride).catch(() => {});
-      return { error: null };
     },
     signOut: async () => {
       clearSharedFilters();
-      await logoutAction();
+      await requestAuth("/logout", { method: "POST" }).catch(() => {});
       setSession(null);
       setProfile(null);
       setRole(null);
