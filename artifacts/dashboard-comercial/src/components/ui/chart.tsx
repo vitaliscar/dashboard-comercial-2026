@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
-import type { TooltipValueType } from "recharts";
 
 import { cn } from "@/lib/utils";
 
@@ -32,6 +31,7 @@ export const CHART_CATEGORY_AXIS = {
 } as const;
 
 type TooltipNameType = number | string;
+type TooltipValueType = number | string | Array<number | string>;
 
 export type ChartConfig = Record<
   string,

@@ -58,7 +58,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
               strokeWidth={2.5}
               dot={(props: { cx?: number; cy?: number; index?: number }) => {
                 const { cx, cy, index } = props;
-                if (index !== data.length - 1) return <></>;
+                if (index !== data.length - 1) return <g key={`empty-ccv-${index}`} />;
                 return (
                   <circle
                     key={`dot-${index}`}
@@ -86,7 +86,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
               strokeWidth={2.5}
               dot={(props: { cx?: number; cy?: number; index?: number }) => {
                 const { cx, cy, index } = props;
-                if (index !== data.length - 1) return <></>;
+                if (index !== data.length - 1) return <g key={`empty-xibi-${index}`} />;
                 return (
                   <circle
                     key={`dot-${index}`}
@@ -114,7 +114,7 @@ export const CompanyTrendChart = memo(function CompanyTrendChart({
               strokeWidth={2.5}
               dot={(props: { cx?: number; cy?: number; index?: number }) => {
                 const { cx, cy, index } = props;
-                if (index !== data.length - 1) return <></>;
+                if (index !== data.length - 1) return <g key={`empty-estrategicas-${index}`} />;
                 return (
                   <circle
                     key={`dot-${index}`}
