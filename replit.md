@@ -49,7 +49,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Para datos reproducibles de desarrollo ejecutar `pnpm --filter @workspace/scripts seed:dev`. Crea cuatro usuarios demo con la contraseña `CCVdemo2026!`, presupuesto del mes actual, cartera y fixtures de cada unidad; solo usar en la base de desarrollo.
+- La contraseña de los usuarios demo es ficticia y compartida intencionalmente; no reutilizar estas cuentas en producción.
 
 ## Pointers
 

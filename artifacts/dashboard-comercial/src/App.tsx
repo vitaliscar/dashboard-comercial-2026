@@ -27,7 +27,8 @@ import { Link, Route, Switch, useLocation } from "wouter";
 import { getHealthCheckQueryKey, useHealthCheck } from "@workspace/api-client-react";
 import { ModulePage } from "./components/module-pages";
 import ResumenPage from "./pages/resumen";
-import ServiciosLivePage from "./pages/servicios-live";
+import UnidadLivePage from "./pages/unidad-live";
+import type { UnidadKey } from "./lib/unidad-http";
 import DashboardPage from "./pages/dashboard";
 import { useAuth } from "./hooks/use-auth";
 import { AuthForm } from "./components/auth-form";
@@ -154,9 +155,17 @@ function DemoModuleRoute({ module, role }: { module: Module; role: DemoRole }) {
   return canAccessDemoModule(role, module.path) ? <ModulePage module={module} /> : <AccessDenied role={role} />;
 }
 
-function ServicesRoute({ module, role }: { module: Module; role: DemoRole }) {
+const LIVE_UNIT_KEYS: Partial<Record<string, UnidadKey>> = {
+  "/repuestos": "repuestos",
+  "/lubfiltros": "lubfiltros",
+  "/servicios": "servicios",
+  "/equipos": "equipos",
+  "/alquiler": "alquiler",
+};
+
+function UnitRoute({ module, role, unitKey }: { module: Module; role: DemoRole; unitKey: UnidadKey }) {
   const { session, loading } = useAuth();
-  if (!loading && session) return <ServiciosLivePage />;
+  if (!loading && session) return <UnidadLivePage unitKey={unitKey} />;
   return <DemoModuleRoute module={module} role={role} />;
 }
 
@@ -448,7 +457,7 @@ function DashboardApp() {
             <Route path="/"><Overview /></Route>
             <Route path="/dashboard"><DashboardRoute module={modules.find((item) => item.path === "/dashboard")!} role={demoRole} /></Route>
             {Object.keys(DEMO_DASHBOARD_ALIASES).filter((path) => path !== "/dashboard").map((path) => <Route key={path} path={path}><DemoRoleDashboardRoute path={path} role={demoRole} /></Route>)}
-             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : item.path === "/servicios" ? <ServicesRoute module={item} role={demoRole} /> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
+             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute module={item} role={demoRole} unitKey={LIVE_UNIT_KEYS[item.path]!} /> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
             <Route><Overview /></Route>
           </Switch>
         </div>
