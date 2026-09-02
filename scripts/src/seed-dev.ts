@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 
-const workspaceRoot = process.cwd().endsWith("/scripts")
+const workspaceRoot = process.cwd().replace(/[\\/]+$/, "").endsWith("scripts")
   ? resolve(process.cwd(), "..")
   : process.cwd();
 const { adminPool } = (await import(

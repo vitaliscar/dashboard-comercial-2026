@@ -61,17 +61,36 @@ function dateWhere(alias: string, includeAdvisor = true, advisorColumn = "asesor
   ].join(" AND ");
 }
 
+// budgetWhere() nunca referencia $1/$2 (rango de fechas) — presupuestos y
+// cumplimiento_asesores se filtran por anio+mes, no por fecha. Numerar sus
+// placeholders desde $1 de forma contigua (en vez de reutilizar la posición
+// $7/$3/$4/$5/$6 pensada para compartir array con dateWhere) evita que
+// Postgres falle con 42P18 ("could not determine data type of parameter")
+// al no poder inferir el tipo de un placeholder que nunca aparece en el texto.
 function budgetWhere(alias: string, includeAdvisor = true) {
   return [
-    `${alias}.anio = $7::int`, `${alias}.mes = ANY($3::int[])`,
-    `($4::uuid[] IS NULL OR ${alias}.sucursal_id = ANY($4::uuid[]))`,
-    `($5::uuid[] IS NULL OR ${alias}.unidad_negocio_id = ANY($5::uuid[]))`,
-    ...(includeAdvisor ? [`($6::uuid IS NULL OR ${alias}.asesor_id = $6::uuid)`] : []),
+    `${alias}.anio = $1::int`, `${alias}.mes = ANY($2::int[])`,
+    `($3::uuid[] IS NULL OR ${alias}.sucursal_id = ANY($3::uuid[]))`,
+    `($4::uuid[] IS NULL OR ${alias}.unidad_negocio_id = ANY($4::uuid[]))`,
+    ...(includeAdvisor ? [`($5::uuid IS NULL OR ${alias}.asesor_id = $5::uuid)`] : []),
   ].join(" AND ");
+}
+function budgetParams(anio: number, selectedMonths: number[], selectedScope: NonNullable<ReturnType<typeof scope>>, includeAdvisor = true) {
+  const base = [anio, selectedMonths, selectedScope.branches, selectedScope.units];
+  return includeAdvisor ? [...base, selectedScope.advisorId] : base;
 }
 
 function params(anio: number, selectedMonths: number[], selectedScope: NonNullable<ReturnType<typeof scope>>) {
   return [`${anio}-01-01`, `${anio + 1}-01-01`, selectedMonths, selectedScope.branches, selectedScope.units, selectedScope.advisorId, anio];
+}
+
+// dateWhere() solo referencia hasta $5 (sin asesor) o $6 (con asesor) — nunca
+// $7 (ese es exclusivo de budgetWhere). Postgres exige que el número de
+// parámetros del bind coincida exactamente con el placeholder más alto
+// referenciado en la query (error 08P01 si se envían de más), así que hay
+// que truncar `p` en cada uso de dateWhere en vez de pasar el array completo.
+function dateParams(p: unknown[], includeAdvisor = true) {
+  return p.slice(0, includeAdvisor ? 6 : 5);
 }
 
 async function authorize(req: Request, res: Response) {
@@ -96,9 +115,9 @@ router.get("/sucursal/metrics", async (req: Request, res: Response): Promise<voi
     const result = await withScopedTransaction(auth.session, async (tx: Queryable) => {
       const p = params(auth.anio, auth.selectedMonths, auth.selectedScope);
       const [facturacion, perdidas, presupuestos] = await Promise.all([
-        tx.query(`SELECT COALESCE(SUM(f.monto),0) AS "totalMonto", COUNT(f.id)::int AS cantidad FROM facturas f WHERE ${dateWhere("f", false)}`, p),
-        tx.query(`SELECT COALESCE(SUM(v.monto),0) AS "totalMonto", COUNT(v.id)::int AS cantidad FROM ventas_perdidas v WHERE ${dateWhere("v", false)}`, p),
-        tx.query(`SELECT COALESCE(SUM(p.monto),0) AS "totalMonto" FROM presupuestos p WHERE ${budgetWhere("p", false)}`, p),
+        tx.query(`SELECT COALESCE(SUM(f.monto),0) AS "totalMonto", COUNT(f.id)::int AS cantidad FROM facturas f WHERE ${dateWhere("f", false)}`, dateParams(p, false)),
+        tx.query(`SELECT COALESCE(SUM(v.monto),0) AS "totalMonto", COUNT(v.id)::int AS cantidad FROM ventas_perdidas v WHERE ${dateWhere("v", false)}`, dateParams(p, false)),
+        tx.query(`SELECT COALESCE(SUM(p.monto),0) AS "totalMonto" FROM presupuestos p WHERE ${budgetWhere("p", false)}`, budgetParams(auth.anio, auth.selectedMonths, auth.selectedScope, false)),
       ]);
       return { facturacion: facturacion.rows[0], perdidas: perdidas.rows[0], presupuestos: presupuestos.rows[0] };
     });
@@ -112,8 +131,8 @@ router.get("/sucursal/trend", async (req: Request, res: Response): Promise<void>
     res.json(await withScopedTransaction(auth.session, async (tx: Queryable) => {
       const p = params(auth.anio, auth.selectedMonths, auth.selectedScope);
       const [facturas, presupuestos] = await Promise.all([
-        tx.query(`SELECT EXTRACT(month FROM f.fecha)::int AS mes, COALESCE(SUM(f.monto),0) AS monto FROM facturas f WHERE ${dateWhere("f", false)} GROUP BY EXTRACT(month FROM f.fecha)`, p),
-        tx.query(`SELECT p.mes, COALESCE(SUM(p.monto),0) AS monto FROM presupuestos p WHERE ${budgetWhere("p", false)} GROUP BY p.mes`, p),
+        tx.query(`SELECT EXTRACT(month FROM f.fecha)::int AS mes, COALESCE(SUM(f.monto),0) AS monto FROM facturas f WHERE ${dateWhere("f", false)} GROUP BY EXTRACT(month FROM f.fecha)`, dateParams(p, false)),
+        tx.query(`SELECT p.mes, COALESCE(SUM(p.monto),0) AS monto FROM presupuestos p WHERE ${budgetWhere("p", false)} GROUP BY p.mes`, budgetParams(auth.anio, auth.selectedMonths, auth.selectedScope, false)),
       ]);
       return { facturas: facturas.rows, presupuestos: presupuestos.rows };
     }));
@@ -125,8 +144,8 @@ router.get("/coordinador/year", async (req: Request, res: Response): Promise<voi
   if (auth.session.role !== "coordinador") { res.status(403).json({ message: "Este panel es exclusivo para coordinadores." }); return; }
   try {
     res.json(await withScopedTransaction(auth.session, async (tx: Queryable) => {
-      const p = params(auth.anio, Array.from({ length: 12 }, (_, i) => i + 1), auth.selectedScope);
-      const result = await tx.query(`SELECT p.mes, p.unidad_negocio_id AS "unidadNegocioId", COALESCE(SUM(p.monto),0) AS monto, COALESCE(SUM(p.ventas_ccv),0) AS "ventasCcv", COALESCE(SUM(p.ventas_xibi),0) AS "ventasXibi", COALESCE(SUM(p.ventas_estrategicas),0) AS "ventasEstrategicas" FROM presupuestos p WHERE ${budgetWhere("p", false)} GROUP BY p.mes, p.unidad_negocio_id`, p);
+      const allMonths = Array.from({ length: 12 }, (_, i) => i + 1);
+      const result = await tx.query(`SELECT p.mes, p.unidad_negocio_id AS "unidadNegocioId", COALESCE(SUM(p.monto),0) AS monto, COALESCE(SUM(p.ventas_ccv),0) AS "ventasCcv", COALESCE(SUM(p.ventas_xibi),0) AS "ventasXibi", COALESCE(SUM(p.ventas_estrategicas),0) AS "ventasEstrategicas" FROM presupuestos p WHERE ${budgetWhere("p", false)} GROUP BY p.mes, p.unidad_negocio_id`, budgetParams(auth.anio, allMonths, auth.selectedScope, false));
       return { presupuestos: result.rows };
     }));
   } catch (error) { req.log?.error?.({ error }, "coordinador year failed"); res.status(500).json({ message: "No se pudo cargar el panel de coordinador." }); }
@@ -150,10 +169,10 @@ router.get("/coordinador/scorecard", async (req: Request, res: Response): Promis
     res.json(await withScopedTransaction(auth.session, async (tx: Queryable) => {
       const p = params(auth.anio, auth.selectedMonths, auth.selectedScope);
       const [cotizaciones, facturas, minutas, asesores] = await Promise.all([
-        tx.query(`SELECT c.asesor_codigo AS "asesorCodigo", COALESCE(SUM(c.monto),0) AS monto, COUNT(c.id)::int AS cantidad FROM cotizaciones c WHERE ${dateWhere("c", false)} GROUP BY c.asesor_codigo`, p),
-        tx.query(`SELECT f.asesor, COALESCE(SUM(f.monto),0) AS monto, COUNT(f.id)::int AS cantidad FROM facturas f WHERE ${dateWhere("f", false)} GROUP BY f.asesor`, p),
-        tx.query(`SELECT pr.nombre_completo AS responsable, m.estado, COUNT(m.id)::int AS cantidad FROM minutas m LEFT JOIN profiles pr ON pr.id=m.destinatario_id WHERE ${dateWhere("m", false)} GROUP BY pr.nombre_completo, m.estado`, p),
-        tx.query(`SELECT ca.codigo_asesor AS "codigoAsesor", ca.asesor, COALESCE(SUM(ca.venta),0) AS venta, COALESCE(MAX(ca.pct_cumplimiento),0) AS "pctCumplimiento", COALESCE(MAX(ca.pct_participacion),0) AS "pctParticipacion" FROM cumplimiento_asesores ca WHERE ${budgetWhere("ca", false)} GROUP BY ca.codigo_asesor, ca.asesor`, p),
+        tx.query(`SELECT c.asesor_codigo AS "asesorCodigo", COALESCE(SUM(c.monto),0) AS monto, COUNT(c.id)::int AS cantidad FROM cotizaciones c WHERE ${dateWhere("c", false)} GROUP BY c.asesor_codigo`, dateParams(p, false)),
+        tx.query(`SELECT f.asesor, COALESCE(SUM(f.monto),0) AS monto, COUNT(f.id)::int AS cantidad FROM facturas f WHERE ${dateWhere("f", false)} GROUP BY f.asesor`, dateParams(p, false)),
+        tx.query(`SELECT pr.nombre_completo AS responsable, m.estado, COUNT(m.id)::int AS cantidad FROM minutas m LEFT JOIN profiles pr ON pr.id=m.destinatario_id WHERE ${dateWhere("m", false)} GROUP BY pr.nombre_completo, m.estado`, dateParams(p, false)),
+        tx.query(`SELECT ca.codigo_asesor AS "codigoAsesor", ca.asesor, COALESCE(SUM(ca.venta),0) AS venta, COALESCE(MAX(ca.pct_cumplimiento),0) AS "pctCumplimiento", COALESCE(MAX(ca.pct_participacion),0) AS "pctParticipacion" FROM cumplimiento_asesores ca WHERE ${budgetWhere("ca", false)} GROUP BY ca.codigo_asesor, ca.asesor`, budgetParams(auth.anio, auth.selectedMonths, auth.selectedScope, false)),
       ]);
       return { cotizaciones: cotizaciones.rows, facturas: facturas.rows, minutas: minutas.rows, asesores: asesores.rows };
     }));
@@ -167,11 +186,11 @@ router.get("/asesor/metrics", async (req: Request, res: Response): Promise<void>
     res.json(await withScopedTransaction(auth.session, async (tx: Queryable) => {
       const p = params(auth.anio, auth.selectedMonths, auth.selectedScope);
       const [facturacion, perdidas, cotizaciones, presupuestos, minutas] = await Promise.all([
-        tx.query(`SELECT COALESCE(SUM(f.monto),0) AS "totalMonto", COUNT(f.id)::int AS cantidad FROM facturas f WHERE ${dateWhere("f")}`, p),
-        tx.query(`SELECT COALESCE(SUM(v.monto),0) AS "totalMonto", COUNT(v.id)::int AS cantidad FROM ventas_perdidas v WHERE ${dateWhere("v")}`, p),
-        tx.query(`SELECT COUNT(c.id)::int AS cantidad FROM cotizaciones c WHERE ${dateWhere("c")}`, p),
-        tx.query(`SELECT ca.mes, COALESCE(SUM(ca.presupuesto),0) AS presupuesto, COALESCE(MAX(ca.pct_participacion),0) AS "pctParticipacion" FROM cumplimiento_asesores ca WHERE ${budgetWhere("ca")} GROUP BY ca.mes`, p),
-        tx.query(`SELECT m.estado, m.fecha_limite AS "fechaLimite", COUNT(m.id)::int AS cantidad FROM minutas m WHERE ${dateWhere("m", true, "destinatario_id")} GROUP BY m.estado, m.fecha_limite`, p),
+        tx.query(`SELECT COALESCE(SUM(f.monto),0) AS "totalMonto", COUNT(f.id)::int AS cantidad FROM facturas f WHERE ${dateWhere("f")}`, dateParams(p, true)),
+        tx.query(`SELECT COALESCE(SUM(v.monto),0) AS "totalMonto", COUNT(v.id)::int AS cantidad FROM ventas_perdidas v WHERE ${dateWhere("v")}`, dateParams(p, true)),
+        tx.query(`SELECT COUNT(c.id)::int AS cantidad FROM cotizaciones c WHERE ${dateWhere("c")}`, dateParams(p, true)),
+        tx.query(`SELECT ca.mes, COALESCE(SUM(ca.presupuesto),0) AS presupuesto, COALESCE(MAX(ca.pct_participacion),0) AS "pctParticipacion" FROM cumplimiento_asesores ca WHERE ${budgetWhere("ca")} GROUP BY ca.mes`, budgetParams(auth.anio, auth.selectedMonths, auth.selectedScope, true)),
+        tx.query(`SELECT m.estado, m.fecha_limite AS "fechaLimite", COUNT(m.id)::int AS cantidad FROM minutas m WHERE ${dateWhere("m", true, "destinatario_id")} GROUP BY m.estado, m.fecha_limite`, dateParams(p, true)),
       ]);
       return { facturacion: facturacion.rows[0], perdidas: perdidas.rows[0], cotizaciones: cotizaciones.rows[0], presupuestos: presupuestos.rows, scoreAsesor: presupuestos.rows, minutas: minutas.rows };
     }));
@@ -185,8 +204,8 @@ router.get("/asesor/trend", async (req: Request, res: Response): Promise<void> =
     res.json(await withScopedTransaction(auth.session, async (tx: Queryable) => {
       const p = params(auth.anio, auth.selectedMonths, auth.selectedScope);
       const [facturas, presupuestos] = await Promise.all([
-        tx.query(`SELECT EXTRACT(month FROM f.fecha)::int AS mes, COALESCE(SUM(f.monto),0) AS monto FROM facturas f WHERE ${dateWhere("f")} GROUP BY EXTRACT(month FROM f.fecha)`, p),
-        tx.query(`SELECT ca.mes, COALESCE(SUM(ca.presupuesto),0) AS presupuesto FROM cumplimiento_asesores ca WHERE ${budgetWhere("ca")} GROUP BY ca.mes`, p),
+        tx.query(`SELECT EXTRACT(month FROM f.fecha)::int AS mes, COALESCE(SUM(f.monto),0) AS monto FROM facturas f WHERE ${dateWhere("f")} GROUP BY EXTRACT(month FROM f.fecha)`, dateParams(p, true)),
+        tx.query(`SELECT ca.mes, COALESCE(SUM(ca.presupuesto),0) AS presupuesto FROM cumplimiento_asesores ca WHERE ${budgetWhere("ca")} GROUP BY ca.mes`, budgetParams(auth.anio, auth.selectedMonths, auth.selectedScope, true)),
       ]);
       return { facturas: facturas.rows, presupuestos: presupuestos.rows };
     }));

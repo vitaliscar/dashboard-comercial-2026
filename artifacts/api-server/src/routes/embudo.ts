@@ -25,12 +25,15 @@ router.get("/embudo", async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await withScopedTransaction(session, async (tx: Queryable) => {
       const p = filter(session, "p", 2, branchIds, unitIds, false), c = filter(session, "c", 3, branchIds, unitIds), r = filter(session, "r", 1, branchIds, unitIds, false);
+      const tc = filter(session, "c", 5, branchIds, unitIds);
+      const tp = filter(session, "p", 5 + tc.values.length, branchIds, unitIds, false);
+      const tr = filter(session, "r", 5 + tc.values.length + tp.values.length, branchIds, unitIds, false);
       const [quotes, budgets, totals] = await Promise.all([
         tx.query(`SELECT c.id, c.unidad_negocio_id AS "unidadNegocioId", c.monto, c.fecha, c.etapa FROM cotizaciones c WHERE c.fecha >= $1::date AND c.fecha < $2::date AND ${c.sql}`, [`${year}-01-01`, `${year + 1}-01-01`, ...c.values]),
         tx.query(`SELECT p.id, p.mes, p.unidad_negocio_id AS "unidadNegocioId", p.ventas_ccv AS "ventasCcv", p.ventas_xibi AS "ventasXibi", p.ventas_estrategicas AS "ventasEstrategicas" FROM presupuestos p WHERE p.anio = $1::int AND ${p.sql}`, [year, ...p.values]),
-        tx.query(`SELECT COALESCE((SELECT SUM(c.monto) FROM cotizaciones c WHERE c.fecha >= $1::date AND c.fecha < $2::date AND (CARDINALITY($3::int[]) = 0 OR EXTRACT(month FROM c.fecha)::int = ANY($3::int[])) AND ${c.sql}), 0) AS cotizado,
-          COALESCE((SELECT SUM(p.ventas_ccv + p.ventas_xibi + p.ventas_estrategicas) FROM presupuestos p WHERE p.anio = $4::int AND (CARDINALITY($3::int[]) = 0 OR p.mes = ANY($3::int[])) AND ${p.sql}), 0) AS facturado,
-          COALESCE((SELECT SUM(r.saldo) FROM cobranzas r WHERE ${r.sql}), 0) AS saldo`, [`${year}-01-01`, `${year + 1}-01-01`, selectedMonths, year, ...c.values, ...p.values, ...r.values]),
+        tx.query(`SELECT COALESCE((SELECT SUM(c.monto) FROM cotizaciones c WHERE c.fecha >= $1::date AND c.fecha < $2::date AND (CARDINALITY($3::int[]) = 0 OR EXTRACT(month FROM c.fecha)::int = ANY($3::int[])) AND ${tc.sql}), 0) AS cotizado,
+          COALESCE((SELECT SUM(p.ventas_ccv + p.ventas_xibi + p.ventas_estrategicas) FROM presupuestos p WHERE p.anio = $4::int AND (CARDINALITY($3::int[]) = 0 OR p.mes = ANY($3::int[])) AND ${tp.sql}), 0) AS facturado,
+          COALESCE((SELECT SUM(r.saldo) FROM cobranzas r WHERE ${tr.sql}), 0) AS saldo`, [`${year}-01-01`, `${year + 1}-01-01`, selectedMonths, year, ...tc.values, ...tp.values, ...tr.values]),
       ]);
       const row = totals.rows[0] ?? {}; const facturado = Number(row.facturado ?? 0);
       return { cotizaciones: quotes.rows, presupuestos: budgets.rows, totales: { cotizado: Number(row.cotizado ?? 0), facturado, cobrado: facturado - Number(row.saldo ?? 0) } };
