@@ -72,6 +72,8 @@ const SUCURSAL_CANONICA: { [key: string]: string } = {
   "los ruices": "Caracas",
   caracas: "Caracas",
   "fmo piar": "FMO Piar",
+  "proy.fmo ciudad piar": "FMO Piar",
+  "proyecto fmo ciudad piar": "FMO Piar",
   "puerto ordaz": "Puerto Ordaz",
   "puerto la cruz": "Puerto La Cruz",
   barquisimeto: "Barquisimeto",
@@ -83,9 +85,40 @@ const SUCURSAL_CANONICA: { [key: string]: string } = {
   "san cristobal": "San Cristóbal",
   "san cristóbal": "San Cristóbal",
   "direccion general": "Dirección General",
+  // Código AS400 46. No es sucursal comercial regular — se excluye de
+  // cotizaciones/ventas_perdidas (ver debeExcluir), pero SÍ factura en
+  // Oportunidades Detallado y el cuadro real la contabiliza ahí (confirmado
+  // con el usuario 2026-09-01). Necesita FK propia para no perderse en
+  // getFacturasPrincipales(), que no la excluye.
+  "machine shop": "Machine Shop",
 };
 
 export const SUCURSALES_CANONICAS: string[] = Array.from(new Set(Object.values(SUCURSAL_CANONICA)));
+
+// Clientes con variantes de nombre inconsistentes entre fuentes AS400/CRM.
+// Diccionario creciente por caso detectado (confirmado con el usuario
+// 2026-09-01) — no una heurística general de sufijos "C.A."/"CA", porque
+// reescribir mal un nombre de cliente real es peor que dejar pasar una
+// variante nueva sin normalizar.
+// Match por PREFIJO (no exacto): el AS400/CRM trunca o duplica el nombre de
+// formas impredecibles (ej. "CARDON IV, S.A. (CARDON IV, S." truncado a mitad
+// del paréntesis) — exigir match exacto dejaría pasar variantes nuevas sin
+// normalizar. El prefijo es lo suficientemente distintivo para no confundir
+// con otro cliente real.
+const CLIENTE_CANONICO_POR_PREFIJO: Array<{ prefijo: string; canonico: string }> = [
+  { prefijo: "visco orinoco", canonico: "VISCO ORINOCO, C.A" },
+  { prefijo: "cardon iv", canonico: "CARDON IV, S.A." },
+];
+
+// Clientes cuya sucursal real es fija sin importar qué diga el reporte de
+// origen — clave en minúsculas del nombre YA canonicalizado (CLIENTE_CANONICO).
+const CLIENTE_SUCURSAL_FIJA: { [clienteCanonicoLower: string]: string } = {
+  "cardon iv, s.a.": "Punto Fijo",
+};
+
+// Clientes "venta casa": nunca tienen asesor asignado, aunque el reporte de
+// origen traiga uno relacionado — clave en minúsculas del nombre canónico.
+const CLIENTES_SIN_ASESOR = new Set<string>(["visco orinoco, c.a"]);
 export const UNIDADES_CANONICAS: string[] = [
   "Repuestos",
   "Lubricantes/Filtros",
@@ -409,6 +442,14 @@ export class ExcelParser {
   // keyword — se reportan al final de la carga (ver getUnidadesNegocioNoReconocidas)
   // en vez de descartarse en silencio.
   private unidadesNoReconocidas = new Map<string, number>();
+  // Hojas pedidas por leerHoja() que no existen en el workbook — antes se
+  // devolvía [] en silencio, indistinguible de "la hoja existe pero está
+  // vacía". Se reportan al final de la carga (ver getHojasFaltantes()).
+  private hojasFaltantes = new Set<string>();
+  // Valores no vacíos que parseNumber() no pudo interpretar como número —
+  // antes se devolvían como 0, indistinguible de un cero real. Se reportan
+  // al final de la carga (ver getValoresNumericosInvalidos()).
+  private valoresNumericosInvalidos = new Map<string, number>();
 
   /**
    * `preParsed` permite saltarse XLSX.read()/sheet_to_json() aquí (trabajo
@@ -512,6 +553,7 @@ export class ExcelParser {
 
     const sheet = this.workbook.Sheets[nombreHoja];
     if (!sheet) {
+      this.hojasFaltantes.add(nombreHoja);
       return [];
     }
 
@@ -837,10 +879,39 @@ export class ExcelParser {
     const nombrePotencial = row["Nombre de Cliente Potencial"];
 
     if (!codCuenta && !nombreCuenta) {
-      return nombrePotencial ? nombrePotencial.toString() : "Cliente S/N";
+      return this.normalizarNombreCliente(
+        nombrePotencial ? nombrePotencial.toString() : "Cliente S/N",
+      );
     }
 
-    return nombreCuenta ? nombreCuenta.toString() : codCuenta.toString();
+    return this.normalizarNombreCliente(
+      nombreCuenta ? nombreCuenta.toString() : codCuenta.toString(),
+    );
+  }
+
+  /**
+   * Normaliza nombres de cliente con variantes inconsistentes entre fuentes
+   * AS400/CRM ("VISCO ORINOCO, C.A" / "VISCO ORINOCO, CA" / "VISCO ORINOCO" →
+   * una sola forma) — confirmado con el usuario 2026-09-01. Diccionario
+   * creciente por caso detectado, no una heurística general: reescribir mal
+   * un nombre de cliente real es peor que dejar pasar una variante nueva sin
+   * normalizar.
+   */
+  private normalizarNombreCliente(nombre: string): string {
+    if (!nombre) return nombre;
+    const key = nombre.trim().toLowerCase().replace(/\s+/g, " ");
+    const match = CLIENTE_CANONICO_POR_PREFIJO.find((c) => key.startsWith(c.prefijo));
+    return match?.canonico ?? nombre.trim();
+  }
+
+  /** Sucursal real de clientes cuya sucursal en el reporte de origen no es confiable. */
+  private sucursalFijaPorCliente(clienteNormalizado: string): string | null {
+    return CLIENTE_SUCURSAL_FIJA[clienteNormalizado.trim().toLowerCase()] ?? null;
+  }
+
+  /** true si este cliente es venta "casa": nunca tiene asesor asignado, aunque el reporte traiga uno. */
+  private clienteSinAsesor(clienteNormalizado: string): boolean {
+    return CLIENTES_SIN_ASESOR.has(clienteNormalizado.trim().toLowerCase());
   }
 
   /**
@@ -935,15 +1006,30 @@ export class ExcelParser {
    * Convierte a número de forma segura. Excel usa formato europeo: . para miles, , para decimales
    * Ej: 2.083,92 = dos mil ochenta y tres coma noventa y dos
    */
+  private registrarValorNumericoInvalido(original: string): void {
+    if (
+      this.valoresNumericosInvalidos.size >= 20 &&
+      !this.valoresNumericosInvalidos.has(original)
+    ) {
+      return; // tope de 20 ejemplos distintos, no inundar memoria en cargas grandes
+    }
+    this.valoresNumericosInvalidos.set(
+      original,
+      (this.valoresNumericosInvalidos.get(original) ?? 0) + 1,
+    );
+  }
+
   private parseNumber(value: any): number {
     if (value === undefined || value === null) return 0;
     if (typeof value === "number") return value;
 
-    let str = String(value).trim();
+    const original = String(value).trim();
+    let str = original;
     if (str === "") return 0;
 
     const lastDotIndex = str.lastIndexOf(".");
     const lastCommaIndex = str.lastIndexOf(",");
+    const cantidadPuntos = (str.match(/\./g) ?? []).length;
 
     if (lastCommaIndex >= 0 && lastDotIndex >= 0) {
       if (lastCommaIndex > lastDotIndex) {
@@ -956,6 +1042,24 @@ export class ExcelParser {
     } else if (lastCommaIndex >= 0) {
       // Solo comas, sin puntos: 2083,92 -> reemplazar coma por punto
       str = str.replace(/,/g, ".");
+    } else if (cantidadPuntos >= 2) {
+      // Solo puntos, 2 o más: 1.234.567 -> son separadores de millar (locale
+      // venezolano), no decimales — un número real casi nunca trae 2+ puntos
+      // literales. parseFloat() sin este fix trunca en el segundo punto
+      // (1.234.567 -> 1.234), subestimando el monto ~1000x en silencio.
+      str = str.replace(/\./g, "");
+    }
+    // Un solo punto sin coma (ej. "12.5") se deja tal cual: es ambiguo entre
+    // decimal y millar, pero la lectura como decimal es la que ya asumía el
+    // resto del código y cambiarla rompería valores hoy correctos.
+
+    // Validación estricta: la cadena completa (tras la normalización de
+    // separadores) debe ser un número, no un prefijo aceptado por parseFloat
+    // (que hoy convierte silenciosamente "1200 USD" en 1200, o "abc" en 0
+    // indistinguible de un cero real).
+    if (!/^-?\d+(\.\d+)?$/.test(str)) {
+      this.registrarValorNumericoInvalido(original);
+      return 0;
     }
 
     const parsed = parseFloat(str);
@@ -1062,6 +1166,28 @@ export class ExcelParser {
   }
 
   /**
+   * Hojas pedidas durante el parseo que no existen en el workbook — antes
+   * `leerHoja()` devolvía [] en silencio. Llamar tras cargar todas las hojas,
+   * igual patrón que getUnidadesNegocioNoReconocidas().
+   */
+  getHojasFaltantes(): string[] {
+    return Array.from(this.hojasFaltantes).sort();
+  }
+
+  /**
+   * Valores no vacíos que parseNumber() no pudo interpretar como número
+   * (texto libre, unidades pegadas al monto, etc.) — antes se devolvían como
+   * 0, indistinguible de un cero real. Máximo 20 ejemplos distintos para no
+   * inundar el log si el problema es sistemático (ej. columna equivocada).
+   */
+  getValoresNumericosInvalidos(): { texto: string; veces: number }[] {
+    return Array.from(this.valoresNumericosInvalidos.entries())
+      .map(([texto, veces]) => ({ texto, veces }))
+      .sort((a, b) => b.veces - a.veces)
+      .slice(0, 20);
+  }
+
+  /**
    * Convierte fechas de Excel (Date, dd/mm/yyyy, dd-mm-yyyy, ISO) a 'YYYY-MM-DD'.
    */
   /**
@@ -1087,7 +1213,19 @@ export class ExcelParser {
     const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     if (m) {
       const [, d, mo, y] = m;
-      return this.esAnioRazonable(Number(y)) ? `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}` : null;
+      return this.esAnioRazonable(Number(y))
+        ? `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`
+        : null;
+    }
+    // Serial de fecha de Excel sin formato de fecha en la celda (cellDates:true no lo
+    // detecta): "46055" en vez de un objeto Date. Epoch 1899-12-30 ya compensa el bug
+    // del año bisiesto 1900 de Excel.
+    if (/^\d{4,6}$/.test(s)) {
+      const serial = Number(s);
+      const fromSerial = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
+      if (!isNaN(fromSerial.getTime()) && this.esAnioRazonable(fromSerial.getUTCFullYear())) {
+        return fromSerial.toISOString().slice(0, 10);
+      }
     }
     const d2 = new Date(s);
     if (isNaN(d2.getTime()) || !this.esAnioRazonable(d2.getFullYear())) return null;
@@ -1188,7 +1326,7 @@ export class ExcelParser {
     const datos = this.leerHoja("Oportunidades LubFiltros");
     const map: { [cliente: string]: number } = {};
     datos.forEach((row) => {
-      const cliente = this.normalizarTexto(row["Nombre del Cliente"]);
+      const cliente = this.normalizarNombreCliente(this.normalizarTexto(row["Nombre del Cliente"]));
       if (!cliente) return;
       map[cliente] = (map[cliente] || 0) + this.parseNumber(row["Monto Cotizado"]);
     });
@@ -1242,9 +1380,11 @@ export class ExcelParser {
       return {
         fecha,
         cliente,
-        asesor: this.normalizarTexto(row["Nombre Asesor"]),
-        asesorCodigo: this.normalizarTexto(row["Código Asesor"]) || undefined,
-        sucursal: this.normalizarSucursal(row["Sucursal"]),
+        asesor: this.clienteSinAsesor(cliente) ? "" : this.normalizarTexto(row["Nombre Asesor"]),
+        asesorCodigo: this.clienteSinAsesor(cliente)
+          ? undefined
+          : this.normalizarTexto(row["Código Asesor"]) || undefined,
+        sucursal: this.sucursalFijaPorCliente(cliente) ?? this.normalizarSucursal(row["Sucursal"]),
         unidadNegocio,
         monto,
         montoFacturado: this.parseNumber(row["Monto Total Facturado Base"]) || undefined,
@@ -1275,13 +1415,22 @@ export class ExcelParser {
             "Mes Detectado",
             "Año Detectado",
           );
+          const clienteLub =
+            this.normalizarNombreCliente(this.normalizarTexto(row["Nombre del Cliente"])) ||
+            "Cliente S/N";
           grupos[nroCot] = {
             nroCotizacion: nroCot,
             fecha,
-            cliente: this.normalizarTexto(row["Nombre del Cliente"]) || "Cliente S/N",
-            asesor: this.normalizarTexto(row["Nombre Vendedor Cot."]),
-            asesorCodigo: this.normalizarTexto(row["Código Vendedor Cot."]) || undefined,
-            sucursal: this.normalizarSucursal(row["Nom. Sucursal"]),
+            cliente: clienteLub,
+            asesor: this.clienteSinAsesor(clienteLub)
+              ? ""
+              : this.normalizarTexto(row["Nombre Vendedor Cot."]),
+            asesorCodigo: this.clienteSinAsesor(clienteLub)
+              ? undefined
+              : this.normalizarTexto(row["Código Vendedor Cot."]) || undefined,
+            sucursal:
+              this.sucursalFijaPorCliente(clienteLub) ??
+              this.normalizarSucursal(row["Nom. Sucursal"]),
             unidadNegocio: UNIDAD_LUBFILTROS,
             monto: 0,
             etapa: this.normalizarEtapa(
@@ -1296,18 +1445,34 @@ export class ExcelParser {
   }
 
   /**
-   * Suma del monto de lubricantes (P.V.P. Total $ Extendido) agrupado por
-   * N° Factura, para restarlo del bruto de Repuestos en Facturacion (la misma
-   * factura de repuestos incluye líneas de lubricante que también viven en la
-   * hoja LubricantesFiltros → doble conteo).
+   * Lubricante vendido por sucursal (Consorcio), para netear el bruto de
+   * Repuestos igual que lo hace el cuadro real: SUMIFS('Lubricantes/Filtros'
+   * !$AJ:$AJ; mes; sucursal; compañía="CONSORCIO COGESTION VENEQUIP") — un
+   * total agregado por sucursal+mes, NO por Nro.Factura(s) individual (el
+   * método anterior). Confirmado 2026-09-02: neteando por factura
+   * dejaba sin restar el lubricante de facturas sin Nro.Factura(s) coincidente,
+   * inflando Repuestos hasta 11% en varias sucursales; con este método
+   * agregado, Lub/Filtros ya cuadraba exacto en 5 de 6 sucursales contra el
+   * cuadro fresco — el gap de Repuestos viene de este mismo lubricante sin
+   * restar.
    */
-  private getLubMontoPorFactura(): { [factura: string]: number } {
+  private getLubMontoPorSucursal(): { [claveSucursalMes: string]: number } {
     const datos = this.leerHoja("LubricantesFiltros");
-    const map: { [factura: string]: number } = {};
+    const map: { [claveSucursalMes: string]: number } = {};
     datos.forEach((row) => {
-      const factura = this.normalizarTexto(row["N° Factura"]);
-      if (!factura) return;
-      map[factura] = (map[factura] || 0) + this.parseNumber(row["P.V.P. Total $ Extendido"]);
+      const compania = (row["Compañía"] ?? row["Compañia"] ?? "").toString().trim().toUpperCase();
+      if (compania !== "CONSORCIO COGESTION VENEQUIP") return;
+      const sucursal = this.normalizarSucursal(row["Sucursal"]);
+      if (!sucursal) return;
+      // Clave por sucursal+mes+año: "LubricantesFiltros" puede traer varios
+      // meses a la vez (el Excel manual acumula todo el histórico en una sola
+      // hoja) — sin esto se restaría el lubricante de TODOS los meses contra
+      // el bruto de un solo mes de Repuestos.
+      const mes = parseInt(String(row["Mes"] ?? ""), 10);
+      const anio = parseInt(String(row["Año"] ?? ""), 10);
+      if (!mes || !anio) return;
+      const clave = `${sucursal}|${anio}-${mes}`;
+      map[clave] = (map[clave] || 0) + this.parseNumber(row["P.V.P. Total $ Extendido"]);
     });
     return map;
   }
@@ -1315,66 +1480,223 @@ export class ExcelParser {
   /**
    * Hoja: Facturacion → facturas (esquema nuevo)
    *
-   * Regla de monto (verificada contra las tarjetas de CumplimientoBase):
+   * Regla de monto (verificada contra las tarjetas de CumplimientoBase y
+   * confirmada con el usuario 2026-08-31):
    * - Repuestos (Compañia = Consorcio/Xibi): "Monto Efectivo Ventas detallado
    *   (Tasa Neg.)" (BR), MENOS el lubricante de esa factura (P.V.P. Total $
    *   Extendido de LubricantesFiltros, match por Nro.Factura(s) ↔ N° Factura),
    *   distribuido proporcionalmente entre las filas de la misma factura. Esto da
    *   el neto de repuestos (~360k vs tarjeta 352k) sin doble contar lubricante.
-   * - Resto (Equipos, Alquiler, y filas "Otra Empresa"): "Ingresos Esperados
-   *   Base" (N). BR está en 0 para Equipos/Alquiler, y N cuadra EXACTO con sus
-   *   tarjetas (136.848 / 556.083).
+   * - Servicios de Consorcio/Xibi: el ingreso de Servicios en sí queda
+   *   EXCLUIDO de esta hoja (viene de getServiciosNuevo() → tabla `servicios`;
+   *   incluirlo aquí contaría el mismo ingreso dos veces). PERO el cuadro real
+   *   (SUMIFS de la fila REPUESTOS, celda J28 de 'Cumplimiento Presupuesto')
+   *   sí suma, dentro del total de Repuestos, "Total Facturado Rptos Base"
+   *   (BC) de estas mismas filas: son repuestos consumidos dentro de un
+   *   trabajo de servicio, que pertenecen al negocio de Repuestos aunque la
+   *   oportunidad esté clasificada como Servicios. Verificado con la
+   *   automatización 2026-08-31.
+   * - Servicios de "Otra Empresa", y Equipos/Alquiler (cualquier compañía):
+   *   "Ingresos Esperados Base" (N) — miden compromiso, no facturado. BR está
+   *   en 0 para Equipos/Alquiler, y N cuadra EXACTO con sus tarjetas
+   *   (136.848 / 556.083; también validado por la automatización para Equipos
+   *   de julio: BR daba -2.141, N dio 11.719 = tarjeta real al peso).
+   *
+   * Fecha: el cuadro real agrupa por "Mes Cierre" (MONTH de "Fecha de
+   * Cierre"), no por "Fecha Documento" — confirmado con el usuario 2026-09-01.
+   *
+   * Neteo de lubricante: agregado por sucursal+mes (getLubMontoPorSucursal),
+   * igual que el cuadro real — no por Nro.Factura(s) individual. Cambiado
+   * 2026-09-02: neteando por factura se perdía el lubricante de facturas sin
+   * Nro.Factura(s) coincidente, inflando Repuestos hasta 11% en varias
+   * sucursales. Verificado: Lub/Filtros ya cuadraba exacto en 5/6 sucursales
+   * contra el cuadro fresco antes de este cambio, confirmando que el gap
+   * estaba en el lado de Repuestos (el lubricante sin restar), no en el
+   * cálculo de Lub/Filtros en sí.
+   *
+   * Ventas estratégicas de lubricante: 72 filas verificadas en el Excel real
+   * vienen como Repuestos en el CRM (cualquier compañía) pero se reclasifican
+   * a mano a Lubricantes/Filtros — $520K, nada despreciable. No hay campo que
+   * lo marque; el 94% tiene "lubricante" (con typos) en "Decripción de
+   * servicio"/"Nombre", el resto dice "estrategia"/"estratégica" explícito.
+   * Detección por palabra clave (esVentaEstrategicaLubricante) — reclasifica
+   * esas filas a Lub/Filtros con monto = Ingresos Esperados Base (N).
+   *
+   * HISTORIAL: esto se revirtió brevemente el 2026-09-02 al comparar contra
+   * un volcado del cuadro que resultó estar DESACTUALIZADO (foto del 31-ago,
+   * ver mensaje de la automatización). Con el volcado fresco confirmado en
+   * vivo por el usuario, Puerto Ordaz Lub/Filtros da $447.797,22 en el cuadro
+   * — coincide EXACTO con esta reclasificación aplicada ($251.424 vía esta
+   * regla + $196.373 de ventasrepuesto). La regla es correcta; el revert fue
+   * el error, causado por comparar contra datos viejos. No revertir de nuevo
+   * sin verificar primero que el volcado del cuadro sea fresco.
    */
   getFacturasPrincipales(): FacturaNueva[] {
-    const datos = this.leerHoja("Facturacion").filter(
-      (row) => !this.debeExcluir(row["Sucursal"] || ""),
-    );
+    // A diferencia de cotizaciones/ventas_perdidas, NO se excluye Machine
+    // Shop aquí: sí factura en Oportunidades Detallado y el cuadro real la
+    // contabiliza (confirmado con el usuario 2026-09-01). "Machine Shop" ya
+    // es sucursal canónica (ver SUCURSAL_CANONICA) para que resuelva FK.
+    const datos = this.leerHoja("Facturacion");
 
-    const lubPorFactura = this.getLubMontoPorFactura();
+    const lubPorSucursalMes = this.getLubMontoPorSucursal();
 
-    // Bruto de repuestos (BR) por factura, para distribuir la resta de lubricante
-    // proporcionalmente entre las filas que comparten Nro.Factura(s).
+    // Solo Repuestos (Consorcio/Xibi) usa el bruto detallado (BR) con neteo de
+    // lubricante. Equipos/Alquiler y Servicios de "Otra Empresa" miden
+    // compromiso (N), no facturado — no son intercambiables.
+    // "lubr" tolera typos reales encontrados en el Excel ("LUBRUCANTES").
+    const esVentaEstrategicaLubricante = (row: RawRowData): boolean => {
+      if (this.normalizarUnidadNegocio(row["Tipo de Negocio"]) !== UNIDAD_REPUESTOS) return false;
+      const texto = (
+        (row["Decripción de servicio"] ?? "").toString() +
+        " " +
+        (row["Nombre"] ?? "").toString()
+      ).toLowerCase();
+      return texto.includes("lubr") || texto.includes("estrateg");
+    };
+
     const esRepuestoBR = (row: RawRowData): boolean =>
       this.normalizarUnidadNegocio(row["Tipo de Negocio"]) === UNIDAD_REPUESTOS &&
-      (row["Compañia"] || "").toString().trim() !== "Otra Empresa";
+      (row["Compañia"] || "").toString().trim() !== "Otra Empresa" &&
+      !esVentaEstrategicaLubricante(row);
 
-    const repBrutoPorFactura: { [factura: string]: number } = {};
+    // getLubMontoPorSucursal() solo trae lubricante de Consorcio (único que
+    // aparece en el archivo ventasrepuesto de AS400) — restarlo también de
+    // filas de Xibi con la misma sucursal+mes resta dos veces por el mismo
+    // dinero y da montos negativos absurdos. Confirmado 2026-09-02 con
+    // Puerto Ordaz Xibi dando -195K en vez de $888 verdadero.
+    const esConsorcio = (row: RawRowData): boolean =>
+      (row["Compañia"] || "").toString().trim().toLowerCase().includes("consorcio");
+
+    // El cuadro real agrupa por "Mes Cierre" (columna CG de 'Oportunidades
+    // Detallado'), que resulta ser el mes de Fecha Documento (fecha de
+    // facturación) cuando existe, y solo cae a Fecha de Cierre si no hay
+    // Fecha Documento — confirmado con el usuario 2026-09-02 encontrando una
+    // factura (Puerto Ordaz #007932) con Fecha de Cierre en julio pero Fecha
+    // Documento en agosto, que el cuadro real cuenta en agosto. El crudo no
+    // trae una columna "Mes Cierre" ya calculada (a diferencia del Excel
+    // manual armado a mano) — se deriva aquí directo de las fechas.
+    const mesAnioCierre = (row: RawRowData): { mes: number; anio: number } | null => {
+      const fecha =
+        this.excelDateToISO(row["Fecha Documento"]) ??
+        this.excelDateToISO(row["Fecha de Cierre"]);
+      if (!fecha) return null;
+      const mes = parseInt(fecha.slice(5, 7), 10);
+      const anio = parseInt(fecha.slice(0, 4), 10);
+      if (mes >= 1 && mes <= 12 && anio > 0) return { mes, anio };
+      return null;
+    };
+    const fechaMesCierre = (row: RawRowData): string | null => {
+      const ma = mesAnioCierre(row);
+      if (ma) return `${ma.anio}-${String(ma.mes).padStart(2, "0")}-01`;
+      return this.excelDateToISO(row["Fecha de Cierre"]);
+    };
+
+    // Bruto de repuestos (BR) por sucursal+mes, para distribuir la resta de
+    // lubricante proporcionalmente — igual que el cuadro real, que netea un
+    // total agregado por sucursal+mes (SUMIFS de 'Lubricantes/Filtros'), no
+    // por Nro.Factura(s) individual. Confirmado 2026-09-02: el neteo por
+    // factura dejaba lubricante sin restar cuando no había Nro.Factura(s)
+    // coincidente, inflando Repuestos hasta 11% en varias sucursales.
+    const repBrutoPorSucursalMes: { [claveSucursalMes: string]: number } = {};
     datos.forEach((row) => {
-      if (!esRepuestoBR(row)) return;
-      const factura = this.normalizarTexto(row["Nro.Factura(s)"]);
-      if (!factura) return;
-      repBrutoPorFactura[factura] =
-        (repBrutoPorFactura[factura] || 0) +
+      if (!esRepuestoBR(row) || !esConsorcio(row)) return;
+      const ma = mesAnioCierre(row);
+      if (!ma) return;
+      const sucursal = this.normalizarSucursal(row["Sucursal"]);
+      const clave = `${sucursal}|${ma.anio}-${ma.mes}`;
+      repBrutoPorSucursalMes[clave] =
+        (repBrutoPorSucursalMes[clave] || 0) +
         this.parseNumber(row["Monto Efectivo Ventas detallado (Tasa Neg.)"]);
     });
 
-    return datos.map((row) => {
-      const unidadNegocio = this.normalizarUnidadNegocio(row["Tipo de Negocio"]);
+    const resultados: FacturaNueva[] = [];
+    for (const row of datos) {
+      let unidad = this.normalizarUnidadNegocio(row["Tipo de Negocio"]);
+      const esOtraEmpresa = (row["Compañia"] || "").toString().trim() === "Otra Empresa";
+      if (esVentaEstrategicaLubricante(row)) unidad = UNIDAD_LUBFILTROS;
       const factura = this.normalizarTexto(row["Nro.Factura(s)"]);
+      const clienteFactura = this.determinarCliente(row);
+      const base = {
+        fecha: fechaMesCierre(row) ?? this.excelDateToISO(row["Fecha Documento"]),
+        numero: factura || this.normalizarTexto(row["Nro. Documento"]),
+        cliente: clienteFactura,
+        asesor: this.clienteSinAsesor(clienteFactura)
+          ? ""
+          : this.normalizarTexto(row["Nombre Asesor"]),
+        sucursal:
+          this.sucursalFijaPorCliente(clienteFactura) ?? this.normalizarSucursal(row["Sucursal"]),
+      };
+
+      if (unidad === UNIDAD_SERVICIOS && !esOtraEmpresa) {
+        const montoRepuestosEnServicio = this.parseNumber(row["Total Facturado Rptos Base"]);
+        if (montoRepuestosEnServicio !== 0) {
+          resultados.push({
+            ...base,
+            unidadNegocio: UNIDAD_REPUESTOS,
+            monto: montoRepuestosEnServicio,
+          });
+        }
+        continue;
+      }
 
       let monto: number;
       if (esRepuestoBR(row)) {
         const brutoRow = this.parseNumber(row["Monto Efectivo Ventas detallado (Tasa Neg.)"]);
         monto = brutoRow;
-        const lub = factura ? lubPorFactura[factura] || 0 : 0;
-        const brutoFactura = factura ? repBrutoPorFactura[factura] || 0 : 0;
-        if (lub > 0 && brutoFactura > 0) {
-          // Resta proporcional al peso de la fila dentro del bruto de la factura
-          monto = brutoRow - lub * (brutoRow / brutoFactura);
+        const ma = mesAnioCierre(row);
+        if (ma && esConsorcio(row)) {
+          const sucursalRow = this.normalizarSucursal(row["Sucursal"]);
+          const clave = `${sucursalRow}|${ma.anio}-${ma.mes}`;
+          const lub = lubPorSucursalMes[clave] || 0;
+          const brutoSucursalMes = repBrutoPorSucursalMes[clave] || 0;
+          if (lub > 0 && brutoSucursalMes > 0) {
+            // Resta proporcional al peso de la fila dentro del bruto de la
+            // sucursal+mes — mismo total que resta el cuadro real (-J43).
+            monto = brutoRow - lub * (brutoRow / brutoSucursalMes);
+          }
         }
       } else {
         monto = this.parseNumber(row["Ingresos Esperados Base"]);
       }
 
-      return {
-        fecha: this.excelDateToISO(row["Fecha Documento"]),
-        numero: factura || this.normalizarTexto(row["Nro. Documento"]),
-        cliente: this.determinarCliente(row),
-        asesor: this.normalizarTexto(row["Nombre Asesor"]),
-        sucursal: this.normalizarSucursal(row["Sucursal"]),
-        unidadNegocio,
-        monto,
-      };
+      resultados.push({ ...base, unidadNegocio: unidad, monto });
+    }
+    return this.netearMaturinDePuertoLaCruz(resultados);
+  }
+
+  /**
+   * Puerto La Cruz y Maturín comparten back-office de facturación — las
+   * transacciones de Maturín salen bajo la sucursal de Puerto La Cruz en
+   * estos reportes, y SEPARADAMENTE el crudo también trae un grupo propio
+   * para Maturín cuyo total coincide con el "Maturín" del cuadro real.
+   * Confirmado con el usuario 2026-09-02 (mismo patrón en Servicios: el
+   * monto de Maturín queda embebido en el bruto de Puerto La Cruz, inflándolo
+   * en exactamente ese monto). Neteo por mes+unidadNegocio, distribuido
+   * proporcionalmente entre las filas de La Cruz para no alterar el total.
+   */
+  private netearMaturinDePuertoLaCruz<T extends { sucursal: string; fecha: string | null; unidadNegocio: string | null; monto: number }>(
+    filas: T[],
+  ): T[] {
+    const clave = (fecha: string, unidad: string) => `${fecha}|${unidad}`;
+    const maturinPorClave: { [clave: string]: number } = {};
+    filas.forEach((f) => {
+      if (f.sucursal !== "Maturín" || !f.fecha || !f.unidadNegocio) return;
+      const k = clave(f.fecha, f.unidadNegocio);
+      maturinPorClave[k] = (maturinPorClave[k] || 0) + f.monto;
+    });
+    const laCruzBrutoPorClave: { [clave: string]: number } = {};
+    filas.forEach((f) => {
+      if (f.sucursal !== "Puerto La Cruz" || !f.fecha || !f.unidadNegocio) return;
+      const k = clave(f.fecha, f.unidadNegocio);
+      laCruzBrutoPorClave[k] = (laCruzBrutoPorClave[k] || 0) + f.monto;
+    });
+    return filas.map((f) => {
+      if (f.sucursal !== "Puerto La Cruz" || !f.fecha || !f.unidadNegocio) return f;
+      const k = clave(f.fecha, f.unidadNegocio);
+      const maturin = maturinPorClave[k] || 0;
+      const bruto = laCruzBrutoPorClave[k] || 0;
+      if (maturin <= 0 || bruto <= 0) return f;
+      return { ...f, monto: f.monto - maturin * (f.monto / bruto) };
     });
   }
 
@@ -1394,12 +1716,15 @@ export class ExcelParser {
         if (row["Cód. Vendedor"] === "99999" || row["Cód. Vendedor"] === 99999) {
           nombreVendedor = row["Nombre Vendedor OV"];
         }
+        const clienteVnq =
+          this.normalizarNombreCliente(this.normalizarTexto(row["Cliente VNQ"])) || "Cliente S/N";
         return {
           fecha: this.excelDateToISO(row["Fecha Factura"]),
           numero: this.normalizarTexto(row["N° Factura"]),
-          cliente: this.normalizarTexto(row["Cliente VNQ"]) || "Cliente S/N",
-          asesor: this.normalizarTexto(nombreVendedor),
-          sucursal: this.normalizarSucursal(row["Sucursal"]),
+          cliente: clienteVnq,
+          asesor: this.clienteSinAsesor(clienteVnq) ? "" : this.normalizarTexto(nombreVendedor),
+          sucursal:
+            this.sucursalFijaPorCliente(clienteVnq) ?? this.normalizarSucursal(row["Sucursal"]),
           unidadNegocio: UNIDAD_LUBFILTROS,
           monto: this.parseNumber(row["P.V.P. Total $ Extendido"]),
         };
@@ -1419,9 +1744,11 @@ export class ExcelParser {
     const datos = this.leerHoja("Ventas Perdidas");
     return datos
       .filter((row) => {
+        // Universo confirmado con el usuario 2026-08-31: TODAS las filas de
+        // venta perdida, sin filtrar por monto — una fila con Cant VP=0 sigue
+        // siendo una venta perdida real (antes se descartaba en silencio).
         const sucursal = row["Nombre Sucursal"] || "";
-        const monto = this.parseNumber(row["Monto Venta Perdidas"]);
-        return !this.debeExcluir(sucursal) && monto > 0;
+        return !this.debeExcluir(sucursal);
       })
       .map((row) => {
         const area = this.normalizarTexto(row["Área"]);
@@ -1431,11 +1758,16 @@ export class ExcelParser {
         // el código de suplidor dentro del área de repuestos.
         const unidadNegocio = this.clasificarUnidadVentaPerdida(area, codigoSuplidor);
 
+        const cliente =
+          this.normalizarNombreCliente(this.normalizarTexto(row["Nombre Cliente"])) ||
+          "Cliente S/N";
+        const sucursalFija = this.sucursalFijaPorCliente(cliente);
+
         return {
           fecha: this.excelDateToISO(row["Fecha VP"]),
-          cliente: this.normalizarTexto(row["Nombre Cliente"]) || "Cliente S/N",
-          asesor: this.normalizarTexto(row["Nombre Asesor"]),
-          sucursal: this.normalizarSucursal(row["Nombre Sucursal"]),
+          cliente,
+          asesor: this.clienteSinAsesor(cliente) ? "" : this.normalizarTexto(row["Nombre Asesor"]),
+          sucursal: sucursalFija ?? this.normalizarSucursal(row["Nombre Sucursal"]),
           unidadNegocio,
           monto: this.parseNumber(row["Monto Venta Perdidas"]),
           razon: this.normalizarTexto(row["Nombre de Razón"]) || "No especificada",
@@ -1470,15 +1802,19 @@ export class ExcelParser {
         const monto = this.parseNumber(row["Ingresos Esperados Base"]);
         return etapa && monto > 0;
       })
-      .map((row) => ({
-        fecha: this.excelDateToISO(row["Fecha de Cierre"]),
-        cliente: this.determinarCliente(row),
-        asesor: this.normalizarTexto(row["Nombre Asesor"]),
-        sucursal: this.normalizarSucursal(row["Sucursal"]),
-        unidadNegocio: this.normalizarUnidadNegocio(row["Tipo de Negocio"]),
-        monto: this.parseNumber(row["Ingresos Esperados Base"]),
-        razon: "Oportunidad no ganada",
-      }));
+      .map((row) => {
+        const cliente = this.determinarCliente(row);
+        return {
+          fecha: this.excelDateToISO(row["Fecha de Cierre"]),
+          cliente,
+          asesor: this.clienteSinAsesor(cliente) ? "" : this.normalizarTexto(row["Nombre Asesor"]),
+          sucursal:
+            this.sucursalFijaPorCliente(cliente) ?? this.normalizarSucursal(row["Sucursal"]),
+          unidadNegocio: this.normalizarUnidadNegocio(row["Tipo de Negocio"]),
+          monto: this.parseNumber(row["Ingresos Esperados Base"]),
+          razon: "Oportunidad no ganada",
+        };
+      });
   }
 
   /**
@@ -1607,46 +1943,116 @@ export class ExcelParser {
 
   /**
    * Hoja: Servicios → tabla nueva `servicios`
+   *
+   * Machine Shop (Cod.Suc AS400 = 46) solo maneja servicios (confirmado con
+   * el usuario 2026-09-01) y NO se excluye aquí — "Nombre Sucursal" trae texto
+   * obsoleto/inconsistente para este código ("Barquisimeto" en el crudo AS400
+   * sin limpiar, a veces "Machine Shop" ya corregido a mano en el Excel), así
+   * que se identifica por Cod.Suc, la fuente confiable. Mismo criterio para
+   * Cod.Suc=23 ("Proy.FMO Ciudad Piar" en el crudo → "FMO Piar").
+   *
+   * Para Machine Shop, "Tipo Cliente" no es confiable para Interno/Externo
+   * (encontrado un caso real: $2.179 con Tipo Cliente=EXTERNO pero
+   * "Descripción del Asiento" de facturación interna) — se usa esa
+   * descripción en su lugar: "Facturacion Orden Trabajo" = EXTERNO (orden
+   * real), cualquier otro formato ("Facturacion Interna de Orden de
+   * trabajo", o movimientos con Cliente=00100=CCV) = INTERNO.
    */
   getServiciosNuevo(): ServicioNuevo[] {
-    const datos = this.leerHoja("Servicios");
-    return datos
-      .filter((row) => !this.debeExcluir(row["Nombre Sucursal"] || ""))
-      .map((row, index) => {
-        let fecha: string | null = null;
-        const anioContable = parseInt(row["Año Contable"], 10);
-        const mesContable = parseInt(row["Mes Contable"], 10);
+    // Clas.Transaccion="REPUESTOS": repuestos consumidos dentro de un ticket
+    // de servicio, no ingreso de Servicios — el cuadro real los excluye de
+    // esta hoja (van a Repuestos por otra vía). Confirmado 2026-09-02: sin
+    // excluirlos, Servicios EXTERNO quedaba inflado exacto en ese monto en
+    // 6 de 7 sucursales contra el cuadro real.
+    const datos = this.leerHoja("Servicios").filter(
+      (row) => (row["Clas.Transaccion"] ?? "").toString().trim().toUpperCase() !== "REPUESTOS",
+    );
+    const resultados = datos.map((row, index) => {
+      let fecha: string | null = null;
+      const anioContable = parseInt(row["Año Contable"], 10);
+      const mesContable = parseInt(row["Mes Contable"], 10);
 
-        if (!isNaN(anioContable) && !isNaN(mesContable) && mesContable >= 1 && mesContable <= 12) {
-          fecha = `${anioContable}-${String(mesContable).padStart(2, "0")}-01`;
+      if (!isNaN(anioContable) && !isNaN(mesContable) && mesContable >= 1 && mesContable <= 12) {
+        fecha = `${anioContable}-${String(mesContable).padStart(2, "0")}-01`;
+      } else {
+        const fechaApertura = this.excelDateToISO(row["Fecha Apertura Servicio"]);
+        if (fechaApertura) {
+          fecha = fechaApertura;
+          console.warn(
+            `[Servicios] Fila ${index + 2}: Año Contable/Mes Contable inválidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}"). Usando Fecha Apertura Servicio: ${fechaApertura}`,
+          );
         } else {
-          const fechaApertura = this.excelDateToISO(row["Fecha Apertura Servicio"]);
-          if (fechaApertura) {
-            fecha = fechaApertura;
-            console.warn(
-              `[Servicios] Fila ${index + 2}: Año Contable/Mes Contable inválidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}"). Usando Fecha Apertura Servicio: ${fechaApertura}`,
-            );
-          } else {
-            console.warn(
-              `[Servicios] Fila ${index + 2}: Sin Año/Mes Contable ni Fecha Apertura válidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}").`,
-            );
-          }
+          console.warn(
+            `[Servicios] Fila ${index + 2}: Sin Año/Mes Contable ni Fecha Apertura válidos ("${row["Año Contable"]}" / "${row["Mes Contable"]}").`,
+          );
         }
+      }
 
-        return {
-          fecha,
-          cliente: this.normalizarTexto(row["Nombre Cliente"]) || "Cliente S/N",
-          monto: this.parseNumber(row["Monto Venta $"]),
-          tipoServicio: this.normalizarTexto(row["Clas.Transaccion"]),
-          categoriaVenta: this.normalizarTexto(row["Tipo Cliente"]),
-          compania: this.normalizarTexto(row["Nombre Compañia"]),
-          asesor: "",
-          taller: this.normalizarTexto(row["Taller"]),
-          csa: this.normalizarTexto(row["CSA"]),
-          sucursal: this.normalizarSucursal(row["Nombre Sucursal"]),
-          unidadNegocio: UNIDAD_SERVICIOS,
-        };
-      });
+      const codSuc = (row["Cod.Suc"] ?? "").toString().trim();
+      const sucursal =
+        codSuc === "46"
+          ? "Machine Shop"
+          : codSuc === "23"
+            ? "FMO Piar"
+            : this.normalizarSucursal(row["Nombre Sucursal"]);
+
+      let categoriaVenta = this.normalizarTexto(row["Tipo Cliente"]);
+      if (sucursal === "Machine Shop") {
+        const esOrdenExterna = this.normalizarTexto(row["Descripción del Asiento"])
+          .toLowerCase()
+          .startsWith("facturacion orden trabajo");
+        categoriaVenta = esOrdenExterna ? "EXTERNO" : "INTERNO";
+      }
+
+      const cliente =
+        this.normalizarNombreCliente(this.normalizarTexto(row["Nombre Cliente"])) || "Cliente S/N";
+
+      return {
+        fecha,
+        cliente,
+        monto: this.parseNumber(row["Monto Venta $"]),
+        tipoServicio: this.normalizarTexto(row["Clas.Transaccion"]),
+        categoriaVenta,
+        compania: this.normalizarTexto(row["Nombre Compañia"]),
+        asesor: "",
+        taller: this.normalizarTexto(row["Taller"]),
+        csa: this.normalizarTexto(row["CSA"]),
+        sucursal,
+        unidadNegocio: UNIDAD_SERVICIOS,
+      };
+    });
+
+    // Puerto La Cruz y Maturín comparten back-office de facturación — las
+    // transacciones de Maturín salen bajo Cod.Suc de Puerto La Cruz en este
+    // reporte, y SEPARADAMENTE el reporte también trae un grupo con
+    // Nombre Sucursal="Maturin" (Cod.Suc 13) cuyo total coincide con el
+    // "Maturín" del cuadro real. Confirmado con el usuario 2026-09-02: el
+    // monto de Maturín queda embebido en el bruto de Puerto La Cruz y hay que
+    // restarlo (el mismo total ya viene aparte vía el grupo Maturín) —
+    // agregado por mes+categoriaVenta (Externo/Interno cada uno con su propio
+    // solape, verificado 2026-09-02), distribuido proporcionalmente entre las
+    // filas de La Cruz de ese mes+categoría para no alterar el total.
+    const clave = (mes: string, cat: string) => `${mes}|${cat}`;
+    const maturinPorClave: { [clave: string]: number } = {};
+    resultados.forEach((s) => {
+      if (s.sucursal !== "Maturín" || !s.fecha) return;
+      const k = clave(s.fecha, s.categoriaVenta);
+      maturinPorClave[k] = (maturinPorClave[k] || 0) + s.monto;
+    });
+    const laCruzBrutoPorClave: { [clave: string]: number } = {};
+    resultados.forEach((s) => {
+      if (s.sucursal !== "Puerto La Cruz" || !s.fecha) return;
+      const k = clave(s.fecha, s.categoriaVenta);
+      laCruzBrutoPorClave[k] = (laCruzBrutoPorClave[k] || 0) + s.monto;
+    });
+    return resultados.map((s) => {
+      if (s.sucursal !== "Puerto La Cruz" || !s.fecha) return s;
+      const k = clave(s.fecha, s.categoriaVenta);
+      const maturin = maturinPorClave[k] || 0;
+      const bruto = laCruzBrutoPorClave[k] || 0;
+      if (maturin <= 0 || bruto <= 0) return s;
+      return { ...s, monto: s.monto - maturin * (s.monto / bruto) };
+    });
   }
 
   /**
