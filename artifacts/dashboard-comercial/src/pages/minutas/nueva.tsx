@@ -6,11 +6,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  getDestinatariosDisponiblesAction,
-  searchClientesAction,
-  createMinutaAction,
-} from "@/lib/actions/minutas";
-import { getAlertasAction } from "@/lib/actions/alertas";
+  createMinutaHttp,
+  getAlertasAbiertasHttp,
+  getDestinatariosHttp,
+  searchClientesHttp,
+} from "@/lib/minutas-http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,13 +40,13 @@ export default function NuevaMinutaPage() {
 
   const { data: destinatarios } = useQuery({
     queryKey: ["destinatarios-disponibles"],
-    queryFn: () => getDestinatariosDisponiblesAction(),
+    queryFn: getDestinatariosHttp,
     enabled: canCreate,
   });
 
   const { data: alertasDisponibles } = useQuery({
     queryKey: ["alertas-abiertas"],
-    queryFn: () => getAlertasAction(),
+    queryFn: getAlertasAbiertasHttp,
     enabled: canCreate,
   });
 
@@ -72,7 +72,7 @@ export default function NuevaMinutaPage() {
     }
     const timer = setTimeout(async () => {
       try {
-        setClienteSuggestions(await searchClientesAction(clienteSearch));
+        setClienteSuggestions(await searchClientesHttp(clienteSearch));
       } catch {
         setClienteSuggestions([]);
       }
@@ -111,7 +111,7 @@ export default function NuevaMinutaPage() {
 
   const save = useMutation({
     mutationFn: () =>
-      createMinutaAction({
+      createMinutaHttp({
         fecha: form.fecha,
         destinatarioId: form.destinatarioId,
         cliente: form.cliente.trim() || null,

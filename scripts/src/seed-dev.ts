@@ -245,6 +245,45 @@ async function seed() {
       receivableRows,
     );
 
+    await insertRows(
+      client,
+      "cobranzas_snapshots",
+      ["id", "cliente", "factura_numero", "fecha_emision", "fecha_vencimiento", "monto", "saldo", "dias_vencidos", "sucursal_id", "unidad_negocio_id", "captured_at"],
+      receivableRows.map((row, index) => [
+        id(0x52100000, index + 1),
+        ...row.slice(1),
+        new Date(Date.UTC(year, Math.max(0, month - 1), 1)),
+      ]),
+    );
+
+    const advisorPerformanceRows = months.flatMap((monthNumber, index) => [
+      [id(0x52200000, index * 2 + 1), year, monthNumber, "81300", "Anjjel Tellerias", userIds.asesor, branches.Caracas, units.repuestos, "15000.00", "12600.00", "84.0000", "55.0000"],
+      [id(0x52200000, index * 2 + 2), year, monthNumber, "25593", "Ismael Farrera", userIds.gc, branches.Caracas, units.equipos, "22000.00", "23100.00", "105.0000", "45.0000"],
+    ]);
+    await insertRows(
+      client,
+      "cumplimiento_asesores",
+      ["id", "anio", "mes", "codigo_asesor", "asesor", "asesor_id", "sucursal_id", "unidad_negocio_id", "presupuesto", "venta", "pct_cumplimiento", "pct_participacion"],
+      advisorPerformanceRows,
+    );
+    await insertRows(
+      client,
+      "ventas_casa",
+      ["id", "sucursal_id", "unidad_negocio_id", "mes", "monto"],
+      [[id(0x52300000, 1), branches.Caracas, units.repuestos, month, "7400.00"]],
+    );
+
+    const minuteRows = [
+      [id(0x52400000, 1), dateFor(month, 14), branches.Valencia, units.servicios, userIds.coord, "Cliente coordinación", "Seguimiento de compromisos de sucursal", dateFor(month, 28), "pendiente", userIds.gerencia, userIds.gerencia],
+      [id(0x52400000, 2), dateFor(month, 15), branches.Caracas, units.repuestos, userIds.asesor, "Cliente asesor", "Seguimiento comercial del asesor", dateFor(month, 27), "en_proceso", userIds.gerencia, userIds.gerencia],
+    ];
+    await insertRows(
+      client,
+      "minutas",
+      ["id", "fecha", "sucursal_id", "unidad_negocio_id", "destinatario_id", "cliente", "descripcion", "fecha_limite", "estado", "created_by", "updated_by"],
+      minuteRows,
+    );
+
     const lostRows = [0, 1, 2].map((index) => [
       id(0x53000000, index + 1),
       dateFor(month, 10 + index),

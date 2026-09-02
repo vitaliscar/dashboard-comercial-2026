@@ -56,7 +56,6 @@ import {
   calcularKPIs,
   type AgrupacionAsesor,
 } from "@/lib/analytics/asesores";
-import { getDateRangesForMonths } from "@/lib/date-range";
 import {
   ChartContainer,
   ChartTooltip,
@@ -65,7 +64,7 @@ import {
   CHART_Y_AXIS_HIDDEN,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { getAsesoresRawDataAction, getAsesoresDrilldownAction } from "@/lib/actions/asesores";
+import { getAsesoresDrilldown, getAsesoresRawData } from "@/lib/asesores-http";
 
 const MESES = [
   "Enero",
@@ -97,7 +96,7 @@ export default function AsesoresPage() {
   const [activeTab, setActiveTab] = useState<"ranking">("ranking");
   const [selectedAdvisor, setSelectedAdvisor] = useState<AgrupacionAsesor | null>(null);
 
-  const canView = role === "gerencia" || role === "gerente_comercial" || role === "coordinador";
+  const canView = role === "gerencia" || role === "gerente_comercial" || role === "coordinador" || role === "asesor";
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -114,20 +113,15 @@ export default function AsesoresPage() {
 
   const selectedSucursalId = selectedSucursales.length > 0 ? selectedSucursales[0] : null;
 
-  const dateRanges = useMemo(() => {
-    return getDateRangesForMonths(anio, meses);
-  }, [anio, meses]);
-
   const filterKey = JSON.stringify({ anio, meses, selectedSucursales, selectedUnidades });
 
   const { data: rawData, isLoading } = useQuery({
     queryKey: ["asesores-raw-data", filterKey],
     enabled: canView && !!sucursales && !!unidades,
     queryFn: () =>
-      getAsesoresRawDataAction({
+      getAsesoresRawData({
         anio,
         meses,
-        ranges: dateRanges,
         selectedSucursales,
         selectedUnidades,
       }),
@@ -137,7 +131,7 @@ export default function AsesoresPage() {
     queryKey: ["asesores-drilldown", selectedAdvisor?.codigo, selectedAdvisor?.nombre, anio],
     enabled: !!selectedAdvisor && canView,
     queryFn: () =>
-      getAsesoresDrilldownAction({
+      getAsesoresDrilldown({
         anio,
       }),
   });

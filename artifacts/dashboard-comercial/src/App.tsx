@@ -28,6 +28,10 @@ import { getHealthCheckQueryKey, useHealthCheck } from "@workspace/api-client-re
 import { ModulePage } from "./components/module-pages";
 import ResumenPage from "./pages/resumen";
 import UnidadLivePage from "./pages/unidad-live";
+import CobranzasPage from "./pages/cobranzas";
+import AsesoresPage from "./pages/asesores";
+import MinutasPage from "./pages/minutas";
+import NuevaMinutaPage from "./pages/minutas/nueva";
 import type { UnidadKey } from "./lib/unidad-http";
 import DashboardPage from "./pages/dashboard";
 import { useAuth } from "./hooks/use-auth";
@@ -102,7 +106,7 @@ const DEMO_ROLE_ACCESS: Record<DemoRole, string[]> = {
     "/equipos",
     "/alquiler",
   ],
-  asesor: ["/resumen", "/dashboard", "/alertas", "/cliente-360", "/minutas"],
+  asesor: ["/resumen", "/dashboard", "/alertas", "/cliente-360", "/minutas", "/asesores"],
 };
 
 const DEMO_DASHBOARD_PATHS: Record<DemoRole, string> = {
@@ -184,6 +188,20 @@ function DemoRoleDashboardRoute({ path, role }: { path: string; role: DemoRole }
 function ResumenRoute({ module, role }: { module: Module; role: DemoRole }) {
   const { session, loading } = useAuth();
   if (!loading && session) return <ResumenPage />;
+  return <DemoModuleRoute module={module} role={role} />;
+}
+
+function AuthenticatedModuleRoute({
+  module,
+  role,
+  children,
+}: {
+  module: Module;
+  role: DemoRole;
+  children: React.ReactNode;
+}) {
+  const { session, loading } = useAuth();
+  if (!loading && session) return <>{children}</>;
   return <DemoModuleRoute module={module} role={role} />;
 }
 
@@ -457,7 +475,12 @@ function DashboardApp() {
             <Route path="/"><Overview /></Route>
             <Route path="/dashboard"><DashboardRoute module={modules.find((item) => item.path === "/dashboard")!} role={demoRole} /></Route>
             {Object.keys(DEMO_DASHBOARD_ALIASES).filter((path) => path !== "/dashboard").map((path) => <Route key={path} path={path}><DemoRoleDashboardRoute path={path} role={demoRole} /></Route>)}
-             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute module={item} role={demoRole} unitKey={LIVE_UNIT_KEYS[item.path]!} /> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
+            <Route path="/minutas/nueva">
+              <AuthenticatedModuleRoute module={modules.find((item) => item.path === "/minutas")!} role={demoRole}>
+                <NuevaMinutaPage />
+              </AuthenticatedModuleRoute>
+            </Route>
+             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute module={item} role={demoRole} unitKey={LIVE_UNIT_KEYS[item.path]!} /> : item.path === "/cobranzas" ? <AuthenticatedModuleRoute module={item} role={demoRole}><CobranzasPage /></AuthenticatedModuleRoute> : item.path === "/asesores" ? <AuthenticatedModuleRoute module={item} role={demoRole}><AsesoresPage /></AuthenticatedModuleRoute> : item.path === "/minutas" ? <AuthenticatedModuleRoute module={item} role={demoRole}><MinutasPage /></AuthenticatedModuleRoute> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
             <Route><Overview /></Route>
           </Switch>
         </div>

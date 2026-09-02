@@ -4,13 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import {
-  getMinutasAction,
-  updateMinutaAction,
-  deleteMinutaAction,
-  addComentarioAction,
-  resolveAlertaAction,
-  type MinutaEstado,
-} from "@/lib/actions/minutas";
+  addComentarioHttp,
+  deleteMinutaHttp,
+  getMinutasHttp,
+  resolveAlertaHttp,
+  updateMinutaHttp,
+} from "@/lib/minutas-http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +79,8 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
+type MinutaEstado = "pendiente" | "en_proceso" | "completada";
+
 interface MinutaComentario {
   id: string;
   minutaId: string;
@@ -130,7 +131,7 @@ export default function MinutasPage() {
 
   const { data: minutas, isLoading } = useQuery({
     queryKey: ["minutas"],
-    queryFn: () => getMinutasAction() as Promise<MinutaItem[]>,
+    queryFn: () => getMinutasHttp() as Promise<MinutaItem[]>,
   });
 
   const [sucursalFilter, setSucursalFilter] = useState<string>("all");
@@ -171,7 +172,7 @@ export default function MinutasPage() {
 
   const save = useMutation({
     mutationFn: () =>
-      updateMinutaAction(editing!.id, {
+      updateMinutaHttp(editing!.id, {
         descripcion: form.descripcion,
         fechaLimite: form.fechaLimite || null,
         estado: form.estado,
@@ -186,7 +187,7 @@ export default function MinutasPage() {
 
   const del = useMutation({
     mutationFn: async (id: string) => {
-      await deleteMinutaAction(id);
+      await deleteMinutaHttp(id);
     },
     onSuccess: () => {
       toast.success("Minuta eliminada");
@@ -200,7 +201,7 @@ export default function MinutasPage() {
 
   const addComentarioMut = useMutation({
     mutationFn: async ({ minutaId, texto }: { minutaId: string; texto: string }) => {
-      await addComentarioAction(minutaId, texto);
+      await addComentarioHttp(minutaId, texto);
     },
     onSuccess: (_, variables) => {
       toast.success("Comentario agregado");
@@ -212,7 +213,7 @@ export default function MinutasPage() {
 
   const resolveAlertaMut = useMutation({
     mutationFn: async (alertaId: string) => {
-      await resolveAlertaAction(alertaId);
+      await resolveAlertaHttp(alertaId);
     },
     onSuccess: () => {
       toast.success("Alerta marcada como resuelta");

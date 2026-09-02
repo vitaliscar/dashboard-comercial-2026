@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getCobranzasAction, getCobranzasComparisonAction } from "@/lib/actions/cobranzas";
+import { getCobranzas, getCobranzasComparison } from "@/lib/cobranzas-http";
 import { segmentarCobranzas } from "@/lib/analytics/cobranzas";
 import { KpiCard } from "@/components/kpi-card";
 import { Sparkline } from "@/components/ui/sparkline";
@@ -44,6 +44,8 @@ import { CircleCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { SkeletonBox } from "@/components/ui/skeleton-box";
+import { useAuth } from "@/hooks/use-auth";
 
 const BUCKET_ORDER = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+90 días"] as const;
 const BUCKET_BAR_CLASS: Record<string, string> = {
@@ -71,6 +73,7 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 
 export default function CobranzasPage() {
   const [q, setQ] = useState("");
+  const { session } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const selectedUnidades = filters.unidades;
   const selectedSucursales = filters.sucursales;
@@ -96,12 +99,14 @@ export default function CobranzasPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["cobranzas", selectedUnidades, selectedSucursales],
-    queryFn: () => getCobranzasAction({ selectedUnidades, selectedSucursales }),
+    queryFn: () => getCobranzas({ selectedUnidades, selectedSucursales }),
+    enabled: Boolean(session),
   });
 
   const { data: compData, isLoading: compLoading } = useQuery({
     queryKey: ["cobranzas-comparison", selectedUnidades, selectedSucursales],
-    queryFn: () => getCobranzasComparisonAction({ selectedUnidades, selectedSucursales }),
+    queryFn: () => getCobranzasComparison({ selectedUnidades, selectedSucursales }),
+    enabled: Boolean(session),
   });
 
   const enriched = useMemo(() => {
