@@ -79,7 +79,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
-type MinutaEstado = "pendiente" | "en_proceso" | "completada";
+type MinutaEstado = "pendiente" | "en_proceso" | "cumplido";
 
 interface MinutaComentario {
   id: string;

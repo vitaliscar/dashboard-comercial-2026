@@ -25,7 +25,7 @@ export interface MinutaAlertaAbierta {
   tipo: string;
   severidad: "alta" | "media" | "baja";
   titulo: string;
-  contexto: { detalle?: string } | null;
+  contexto: { detalle?: string; accion?: string } | null;
   sucursalId: string | null;
   unidadNegocioId: string | null;
   asesorId: string | null;

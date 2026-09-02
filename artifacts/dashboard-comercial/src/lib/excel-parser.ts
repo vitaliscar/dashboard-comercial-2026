@@ -414,7 +414,7 @@ export class ExcelParser {
    * `preParsed` permite saltarse XLSX.read()/sheet_to_json() aquí (trabajo
    * síncrono pesado que bloquea el event loop) cuando esas hojas ya fueron
    * extraídas en un worker thread — ver parseExcelInWorker() y su uso en
-   * src/lib/actions/carga.ts. Uso normal (CLI, scripts): solo pasar `source`.
+   * Uso normal (CLI, scripts): solo pasar `source`.
    */
   constructor(
     source: string | Buffer,
