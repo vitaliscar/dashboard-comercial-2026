@@ -28,6 +28,7 @@ import { getHealthCheckQueryKey, useHealthCheck } from "@workspace/api-client-re
 import { ModulePage } from "./components/module-pages";
 import ResumenPage from "./pages/resumen";
 import ServiciosLivePage from "./pages/servicios-live";
+import DashboardPage from "./pages/dashboard";
 import { useAuth } from "./hooks/use-auth";
 import { AuthForm } from "./components/auth-form";
 
@@ -156,6 +157,12 @@ function DemoModuleRoute({ module, role }: { module: Module; role: DemoRole }) {
 function ServicesRoute({ module, role }: { module: Module; role: DemoRole }) {
   const { session, loading } = useAuth();
   if (!loading && session) return <ServiciosLivePage />;
+  return <DemoModuleRoute module={module} role={role} />;
+}
+
+function DashboardRoute({ module, role }: { module: Module; role: DemoRole }) {
+  const { session, loading } = useAuth();
+  if (!loading && session) return <DashboardPage />;
   return <DemoModuleRoute module={module} role={role} />;
 }
 
@@ -439,7 +446,8 @@ function DashboardApp() {
          {notice && !paletteOpen && <div className="ccv-toast" role="status">{notice}</div>}
           <Switch>
             <Route path="/"><Overview /></Route>
-            {Object.keys(DEMO_DASHBOARD_ALIASES).map((path) => <Route key={path} path={path}><DemoRoleDashboardRoute path={path} role={demoRole} /></Route>)}
+            <Route path="/dashboard"><DashboardRoute module={modules.find((item) => item.path === "/dashboard")!} role={demoRole} /></Route>
+            {Object.keys(DEMO_DASHBOARD_ALIASES).filter((path) => path !== "/dashboard").map((path) => <Route key={path} path={path}><DemoRoleDashboardRoute path={path} role={demoRole} /></Route>)}
              {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : item.path === "/servicios" ? <ServicesRoute module={item} role={demoRole} /> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
             <Route><Overview /></Route>
           </Switch>
