@@ -1,3 +1,4 @@
 - [UX prototyping to production](ux-prototyping-to-production.md) — Validate CCV palette and action-first hierarchy in the mockup sandbox before graduating them to the dashboard.
 - [API migration quirks](api-migration-quirks.md) — Pin Orval's Zod output to the workspace's installed Zod major version.
 - [Dashboard build validation](dashboard-build-validation.md) — Local Vite builds need the artifact's injected PORT and BASE_PATH; managed workflows provide them automatically.
+- [RLS and pool separation](rls-and-pool-separation.md) — Treat application scoping and database RLS as separate defenses; production needs non-BYPASS app and admin connections.

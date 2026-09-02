@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { currentSession, getPool } from "./auth";
+import { currentSession, getPool, withScopedTransaction } from "./auth";
 
 const router = Router();
 const UUID_RE =
@@ -41,9 +41,9 @@ function addScope(
 ) {
   const branchIds = profile.sucursalesIds ?? (profile.sucursalId ? [profile.sucursalId] : []);
   const unitIds = profile.unidadesNegocioIds ?? (profile.unidadNegocioId ? [profile.unidadNegocioId] : []);
-  const branch = requestedBranch ?? (role === "coordinador" ? branchIds[0] ?? null : null);
   const branchScope = role === "coordinador" || role === "asesor" ? branchIds : null;
   const unitScope = role === "gerente_comercial" ? unitIds : null;
+  const branch = requestedBranch ?? (branchScope?.length === 1 ? branchScope[0] : null);
 
   if (requestedBranch && branchScope && !branchScope.includes(requestedBranch)) {
     return null;
@@ -141,13 +141,17 @@ router.get("/catalogos", async (req: Request, res: Response) => {
     res.status(401).json({ message: "Sesión no válida." });
     return;
   }
+  if (!session.role) {
+    res.status(403).json({ message: "El usuario no tiene un rol comercial asignado." });
+    return;
+  }
   const pool = await getPool();
   if (!pool) {
     res.status(503).json({ message: "La base de datos no está configurada." });
     return;
   }
   try {
-    res.json(await getCatalogs(pool, session));
+    res.json(await withScopedTransaction(session, (tx) => getCatalogs(tx, session)));
   } catch {
     res.status(500).json({ message: "No se pudieron cargar los catálogos." });
   }
@@ -196,7 +200,8 @@ router.get("/resumen", async (req: Request, res: Response) => {
   const budgetMonthlyWhere = whereFor("p", scope, undefined, false);
 
   try {
-    const [
+    const result = await withScopedTransaction(session, async (tx) => {
+      const [
       cotizaciones,
       cotizacionesMensual,
       ventasPerdidasMensual,
@@ -211,8 +216,8 @@ router.get("/resumen", async (req: Request, res: Response) => {
       presupuestosMensual,
       cumplimientoAsesor,
       ajustesManuales,
-    ] = await Promise.all([
-      pool.query(
+      ] = await Promise.all([
+      tx.query(
         `SELECT c.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(c.monto), 0) AS "montoTotal",
                 COUNT(c.id)::int AS cantidad
@@ -220,7 +225,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY c.unidad_negocio_id`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT c.unidad_negocio_id AS "unidadNegocioId",
                 EXTRACT(month FROM c.fecha)::int AS mes,
                 COALESCE(SUM(c.monto), 0) AS "montoTotal"
@@ -228,7 +233,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY c.unidad_negocio_id, EXTRACT(month FROM c.fecha)`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 EXTRACT(month FROM v.fecha)::int AS mes,
                 COALESCE(SUM(v.monto), 0) AS "montoTotal"
@@ -236,7 +241,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY v.unidad_negocio_id, EXTRACT(month FROM v.fecha)`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT c.unidad_negocio_id AS "unidadNegocioId",
                 c.sucursal_id AS "sucursalId",
                 c.cliente,
@@ -245,7 +250,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY c.unidad_negocio_id, c.sucursal_id, c.cliente`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT f.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(f.monto), 0) AS "montoTotal",
                 COUNT(f.id)::int AS cantidad
@@ -253,7 +258,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY f.unidad_negocio_id`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT f.unidad_negocio_id AS "unidadNegocioId",
                 f.sucursal_id AS "sucursalId",
                 f.cliente,
@@ -262,7 +267,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY f.unidad_negocio_id, f.sucursal_id, f.cliente`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(v.monto), 0) AS "montoTotal",
                 COUNT(v.id)::int AS cantidad
@@ -270,7 +275,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY v.unidad_negocio_id`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 v.sucursal_id AS "sucursalId",
                 v.cliente,
@@ -279,7 +284,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY v.unidad_negocio_id, v.sucursal_id, v.cliente`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 v.razon,
                 COALESCE(SUM(v.monto), 0) AS "montoTotal",
@@ -288,7 +293,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY v.unidad_negocio_id, v.razon`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT s.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(s.monto), 0) AS "montoTotal",
                 COUNT(s.id)::int AS cantidad
@@ -296,7 +301,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          GROUP BY s.unidad_negocio_id`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT p.id, p.anio, p.mes, p.sucursal_id AS "sucursalId",
                 p.unidad_negocio_id AS "unidadNegocioId", p.monto,
                 p.ventas_ccv AS "ventasCcv", p.ventas_xibi AS "ventasXibi",
@@ -304,7 +309,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
          FROM presupuestos p WHERE ${budgetWhere}`,
         params,
       ),
-      pool.query(
+      tx.query(
         `SELECT p.mes,
                 p.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(p.monto), 0) AS monto,
@@ -316,7 +321,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
         params,
       ),
       session.role === "asesor"
-        ? pool.query(
+        ? tx.query(
             `SELECT ca.mes, ca.presupuesto, ca.venta,
                     ca.unidad_negocio_id AS "unidadNegocioId"
              FROM cumplimiento_asesores ca WHERE ${advisorWhere}`,
@@ -324,7 +329,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
           )
         : Promise.resolve({ rows: [] }),
       session.role === "gerencia"
-        ? pool.query(
+        ? tx.query(
             `SELECT a.id, a.anio, a.mes, a.sucursal_id AS "sucursalId",
                     a.unidad_negocio_id AS "unidadNegocioId", a.monto,
                     a.motivo, a.creado_por AS "creadoPor"
@@ -348,7 +353,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
       motivo: adjustment.motivo,
     }));
 
-    res.json({
+      return {
       cotizaciones: cotizaciones.rows,
       cotizacionesPrevMonth: [],
       cotizacionesMensual: cotizacionesMensual.rows,
@@ -364,7 +369,9 @@ router.get("/resumen", async (req: Request, res: Response) => {
       presupuestos: [...presupuestos.rows, ...adjustmentRows],
       presupuestosMensual: presupuestosMensual.rows,
       cumplimientoAsesor: cumplimientoAsesor.rows,
+      };
     });
+    res.json(result);
   } catch (error) {
     req.log?.error?.({ error }, "resumen query failed");
     res.status(500).json({ message: "No se pudo cargar el resumen comercial." });
