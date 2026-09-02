@@ -32,10 +32,20 @@ import CobranzasPage from "./pages/cobranzas";
 import AsesoresPage from "./pages/asesores";
 import MinutasPage from "./pages/minutas";
 import NuevaMinutaPage from "./pages/minutas/nueva";
+import AlertasPage from "./pages/alertas";
+import Cliente360Page from "./pages/cliente-360";
+import EmbudoPage from "./pages/embudo";
 import type { UnidadKey } from "./lib/unidad-http";
 import DashboardPage from "./pages/dashboard";
+import SucursalPage from "./pages/sucursal";
+import CoordinadorPage from "./pages/coordinador";
+import AsesorPanelPage from "./pages/asesor-panel";
 import { useAuth } from "./hooks/use-auth";
 import { AuthForm } from "./components/auth-form";
+import { AjustesPage, CargaPage, UsuariosPage } from "./pages/administracion";
+import EvaluacionAsesorPage from "./pages/evaluacion-asesor";
+import EvaluacionSucursalPage from "./pages/evaluacion-sucursal";
+import EvaluacionUnidadPage from "./pages/evaluacion-unidad";
 
 export type Module = {
   path: string;
@@ -183,6 +193,16 @@ function DemoRoleDashboardRoute({ path, role }: { path: string; role: DemoRole }
   const requiredRole = DEMO_DASHBOARD_ALIASES[path];
   const dashboard = modules.find((module) => module.path === "/dashboard")!;
   return requiredRole === role ? <DemoModuleRoute module={dashboard} role={role} /> : <AccessDenied role={role} />;
+}
+
+function RoleDashboardRoute({ path, role }: { path: string; role: DemoRole }) {
+  const { session, loading, role: authenticatedRole } = useAuth();
+  if (!loading && session) {
+    if (path === "/coordinador") return <CoordinadorPage />;
+    if (path === "/asesor") return <AsesorPanelPage />;
+    if (path === "/sucursal") return <SucursalPage />;
+  }
+  return <DemoRoleDashboardRoute path={path} role={authenticatedRole ?? role} />;
 }
 
 function ResumenRoute({ module, role }: { module: Module; role: DemoRole }) {
@@ -474,13 +494,16 @@ function DashboardApp() {
           <Switch>
             <Route path="/"><Overview /></Route>
             <Route path="/dashboard"><DashboardRoute module={modules.find((item) => item.path === "/dashboard")!} role={demoRole} /></Route>
-            {Object.keys(DEMO_DASHBOARD_ALIASES).filter((path) => path !== "/dashboard").map((path) => <Route key={path} path={path}><DemoRoleDashboardRoute path={path} role={demoRole} /></Route>)}
+            {Object.keys(DEMO_DASHBOARD_ALIASES).filter((path) => path !== "/dashboard").map((path) => <Route key={path} path={path}><RoleDashboardRoute path={path} role={demoRole} /></Route>)}
             <Route path="/minutas/nueva">
               <AuthenticatedModuleRoute module={modules.find((item) => item.path === "/minutas")!} role={demoRole}>
                 <NuevaMinutaPage />
               </AuthenticatedModuleRoute>
             </Route>
-             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute module={item} role={demoRole} unitKey={LIVE_UNIT_KEYS[item.path]!} /> : item.path === "/cobranzas" ? <AuthenticatedModuleRoute module={item} role={demoRole}><CobranzasPage /></AuthenticatedModuleRoute> : item.path === "/asesores" ? <AuthenticatedModuleRoute module={item} role={demoRole}><AsesoresPage /></AuthenticatedModuleRoute> : item.path === "/minutas" ? <AuthenticatedModuleRoute module={item} role={demoRole}><MinutasPage /></AuthenticatedModuleRoute> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
+            <Route path="/evaluacion/asesor"><EvaluacionAsesorPage /></Route>
+            <Route path="/evaluacion/sucursal"><EvaluacionSucursalPage /></Route>
+            <Route path="/evaluacion/unidad"><EvaluacionUnidadPage /></Route>
+              {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute module={item} role={demoRole} unitKey={LIVE_UNIT_KEYS[item.path]!} /> : item.path === "/alertas" ? <AuthenticatedModuleRoute module={item} role={demoRole}><AlertasPage /></AuthenticatedModuleRoute> : item.path === "/cliente-360" ? <AuthenticatedModuleRoute module={item} role={demoRole}><Cliente360Page /></AuthenticatedModuleRoute> : item.path === "/embudo" ? <AuthenticatedModuleRoute module={item} role={demoRole}><EmbudoPage /></AuthenticatedModuleRoute> : item.path === "/cobranzas" ? <AuthenticatedModuleRoute module={item} role={demoRole}><CobranzasPage /></AuthenticatedModuleRoute> : item.path === "/asesores" ? <AuthenticatedModuleRoute module={item} role={demoRole}><AsesoresPage /></AuthenticatedModuleRoute> : item.path === "/minutas" ? <AuthenticatedModuleRoute module={item} role={demoRole}><MinutasPage /></AuthenticatedModuleRoute> : item.path === "/usuarios" ? <AuthenticatedModuleRoute module={item} role={demoRole}><UsuariosPage /></AuthenticatedModuleRoute> : item.path === "/ajustes-manuales" ? <AuthenticatedModuleRoute module={item} role={demoRole}><AjustesPage /></AuthenticatedModuleRoute> : item.path === "/carga" ? <AuthenticatedModuleRoute module={item} role={demoRole}><CargaPage /></AuthenticatedModuleRoute> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
             <Route><Overview /></Route>
           </Switch>
         </div>

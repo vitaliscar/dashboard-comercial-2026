@@ -34,6 +34,28 @@ const KNOWN_API_ROUTES = [
   "DELETE /minutas/:id",
   "POST /minutas/:id/comentarios",
   "POST /minutas/alertas/:id/resolver",
+  "GET /alertas",
+  "POST /alertas/:id/resolver",
+  "GET /cliente-360",
+  "GET /embudo",
+  "GET /sucursal/metrics",
+  "GET /sucursal/trend",
+  "GET /coordinador/year",
+  "GET /coordinador/cobranzas",
+  "GET /coordinador/scorecard",
+  "GET /asesor/metrics",
+  "GET /asesor/trend",
+  "GET /evaluacion/asesor",
+  "GET /evaluacion/sucursal",
+  "GET /evaluacion/unidad",
+  "GET /usuarios",
+  "POST /usuarios",
+  "PATCH /usuarios/:id",
+  "POST /usuarios/:id/password",
+  "DELETE /usuarios/:id",
+  "GET /ajustes-manuales",
+  "POST /ajustes-manuales",
+  "DELETE /ajustes-manuales/:id",
 ].sort();
 
 function registeredRoutes(target: any): string[] {
@@ -125,6 +147,21 @@ test("todas las rutas de negocio están inventariadas y respetan aislamiento por
     await expectStatus(cookie, "GET", "/minutas/alertas-abiertas", 200);
     await expectStatus(cookie, "GET", "/cobranzas", role === "asesor" ? 403 : 200);
     await expectStatus(cookie, "GET", "/cobranzas/comparison", role === "asesor" ? 403 : 200);
+    await expectStatus(cookie, "GET", "/alertas", 200);
+    await expectStatus(cookie, "GET", "/cliente-360?anio=2026&mes=0&fuente=facturado", 200);
+    await expectStatus(cookie, "GET", "/embudo?anio=2026", 200);
+    await expectStatus(cookie, "GET", "/sucursal/metrics?anio=2026", 200);
+    await expectStatus(cookie, "GET", "/sucursal/trend?anio=2026", 200);
+    await expectStatus(cookie, "GET", "/coordinador/year?anio=2026", role === "coordinador" ? 200 : 403);
+    await expectStatus(cookie, "GET", "/coordinador/cobranzas?anio=2026", role === "coordinador" ? 200 : 403);
+    await expectStatus(cookie, "GET", "/coordinador/scorecard?anio=2026", role === "coordinador" ? 200 : 403);
+    await expectStatus(cookie, "GET", "/asesor/metrics?anio=2026", role === "asesor" ? 200 : 403);
+    await expectStatus(cookie, "GET", "/asesor/trend?anio=2026", role === "asesor" ? 200 : 403);
+    await expectStatus(cookie, "GET", "/evaluacion/asesor?anio=2026", role === "asesor" ? 200 : 403);
+    await expectStatus(cookie, "GET", `/evaluacion/sucursal?anio=2026&sucursalId=${branch("Valencia")}`, role === "asesor" ? 403 : 200);
+    await expectStatus(cookie, "GET", `/evaluacion/unidad?anio=2026&unidadId=${unit("Equipos")}`, role === "asesor" ? 403 : 200);
+    await expectStatus(cookie, "GET", "/usuarios", role === "gerencia" ? 200 : 403);
+    await expectStatus(cookie, "GET", "/ajustes-manuales?anio=2026", role === "gerencia" ? 200 : 403);
     for (const unitPath of unitPaths) {
       const allowed = role !== "gc" || unitPath === "equipos";
       const advisorAllowed = role !== "asesor" || unitPath === "repuestos";
@@ -139,6 +176,11 @@ test("todas las rutas de negocio están inventariadas y respetan aislamiento por
   await expectStatus(sessions.coordinador.cookie, "GET", `/asesores?sucursalId=${branch("Caracas")}`, 403);
   await expectStatus(sessions.asesor.cookie, "GET", `/resumen?sucursalId=${branch("Valencia")}`, 403);
   await expectStatus(sessions.asesor.cookie, "GET", `/asesores?unidadId=${unit("Equipos")}`, 403);
+  await expectStatus(sessions.gc.cookie, "GET", `/cliente-360?anio=2026&mes=0&fuente=facturado&unidades=${unit("Repuestos")}`, 403);
+  await expectStatus(sessions.coordinador.cookie, "GET", `/cliente-360?anio=2026&mes=0&fuente=facturado&sucursales=${branch("Caracas")}`, 403);
+  await expectStatus(sessions.coordinador.cookie, "GET", `/embudo?anio=2026&sucursales=${branch("Caracas")}`, 403);
+  await expectStatus(sessions.asesor.cookie, "GET", `/sucursal/metrics?anio=2026&sucursalId=${branch("Valencia")}`, 403);
+  await expectStatus(sessions.gc.cookie, "GET", `/evaluacion/unidad?anio=2026&unidadId=${unit("Repuestos")}`, 403);
 
   const minuteBody = {
     fecha: new Date().toISOString().slice(0, 10),
@@ -178,8 +220,60 @@ test("todas las rutas de negocio están inventariadas y respetan aislamiento por
     const unknownAlert = "00000000-0000-4000-8000-000000000099";
     for (const role of Object.keys(sessions) as RoleKey[]) {
       await expectStatus(sessions[role].cookie, "POST", `/minutas/alertas/${unknownAlert}/resolver`, 403);
+      await expectStatus(sessions[role].cookie, "POST", `/alertas/${unknownAlert}/resolver`, 403);
     }
   } finally {
     await expectStatus(sessions.gerencia.cookie, "DELETE", `/minutas/${minute.id}`, 204);
+  }
+
+  const temporaryEmail = `aislamiento-${Date.now()}@ccv.local`;
+  const createdUserResponse = await expectStatus(sessions.gerencia.cookie, "POST", "/usuarios", 201, {
+    email: temporaryEmail,
+    password: "Temporal2026!",
+    nombreCompleto: "Usuario temporal de aislamiento",
+    role: "asesor",
+    sucursalId: branch("Caracas"),
+    unidadNegocioId: unit("Repuestos"),
+  });
+  const temporaryUser = await createdUserResponse.json() as { userId: string };
+  try {
+    await expectStatus(sessions.gerencia.cookie, "PATCH", `/usuarios/${temporaryUser.userId}`, 200, { role: "coordinador" });
+    await expectStatus(sessions.gerencia.cookie, "POST", `/usuarios/${temporaryUser.userId}/password`, 200, { newPassword: "Temporal2026!Cambio" });
+    for (const role of ["gc", "coordinador", "asesor"] as RoleKey[]) {
+      await expectStatus(sessions[role].cookie, "POST", "/usuarios", 403, {
+        email: `negado-${role}@ccv.local`,
+        password: "Temporal2026!",
+        nombreCompleto: "Intento denegado",
+        role: "asesor",
+      });
+      await expectStatus(sessions[role].cookie, "PATCH", `/usuarios/${temporaryUser.userId}`, 403, { role: "asesor" });
+      await expectStatus(sessions[role].cookie, "POST", `/usuarios/${temporaryUser.userId}/password`, 403, { newPassword: "Intento2026!" });
+      await expectStatus(sessions[role].cookie, "DELETE", `/usuarios/${temporaryUser.userId}`, 403);
+    }
+  } finally {
+    await expectStatus(sessions.gerencia.cookie, "DELETE", `/usuarios/${temporaryUser.userId}`, 200);
+  }
+
+  const createdAdjustmentResponse = await expectStatus(sessions.gerencia.cookie, "POST", "/ajustes-manuales", 201, {
+    anio: 2026,
+    mes: 9,
+    monto: 1,
+    motivo: "Ajuste temporal del test de aislamiento",
+    sucursalId: null,
+    unidadNegocioId: null,
+  });
+  const temporaryAdjustment = await createdAdjustmentResponse.json() as { id: string };
+  try {
+    for (const role of ["gc", "coordinador", "asesor"] as RoleKey[]) {
+      await expectStatus(sessions[role].cookie, "POST", "/ajustes-manuales", 403, {
+        anio: 2026,
+        mes: 9,
+        monto: 1,
+        motivo: "Intento denegado",
+      });
+      await expectStatus(sessions[role].cookie, "DELETE", `/ajustes-manuales/${temporaryAdjustment.id}`, 403);
+    }
+  } finally {
+    await expectStatus(sessions.gerencia.cookie, "DELETE", `/ajustes-manuales/${temporaryAdjustment.id}`, 200);
   }
 });
