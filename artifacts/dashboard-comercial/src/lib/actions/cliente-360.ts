@@ -33,9 +33,9 @@ export async function getCliente360DataAction(data: {
     hace90d.setDate(hace90d.getDate() - 90);
     const hace90dStr = hace90d.toISOString().slice(0, 10);
 
-    let paretoPromise;
+    let sourceRowsPromise;
     if (fuente === "cotizado") {
-      paretoPromise = tx
+      sourceRowsPromise = tx
         .select({
           cliente: cotizaciones.cliente,
           monto: sum(cotizaciones.monto),
@@ -52,7 +52,7 @@ export async function getCliente360DataAction(data: {
         )
         .groupBy(cotizaciones.cliente, cotizaciones.sucursalId);
     } else if (fuente === "facturado") {
-      paretoPromise = tx
+      sourceRowsPromise = tx
         .select({
           cliente: facturas.cliente,
           monto: sum(facturas.monto),
@@ -69,7 +69,7 @@ export async function getCliente360DataAction(data: {
         )
         .groupBy(facturas.cliente, facturas.sucursalId);
     } else {
-      paretoPromise = tx
+      sourceRowsPromise = tx
         .select({
           cliente: ventasPerdidas.cliente,
           monto: sum(ventasPerdidas.monto),
@@ -133,15 +133,15 @@ export async function getCliente360DataAction(data: {
       )
       .groupBy(cobranzas.cliente);
 
-    const [paretoRows, facturasRows, ventasPerdidasRows, cobranzasRows] = await Promise.all([
-      paretoPromise,
+    const [sourceRows, facturasRows, ventasPerdidasRows, cobranzasRows] = await Promise.all([
+      sourceRowsPromise,
       facturasHealthPromise,
       ventasPerdidasHealthPromise,
       cobranzasHealthPromise,
     ]);
 
     return {
-      pareto: paretoRows.map((r) => ({
+      sourceRows: sourceRows.map((r) => ({
         cliente: r.cliente,
         monto: Number(r.monto ?? 0),
         sucursal_id: r.sucursal_id,

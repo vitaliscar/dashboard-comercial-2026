@@ -175,7 +175,7 @@ function Clientes360Tab({
       return e;
     };
 
-    data.pareto.forEach((p) => {
+    data.sourceRows.forEach((p) => {
       const e = upsert(p.cliente);
       if (!e) return;
       e.monto += Number(p.monto) || 0;
