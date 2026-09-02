@@ -27,6 +27,10 @@ import * as fs from "fs";
 import * as path from "path";
 import * as XLSX from "xlsx";
 
+// El build ESM de xlsx no asume el `fs` de Node por defecto — sin esto,
+// XLSX.readFile falla con "Cannot access file" aunque el archivo exista.
+XLSX.set_fs(fs);
+
 export type RawRowData = Record<string, string | number | undefined | null>;
 
 /** Recalcula !ref escaneando las claves de celda reales — corrige el bug de dimensión 1x1. */

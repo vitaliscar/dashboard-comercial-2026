@@ -67,7 +67,7 @@ interface LoadResult {
 }
 
 /** Cliente de transacción de dbAdmin — todo el pipeline de carga corre atómico. */
-type DbAdminTx = Parameters<Parameters<typeof dbAdmin.transaction>[0]>[0];
+export type DbAdminTx = Parameters<Parameters<typeof dbAdmin.transaction>[0]>[0];
 
 function generateTemporaryPassword(): string {
   return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
@@ -82,7 +82,7 @@ function byNormalizedName<T extends { nombre: string; id: string }>(
 }
 
 /** Sucursales y unidades_negocio: upsert idempotente por nombre. */
-async function seedCatalogos(tx: DbAdminTx): Promise<{
+export async function seedCatalogos(tx: DbAdminTx): Promise<{
   sucursales: Map<string, string>;
   unidades: Map<string, string>;
 }> {
@@ -865,7 +865,7 @@ export async function loadExcelToPostgres(
 const CHUNK = 2500;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function insertChunked(
+export async function insertChunked(
   tx: DbAdminTx,
   table: any,
   rows: Record<string, unknown>[],
