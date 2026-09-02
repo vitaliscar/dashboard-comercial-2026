@@ -197,7 +197,10 @@ export function KpiCard({
           >
             {value}
           </span>
-          {subvalue && subvalueAlign === "inline" && (
+          {/* Cuando hay gauge, el anillo ya muestra este mismo porcentaje —
+              repetirlo como subvalor inline dice el mismo dato dos veces en
+              un solo vistazo. */}
+          {subvalue && subvalueAlign === "inline" && !(progress !== undefined && progressVariant === "gauge") && (
             <span className={cn("font-bold tabular-nums text-sm align-baseline", subvalueClassName)}>
               {subvalue}
               {subvalueLabel && (

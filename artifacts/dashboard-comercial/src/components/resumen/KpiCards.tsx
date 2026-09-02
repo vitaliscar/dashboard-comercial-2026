@@ -81,10 +81,8 @@ export function KpiCards({
         subvalueAlign="inline"
         subvalueClassName={cumplimientoLabelClassName}
         progress={cumplimientoMetaPorcentaje}
-        progressVariant="gauge"
         projection={facturadoProjection}
-        hint={`${facturadoVsCotizadoPorcentaje.toFixed(1)}% de lo cotizado`}
-        tooltip="Monto facturado en base al módulo de presupuestos consolidando Ventas CCV, Xibi y Estratégicas del mes. El anillo muestra el cumplimiento contra meta."
+        tooltip="Monto facturado en base al módulo de presupuestos consolidando Ventas CCV, Xibi y Estratégicas del mes."
       />
       <KpiCard
         label="Ventas Perdidas"
