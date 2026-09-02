@@ -49,8 +49,14 @@ function whereFor(alias: string, dateColumn: string | null, includeAdvisor = tru
         `${alias}.${dateColumn} >= $1::date`,
         `${alias}.${dateColumn} < $2::date`,
         `EXTRACT(month FROM ${alias}.${dateColumn})::int = ANY($3::int[])`,
+        `$4::int IS NOT NULL`,
       ]
-    : [`${alias}.anio = $4::int`, `${alias}.mes = ANY($3::int[])`];
+    : [
+        `$1::date IS NOT NULL`,
+        `$2::date IS NOT NULL`,
+        `${alias}.anio = $4::int`,
+        `${alias}.mes = ANY($3::int[])`,
+      ];
   predicates.push(
     `($5::uuid[] IS NULL OR ${alias}.sucursal_id = ANY($5::uuid[]))`,
     `($6::uuid[] IS NULL OR ${alias}.unidad_negocio_id = ANY($6::uuid[]))`,
@@ -97,7 +103,11 @@ async function rawData(
       : tx.query(
           `SELECT COALESCE(SUM(vc.monto), 0) AS monto, vc.sucursal_id, vc.unidad_negocio_id
            FROM ventas_casa vc
-           WHERE vc.mes = ANY($3::int[])
+           WHERE $1::date IS NOT NULL
+             AND $2::date IS NOT NULL
+             AND $4::int IS NOT NULL
+             AND $7::uuid IS NULL
+             AND vc.mes = ANY($3::int[])
              AND ($5::uuid[] IS NULL OR vc.sucursal_id = ANY($5::uuid[]))
              AND ($6::uuid[] IS NULL OR vc.unidad_negocio_id = ANY($6::uuid[]))
            GROUP BY vc.sucursal_id, vc.unidad_negocio_id`,
@@ -112,7 +122,11 @@ async function drilldownData(tx: Queryable, year: number, scope: NonNullable<Ret
   const [aliases, metas, facturas, cotizaciones, perdidas] = await Promise.all([
     tx.query(
       `SELECT ca.codigo_asesor, ca.asesor FROM cumplimiento_asesores ca
-       WHERE ca.codigo_asesor IS NOT NULL AND ca.asesor IS NOT NULL
+        WHERE $1::date IS NOT NULL
+          AND $2::date IS NOT NULL
+          AND $3::int[] IS NOT NULL
+          AND $4::int IS NOT NULL
+          AND ca.codigo_asesor IS NOT NULL AND ca.asesor IS NOT NULL
          AND ($5::uuid[] IS NULL OR ca.sucursal_id = ANY($5::uuid[]))
          AND ($6::uuid[] IS NULL OR ca.unidad_negocio_id = ANY($6::uuid[]))
          AND ($7::uuid IS NULL OR ca.asesor_id = $7::uuid)

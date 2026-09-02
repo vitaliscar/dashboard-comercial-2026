@@ -5,3 +5,4 @@
 - [RLS schema drift](rls-schema-drift.md) — Apply role predicates per table schema; shared scope helpers must not assume every aggregate has asesor_id.
 - [Authenticated preview cookies](authenticated-preview-cookie.md) — Browser screenshots do not inherit curl cookies; use and remove a narrowly scoped dev-only session bridge for visual QA.
 - [Dashboard auth routing](dashboard-auth-routing.md) — Single-unit role redirects must wait for the assigned-unit catalog before resolving a destination.
+- [Postgres positional parameters](postgres-positional-parameters.md) — Shared SQL parameter arrays require every placeholder to be explicitly typed in each query that receives them.
