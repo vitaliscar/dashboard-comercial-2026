@@ -44,7 +44,6 @@ import {
   EmptyDescription,
   EmptyMedia,
 } from "@/components/ui/empty";
-import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function Equipos() {
@@ -467,8 +466,6 @@ export default function Equipos() {
           }))}
         />
       </section>
-
-      <ClientesPotencialesSection unidad="Equipos" />
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { consolidarAsesores, calcularKPIs, prepararDatosPareto } from "./asesores";
+import { consolidarAsesores, calcularKPIs } from "./asesores";
 import { VENTAS_CASA } from "../asesores-catalogo";
 
 describe("Advisors Core Engine Tests", () => {
@@ -74,25 +74,6 @@ describe("Advisors Core Engine Tests", () => {
     expect(kpi.cumplimientoPromedio).toBe(((15000 + 8000) / (12000 + 10000)) * 100); // (23000 / 22000) * 100 = 104.54%
     expect(kpi.asesoresSobreMeta).toBe(1); // Felix is 125%, Alfredo is 80%
     expect(kpi.totalAsesoresConMeta).toBe(2);
-  });
-
-  it("should prepare and sort Pareto data correctly", () => {
-    const consolidated = consolidarAsesores(
-      mockCumplimiento,
-      mockCotizaciones,
-      mockPerdidas,
-      mockVentasCasaSucursal,
-    );
-
-    const paretoVenta = prepararDatosPareto(consolidated, "venta");
-
-    expect(paretoVenta.length).toBe(3); // Felix, Alfredo, Ventas Casa
-    expect(paretoVenta[0].name).toBe("Felix Conde");
-    expect(paretoVenta[0].value).toBe(15000);
-    expect(paretoVenta[1].name).toBe("Alfredo Betancourt");
-    expect(paretoVenta[1].value).toBe(8000);
-    expect(paretoVenta[2].name).toBe("Ventas Casa");
-    expect(paretoVenta[2].value).toBe(7000);
   });
 
   it("should route Visco Orinoco cotizaciones to Ventas Casa even when an advisor is listed", () => {

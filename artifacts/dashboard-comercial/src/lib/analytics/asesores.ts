@@ -186,24 +186,3 @@ export function calcularKPIs(agrupados: AgrupacionAsesor[]): KPIAsesores {
   };
 }
 
-/**
- * Genera la estructura de datos requerida para el componente de Pareto
- */
-export interface ParetoInputRow {
-  name: string;
-  value: number;
-}
-
-export function prepararDatosPareto(
-  agrupados: AgrupacionAsesor[],
-  tipo: "venta" | "cotizado",
-): ParetoInputRow[] {
-  const key = tipo === "venta" ? "venta" : "cotizado";
-  return agrupados
-    .map((item) => ({
-      name: item.nombre,
-      value: item[key],
-    }))
-    .filter((item) => item.value > 0)
-    .sort((a, b) => b.value - a.value);
-}

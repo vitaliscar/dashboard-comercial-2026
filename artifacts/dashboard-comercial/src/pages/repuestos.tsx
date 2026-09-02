@@ -25,7 +25,6 @@ import { useMemo } from "react";
 import { TrendingUp, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 
 export default function RepuestosPage() {
   const { role } = useAuth();
@@ -346,7 +345,6 @@ export default function RepuestosPage() {
         />
       </section>
 
-      <ClientesPotencialesSection unidad="Repuestos" />
     </div>
   );
 }

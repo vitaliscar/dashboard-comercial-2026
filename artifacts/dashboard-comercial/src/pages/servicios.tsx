@@ -32,7 +32,6 @@ import { RankedHorizontalBar } from "@/components/servicios/RankedHorizontalBar"
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import { TalleresMonthlyChart } from "@/components/servicios/TalleresMonthlyChart";
 import { CsaTrendChart } from "@/components/servicios/CsaTrendChart";
-import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function ServiciosPage() {
@@ -491,8 +490,6 @@ export default function ServiciosPage() {
         </header>
         <ReceivablesTable rows={receivablesRows} sucursalOptions={sucursalOptions} />
       </section>
-
-      <ClientesPotencialesSection unidad="Servicios" />
 
       {isLoading && (
         <div className="text-xs text-muted-foreground">Cargando datos de servicio…</div>

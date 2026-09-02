@@ -22,7 +22,6 @@ import { useMemo, useState } from "react";
 import { TrendingUp, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
-import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function Alquiler() {
@@ -261,8 +260,6 @@ export default function Alquiler() {
           }))}
         />
       </section>
-
-      <ClientesPotencialesSection unidad="Alquiler" />
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>

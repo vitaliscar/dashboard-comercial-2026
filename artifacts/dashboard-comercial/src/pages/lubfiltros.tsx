@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/empty";
 import { useMemo } from "react";
 import { TrendingUp, Droplets } from "lucide-react";
-import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 export default function LubFiltrosPage() {
@@ -421,8 +420,6 @@ export default function LubFiltrosPage() {
         </header>
         <ReceivablesTable rows={receivablesRows} sucursalOptions={sucursalOptions} />
       </section>
-
-      <ClientesPotencialesSection unidad="Lubricantes/Filtros" />
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>

@@ -7,7 +7,7 @@ import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { money, pct, statusFromPct } from "@/lib/format";
-import { createChartLabel, createLastPointLabel } from "@/lib/chart-labels";
+import { createLastPointLabel } from "@/lib/chart-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { SkeletonBox } from "@/components/ui/skeleton-box";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,6 @@ import {
   Line,
   XAxis,
   YAxis,
-  ReferenceLine,
   LabelList,
 } from "recharts";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
@@ -46,7 +45,6 @@ import {
   Users,
   Award,
   TrendingDown,
-  Percent,
   CheckCircle2,
   Eye,
   AlertTriangle,
@@ -56,7 +54,6 @@ import { resolverAsesor, VENTAS_CASA, normalizarNombre } from "@/lib/asesores-ca
 import {
   consolidarAsesores,
   calcularKPIs,
-  prepararDatosPareto,
   type AgrupacionAsesor,
 } from "@/lib/analytics/asesores";
 import { getDateRangesForMonths } from "@/lib/date-range";
@@ -85,9 +82,6 @@ const MESES = [
   "Diciembre",
 ];
 
-// TODO: reactivar la pestaña "Distribución Pareto" cuando pasemos a producción.
-const SHOW_PARETO_TAB = false;
-
 const TEXT_ACCENT_CLASS: Record<"success" | "warning" | "danger", string> = {
   success: "text-success",
   warning: "text-warning",
@@ -100,8 +94,7 @@ export default function AsesoresPage() {
   const { anio, meses, sucursales: selectedSucursales, unidades: selectedUnidades } = filters;
 
   const chartAnimation = useChartAnimation();
-  const [activeTab, setActiveTab] = useState<"ranking" | "pareto">("ranking");
-  const [paretoTipo, setParetoTipo] = useState<"venta" | "cotizado">("venta");
+  const [activeTab, setActiveTab] = useState<"ranking">("ranking");
   const [selectedAdvisor, setSelectedAdvisor] = useState<AgrupacionAsesor | null>(null);
 
   const canView = role === "gerencia" || role === "gerente_comercial" || role === "coordinador";
@@ -207,9 +200,9 @@ export default function AsesoresPage() {
     };
   }, [rawDrilldown, selectedAdvisor]);
 
-  const { list, kpis, paretoData } = useMemo(() => {
+  const { list, kpis } = useMemo(() => {
     if (!rawData || !unidades) {
-      return { list: [], kpis: null, paretoData: [], unitMap: new Map() };
+      return { list: [], kpis: null, unitMap: new Map() };
     }
 
     const uMap = new Map<string, string>();
@@ -231,7 +224,6 @@ export default function AsesoresPage() {
     );
 
     const calculatedKpis = calcularKPIs(consolidated);
-    const pareto = prepararDatosPareto(consolidated, paretoTipo);
 
     const advisors = consolidated
       .filter((a) => a.codigo !== VENTAS_CASA.codigo)
@@ -243,24 +235,9 @@ export default function AsesoresPage() {
     return {
       list: finalList,
       kpis: calculatedKpis,
-      paretoData: pareto,
       unitMap: uMap,
     };
-  }, [rawData, unidades, paretoTipo]);
-
-  const paretoChartData = useMemo(() => {
-    let acc = 0;
-    const total = paretoData.reduce((sum, item) => sum + item.value, 0);
-
-    return paretoData.map((item) => {
-      acc += item.value;
-      const pctAcumulado = total > 0 ? (acc / total) * 100 : 0;
-      return {
-        ...item,
-        acumulado: Number(pctAcumulado.toFixed(1)),
-      };
-    });
-  }, [paretoData]);
+  }, [rawData, unidades]);
 
   const handleApplyFilters = (f: FilterState) => {
     setFilters({
@@ -348,7 +325,7 @@ export default function AsesoresPage() {
 
           <Tabs
             value={activeTab}
-            onValueChange={(val) => setActiveTab(val as "ranking" | "pareto")}
+            onValueChange={() => setActiveTab("ranking")}
             className="w-full mt-2"
           >
             <div className="flex items-center justify-between border-b border-border pb-1 flex-wrap gap-2">
@@ -359,35 +336,7 @@ export default function AsesoresPage() {
                 >
                   Ranking Comercial
                 </TabsTrigger>
-                {SHOW_PARETO_TAB && (
-                  <TabsTrigger
-                    value="pareto"
-                    className="px-4 py-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-auto font-semibold text-sm transition-colors"
-                  >
-                    Distribución Pareto
-                  </TabsTrigger>
-                )}
               </TabsList>
-
-              {activeTab === "pareto" && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-muted-foreground">Métrica:</span>
-                  <Tabs
-                    value={paretoTipo}
-                    onValueChange={(val) => setParetoTipo(val as "venta" | "cotizado")}
-                    className="h-8"
-                  >
-                    <TabsList className="h-8 p-0.5 bg-muted">
-                      <TabsTrigger value="venta" className="h-7 px-3 text-xs font-bold">
-                        Facturado
-                      </TabsTrigger>
-                      <TabsTrigger value="cotizado" className="h-7 px-3 text-xs font-bold">
-                        Cotizado
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-              )}
             </div>
 
             <TabsContent value="ranking" className="mt-4">
@@ -525,165 +474,6 @@ export default function AsesoresPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="pareto" className="mt-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-card border border-border p-4 rounded-lg shadow-sm">
-                  <h4 className="text-sm font-bold text-foreground mb-4">
-                    Gráfico Acumulado 80/20 por Asesor (
-                    {paretoTipo === "venta" ? "Facturado" : "Cotizado"})
-                  </h4>
-                  {paretoChartData.length === 0 ? (
-                    <div className="h-80 flex flex-col justify-center items-center text-muted-foreground">
-                      <AlertTriangle className="h-8 w-8 mb-2" />
-                      <p className="text-xs">
-                        No hay datos suficientes para graficar la distribución.
-                      </p>
-                    </div>
-                  ) : (
-                    <ChartContainer config={{}} className="aspect-auto h-80 w-full">
-                      <ComposedChart
-                        data={paretoChartData}
-                        margin={{ top: 10, right: 10, bottom: 20, left: 10 }}
-                      >
-                        <XAxis
-                          dataKey="name"
-                          tick={{ fontSize: 10 }}
-                          angle={-35}
-                          textAnchor="end"
-                          interval={0}
-                          height={50}
-                        />
-                        <YAxis
-                          yAxisId="left"
-                          tick={false}
-                          axisLine={false}
-                          tickLine={false}
-                          width={0}
-                        />
-                        <YAxis
-                          yAxisId="right"
-                          orientation="right"
-                          domain={[0, 100]}
-                          tick={false}
-                          axisLine={false}
-                          tickLine={false}
-                          width={0}
-                        />
-                        <ChartTooltip
-                          content={
-                            <ChartTooltipContent
-                              labelKey="name"
-                              indicator="line"
-                              className="w-56"
-                            />
-                          }
-                        />
-                        <Bar
-                          yAxisId="left"
-                          dataKey="value"
-                          name="Monto"
-                          fill="hsl(var(--primary))"
-                          radius={[4, 4, 0, 0]}
-                          maxBarSize={40}
-                          {...chartAnimation}
-                        >
-                          <LabelList
-                            dataKey="value"
-                            content={createChartLabel({
-                              formatter: (v) => money(v),
-                              fill: "hsl(var(--primary))",
-                              dy: -8,
-                              fontSize: 9,
-                            })}
-                          />
-                        </Bar>
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="acumulado"
-                          name="% Acumulado"
-                          stroke="hsl(var(--destructive))"
-                          strokeWidth={2}
-                          dot={{ r: 3 }}
-                          {...chartAnimation}
-                        >
-                          <LabelList
-                            dataKey="acumulado"
-                            content={createChartLabel({
-                              formatter: (v) => `${v.toFixed(1)}%`,
-                              fill: "hsl(var(--destructive))",
-                              dy: 14,
-                              fontSize: 9,
-                            })}
-                          />
-                        </Line>
-                        <ReferenceLine
-                          yAxisId="right"
-                          y={80}
-                          stroke="hsl(var(--destructive))"
-                          strokeDasharray="4 4"
-                          label={{
-                            value: "Límite 80%",
-                            position: "insideTopLeft",
-                            fontSize: 10,
-                            fill: "hsl(var(--destructive))",
-                          }}
-                        />
-                      </ComposedChart>
-                    </ChartContainer>
-                  )}
-                </div>
-
-                <div className="bg-card border border-border p-4 rounded-lg flex flex-col gap-4 shadow-sm justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground mb-3">
-                      Estadísticas de Distribución
-                    </h4>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      El análisis Pareto identifica a los asesores clave que generan el 80% de la
-                      facturación o cotización.
-                    </p>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          Total general
-                        </span>
-                        <span className="text-sm font-bold">
-                          {money(paretoChartData.reduce((sum, item) => sum + item.value, 0))}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          Asesores vitales (80%)
-                        </span>
-                        <span className="text-sm font-bold">
-                          {paretoChartData.filter((r) => r.acumulado <= 80).length} de{" "}
-                          {paretoChartData.length}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          Concentración
-                        </span>
-                        <span className="text-sm font-bold">
-                          {paretoChartData.length > 0
-                            ? `${((paretoChartData.filter((r) => r.acumulado <= 80).length / paretoChartData.length) * 100).toFixed(1)}%`
-                            : "0%"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-muted/40 border border-dashed rounded p-3 text-xs text-muted-foreground flex gap-2">
-                    <Percent className="h-5 w-5 shrink-0 text-primary" />
-                    <span>
-                      Enfoque la atención gerencial en optimizar los procesos de cotización y cierre
-                      del grupo de asesores vitales.
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
           </Tabs>
         </>
       ) : (
