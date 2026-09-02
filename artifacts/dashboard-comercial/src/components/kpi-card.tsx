@@ -42,34 +42,34 @@ const ACCENT_STROKE: Record<string, string> = {
 
 function RadialGauge({ progress, accent }: { progress: number; accent: string }) {
   const pct = Math.min(Math.max(progress, 0), 100);
-  const radius = 26;
+  const radius = 22;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - pct / 100);
   return (
-    <div className="relative size-16 shrink-0">
-      <svg viewBox="0 0 64 64" className="size-16 -rotate-90">
+    <div className="relative size-12 shrink-0">
+      <svg viewBox="0 0 56 56" className="size-12 -rotate-90">
         <circle
-          cx={32}
-          cy={32}
+          cx={28}
+          cy={28}
           r={radius}
           fill="none"
           stroke="var(--color-border)"
-          strokeWidth={5}
+          strokeWidth={4}
         />
         <circle
-          cx={32}
-          cy={32}
+          cx={28}
+          cy={28}
           r={radius}
           fill="none"
           stroke={ACCENT_STROKE[accent]}
-          strokeWidth={5}
+          strokeWidth={4}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-[13px] font-bold tabular-nums">
+      <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold tabular-nums">
         {Math.round(pct)}%
       </span>
     </div>
@@ -185,31 +185,36 @@ export function KpiCard({
       </div>
 
       {/* Main value */}
-      <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-1">
-        <span
-          className={cn(
-            "font-mono font-bold tracking-tight tabular-nums leading-none",
-            featured ? ACCENT_TEXT[accent] : "text-foreground",
-            compact ? "text-xl" : featured ? "text-3xl" : "text-2xl",
-            valueClassName,
-          )}
-        >
-          {value}
-        </span>
-        {subvalue && subvalueAlign === "inline" && (
-          <span className={cn("font-bold tabular-nums text-sm align-baseline", subvalueClassName)}>
-            {subvalue}
-            {subvalueLabel && (
-              <span
-                className={cn(
-                  "text-muted-foreground text-[10px] font-display font-bold tracking-wide ml-1.5",
-                  subvalueLabelClassName,
-                )}
-              >
-                {subvalueLabel}
-              </span>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 min-w-0">
+          <span
+            className={cn(
+              "font-mono font-bold tracking-tight tabular-nums leading-none",
+              featured ? ACCENT_TEXT[accent] : "text-foreground",
+              compact ? "text-xl" : featured ? "text-3xl" : "text-2xl",
+              valueClassName,
             )}
+          >
+            {value}
           </span>
+          {subvalue && subvalueAlign === "inline" && (
+            <span className={cn("font-bold tabular-nums text-sm align-baseline", subvalueClassName)}>
+              {subvalue}
+              {subvalueLabel && (
+                <span
+                  className={cn(
+                    "text-muted-foreground text-[10px] font-display font-bold tracking-wide ml-1.5",
+                    subvalueLabelClassName,
+                  )}
+                >
+                  {subvalueLabel}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+        {progress !== undefined && progressVariant === "gauge" && (
+          <RadialGauge progress={progress} accent={accent} />
         )}
       </div>
 
@@ -256,13 +261,6 @@ export function KpiCard({
               {subvalueLabel}
             </span>
           )}
-        </div>
-      )}
-
-      {/* Radial gauge — alternative to the linear bar for target-attainment KPIs */}
-      {progress !== undefined && progressVariant === "gauge" && (
-        <div className="absolute top-4 right-5">
-          <RadialGauge progress={progress} accent={accent} />
         </div>
       )}
 
