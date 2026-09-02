@@ -8,6 +8,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { getAllMonthsCap, getHighlightMonthLabels, diasVencidosDesde } from "@/lib/date-range";
+import { getMonthlySalesProjection } from "@/lib/business-days";
 import {
   getPresupuestosLubfiltrosAction,
   getCobranzasLubfiltrosAction,
@@ -119,6 +120,17 @@ export default function LubFiltrosPage() {
       pct: totalPresupuesto > 0 ? (ventasConsolidadasTotal / totalPresupuesto) * 100 : 0,
     };
   }, [presupuestosData, ventasConsolidadasTotal]);
+
+  const salesProjection = useMemo(
+    () =>
+      getMonthlySalesProjection(
+        ventasConsolidadasTotal,
+        cumplimientoGeneral.presupuesto,
+        anio,
+        meses,
+      ),
+    [ventasConsolidadasTotal, cumplimientoGeneral.presupuesto, anio, meses],
+  );
 
   // Siempre muestra el año hasta el mes actual (YTD), independiente del filtro
   // de mes — el mes en revisión se resalta en vez de recortar el resto del año.
@@ -275,6 +287,11 @@ export default function LubFiltrosPage() {
           value={money(ventasConsolidadasTotal)}
           accent="ochre"
           icon={TrendingUp}
+          projection={
+            salesProjection
+              ? { value: money(salesProjection.projectedSales), tone: salesProjection.tone }
+              : undefined
+          }
           hint="Total facturado CCV + Xibi + Estratégicas"
         />
         <KpiCard

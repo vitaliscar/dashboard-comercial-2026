@@ -4,26 +4,39 @@ import { ClipboardList, Goal, TrendingUp, XOctagon } from "lucide-react";
 
 interface KpiCardsProps {
   cotizado: number;
+  cotizadoMensual?: number[];
   metaMes: number;
+  metaMensual?: number[];
   facturado: number;
+  facturadoMensual?: number[];
   facturadoVsCotizadoPorcentaje: number;
   cumplimientoMetaPorcentaje: number;
   margenTotal: number;
   margenPorcentaje: number;
   ventasPerdidas: number;
+  ventasPerdidasMensual?: number[];
   ventasPerdidasPorcentaje: number;
+  facturadoProjection?: {
+    value: string;
+    tone: "success" | "warning" | "danger";
+  };
 }
 
 export function KpiCards({
   cotizado,
+  cotizadoMensual,
   metaMes,
+  metaMensual,
   facturado,
+  facturadoMensual,
   facturadoVsCotizadoPorcentaje,
   cumplimientoMetaPorcentaje,
   margenTotal,
   margenPorcentaje,
   ventasPerdidas,
+  ventasPerdidasMensual,
   ventasPerdidasPorcentaje,
+  facturadoProjection,
 }: KpiCardsProps) {
   const cumplimientoTone =
     cumplimientoMetaPorcentaje < 70
@@ -40,39 +53,43 @@ export function KpiCards({
         : "text-success";
 
   return (
-    <div className="card-elevated grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y divide-border lg:divide-y-0 lg:divide-x mb-6">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
       <KpiCard
-        flush
         label="Total Cotizado"
         value={money(cotizado)}
+        sparklineData={cotizadoMensual}
         icon={ClipboardList}
         accent="primary"
         tooltip="Suma total de cotizaciones creadas en el período seleccionado para todas las unidades de negocio activas."
       />
       <KpiCard
-        flush
         label="Meta del Mes"
         value={money(metaMes)}
+        sparklineData={metaMensual}
         icon={Goal}
         accent="ochre"
         tooltip="Presupuesto total planificado para el período actual, consolidando todas las sucursales y líneas de negocio."
       />
       <KpiCard
-        flush
+        featured
         label="Total Facturado"
         value={money(facturado)}
+        sparklineData={facturadoMensual}
         icon={TrendingUp}
         accent="success"
         subvalue={`${cumplimientoMetaPorcentaje.toFixed(1)}%`}
         subvalueAlign="inline"
         subvalueClassName={cumplimientoLabelClassName}
         progress={cumplimientoMetaPorcentaje}
-        tooltip="Monto facturado en base al módulo de presupuestos consolidando Ventas CCV, Xibi y Estratégicas del mes."
+        progressVariant="gauge"
+        projection={facturadoProjection}
+        hint={`${facturadoVsCotizadoPorcentaje.toFixed(1)}% de lo cotizado`}
+        tooltip="Monto facturado en base al módulo de presupuestos consolidando Ventas CCV, Xibi y Estratégicas del mes. El anillo muestra el cumplimiento contra meta."
       />
       <KpiCard
-        flush
         label="Ventas Perdidas"
         value={money(ventasPerdidas)}
+        sparklineData={ventasPerdidasMensual}
         icon={XOctagon}
         accent="danger"
         subvalue={`${ventasPerdidasPorcentaje.toFixed(1)}%`}

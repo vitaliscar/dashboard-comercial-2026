@@ -15,10 +15,7 @@ import {
   Users,
   UserCheck,
   FileText,
-  Calculator,
   Receipt,
-  BadgeDollarSign,
-  PieChart,
   Wrench,
   Truck,
   Droplet,
@@ -32,7 +29,6 @@ import {
   FileDown,
   Search,
   Building2,
-  Megaphone,
   ChevronsLeft,
   ChevronsRight,
   FileBarChart,
@@ -93,21 +89,14 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/embudo", label: "Embudo", icon: Funnel, module: "embudo" },
       { to: "/cliente-360", label: "Clientes", icon: Users, module: "cliente_360" },
       { to: "/asesores", label: "Asesores", icon: UserCheck, module: "asesores" },
-      { to: "/minutas", label: "Minutas", icon: FileText, module: "minutas" },
-      { to: "/simulador", label: "Simulador", icon: Calculator, module: "simulador" },
+       { to: "/minutas", label: "Minutas", icon: FileText, module: "minutas" },
     ],
   },
   {
     title: "Finanzas y Rendimiento",
     items: [
-      { to: "/cobranzas", label: "Cobranzas", icon: Receipt, module: "cobranzas" },
-      { to: "/comisiones", label: "Comisiones", icon: BadgeDollarSign, module: "comisiones" },
-      { to: "/pareto", label: "Pareto", icon: PieChart, module: "pareto" },
+       { to: "/cobranzas", label: "Cobranzas", icon: Receipt, module: "cobranzas" },
     ],
-  },
-  {
-    title: "Mercadeo",
-    items: [{ to: "/mercadeo", label: "Mercadeo", icon: Megaphone, module: "mercadeo" }],
   },
   {
     title: "Evaluación de Desempeño",
@@ -175,7 +164,6 @@ const PAGE_TITLES = {
   "/cobranzas": "Cobranzas",
   "/minutas": "Minutas",
   "/embudo": "Embudo Comercial",
-  "/pareto": "Análisis Pareto",
   "/asesores": "Análisis de Asesores",
   "/alertas": "Alertas",
   "/carga": "Carga de Datos",
@@ -186,8 +174,6 @@ const PAGE_TITLES = {
   "/alquiler": "Alquiler",
   "/repuestos": "Repuestos",
   "/cliente-360": "Clientes",
-  "/comisiones": "Comisiones Proyectadas",
-  "/simulador": "Simulador de Presupuesto",
   "/evaluacion/asesor": "Mi Evaluación de Desempeño",
   "/evaluacion/sucursal": "Evaluación de Desempeño — Sucursal",
   "/evaluacion/unidad": "Evaluación de Desempeño — Unidad de Negocio",
@@ -288,7 +274,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return false;
   });
 
-  const [visionGeneral, gestionComercial, finanzas, mercadeo, administracion] = NAV_GROUPS.map(
+  const [visionGeneral, gestionComercial, finanzas, administracion] = NAV_GROUPS.map(
     (group) => ({
       ...group,
       items: group.items.filter(
@@ -311,7 +297,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     ...(showUnitNavGroup ? [{ title: "Unidad de Negocios", items: visibleUnitNav }] : []),
     gestionComercial,
     finanzas,
-    mercadeo,
     administracion,
   ].filter((group) => group.items.length > 0);
 

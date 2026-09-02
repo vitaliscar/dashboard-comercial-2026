@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { getMonthlySalesProjection } from "@/lib/business-days";
+import type { MonthFilter } from "@/lib/date-range";
 
 interface FacturadoSectionProps {
   datos: FacturadoMetrica[];
@@ -12,6 +14,10 @@ interface FacturadoSectionProps {
   /** "summary" = solo header + tarjetas (con filtro de tipo cliente y margen) por unidad;
    * "detail" = solo las tablas de top clientes; omitido = ambos (comportamiento original). */
   part?: "summary" | "detail";
+  /** Mantiene visibles unidades sin movimiento para la vista consolidada. */
+  preserveEmptyUnits?: boolean;
+  anio?: number;
+  meses?: MonthFilter;
 }
 
 type TipoCliente = "TODAS" | "CCV" | "XIB" | "EST";
@@ -33,13 +39,18 @@ export function FacturadoSection({
   datos,
   hideSucursalColumn = false,
   part,
+  preserveEmptyUnits = false,
+  anio,
+  meses,
 }: FacturadoSectionProps) {
   const [tipoClienteFilters, setTipoClienteFilters] = useState<Record<string, TipoCliente>>({});
 
   if (!datos || datos.length === 0) return null;
 
   // Skip units with no activity in the selected period to keep the grid clean.
-  const datosConActividad = datos.filter((d) => d.monto > 0 || (d.presupuestoTotal ?? 0) > 0);
+  const datosConActividad = preserveEmptyUnits
+    ? datos
+    : datos.filter((d) => d.monto > 0 || (d.presupuestoTotal ?? 0) > 0);
   if (datosConActividad.length === 0) return null;
 
   const totalFacturado = datos.reduce((sum, d) => sum + d.monto, 0);
@@ -91,6 +102,10 @@ export function FacturadoSection({
               }
 
               const cumColor = getCumplimientoColor(displayCumplimiento);
+              const projection =
+                anio !== undefined && meses !== undefined
+                  ? getMonthlySalesProjection(displayMonto, ppto, anio, meses)
+                  : null;
 
               return (
                 <div key={unidad.unidad} className="flex flex-col gap-2">
@@ -99,6 +114,11 @@ export function FacturadoSection({
                     monto={displayMonto}
                     porcentaje={unidad.porcentaje}
                     presupuesto={unidad.presupuestoTotal}
+                    projection={
+                      projection
+                        ? { value: money(projection.projectedSales), color: projection.tone }
+                        : undefined
+                    }
                     additionalInfo={[
                       {
                         label: "Cumpl. PPTO",

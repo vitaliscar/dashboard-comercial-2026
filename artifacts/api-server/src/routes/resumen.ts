@@ -65,16 +65,21 @@ function whereFor(
   alias: string,
   scope: NonNullable<ReturnType<typeof addScope>>,
   dateColumn?: string,
+  includeMonthFilter = true,
 ) {
   const predicates = dateColumn
     ? [
         `${alias}.${dateColumn} >= $1::date`,
         `${alias}.${dateColumn} < $2::date`,
-        `(${alias}.${dateColumn} IS NOT NULL AND EXTRACT(month FROM ${alias}.${dateColumn})::int = ANY($3::int[]))`,
+        ...(includeMonthFilter
+          ? [
+              `(${alias}.${dateColumn} IS NOT NULL AND EXTRACT(month FROM ${alias}.${dateColumn})::int = ANY($3::int[]))`,
+            ]
+          : []),
       ]
     : [
         `${alias}.anio = EXTRACT(year FROM $1::date)::int`,
-        `${alias}.mes = ANY($3::int[])`,
+        ...(includeMonthFilter ? [`${alias}.mes = ANY($3::int[])`] : []),
       ];
 
   if (scope.branch) predicates.push(`${alias}.sucursal_id = $4::uuid`);
@@ -186,11 +191,15 @@ router.get("/resumen", async (req: Request, res: Response) => {
   const budgetWhere = whereFor("p", scope);
   const advisorWhere = whereFor("ca", scope);
   const adjustmentWhere = whereFor("a", scope);
+  const cotMonthlyWhere = whereFor("c", scope, "fecha", false);
+  const lostMonthlyWhere = whereFor("v", scope, "fecha", false);
+  const budgetMonthlyWhere = whereFor("p", scope, undefined, false);
 
   try {
     const [
       cotizaciones,
       cotizacionesMensual,
+      ventasPerdidasMensual,
       cotizacionesClientes,
       facturas,
       facturasClientes,
@@ -199,6 +208,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
       ventasPerdidasRazones,
       servicios,
       presupuestos,
+      presupuestosMensual,
       cumplimientoAsesor,
       ajustesManuales,
     ] = await Promise.all([
@@ -214,8 +224,16 @@ router.get("/resumen", async (req: Request, res: Response) => {
         `SELECT c.unidad_negocio_id AS "unidadNegocioId",
                 EXTRACT(month FROM c.fecha)::int AS mes,
                 COALESCE(SUM(c.monto), 0) AS "montoTotal"
-         FROM cotizaciones c WHERE ${cotWhere}
+         FROM cotizaciones c WHERE ${cotMonthlyWhere}
          GROUP BY c.unidad_negocio_id, EXTRACT(month FROM c.fecha)`,
+        params,
+      ),
+      pool.query(
+        `SELECT v.unidad_negocio_id AS "unidadNegocioId",
+                EXTRACT(month FROM v.fecha)::int AS mes,
+                COALESCE(SUM(v.monto), 0) AS "montoTotal"
+         FROM ventas_perdidas v WHERE ${lostMonthlyWhere}
+         GROUP BY v.unidad_negocio_id, EXTRACT(month FROM v.fecha)`,
         params,
       ),
       pool.query(
@@ -286,6 +304,17 @@ router.get("/resumen", async (req: Request, res: Response) => {
          FROM presupuestos p WHERE ${budgetWhere}`,
         params,
       ),
+      pool.query(
+        `SELECT p.mes,
+                p.unidad_negocio_id AS "unidadNegocioId",
+                COALESCE(SUM(p.monto), 0) AS monto,
+                COALESCE(SUM(p.ventas_ccv), 0) AS "ventasCcv",
+                COALESCE(SUM(p.ventas_xibi), 0) AS "ventasXibi",
+                COALESCE(SUM(p.ventas_estrategicas), 0) AS "ventasEstrategicas"
+         FROM presupuestos p WHERE ${budgetMonthlyWhere}
+         GROUP BY p.mes, p.unidad_negocio_id`,
+        params,
+      ),
       session.role === "asesor"
         ? pool.query(
             `SELECT ca.mes, ca.presupuesto, ca.venta,
@@ -323,6 +352,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
       cotizaciones: cotizaciones.rows,
       cotizacionesPrevMonth: [],
       cotizacionesMensual: cotizacionesMensual.rows,
+      ventasPerdidasMensual: ventasPerdidasMensual.rows,
       cotizacionesClientes: cotizacionesClientes.rows,
       facturas: facturas.rows,
       facturasClientes: facturasClientes.rows,
@@ -332,6 +362,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
       ventasPerdidasRazones: ventasPerdidasRazones.rows,
       servicios: servicios.rows,
       presupuestos: [...presupuestos.rows, ...adjustmentRows],
+      presupuestosMensual: presupuestosMensual.rows,
       cumplimientoAsesor: cumplimientoAsesor.rows,
     });
   } catch (error) {

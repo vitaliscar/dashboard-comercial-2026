@@ -333,8 +333,9 @@ export default function CobranzasPage() {
 
       {/* TENDENCIA SEMANAL */}
       {compLoading ? (
-        <div className="card-elevated p-5 text-sm text-muted-foreground animate-pulse">
-          Cargando tendencia semanal…
+        <div className="card-elevated flex min-h-24 items-center gap-3 p-5">
+          <SkeletonBox className="h-8 w-full" />
+          <span className="sr-only">Cargando tendencia semanal…</span>
         </div>
       ) : !compData?.tieneHistorico ? (
         <div className="card-elevated p-5 bg-primary/5 ring-1 ring-primary/15 flex items-start gap-3">

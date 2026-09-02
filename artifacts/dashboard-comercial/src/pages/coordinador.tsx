@@ -7,6 +7,7 @@ import { useUnidades } from "@/hooks/use-catalogos";
 import { MESES } from "@/lib/format";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
 import { getDateRangesForMonths, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
+import { getMonthlySalesProjection } from "@/lib/business-days";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
@@ -269,6 +270,22 @@ export default function CoordinadorPanel() {
     const cumplimiento = presupuesto > 0 ? (facturado / presupuesto) * 100 : 0;
     return { facturado, presupuesto, cumplimiento };
   }, [scopedGlobal, monthsInScope]);
+
+  const salesProjection = useMemo(
+    () =>
+      getMonthlySalesProjection(
+        currentPeriodTotals.facturado,
+        currentPeriodTotals.presupuesto,
+        anio,
+        meses,
+      ),
+    [
+      currentPeriodTotals.facturado,
+      currentPeriodTotals.presupuesto,
+      anio,
+      meses,
+    ],
+  );
 
   const companyTrend = useMemo(
     () =>
@@ -536,6 +553,11 @@ export default function CoordinadorPanel() {
           pct={currentPeriodTotals.cumplimiento}
           facturado={currentPeriodTotals.facturado}
           presupuesto={currentPeriodTotals.presupuesto}
+          projection={
+            salesProjection
+              ? { value: salesProjection.projectedSales, tone: salesProjection.tone }
+              : undefined
+          }
         />
         <UnitDonut data={currentPeriodCompania} title="Ventas por Compañía" />
         <CompanyTrendChart data={deferredCompanyTrend} />

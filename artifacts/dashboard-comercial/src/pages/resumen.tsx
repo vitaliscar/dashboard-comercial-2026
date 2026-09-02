@@ -8,9 +8,6 @@ import { KpiCards } from "@/components/resumen/KpiCards";
 import { CotizacionesSection } from "@/components/resumen/CotizacionesSection";
 import { FacturadoSection } from "@/components/resumen/FacturadoSection";
 import { VentasPerdidasSection } from "@/components/resumen/VentasPerdidasSection";
-import { CotizacionesSectionLegacy } from "@/components/resumen/CotizacionesSectionLegacy";
-import { FacturadoSectionLegacy } from "@/components/resumen/FacturadoSectionLegacy";
-import { VentasPerdidasSectionLegacy } from "@/components/resumen/VentasPerdidasSectionLegacy";
 import { ResumenData, UnidadNegocio, TopCliente } from "@/lib/resumen-types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,7 +24,8 @@ import {
   getAllMonthsCap,
   getHighlightMonthLabels,
 } from "@/lib/date-range";
-import { MESES } from "@/lib/format";
+import { money, MESES } from "@/lib/format";
+import { getMonthlySalesProjection } from "@/lib/business-days";
 
 function ResumenSkeleton() {
   return (
@@ -245,6 +243,18 @@ export default function ResumenPage() {
     let totalMetaMes = 0;
     let totalFacturado = 0;
     let totalPerdido = 0;
+    const monthCap = getAllMonthsCap(filters.anio);
+    const monthlyTotals = (
+      rows: Array<{ mes: number; unidadNegocioId: string | null; value: number }>,
+    ) => {
+      const totals = Array.from({ length: monthCap }, () => 0);
+      rows.forEach((row) => {
+        if (!matchesSelectedUnit(row.unidadNegocioId)) return;
+        const index = Number(row.mes) - 1;
+        if (index >= 0 && index < totals.length) totals[index] += row.value;
+      });
+      return totals;
+    };
 
     rawData.cotizaciones.forEach((c) => {
       if (!matchesSelectedUnit(c.unidadNegocioId)) return;
@@ -277,6 +287,43 @@ export default function ResumenPage() {
       totalCotizado > 0 ? (totalFacturado / totalCotizado) * 100 : 0;
     const cumplimientoMetaPorcentaje = totalMetaMes > 0 ? (totalFacturado / totalMetaMes) * 100 : 0;
     const lostPercentage = totalCotizado > 0 ? (totalPerdido / totalCotizado) * 100 : 0;
+
+    const cotizadoMensual = monthlyTotals(
+      rawData.cotizacionesMensual.map((row) => ({
+        mes: row.mes,
+        unidadNegocioId: row.unidadNegocioId,
+        value: Number(row.montoTotal || 0),
+      })),
+    );
+    const presupuestoMensual = rawData.presupuestosMensual.map((row) => ({
+      mes: row.mes,
+      unidadNegocioId: row.unidadNegocioId,
+      meta: Number(row.monto || 0),
+      facturado:
+        Number(row.ventasCcv || 0) +
+        Number(row.ventasXibi || 0) +
+        Number(row.ventasEstrategicas || 0),
+    }));
+    const asesorMensual = rawData.cumplimientoAsesor.map((row) => ({
+      mes: row.mes,
+      unidadNegocioId: row.unidadNegocioId,
+      meta: Number(row.presupuesto || 0),
+      facturado: Number(row.venta || 0),
+    }));
+    const monthlyBudgetRows = role === "asesor" ? asesorMensual : presupuestoMensual;
+    const metaMensual = monthlyTotals(
+      monthlyBudgetRows.map((row) => ({ ...row, value: row.meta })),
+    );
+    const facturadoMensual = monthlyTotals(
+      monthlyBudgetRows.map((row) => ({ ...row, value: row.facturado })),
+    );
+    const ventasPerdidasMensual = monthlyTotals(
+      rawData.ventasPerdidasMensual.map((row) => ({
+        mes: row.mes,
+        unidadNegocioId: row.unidadNegocioId,
+        value: Number(row.montoTotal || 0),
+      })),
+    );
 
     // 2. Cotizaciones by category
     const cotizacionesMetricas = categories.map((cat) => {
@@ -325,7 +372,6 @@ export default function ResumenPage() {
       }
 
       // Serie mensual (ene..mes actual) para la línea de tiempo de la tarjeta.
-      const monthCap = getAllMonthsCap(filters.anio);
       const filteredMensual = (rawData.cotizacionesMensual || []).filter((c) => {
         const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
         return dbName && mapDbUnidadToUi(dbName) === cat;
@@ -554,13 +600,17 @@ export default function ResumenPage() {
       },
       kpis: {
         cotizado: totalCotizado,
+        cotizadoMensual,
         metaMes: totalMetaMes,
+        metaMensual,
         facturado: totalFacturado,
+        facturadoMensual,
         facturadoVsCotizadoPorcentaje,
         cumplimientoMetaPorcentaje,
         margenTotal,
         margenPorcentaje,
         ventasPerdidas: totalPerdido,
+        ventasPerdidasMensual,
         ventasPerdidasPorcentaje: lostPercentage,
       },
       cotizaciones: cotizacionesMetricas,
@@ -640,6 +690,14 @@ export default function ResumenPage() {
     isSucLoading || isUnLoading || (isDataLoading && !!unidades && !!sucursales);
   const hasError = isSucError || isUnError || isDataError;
   const firstError = sucError || unError || dataError;
+  const facturadoProjection = resumenData
+    ? getMonthlySalesProjection(
+        resumenData.kpis.facturado,
+        resumenData.kpis.metaMes,
+        filters.anio,
+        filters.meses,
+      )
+    : null;
 
   if (!role) {
     return (
@@ -751,13 +809,22 @@ export default function ResumenPage() {
 
       <KpiCards
         cotizado={resumenData.kpis.cotizado}
+        cotizadoMensual={resumenData.kpis.cotizadoMensual}
         metaMes={resumenData.kpis.metaMes}
+        metaMensual={resumenData.kpis.metaMensual}
         facturado={resumenData.kpis.facturado}
+        facturadoMensual={resumenData.kpis.facturadoMensual}
         facturadoVsCotizadoPorcentaje={resumenData.kpis.facturadoVsCotizadoPorcentaje}
         cumplimientoMetaPorcentaje={resumenData.kpis.cumplimientoMetaPorcentaje}
+        facturadoProjection={
+          facturadoProjection
+            ? { value: money(facturadoProjection.projectedSales), tone: facturadoProjection.tone }
+            : undefined
+        }
         margenTotal={resumenData.kpis.margenTotal}
         margenPorcentaje={resumenData.kpis.margenPorcentaje}
         ventasPerdidas={resumenData.kpis.ventasPerdidas}
+        ventasPerdidasMensual={resumenData.kpis.ventasPerdidasMensual}
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
       />
 
@@ -779,6 +846,8 @@ export default function ResumenPage() {
               part="summary"
               datos={resumenData.facturado}
               hideSucursalColumn={role === "coordinador" || role === "asesor"}
+              anio={filters.anio}
+              meses={filters.meses}
             />
 
             <CotizacionesSection
@@ -791,6 +860,8 @@ export default function ResumenPage() {
               part="detail"
               datos={resumenData.facturado}
               hideSucursalColumn={role === "coordinador" || role === "asesor"}
+              anio={filters.anio}
+              meses={filters.meses}
             />
           </div>
 
@@ -804,19 +875,22 @@ export default function ResumenPage() {
         <>
           {/* Vista consolidada por tipo de métrica (Gerencia Nacional con
               "Todas las unidades", y coordinador/asesor). */}
-          <CotizacionesSectionLegacy
+           <CotizacionesSection
             datos={resumenData.cotizaciones}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
+             preserveEmptyUnits
           />
 
-          <FacturadoSectionLegacy
+           <FacturadoSection
             datos={resumenData.facturado}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
+             preserveEmptyUnits
           />
 
-          <VentasPerdidasSectionLegacy
+           <VentasPerdidasSection
             datos={resumenData.ventasPerdidas}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
+             preserveEmptyUnits
           />
         </>
       )}

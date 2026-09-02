@@ -16,6 +16,10 @@ type Props = {
   facturado: number;
   presupuesto: number;
   title?: string;
+  projection?: {
+    value: number;
+    tone: "success" | "warning" | "danger";
+  };
 };
 
 const ACCENT_VAR: Record<ReturnType<typeof statusFromPct90>, string> = {
@@ -29,6 +33,7 @@ export const ComplianceGauge = memo(function ComplianceGauge({
   facturado,
   presupuesto,
   title = "Cumplimiento General",
+  projection,
 }: Props) {
   const chartAnimation = useChartAnimation();
   const displayPct = Math.max(0, pct);
@@ -84,6 +89,19 @@ export const ComplianceGauge = memo(function ComplianceGauge({
               / {money(presupuesto)}
             </span>
           </div>
+          {projection && (
+            <div
+              className={
+                projection.tone === "success"
+                  ? "mt-1 font-mono text-xs font-bold text-success"
+                  : projection.tone === "warning"
+                    ? "mt-1 font-mono text-xs font-bold text-warning"
+                    : "mt-1 font-mono text-xs font-bold text-danger"
+              }
+            >
+              Proy. cierre mes: {money(projection.value)}
+            </div>
+          )}
           <div className="mt-3">
             <GoalFeedback pct={pct} brecha={brecha} />
           </div>

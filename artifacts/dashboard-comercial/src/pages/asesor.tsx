@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { money, pct, statusFromPct, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { getDateRangesForMonths, getAllMonthsCap } from "@/lib/date-range";
+import { getMonthlySalesProjection } from "@/lib/business-days";
 import { useMemo, useEffect } from "react";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
@@ -182,6 +183,16 @@ export default function AsesorPage() {
   }, [metrics, variacion]);
 
   const cumplimientoStatus = statusFromPct(kpis.cumplimiento);
+  const salesProjection = useMemo(
+    () =>
+      getMonthlySalesProjection(
+        kpis.totalFacturado,
+        kpis.totalPresupuesto,
+        anio,
+        meses,
+      ),
+    [kpis.totalFacturado, kpis.totalPresupuesto, anio, meses],
+  );
 
   const yDomainMax = useMemo(() => {
     const maxVal = Math.max(0, ...(trend ?? []).flatMap((t) => [t.ventas, t.presupuesto]));
@@ -328,6 +339,11 @@ export default function AsesorPage() {
           label="Cumplimiento"
           value={pct(kpis.cumplimiento, 1)}
           hint={`Presupuesto: ${money(kpis.totalPresupuesto)}`}
+          projection={
+            salesProjection
+              ? { value: money(salesProjection.projectedSales), tone: salesProjection.tone }
+              : undefined
+          }
           accent={
             cumplimientoStatus === "success"
               ? "success"
@@ -348,6 +364,11 @@ export default function AsesorPage() {
           label="Totales Facturados"
           value={money(kpis.totalFacturado)}
           hint={`${metrics?.facturacion?.cantidad ?? 0} operaciones`}
+          projection={
+            salesProjection
+              ? { value: money(salesProjection.projectedSales), tone: salesProjection.tone }
+              : undefined
+          }
           accent="success"
           icon={Zap}
         />

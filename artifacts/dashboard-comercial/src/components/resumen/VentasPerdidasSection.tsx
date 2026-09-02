@@ -9,17 +9,20 @@ interface VentasPerdidasSectionProps {
   /** Muestra el % de variación vs. el mes anterior y el monto del mes anterior
    * en cada tarjeta (gerente_comercial) — mismo patrón que Cotizaciones. */
   showVariacionMesAnterior?: boolean;
+  /** Mantiene visibles unidades sin movimiento para la vista consolidada. */
+  preserveEmptyUnits?: boolean;
 }
 
 export function VentasPerdidasSection({
   datos,
   hideSucursalColumn = false,
   showVariacionMesAnterior = false,
+  preserveEmptyUnits = false,
 }: VentasPerdidasSectionProps) {
   if (!datos || datos.length === 0) return null;
 
   // Skip units with no activity in the selected period to keep the grid clean.
-  const datosConActividad = datos.filter((d) => d.monto > 0);
+  const datosConActividad = preserveEmptyUnits ? datos : datos.filter((d) => d.monto > 0);
   if (datosConActividad.length === 0) return null;
 
   const totalPerdido = datos.reduce((sum, u) => sum + u.monto, 0);

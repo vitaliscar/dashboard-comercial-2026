@@ -25,6 +25,11 @@ export interface KpiCardProps {
   subvalueClassName?: string;
   subvalueLabelClassName?: string;
   flush?: boolean;
+  projection?: {
+    value: string;
+    tone: "success" | "warning" | "danger";
+    label?: string;
+  };
 }
 
 const ACCENT_STROKE: Record<string, string> = {
@@ -100,7 +105,7 @@ const ACCENT_GLOW: Record<string, string> = {
   success: "shadow-[0_0_6px_oklch(0.62_0.16_155/0.5)]",
   warning: "shadow-[0_0_6px_oklch(0.75_0.15_80/0.5)]",
   danger: "shadow-[0_0_6px_oklch(0.62_0.22_25/0.5)]",
-  ochre: "shadow-[0_0_6px_oklch(0.72_0.09_230/0.5)]",
+  ochre: "shadow-[0_0_6px_oklch(0.75_0.15_80/0.5)]",
 };
 
 export function KpiCard({
@@ -125,6 +130,7 @@ export function KpiCard({
   subvalueClassName,
   subvalueLabelClassName,
   flush = false,
+  projection,
 }: KpiCardProps) {
   const computedTrendTone = trendTone ?? (trend?.positive ? "success" : "danger");
   const sparklineTone =
@@ -206,6 +212,26 @@ export function KpiCard({
           </span>
         )}
       </div>
+
+      {projection && (
+        <div className="flex items-baseline justify-between gap-2 mb-2">
+          <span className="text-[10px] font-display font-semibold text-muted-foreground">
+            {projection.label ?? "Proy. cierre mes"}
+          </span>
+          <span
+            className={cn(
+              "font-mono text-xs font-bold tabular-nums",
+              projection.tone === "success"
+                ? "text-success"
+                : projection.tone === "warning"
+                  ? "text-warning"
+                  : "text-danger",
+            )}
+          >
+            {projection.value}
+          </span>
+        </div>
+      )}
 
       {/* Sparkline */}
       {sparklineData && sparklineData.length >= 2 && (

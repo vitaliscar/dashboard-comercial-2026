@@ -75,7 +75,7 @@
   /* ── Semantic extras ──────────────────────────────────────────────── */
   --tertiary: oklch(0.92 0.005 255);
   --tertiary-foreground: oklch(0.13 0.01 255);
-  --ochre: oklch(0.72 0.09 230);
+  --ochre: oklch(0.75 0.15 80);
   --success-foreground: oklch(0.13 0.01 255);
   --warning-foreground: oklch(0.13 0.01 255);
   --danger-foreground: oklch(0.92 0.005 255);
@@ -98,6 +98,27 @@
   --component-button-shadow-rest: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --component-button-shadow-press: none;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Shared Recharts surface: keeps direct Tooltip instances aligned with the
+ * shadcn ChartTooltipContent used by the newer screens. */
+.recharts-default-tooltip {
+  background: var(--color-card) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 0.625rem !important;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.28) !important;
+  color: var(--color-foreground) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.recharts-tooltip-label,
+.recharts-tooltip-item {
+  color: var(--color-foreground) !important;
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--color-border);
+  stroke-opacity: 0.35;
 }
 
 .dark {

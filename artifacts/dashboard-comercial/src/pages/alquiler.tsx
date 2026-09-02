@@ -8,6 +8,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { money, MESES } from "@/lib/format";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { getAllMonthsCap, getHighlightMonthLabels, diasVencidosDesde } from "@/lib/date-range";
+import { getMonthlySalesProjection } from "@/lib/business-days";
 import {
   getPresupuestosAlquilerAction,
   getAlquilerClientesCobroAction,
@@ -77,6 +78,17 @@ export default function Alquiler() {
       pct: totalPresupuesto > 0 ? (ventasConsolidadasTotal / totalPresupuesto) * 100 : 0,
     };
   }, [presupuestosData, ventasConsolidadasTotal]);
+
+  const salesProjection = useMemo(
+    () =>
+      getMonthlySalesProjection(
+        ventasConsolidadasTotal,
+        cumplimientoGeneral.presupuesto,
+        anio,
+        meses,
+      ),
+    [ventasConsolidadasTotal, cumplimientoGeneral.presupuesto, anio, meses],
+  );
 
   const monthlyCombo = useMemo(() => {
     const byMonth = Array.from({ length: 12 }, (_, i) => ({
@@ -182,6 +194,11 @@ export default function Alquiler() {
         value={money(ventasConsolidadasTotal)}
         accent="ochre"
         icon={TrendingUp}
+        projection={
+          salesProjection
+            ? { value: money(salesProjection.projectedSales), tone: salesProjection.tone }
+            : undefined
+        }
         hint="Total facturado CCV + Xibi + Estratégicas"
       />
 

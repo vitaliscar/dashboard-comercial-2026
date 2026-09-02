@@ -15,12 +15,18 @@ export function PageSkeleton({
   /** Un bloque por sección de contenido debajo de los KPIs: cols = columnas del grid, height = alto de cada card. */
   blocks?: { cols: number; height?: number }[];
 }) {
+  const responsiveGridClass = (columns: number) => {
+    if (columns >= 4) return "sm:grid-cols-2 xl:grid-cols-4";
+    if (columns === 3) return "sm:grid-cols-2 xl:grid-cols-3";
+    if (columns === 2) return "sm:grid-cols-2";
+    return "grid-cols-1";
+  };
+
   return (
     <div className="flex flex-col gap-4">
       {kpis > 0 && (
         <div
-          className="grid grid-cols-1 gap-4"
-          style={{ gridTemplateColumns: `repeat(${Math.min(kpis, 4)}, minmax(0, 1fr))` }}
+          className={`grid grid-cols-1 gap-4 ${responsiveGridClass(kpis)}`}
         >
           {Array.from({ length: kpis }, (_, i) => (
             <div key={i} className="card-elevated p-5 flex flex-col gap-3">
@@ -33,8 +39,7 @@ export function PageSkeleton({
       {blocks.map((block, bi) => (
         <div
           key={bi}
-          className="grid grid-cols-1 gap-4"
-          style={{ gridTemplateColumns: `repeat(${Math.min(block.cols, 6)}, minmax(0, 1fr))` }}
+          className={`grid grid-cols-1 gap-4 ${responsiveGridClass(block.cols)}`}
         >
           {Array.from({ length: block.cols }, (_, i) => (
             <SkeletonBox key={i} className="w-full" style={{ height: block.height ?? 220 }} />

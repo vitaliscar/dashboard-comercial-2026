@@ -21,6 +21,7 @@ import {
   getHighlightMonthLabels,
   diasVencidosDesde,
 } from "@/lib/date-range";
+import { getMonthlySalesProjection } from "@/lib/business-days";
 import { useMemo } from "react";
 import { Zap, Wrench, User, TrendingUp } from "lucide-react";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
@@ -267,6 +268,17 @@ export default function ServiciosPage() {
     };
   }, [presupuestosData, ventasConsolidadasTotal]);
 
+  const salesProjection = useMemo(
+    () =>
+      getMonthlySalesProjection(
+        ventasConsolidadasTotal,
+        cumplimientoGeneral.presupuesto,
+        anio,
+        meses,
+      ),
+    [ventasConsolidadasTotal, cumplimientoGeneral.presupuesto, anio, meses],
+  );
+
   const porTipoServicio = useMemo(() => {
     if (!servicios) return [];
     const map = new Map<string, number>();
@@ -366,6 +378,11 @@ export default function ServiciosPage() {
           value={money(ventasConsolidadasTotal)}
           accent="ochre"
           icon={TrendingUp}
+          projection={
+            salesProjection
+              ? { value: money(salesProjection.projectedSales), tone: salesProjection.tone }
+              : undefined
+          }
           hint="Total facturado: talleres + CSA + ventas internas"
         />
         <KpiCard

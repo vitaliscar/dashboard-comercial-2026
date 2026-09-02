@@ -63,13 +63,17 @@ export interface ResumenData {
   };
   kpis: {
     cotizado: number;
+    cotizadoMensual?: number[];
     metaMes: number;
+    metaMensual?: number[];
     facturado: number;
+    facturadoMensual?: number[];
     facturadoVsCotizadoPorcentaje: number;
     cumplimientoMetaPorcentaje: number;
     margenTotal: number;
     margenPorcentaje: number;
     ventasPerdidas: number;
+    ventasPerdidasMensual?: number[];
     ventasPerdidasPorcentaje: number;
   };
   cotizaciones: UnidadMetrica[];

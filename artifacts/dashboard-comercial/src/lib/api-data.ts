@@ -36,6 +36,15 @@ interface MensualRow extends UnidadRow {
   mes: number;
 }
 
+interface PresupuestoMensualRow {
+  unidadNegocioId: string | null;
+  mes: number;
+  monto?: string | number | null;
+  ventasCcv?: string | number | null;
+  ventasXibi?: string | number | null;
+  ventasEstrategicas?: string | number | null;
+}
+
 interface RazonRow extends UnidadRow {
   razon: string;
 }
@@ -59,6 +68,7 @@ export interface ResumenApiData {
   cotizaciones: UnidadRow[];
   cotizacionesPrevMonth: UnidadRow[];
   cotizacionesMensual: MensualRow[];
+  ventasPerdidasMensual: MensualRow[];
   cotizacionesClientes: ClienteRow[];
   facturas: UnidadRow[];
   facturasClientes: ClienteRow[];
@@ -68,6 +78,7 @@ export interface ResumenApiData {
   ventasPerdidasRazones: RazonRow[];
   servicios: UnidadRow[];
   presupuestos: PresupuestoRow[];
+  presupuestosMensual: PresupuestoMensualRow[];
   cumplimientoAsesor: CumplimientoRow[];
 }
 
@@ -95,6 +106,7 @@ export async function getResumenData(params: GetResumenParams): Promise<ResumenA
     cotizaciones: asList<UnidadRow>(payload.cotizaciones),
     cotizacionesPrevMonth: asList<UnidadRow>(payload.cotizacionesPrevMonth),
     cotizacionesMensual: asList<MensualRow>(payload.cotizacionesMensual),
+    ventasPerdidasMensual: asList<MensualRow>(payload.ventasPerdidasMensual),
     cotizacionesClientes: asList<ClienteRow>(payload.cotizacionesClientes),
     facturas: asList<UnidadRow>(payload.facturas),
     facturasClientes: asList<ClienteRow>(payload.facturasClientes),
@@ -104,6 +116,7 @@ export async function getResumenData(params: GetResumenParams): Promise<ResumenA
     ventasPerdidasRazones: asList<RazonRow>(payload.ventasPerdidasRazones),
     servicios: asList<UnidadRow>(payload.servicios),
     presupuestos: asList<PresupuestoRow>(payload.presupuestos),
+    presupuestosMensual: asList<PresupuestoMensualRow>(payload.presupuestosMensual),
     cumplimientoAsesor: asList<CumplimientoRow>(payload.cumplimientoAsesor),
   };
 }

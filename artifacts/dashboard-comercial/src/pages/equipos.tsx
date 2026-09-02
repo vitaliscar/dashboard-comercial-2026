@@ -13,6 +13,7 @@ import {
   getHighlightMonthLabels,
   diasVencidosDesde,
 } from "@/lib/date-range";
+import { getMonthlySalesProjection } from "@/lib/business-days";
 import {
   getPresupuestosEquiposAction,
   getEquiposVentasPerdidasAction,
@@ -119,6 +120,17 @@ export default function Equipos() {
       pct: totalPresupuesto > 0 ? (ventasConsolidadasTotal / totalPresupuesto) * 100 : 0,
     };
   }, [presupuestosData, ventasConsolidadasTotal]);
+
+  const salesProjection = useMemo(
+    () =>
+      getMonthlySalesProjection(
+        ventasConsolidadasTotal,
+        cumplimientoGeneral.presupuesto,
+        anio,
+        meses,
+      ),
+    [ventasConsolidadasTotal, cumplimientoGeneral.presupuesto, anio, meses],
+  );
 
   const monthlyCombo = useMemo(() => {
     const byMonth = Array.from({ length: 12 }, (_, i) => ({
@@ -247,6 +259,11 @@ export default function Equipos() {
           value={money(ventasConsolidadasTotal)}
           accent="ochre"
           icon={TrendingUp}
+          projection={
+            salesProjection
+              ? { value: money(salesProjection.projectedSales), tone: salesProjection.tone }
+              : undefined
+          }
           hint="Total facturado CCV + Xibi + Estratégicas"
         />
         <KpiCard

@@ -16,6 +16,8 @@ interface CotizacionesSectionProps {
   showVariacionMesAnterior?: boolean;
   /** Meses (abreviados) a resaltar en la línea de tiempo — el mes que se analiza. */
   highlightMonths?: string[];
+  /** Mantiene visibles unidades sin movimiento para la vista consolidada. */
+  preserveEmptyUnits?: boolean;
 }
 
 export function CotizacionesSection({
@@ -24,11 +26,12 @@ export function CotizacionesSection({
   part,
   showVariacionMesAnterior = false,
   highlightMonths = [],
+  preserveEmptyUnits = false,
 }: CotizacionesSectionProps) {
   if (!datos || datos.length === 0) return null;
 
   // Skip units with no activity in the selected period to keep the grid clean.
-  const datosConActividad = datos.filter((d) => d.monto > 0);
+  const datosConActividad = preserveEmptyUnits ? datos : datos.filter((d) => d.monto > 0);
   if (datosConActividad.length === 0) return null;
 
   const totalCotizado = datos.reduce((sum, d) => sum + d.monto, 0);

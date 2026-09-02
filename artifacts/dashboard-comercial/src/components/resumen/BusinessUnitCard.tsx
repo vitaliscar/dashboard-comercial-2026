@@ -20,6 +20,10 @@ interface BusinessUnitCardProps {
   porcentaje: number;
   presupuesto?: number;
   additionalInfo?: AdditionalInfo[];
+  projection?: {
+    value: string;
+    color?: InfoColor;
+  };
 }
 
 const textColors: Record<InfoColor, string> = {
@@ -44,6 +48,7 @@ export function BusinessUnitCard({
   porcentaje,
   presupuesto,
   additionalInfo = [],
+  projection,
 }: BusinessUnitCardProps) {
   return (
     <Card className="ring-0 card-elevated hover:card-elevated-hover section-enter" size="sm">
@@ -71,6 +76,20 @@ export function BusinessUnitCard({
             {money(monto)}
           </p>
         </div>
+
+        {projection && (
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="font-sans text-xs text-muted-foreground">Proy. cierre mes</p>
+            <p
+              className={cn(
+                "font-mono text-xs font-semibold tabular-nums shrink-0",
+                textColors[projection.color ?? "default"],
+              )}
+            >
+              {projection.value}
+            </p>
+          </div>
+        )}
 
         {/* Additional metrics with optional progress bars */}
         {additionalInfo.map((info, idx) => {

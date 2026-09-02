@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/page-header";
 import { money, pct, statusFromPct } from "@/lib/format";
 import { createChartLabel, createLastPointLabel } from "@/lib/chart-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
+import { SkeletonBox } from "@/components/ui/skeleton-box";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -305,7 +306,10 @@ export default function AsesoresPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 bg-card border border-border animate-pulse rounded-md" />
+            <div key={i} className="card-elevated flex h-28 flex-col gap-3 p-5">
+              <SkeletonBox className="h-3 w-28" />
+              <SkeletonBox className="h-7 w-36" />
+            </div>
           ))}
         </div>
       ) : kpis ? (

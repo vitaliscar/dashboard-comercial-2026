@@ -5,6 +5,11 @@ import {
   applyDateRangesToQuery,
   applyMonthFilterToQuery,
 } from "./date-range";
+import {
+  countBusinessDays,
+  countBusinessDaysInMonth,
+  getMonthlySalesProjection,
+} from "./business-days";
 
 describe("getAllMonthsCap", () => {
   it("should cap to 12 for past years", () => {
@@ -115,5 +120,40 @@ describe("applyMonthFilterToQuery", () => {
 
     applyMonthFilterToQuery(mockQuery, [1, 3], 2026);
     expect(calls).toEqual([{ col: "mes", val: [1, 3] }]);
+  });
+});
+
+describe("business-day sales projection", () => {
+  it("counts weekdays inclusively", () => {
+    expect(countBusinessDays(new Date(2026, 6, 6), new Date(2026, 6, 10))).toBe(5);
+    expect(countBusinessDays(new Date(2026, 6, 11), new Date(2026, 6, 12))).toBe(0);
+  });
+
+  it("counts the known business days in July 2026", () => {
+    expect(countBusinessDaysInMonth(2026, 7)).toBe(23);
+  });
+
+  it("projects the current month from elapsed business days", () => {
+    const projection = getMonthlySalesProjection(
+      400,
+      1000,
+      2026,
+      [7],
+      new Date(2026, 6, 15),
+    );
+
+    expect(projection).toMatchObject({
+      projectedSales: 836.3636363636364,
+      elapsedBusinessDays: 11,
+      totalBusinessDays: 23,
+      tone: "warning",
+    });
+  });
+
+  it("does not project YTD, multiple months, or a non-current month", () => {
+    const now = new Date(2026, 6, 15);
+    expect(getMonthlySalesProjection(400, 1000, 2026, "all", now)).toBeNull();
+    expect(getMonthlySalesProjection(400, 1000, 2026, [6, 7], now)).toBeNull();
+    expect(getMonthlySalesProjection(400, 1000, 2026, [6], now)).toBeNull();
   });
 });
