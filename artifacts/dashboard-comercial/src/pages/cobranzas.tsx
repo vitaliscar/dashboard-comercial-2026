@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getCobranzasAction, getCobranzasComparisonAction } from "@/lib/actions/cobranzas";
-import { calcularParetoCobranzas, segmentarCobranzas } from "@/lib/analytics/cobranzas";
+import { segmentarCobranzas } from "@/lib/analytics/cobranzas";
 import { KpiCard } from "@/components/kpi-card";
 import { Sparkline } from "@/components/ui/sparkline";
 import { StatusPill } from "@/components/status-pill";
@@ -143,10 +143,6 @@ export default function CobranzasPage() {
   const totalGeneral = Object.values(totals).reduce((a, b) => a + b, 0);
   const vencido = totalGeneral - (totals["Vigente"] ?? 0);
 
-  const pareto = useMemo(() => {
-    return calcularParetoCobranzas(enriched);
-  }, [enriched]);
-
   const segmentacion = useMemo(() => {
     return segmentarCobranzas(
       enriched.map((r) => ({
@@ -174,7 +170,7 @@ export default function CobranzasPage() {
         <PageHeader
           eyebrow="Cartera"
           title="Cobranzas"
-          description="Cuentas por cobrar, análisis de tendencia, riesgo y concentración"
+           description="Cuentas por cobrar, análisis de tendencia y riesgo"
         />
         <PageSkeleton
           kpis={2}
@@ -196,7 +192,7 @@ export default function CobranzasPage() {
       <PageHeader
         eyebrow="Cartera"
         title="Cobranzas"
-        description="Cuentas por cobrar, análisis de tendencia, riesgo y concentración"
+         description="Cuentas por cobrar, análisis de tendencia y riesgo"
       />
 
       {unitOptions.length > 0 && (
@@ -425,76 +421,6 @@ export default function CobranzasPage() {
           </div>
         </div>
       )}
-
-      {/* CONCENTRACIÓN DE CARTERA (PARETO 80/20) */}
-      <div className="card-elevated p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-display font-semibold">Concentración de cartera (Pareto 80/20)</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Clientes que concentran la mayor parte de las cuentas por cobrar
-            </p>
-          </div>
-        </div>
-        {pareto.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            Sin datos de concentración
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table className="text-xs">
-              <TableHeader className="bg-primary [&_tr]:border-b-0">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-primary-foreground py-2.5 px-3">Cliente</TableHead>
-                  <TableHead className="text-primary-foreground py-2.5 px-3 text-right">
-                    Saldo por cobrar
-                  </TableHead>
-                  <TableHead className="text-primary-foreground py-2.5 px-3 text-right">
-                    % del total
-                  </TableHead>
-                  <TableHead className="text-primary-foreground py-2.5 px-3 text-right">
-                    % Acumulado
-                  </TableHead>
-                  <TableHead className="text-primary-foreground py-2.5 px-3 text-center">
-                    Estatus
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pareto.slice(0, 10).map((p) => (
-                  <TableRow
-                    key={p.cliente}
-                    className="hover:bg-muted/40 border-b border-border/50 last:border-0"
-                  >
-                    <TableCell className="py-2.5 px-3 font-medium">
-                      <Link
-                        href={`/cliente-360?cliente=${encodeURIComponent(p.cliente)}`}
-                        className="hover:underline text-primary font-semibold"
-                      >
-                        {p.cliente}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="py-2.5 px-3 text-right tabular-nums font-medium">
-                      {money(p.saldo)}
-                    </TableCell>
-                    <TableCell className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
-                      {p.porcentaje.toFixed(1)}%
-                    </TableCell>
-                    <TableCell className="py-2.5 px-3 text-right tabular-nums font-semibold">
-                      {p.porcentajeAcumulado.toFixed(1)}%
-                    </TableCell>
-                    <TableCell className="py-2.5 px-3 text-center">
-                      <StatusPill kind={p.esTop80 ? "danger" : "neutral"}>
-                        {p.esTop80 ? "Top 80%" : "Resto"}
-                      </StatusPill>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
 
       {/* SEGMENTACIÓN (SUCURSAL Y UNIDAD DE NEGOCIO) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

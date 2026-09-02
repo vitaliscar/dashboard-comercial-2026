@@ -3,3 +3,4 @@
 - [Dashboard build validation](dashboard-build-validation.md) — Local Vite builds need the artifact's injected PORT and BASE_PATH; managed workflows provide them automatically.
 - [RLS and pool separation](rls-and-pool-separation.md) — Treat application scoping and database RLS as separate defenses; production needs non-BYPASS app and admin connections.
 - [RLS schema drift](rls-schema-drift.md) — Apply role predicates per table schema; shared scope helpers must not assume every aggregate has asesor_id.
+- [Authenticated preview cookies](authenticated-preview-cookie.md) — Browser screenshots do not inherit curl cookies; use and remove a narrowly scoped dev-only session bridge for visual QA.

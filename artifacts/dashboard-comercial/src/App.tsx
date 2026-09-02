@@ -27,6 +27,7 @@ import { Link, Route, Switch, useLocation } from "wouter";
 import { getHealthCheckQueryKey, useHealthCheck } from "@workspace/api-client-react";
 import { ModulePage } from "./components/module-pages";
 import ResumenPage from "./pages/resumen";
+import ServiciosLivePage from "./pages/servicios-live";
 import { useAuth } from "./hooks/use-auth";
 import { AuthForm } from "./components/auth-form";
 
@@ -150,6 +151,12 @@ function AccessDenied({ role }: { role: DemoRole }) {
 
 function DemoModuleRoute({ module, role }: { module: Module; role: DemoRole }) {
   return canAccessDemoModule(role, module.path) ? <ModulePage module={module} /> : <AccessDenied role={role} />;
+}
+
+function ServicesRoute({ module, role }: { module: Module; role: DemoRole }) {
+  const { session, loading } = useAuth();
+  if (!loading && session) return <ServiciosLivePage />;
+  return <DemoModuleRoute module={module} role={role} />;
 }
 
 function DemoRoleDashboardRoute({ path, role }: { path: string; role: DemoRole }) {
@@ -300,6 +307,14 @@ function DashboardApp() {
       ? saved
       : "gerencia";
   });
+  const {
+    session: authSession,
+    profile: authProfile,
+    role: authRole,
+    loading: authLoading,
+  } = useAuth();
+  const isLiveSession = !authLoading && Boolean(authSession && authRole);
+  const shellRole: DemoRole = isLiveSession && authRole ? authRole : demoRole;
   const apiHealth = useHealthCheck({
     query: {
       queryKey: getHealthCheckQueryKey(),
@@ -315,8 +330,8 @@ function DashboardApp() {
     window.setTimeout(() => setNotice(""), 2400);
   };
   const accessibleModules = useMemo(
-    () => modules.filter((item) => canAccessDemoModule(demoRole, item.path)),
-    [demoRole],
+    () => modules.filter((item) => canAccessDemoModule(shellRole, item.path)),
+    [shellRole],
   );
   const visibleModules = accessibleModules.filter((item) =>
     `${item.label} ${item.group}`.toLowerCase().includes(query.toLowerCase()),
@@ -360,7 +375,6 @@ function DashboardApp() {
   if (location === "/auth") {
     return <AuthForm />;
   }
-
   return (
     <div className="ccv-shell min-h-screen bg-background text-foreground">
       {menuOpen && <button type="button" className="fixed inset-0 z-30 bg-black/70 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
@@ -380,7 +394,7 @@ function DashboardApp() {
               <div className="space-y-1">
                 {groupModules.map((item) => {
                   const Icon = item.icon;
-                  const itemHref = item.path === "/dashboard" ? DEMO_DASHBOARD_PATHS[demoRole] : item.path;
+                  const itemHref = item.path === "/dashboard" ? DEMO_DASHBOARD_PATHS[shellRole] : item.path;
                   const active = location === item.path || location === itemHref || (location === "/" && item.path === "/resumen");
                   return (
                     <Link key={item.path} href={itemHref} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
@@ -394,7 +408,7 @@ function DashboardApp() {
           })}
         </nav>
          <div className="border-t border-sidebar-border p-4">
-            <div className="rounded-xl bg-sidebar-accent p-3"><p className="text-xs font-semibold">Datos de demostración</p><p className="mt-1 text-[11px] text-sidebar-foreground/55">Rol simulado: {DEMO_ROLE_LABELS[demoRole]}</p><select aria-label="Rol de demostración en menú móvil" value={demoRole} onChange={(event) => handleRoleChange(event.target.value as DemoRole)} className="mt-3 w-full rounded-lg border border-sidebar-border bg-sidebar px-2 py-2 text-xs font-semibold sm:hidden">{Object.entries(DEMO_ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+            <div className="rounded-xl bg-sidebar-accent p-3"><p className="text-xs font-semibold">{isLiveSession ? "Sesión autenticada" : "Datos de demostración"}</p><p className="mt-1 text-[11px] text-sidebar-foreground/55">{isLiveSession ? `Usuario: ${authProfile?.nombre_completo ?? authSession?.email}` : `Rol simulado: ${DEMO_ROLE_LABELS[demoRole]}`}</p>{!isLiveSession && <select aria-label="Rol de demostración en menú móvil" value={demoRole} onChange={(event) => handleRoleChange(event.target.value as DemoRole)} className="mt-3 w-full rounded-lg border border-sidebar-border bg-sidebar px-2 py-2 text-xs font-semibold sm:hidden">{Object.entries(DEMO_ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</div>
         </div>
       </aside>
 
@@ -407,14 +421,14 @@ function DashboardApp() {
            <button type="button" aria-label="Ver notificaciones" onClick={() => notify("No hay nuevas notificaciones")} className="relative flex size-10 items-center justify-center rounded-xl border border-border bg-card"><Bell size={17} /><span className="absolute right-2 top-2 size-2 rounded-full border-2 border-card bg-rose-400" /></button>
            <span title={apiHealth.isSuccess ? "API conectada" : "API no disponible"} className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-2 text-[10px] font-semibold sm:flex ${apiHealth.isSuccess ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-400" : apiHealth.isError ? "border-rose-400/20 bg-rose-400/10 text-rose-400" : "border-border bg-card text-muted-foreground"}`}><span className={`size-1.5 rounded-full ${apiHealth.isSuccess ? "bg-emerald-400" : apiHealth.isError ? "bg-rose-400" : "bg-muted-foreground"}`} />{apiHealth.isSuccess ? "API online" : apiHealth.isError ? "API offline" : "Conectando API"}</span>
            <label className="sr-only" htmlFor="demo-role">Rol de demostración</label>
-           <select id="demo-role" aria-label="Rol de demostración" value={demoRole} onChange={(event) => handleRoleChange(event.target.value as DemoRole)} className="hidden h-10 max-w-[180px] rounded-xl border border-border bg-card px-3 text-xs font-semibold sm:block">
+           {!isLiveSession && <select id="demo-role" aria-label="Rol de demostración" value={demoRole} onChange={(event) => handleRoleChange(event.target.value as DemoRole)} className="hidden h-10 max-w-[180px] rounded-xl border border-border bg-card px-3 text-xs font-semibold sm:block">
              {Object.entries(DEMO_ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-           </select>
-           <div title={`Rol demo: ${DEMO_ROLE_LABELS[demoRole]}`} className="flex size-10 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">{roleInitials(demoRole)}</div>
+           </select>}
+           <div title={isLiveSession ? `Sesión de ${DEMO_ROLE_LABELS[shellRole]}` : `Rol demo: ${DEMO_ROLE_LABELS[demoRole]}`} className="flex size-10 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">{roleInitials(shellRole)}</div>
         </header>
         <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-             <div><div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary"><span className="size-1.5 rounded-full bg-primary" />Datos de demostración</div><p className="text-sm text-muted-foreground">Centro de decisiones comerciales</p><h2 className="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Buenos días, {DEMO_ROLE_LABELS[demoRole]}</h2></div>
+             <div><div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary"><span className="size-1.5 rounded-full bg-primary" />{isLiveSession ? "DATOS REALES" : "DATOS DE DEMOSTRACIÓN"}</div><p className="text-sm text-muted-foreground">Centro de decisiones comerciales</p><h2 className="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Buenos días, {isLiveSession ? authProfile?.nombre_completo ?? DEMO_ROLE_LABELS[shellRole] : DEMO_ROLE_LABELS[demoRole]}</h2></div>
              <div className="flex flex-wrap gap-2">
                <label className="sr-only" htmlFor="global-branch">Sucursal</label><select id="global-branch" aria-label="Filtrar por sucursal" value={branch} onChange={(event) => { setBranch(event.target.value); notify(`Sucursal: ${event.target.value}`); }} className="rounded-xl border border-border bg-card px-3 py-2 text-sm"><option>Todas las sucursales</option><option>Santa Cruz</option><option>La Paz</option><option>Cochabamba</option></select>
                <label className="sr-only" htmlFor="global-period">Período</label><select id="global-period" aria-label="Seleccionar período" value={period} onChange={(event) => { setPeriod(event.target.value); notify(`Período: ${event.target.value}`); }} className="rounded-xl border border-border bg-card px-3 py-2 text-sm"><option>Agosto 2026</option><option>Julio 2026</option><option>Junio 2026</option></select>
@@ -426,7 +440,7 @@ function DashboardApp() {
           <Switch>
             <Route path="/"><Overview /></Route>
             {Object.keys(DEMO_DASHBOARD_ALIASES).map((path) => <Route key={path} path={path}><DemoRoleDashboardRoute path={path} role={demoRole} /></Route>)}
-             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
+             {modules.map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenRoute module={item} role={demoRole} /> : item.path === "/servicios" ? <ServicesRoute module={item} role={demoRole} /> : <DemoModuleRoute module={item} role={demoRole} />}</Route>)}
             <Route><Overview /></Route>
           </Switch>
         </div>

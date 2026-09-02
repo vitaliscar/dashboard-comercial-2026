@@ -9,7 +9,7 @@ import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
 import { getCliente360DataAction, type Cliente360Fuente } from "@/lib/actions/cliente-360";
-import { money, pct, diasEntre } from "@/lib/format";
+import { money, diasEntre } from "@/lib/format";
 import { canAccessModule } from "@/lib/permissions";
 import { computeHealthScore, healthBand, type HealthBand } from "@/lib/analytics/health-score";
 import { resolverAsesor } from "@/lib/asesores-catalogo";
@@ -83,12 +83,6 @@ const BAND_LABEL: Record<HealthBand, string> = {
   sano: "Sano",
   atencion: "Atención",
   riesgo: "Riesgo",
-};
-
-const CLASIFICACION_KIND: Record<"A" | "B" | "C", "success" | "warning" | "neutral"> = {
-  A: "success",
-  B: "warning",
-  C: "neutral",
 };
 
 function normalize(s: string | null | undefined): string {
@@ -368,13 +362,13 @@ function Clientes360Tab({
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
                     Cargando…
                   </TableCell>
                 </TableRow>
               ) : filteredRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="p-0">
+                  <TableCell colSpan={7} className="p-0">
                     <Empty>
                       <EmptyHeader>
                         <EmptyMedia variant="icon">
@@ -404,18 +398,7 @@ function Clientes360Tab({
                       )}
                     </TableCell>
                     <TableCell className="px-3 py-2 text-right tabular-nums font-medium">
-                      {money(r.montoPareto)}
-                    </TableCell>
-                    <TableCell className="px-3 py-2 text-right tabular-nums">
-                      {pct(r.share, 1)}
-                    </TableCell>
-                    <TableCell className="px-3 py-2 text-right tabular-nums font-medium">
-                      {pct(r.acumulado, 1)}
-                    </TableCell>
-                    <TableCell className="px-3 py-2 text-center">
-                      <StatusPill kind={CLASIFICACION_KIND[r.clasificacion]}>
-                        {r.clasificacion}
-                      </StatusPill>
+                      {money(r.monto)}
                     </TableCell>
                     <TableCell className="px-3 py-2 text-center">
                       <StatusPill kind={BAND_KIND[r.band]}>
