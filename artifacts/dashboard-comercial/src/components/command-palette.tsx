@@ -23,8 +23,6 @@ import {
   Award,
   Wrench,
   UserSearch,
-  Percent,
-  Calculator,
   type LucideIcon,
 } from "lucide-react";
 
@@ -46,12 +44,10 @@ const ROUTES: PaletteRoute[] = [
   { to: "/asesores", label: "Asesores", module: "asesores", icon: Award },
   {
     to: "/cliente-360",
-    label: "Clientes · 360° y Pareto",
+    label: "Clientes · 360°",
     module: "cliente_360",
     icon: UserSearch,
   },
-  { to: "/comisiones", label: "Comisiones Proyectadas", module: "comisiones", icon: Percent },
-  { to: "/simulador", label: "Simulador de Presupuesto", module: "simulador", icon: Calculator },
   { to: "/alertas", label: "Torre de Control · Alertas", module: "alertas", icon: BellRing },
   { to: "/carga", label: "Cargar Excel", module: "carga", icon: Upload },
   { to: "/usuarios", label: "Usuarios", module: "usuarios", icon: Users },

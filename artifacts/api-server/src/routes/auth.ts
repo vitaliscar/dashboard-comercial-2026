@@ -148,6 +148,7 @@ export async function withScopedTransaction<T>(
   ).connect();
   try {
     await client.query("BEGIN");
+    await client.query("SET LOCAL ROLE app_user");
     await client.query("SELECT set_config('app.current_role', $1, true)", [session.role ?? ""]);
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [session.user.id]);
     await client.query(

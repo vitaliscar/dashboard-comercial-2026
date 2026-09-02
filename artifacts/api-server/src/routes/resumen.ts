@@ -66,6 +66,7 @@ function whereFor(
   scope: NonNullable<ReturnType<typeof addScope>>,
   dateColumn?: string,
   includeMonthFilter = true,
+  includeAdvisor = true,
 ) {
   const predicates = dateColumn
     ? [
@@ -86,7 +87,20 @@ function whereFor(
   else if (scope.branchScope) predicates.push(`${alias}.sucursal_id = ANY($7::uuid[])`);
   if (scope.unit) predicates.push(`${alias}.unidad_negocio_id = $5::uuid`);
   else if (scope.unitScope) predicates.push(`${alias}.unidad_negocio_id = ANY($8::uuid[])`);
-  if (scope.advisor) predicates.push(`${alias}.asesor_id = $6::uuid`);
+  if (scope.advisor && includeAdvisor) predicates.push(`${alias}.asesor_id = $6::uuid`);
+  // queryParams comparte un arreglo para las diez consultas del resumen. Estos
+  // predicados neutrales mantienen tipados y referenciados los parámetros
+  // opcionales que una combinación de rol/filtro puede no usar.
+  predicates.push(
+    "$1::date IS NOT DISTINCT FROM $1::date AND " +
+      "$2::date IS NOT DISTINCT FROM $2::date AND " +
+      "$3::int[] IS NOT DISTINCT FROM $3::int[] AND " +
+      "$4::uuid IS NOT DISTINCT FROM $4::uuid AND " +
+      "$5::uuid IS NOT DISTINCT FROM $5::uuid AND " +
+      "$6::uuid IS NOT DISTINCT FROM $6::uuid AND " +
+      "$7::uuid[] IS NOT DISTINCT FROM $7::uuid[] AND " +
+      "$8::uuid[] IS NOT DISTINCT FROM $8::uuid[]",
+  );
   return predicates.join(" AND ");
 }
 
@@ -191,13 +205,13 @@ router.get("/resumen", async (req: Request, res: Response) => {
   const cotWhere = whereFor("c", scope, "fecha");
   const facWhere = whereFor("f", scope, "fecha");
   const lostWhere = whereFor("v", scope, "fecha");
-  const servicesWhere = whereFor("s", scope, "fecha");
-  const budgetWhere = whereFor("p", scope);
+  const servicesWhere = whereFor("s", scope, "fecha", true, false);
+  const budgetWhere = whereFor("p", scope, undefined, true, false);
   const advisorWhere = whereFor("ca", scope);
   const adjustmentWhere = whereFor("a", scope);
   const cotMonthlyWhere = whereFor("c", scope, "fecha", false);
   const lostMonthlyWhere = whereFor("v", scope, "fecha", false);
-  const budgetMonthlyWhere = whereFor("p", scope, undefined, false);
+  const budgetMonthlyWhere = whereFor("p", scope, undefined, false, false);
 
   try {
     const result = await withScopedTransaction(session, async (tx) => {

@@ -2,3 +2,4 @@
 - [API migration quirks](api-migration-quirks.md) — Pin Orval's Zod output to the workspace's installed Zod major version.
 - [Dashboard build validation](dashboard-build-validation.md) — Local Vite builds need the artifact's injected PORT and BASE_PATH; managed workflows provide them automatically.
 - [RLS and pool separation](rls-and-pool-separation.md) — Treat application scoping and database RLS as separate defenses; production needs non-BYPASS app and admin connections.
+- [RLS schema drift](rls-schema-drift.md) — Apply role predicates per table schema; shared scope helpers must not assume every aggregate has asesor_id.
