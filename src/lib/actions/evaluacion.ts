@@ -6,6 +6,7 @@ import {
   cumplimientoAsesores,
   detallesVentasLubfiltros,
   detallesVentasRepuestos,
+  equiposPorMarca,
   presupuestos,
   sucursales,
   unidadesNegocio,
@@ -146,16 +147,24 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
     let detalleMarca: {
       repuestos: { marca: string; monto: number }[];
       lubfiltros: { marca: string; monto: number }[];
+      equipos: { marca: string; monto: number }[];
     } | null = null;
 
-    if (unidadesSeleccionadas.has("repuestos") || unidadesSeleccionadas.has("lubricantes/filtros")) {
-      const condicionMes = mesesFiltro ? inArray(detallesVentasRepuestos.mes, mesesFiltro) : undefined;
-      const [repuestosRows, lubfiltrosRows] = await Promise.all([
+    if (
+      unidadesSeleccionadas.has("repuestos") ||
+      unidadesSeleccionadas.has("lubricantes/filtros") ||
+      unidadesSeleccionadas.has("equipos")
+    ) {
+      const condicionEquipos = [eq(equiposPorMarca.anio, filtros.anio)];
+      if (mesesFiltro) condicionEquipos.push(inArray(equiposPorMarca.mes, mesesFiltro));
+      if (filtros.sucursalIds.length > 0) condicionEquipos.push(inArray(equiposPorMarca.sucursalId, filtros.sucursalIds));
+
+      const [repuestosRows, lubfiltrosRows, equiposRows] = await Promise.all([
         unidadesSeleccionadas.has("repuestos")
           ? tx
               .select({ marca: detallesVentasRepuestos.marca, montoTotal: detallesVentasRepuestos.montoTotal })
               .from(detallesVentasRepuestos)
-              .where(condicionMes)
+              .where(mesesFiltro ? inArray(detallesVentasRepuestos.mes, mesesFiltro) : undefined)
           : Promise.resolve([]),
         unidadesSeleccionadas.has("lubricantes/filtros")
           ? tx
@@ -163,15 +172,25 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
               .from(detallesVentasLubfiltros)
               .where(mesesFiltro ? inArray(detallesVentasLubfiltros.mes, mesesFiltro) : undefined)
           : Promise.resolve([]),
+        unidadesSeleccionadas.has("equipos")
+          ? tx
+              .select({ marca: equiposPorMarca.marca, monto: equiposPorMarca.monto })
+              .from(equiposPorMarca)
+              .where(and(...condicionEquipos))
+          : Promise.resolve([]),
       ]);
 
-      const agrupar = (rows: { marca: string; montoTotal: string }[]) => {
+      const agrupar = (rows: { marca: string; montoTotal?: string; monto?: string }[]) => {
         const acc = new Map<string, number>();
-        rows.forEach((r) => acc.set(r.marca, (acc.get(r.marca) ?? 0) + Number(r.montoTotal)));
+        rows.forEach((r) => acc.set(r.marca, (acc.get(r.marca) ?? 0) + Number(r.montoTotal ?? r.monto ?? 0)));
         return [...acc.entries()].map(([marca, monto]) => ({ marca, monto })).sort((a, b) => b.monto - a.monto);
       };
 
-      detalleMarca = { repuestos: agrupar(repuestosRows), lubfiltros: agrupar(lubfiltrosRows) };
+      detalleMarca = {
+        repuestos: agrupar(repuestosRows),
+        lubfiltros: agrupar(lubfiltrosRows),
+        equipos: agrupar(equiposRows),
+      };
     }
 
     return {

@@ -369,16 +369,22 @@ export default function EvaluacionPage() {
                 </div>
               </div>
 
-              {data.detalleMarca && (data.detalleMarca.repuestos.length > 0 || data.detalleMarca.lubfiltros.length > 0) && (
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  {data.detalleMarca.repuestos.length > 0 && (
-                    <MarcaBarCard titulo="Repuestos por marca" filas={data.detalleMarca.repuestos} />
-                  )}
-                  {data.detalleMarca.lubfiltros.length > 0 && (
-                    <MarcaBarCard titulo="Lub/Filtros por marca" filas={data.detalleMarca.lubfiltros} />
-                  )}
-                </div>
-              )}
+              {data.detalleMarca &&
+                (data.detalleMarca.repuestos.length > 0 ||
+                  data.detalleMarca.lubfiltros.length > 0 ||
+                  data.detalleMarca.equipos.length > 0) && (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {data.detalleMarca.repuestos.length > 0 && (
+                      <MarcaBarCard titulo="Repuestos por marca" filas={data.detalleMarca.repuestos} />
+                    )}
+                    {data.detalleMarca.lubfiltros.length > 0 && (
+                      <MarcaBarCard titulo="Lub/Filtros por marca" filas={data.detalleMarca.lubfiltros} />
+                    )}
+                    {data.detalleMarca.equipos.length > 0 && (
+                      <MarcaBarCard titulo="Equipos por marca" filas={data.detalleMarca.equipos} />
+                    )}
+                  </div>
+                )}
             </>
           )}
 
