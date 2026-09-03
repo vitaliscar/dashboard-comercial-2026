@@ -317,6 +317,7 @@ export interface FacturaNueva {
   numero: string;
   cliente: string;
   asesor: string;
+  codigoAsesor?: string;
   sucursal: string;
   unidadNegocio: string | null;
   monto: number;
@@ -1623,6 +1624,7 @@ export class ExcelParser {
         asesor: this.clienteSinAsesor(clienteFactura)
           ? ""
           : this.normalizarTexto(row["Nombre Asesor"]),
+        codigoAsesor: this.normalizarTexto(row["Código Asesor"]),
         sucursal:
           this.sucursalFijaPorCliente(clienteFactura) ?? this.normalizarSucursal(row["Sucursal"]),
       };

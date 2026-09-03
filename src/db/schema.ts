@@ -517,6 +517,9 @@ export const cumplimientoAsesores = pgTable(
     unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
     presupuesto: numeric("presupuesto", { precision: 14, scale: 2 }).notNull().default("0"),
     venta: numeric("venta", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventaCcv: numeric("venta_ccv", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventaXibi: numeric("venta_xibi", { precision: 14, scale: 2 }).notNull().default("0"),
+    ventaEstrategicas: numeric("venta_estrategicas", { precision: 14, scale: 2 }).notNull().default("0"),
     pctCumplimiento: numeric("pct_cumplimiento", { precision: 7, scale: 4 }).notNull().default("0"),
     pctParticipacion: numeric("pct_participacion", { precision: 7, scale: 4 })
       .notNull()
