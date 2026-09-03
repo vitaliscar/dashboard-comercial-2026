@@ -7,7 +7,7 @@
  */
 import {
   leerArchivoCrudo,
-  localizarArchivoMasReciente,
+  localizarArchivosOrdenados,
   type RawRowData,
 } from "@/lib/raw-source-reader";
 
@@ -37,14 +37,66 @@ const esTransferenciaIntercompaniaXibi = (row: RawRowData): boolean =>
   ES_SUCURSAL_XIBI_NO_REAL(row) &&
   (row["Cód. Cliente"] ?? "").toString().trim() === COD_CLIENTE_INTERCOMPANIA_XIBI;
 
-/** Filas de ventasrepuesto (ambas particiones) cuyo Cód. Suplidor es de Lubricantes/Filtros. */
-export function leerFilasLubricanteVentasrepuesto(downloadsDir: string): RawRowData[] {
+/**
+ * Elige, entre los candidatos ordenados por mtime desc, el primero que
+ * efectivamente trae filas de anio/mes -- la automatización a veces deja más
+ * de un archivo de la misma fuente en una corrida (p.ej. una ventana que
+ * arranca en agosto y otra que arranca en septiembre), y el más reciente por
+ * mtime no siempre es el que cubre el mes que se está reconciliando.
+ */
+function elegirArchivoConDatosDelMes(
+  candidatos: string[],
+  headerRow: number,
+  anio: number,
+  mes: number,
+): { archivo: string; filas: RawRowData[] } | null {
+  for (const archivo of candidatos) {
+    const filas = leerArchivoCrudo(archivo, headerRow);
+    const tieneMes = filas.some(
+      (row) => parseInt(String(row["Mes"] ?? ""), 10) === mes && parseInt(String(row["Año"] ?? ""), 10) === anio,
+    );
+    if (tieneMes) return { archivo, filas };
+  }
+  return null;
+}
+
+/**
+ * Filas de ventasrepuesto (ambas particiones) cuyo Cód. Suplidor es de
+ * Lubricantes/Filtros.
+ *
+ * Si se pasan `anio`/`mes`, se usan para elegir -- entre los candidatos que
+ * matchean cada patrón -- el más reciente que efectivamente trae filas de ese
+ * mes (la automatización puede dejar más de un archivo de la misma fuente en
+ * una corrida, con distintas ventanas de fecha, y el más reciente por mtime
+ * no siempre es el que cubre el mes buscado). Sin `anio`/`mes` (p.ej. un
+ * loader histórico que no reconcilia un solo mes), se toma el más reciente
+ * de cada patrón sin filtrar -- comportamiento previo.
+ */
+export function leerFilasLubricanteVentasrepuesto(
+  downloadsDir: string,
+  anio?: number,
+  mes?: number,
+): RawRowData[] {
   const filas: RawRowData[] = [];
   for (const patron of PATRONES_VENTASREPUESTO) {
     try {
-      const archivo = localizarArchivoMasReciente(downloadsDir, patron);
-      console.log(`→ Leyendo ${archivo}`);
-      filas.push(...leerArchivoCrudo(archivo, HEADER_ROW));
+      const candidatos = localizarArchivosOrdenados(downloadsDir, patron);
+      if (candidatos.length === 0) throw new Error(`No se encontró ningún archivo que matchee ${patron}`);
+      if (anio === undefined || mes === undefined) {
+        console.log(`→ Leyendo ${candidatos[0]}`);
+        filas.push(...leerArchivoCrudo(candidatos[0], HEADER_ROW));
+        continue;
+      }
+      const elegido = elegirArchivoConDatosDelMes(candidatos, HEADER_ROW, anio, mes);
+      if (!elegido) {
+        console.warn(
+          `⚠️  Ninguno de los ${candidatos.length} archivos para ${patron} trae filas de ${anio}-${mes}; usando el más reciente igual: ${candidatos[0]}`,
+        );
+        filas.push(...leerArchivoCrudo(candidatos[0], HEADER_ROW));
+        continue;
+      }
+      console.log(`→ Leyendo ${elegido.archivo}`);
+      filas.push(...elegido.filas);
     } catch (error) {
       console.warn(`⚠️  No se encontró archivo para patrón ${patron}: ${(error as Error).message}`);
     }

@@ -66,6 +66,22 @@ export function localizarArchivoMasReciente(dir: string, patron: RegExp): string
 }
 
 /**
+ * Todos los archivos que matchean `patron` en `dir`, ordenados del más
+ * reciente al más viejo (por mtime). A diferencia de localizarArchivoMasReciente,
+ * no se queda con uno solo -- lo usa quien necesite probar varios candidatos
+ * (p.ej. cuando la automatización deja más de un archivo de la misma fuente
+ * con distintas ventanas de fecha en una sola corrida, y el más reciente por
+ * mtime no es necesariamente el que cubre el mes que se está reconciliando).
+ */
+export function localizarArchivosOrdenados(dir: string, patron: RegExp): string[] {
+  const archivos = fs.readdirSync(dir).filter((f) => patron.test(f));
+  return archivos
+    .map((nombre) => ({ nombre, mtime: fs.statSync(path.join(dir, nombre)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime)
+    .map(({ nombre }) => path.join(dir, nombre));
+}
+
+/**
  * Lee un archivo crudo (.xls legacy o .xlsx) y devuelve las filas como
  * objetos keyed por el header real, que vive en `headerRow` (1-indexado) —
  * las filas anteriores son el banner de filtros del reporte y se descartan.

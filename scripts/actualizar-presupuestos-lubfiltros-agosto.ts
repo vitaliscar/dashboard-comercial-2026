@@ -43,7 +43,7 @@ function leerYResolver(patron: RegExp): RawRowData[] {
 type Totales = { [claveSucursal: string]: number };
 
 function sumarReclasificadas(rows: RawRowData[]): Totales {
-  const filasLub = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR);
+  const filasLub = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR, ANIO, MES);
   const parser = new ExcelParser("", {
     sheetNames: ["Facturacion", "LubricantesFiltros"],
     sheets: { Facturacion: rows, LubricantesFiltros: filasLub },
@@ -60,7 +60,7 @@ function sumarReclasificadas(rows: RawRowData[]): Totales {
 
 async function main() {
   // 1. Directo de ventasrepuesto (CO/DN/D1/GF/NC), ya excluye intercompania.
-  const filasLub = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR);
+  const filasLub = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR, ANIO, MES);
   const directoCcv: Totales = {};
   const directoXibi: Totales = {};
   filasLub.forEach((row) => {

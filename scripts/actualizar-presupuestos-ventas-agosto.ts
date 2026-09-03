@@ -78,7 +78,7 @@ async function main() {
   // Detallado" (que mezcla Repuestos+Lubricante) y Repuestos queda inflado
   // exactamente por el monto de Lub/Filtros de cada sucursal (confirmado
   // 2026-09-03 contra el cuadro real de agosto).
-  const filasLubFiltros = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR);
+  const filasLubFiltros = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR, ANIO, MES);
   console.log(`→ ${filasLubFiltros.length} filas de LubricantesFiltros (para neteo)`);
 
   const totalesCcv = sumarPorSucursalUnidad(rowsCcv, UNIDADES, filasLubFiltros);

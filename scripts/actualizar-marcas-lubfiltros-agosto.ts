@@ -23,7 +23,9 @@ import { presupuestos, unidadesNegocio, detallesVentasLubfiltros } from "@/db/sc
 import { leerFilasLubricanteVentasrepuesto } from "@/lib/as400-lubricantes";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
-const MES = 8;
+const now = new Date();
+const ANIO = Number(process.env.ANIO) || now.getUTCFullYear();
+const MES = Number(process.env.MES) || now.getUTCMonth() + 1;
 
 const MAPEO_MARCA: Record<string, string> = {
   NC: "Donaldson",
@@ -42,13 +44,13 @@ function num(v: unknown): number {
 type Totales = { [marca: string]: { ccv: number; xibi: number } };
 
 async function main() {
-  const filas = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR);
+  const filas = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR, ANIO, MES);
   const totales: Totales = {};
 
   filas.forEach((row) => {
     const mes = parseInt(String(row["Mes"] ?? ""), 10);
     const anio = parseInt(String(row["Año"] ?? ""), 10);
-    if (mes !== MES || anio !== 2026) return;
+    if (mes !== MES || anio !== ANIO) return;
     const codigo = (row["Cód. Suplidor"] ?? "").toString().trim().toUpperCase();
     const marca = MAPEO_MARCA[codigo] ?? "Otra Marca";
     const compania = (row["Compañía"] ?? row["Compañia"] ?? "").toString().trim().toUpperCase();
@@ -65,7 +67,7 @@ async function main() {
     .where(
       and(
         eq(unidadesNegocio.nombre, "Lubricantes/Filtros"),
-        eq(presupuestos.anio, 2026),
+        eq(presupuestos.anio, ANIO),
         eq(presupuestos.mes, MES),
       ),
     )

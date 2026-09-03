@@ -18,11 +18,13 @@ import * as path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { dbAdmin } from "@/db";
 import { presupuestos, unidadesNegocio, detallesVentasRepuestos } from "@/db/schema";
-import { leerArchivoCrudo, localizarArchivoMasReciente, type RawRowData } from "@/lib/raw-source-reader";
+import { leerArchivoCrudo, localizarArchivosOrdenados, type RawRowData } from "@/lib/raw-source-reader";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
 const HEADER_ROW = 8;
-const MES = 8;
+const now = new Date();
+const ANIO = Number(process.env.ANIO) || now.getUTCFullYear();
+const MES = Number(process.env.MES) || now.getUTCMonth() + 1;
 
 const PATRONES = [
   { patron: /^ventasrepuesto_s92anap32todas_.*\.xls$/i, compania: "CCV" as const },
@@ -90,7 +92,7 @@ function sumarPorMarca(rows: RawRowData[], compania: "CCV" | "Xibi", totales: To
     if (compania === "Xibi" && esIntercompaniaXibi(row)) return;
     const mes = parseInt(String(row["Mes"] ?? ""), 10);
     const anio = parseInt(String(row["Año"] ?? ""), 10);
-    if (mes !== MES || anio !== 2026) return;
+    if (mes !== MES || anio !== ANIO) return;
     const marca = MAPEO_MARCA[codigo] ?? "No Definido";
     const monto = num(row["P.V.P. Total $ Extendido"]);
     if (!totales[marca]) totales[marca] = { ccv: 0, xibi: 0 };
@@ -114,7 +116,7 @@ async function ajustarResidualNoDefinido(totales: Totales): Promise<void> {
     .where(
       and(
         eq(unidadesNegocio.nombre, "Repuestos"),
-        eq(presupuestos.anio, 2026),
+        eq(presupuestos.anio, ANIO),
         eq(presupuestos.mes, MES),
       ),
     );
@@ -139,13 +141,35 @@ async function ajustarResidualNoDefinido(totales: Totales): Promise<void> {
   totales["No Definido"].xibi += residualXibi;
 }
 
+// La automatización puede dejar más de un archivo ventasrepuesto en una
+// corrida (distintas ventanas de fecha) -- probar candidatos del más
+// reciente al más viejo hasta hallar uno que traiga filas de ANIO/MES.
+function leerFilasDelMes(patron: RegExp): RawRowData[] {
+  const candidatos = localizarArchivosOrdenados(DOWNLOADS_DIR, patron);
+  if (candidatos.length === 0) {
+    throw new Error(`No se encontró ningún archivo que matchee ${patron}`);
+  }
+  for (const archivo of candidatos) {
+    const filas = leerArchivoCrudo(archivo, HEADER_ROW);
+    const tieneMes = filas.some(
+      (row) => parseInt(String(row["Mes"] ?? ""), 10) === MES && parseInt(String(row["Año"] ?? ""), 10) === ANIO,
+    );
+    if (tieneMes) {
+      console.log(`→ Leyendo ${archivo}`);
+      return filas;
+    }
+  }
+  console.warn(
+    `⚠️  Ninguno de los ${candidatos.length} archivos para ${patron} trae filas de ${ANIO}-${MES}; usando el más reciente igual: ${candidatos[0]}`,
+  );
+  return leerArchivoCrudo(candidatos[0], HEADER_ROW);
+}
+
 async function main() {
   const totales: Totales = {};
   for (const { patron, compania } of PATRONES) {
     try {
-      const archivo = localizarArchivoMasReciente(DOWNLOADS_DIR, patron);
-      console.log(`→ Leyendo ${archivo} (${compania})`);
-      const filas = leerArchivoCrudo(archivo, HEADER_ROW);
+      const filas = leerFilasDelMes(patron);
       sumarPorMarca(filas, compania, totales);
     } catch (error) {
       console.warn(`⚠️  No se encontró archivo para patrón ${patron}: ${(error as Error).message}`);
