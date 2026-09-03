@@ -77,8 +77,14 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
 
   const serviceTotals = useMemo(() => {
     const rows = data.servicios ?? [];
-    const talleres = rows.filter((row) => row.taller).reduce((sum, row) => sum + num(row.monto), 0);
-    const csa = rows.filter((row) => row.csa).reduce((sum, row) => sum + num(row.monto), 0);
+    // "X" es el valor por defecto de derivarCsaTaller() cuando la fila NO
+    // pertenece a un taller/CSA identificado -- filtrar solo por verdad-o-falso
+    // hacia que ambos totales sumaran las mismas filas (todas), dando el mismo
+    // monto para Talleres y CSA.
+    const talleres = rows
+      .filter((row) => row.taller && row.taller !== "X")
+      .reduce((sum, row) => sum + num(row.monto), 0);
+    const csa = rows.filter((row) => row.csa === "CSA").reduce((sum, row) => sum + num(row.monto), 0);
     const interno = (data.serviciosInterno ?? []).reduce((sum, row) => sum + num(row.monto), 0);
     const estrategico = (data.detallesEstrategicos ?? []).reduce(
       (sum, row) => sum + num(row.monto),
