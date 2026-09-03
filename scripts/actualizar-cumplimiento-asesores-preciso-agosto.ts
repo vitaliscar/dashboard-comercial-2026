@@ -193,7 +193,10 @@ async function main() {
       const catalogados = items.filter((i) => existentesPorClave.has(`${i.codigoAsesor}|${sucursalId}|${unidadId}`));
       const sinCatalogar = items.length - catalogados.length;
       const sumaBruta = catalogados.reduce((s, i) => s + i.bruto, 0);
-      const factor = sumaBruta > 0 && totalOficial > 0 ? Math.min(1, totalOficial / sumaBruta) : sumaBruta > 0 ? 0 : 1;
+      // MAX(0, MIN(1, oficial/bruta)) -- si oficial es negativo o bruta es 0
+      // pero oficial>0 (sin ventas de asesores reales), el factor nunca es
+      // negativo (recomendación de automatizacion 2026-09-03).
+      const factor = sumaBruta > 0 ? Math.max(0, Math.min(1, totalOficial / sumaBruta)) : 1;
       const casa = Math.max(0, totalOficial - sumaBruta * factor);
       if (sinCatalogar > 0) {
         noResueltas.push(
