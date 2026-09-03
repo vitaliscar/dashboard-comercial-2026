@@ -27,6 +27,7 @@ import {
 } from "@/lib/excel-parser";
 import { leerArchivoCrudo, localizarArchivoMasReciente } from "@/lib/raw-source-reader";
 import { resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
+import { leerFilasLubricanteVentasrepuesto } from "@/lib/as400-lubricantes";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
 const HEADER_ROW = 12;
@@ -46,8 +47,15 @@ function leerYResolver(patron: RegExp): RawRowData[] {
 
 type Totales = { [claveSucursalUnidad: string]: number };
 
-function sumarPorSucursalUnidad(rows: RawRowData[], unidades: Set<string>): Totales {
-  const parser = new ExcelParser("", { sheetNames: ["Facturacion"], sheets: { Facturacion: rows } });
+function sumarPorSucursalUnidad(
+  rows: RawRowData[],
+  unidades: Set<string>,
+  filasLubFiltros: RawRowData[] = [],
+): Totales {
+  const parser = new ExcelParser("", {
+    sheetNames: ["Facturacion", "LubricantesFiltros"],
+    sheets: { Facturacion: rows, LubricantesFiltros: filasLubFiltros },
+  });
   const facturas = parser.getFacturasPrincipales();
   const totales: Totales = {};
   facturas.forEach((f) => {
@@ -65,8 +73,15 @@ async function main() {
   const rowsCcv = leerYResolver(/^ReporteEmbudoOppDetallado_(?!.*xibi)(?!.*otra).*\.xlsx$/i);
   const rowsXibi = leerYResolver(/^ReporteEmbudoOppDetallado_.*xibi.*\.xlsx$/i);
   const rowsOtra = leerYResolver(/^ReporteEmbudoOppDetallado_.*otra.*\.xlsx$/i);
+  // Neteo de Lubricantes/Filtros del bruto de Repuestos-CCV: sin esto,
+  // getFacturasPrincipales() cuenta el bruto completo de "Oportunidades
+  // Detallado" (que mezcla Repuestos+Lubricante) y Repuestos queda inflado
+  // exactamente por el monto de Lub/Filtros de cada sucursal (confirmado
+  // 2026-09-03 contra el cuadro real de agosto).
+  const filasLubFiltros = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR);
+  console.log(`→ ${filasLubFiltros.length} filas de LubricantesFiltros (para neteo)`);
 
-  const totalesCcv = sumarPorSucursalUnidad(rowsCcv, UNIDADES);
+  const totalesCcv = sumarPorSucursalUnidad(rowsCcv, UNIDADES, filasLubFiltros);
   const totalesXibi = sumarPorSucursalUnidad(rowsXibi, UNIDADES);
   const totalesEstrategicas = sumarPorSucursalUnidad(rowsOtra, UNIDADES);
 
