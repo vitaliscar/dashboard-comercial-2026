@@ -13,6 +13,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
 import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
+import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
 import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
@@ -337,7 +338,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
           <ComplianceGauge title={`Cumplimiento General ${data?.unit.nombre ?? copy.title}`} pct={compliance} facturado={sales} presupuesto={target} />
           <div className="lg:col-span-2">
-            <div className="h-full rounded-xl border bg-card p-4 card-elevated">
+            <div className="flex h-full flex-col rounded-xl border bg-card p-4 card-elevated">
               <p className="font-display font-semibold">Facturación por compañía</p>
               <div className="mt-4 space-y-3">
                 {companies.length === 0 ? <p className="text-sm text-muted-foreground">Sin ventas en el período.</p> : companies.map((item) => (
@@ -346,6 +347,11 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
                   </div>
                 ))}
               </div>
+              {companies.length > 0 && (
+                <div className="mt-2 min-h-[180px] flex-1">
+                  <UnitDonut data={companies} title="" innerRadius="38%" outerRadius="62%" />
+                </div>
+              )}
             </div>
           </div>
           <div className="lg:col-span-3">
