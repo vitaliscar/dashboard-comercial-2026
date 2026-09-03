@@ -409,7 +409,7 @@ export default function CobranzasPage() {
                           <Sparkline
                             data={[c.saldoAnterior, c.saldoActual]}
                             tone="danger"
-                            height={24}
+                            height={32}
                           />
                         </TableCell>
                         <TableCell className="py-2 px-3 text-right tabular-nums font-semibold text-danger">

@@ -42,7 +42,11 @@ export const Sparkline = memo(function Sparkline({
   return (
     <div className={cn("w-full", className)} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+        {/* top:14 -- dejar aire para la etiqueta del último punto (fontSize 8,
+            dibujada 4px arriba del punto). Con menos margen, un punto final
+            cerca del techo del rango (tendencia subiendo) recorta la
+            etiqueta contra el borde del SVG. */}
+        <LineChart data={chartData} margin={{ top: 14, right: 2, bottom: 2, left: 2 }}>
           <YAxis domain={[min - pad, max + pad]} hide />
           <Line
             type="monotone"

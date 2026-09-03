@@ -209,7 +209,7 @@ export function KpiCard({
 
       {/* Sparkline */}
       {sparklineData && sparklineData.length >= 2 && (
-        <Sparkline data={sparklineData} tone={sparklineTone} height={28} className="mb-2" />
+        <Sparkline data={sparklineData} tone={sparklineTone} height={36} className="mb-2" />
       )}
 
       {/* Subvalue below */}
