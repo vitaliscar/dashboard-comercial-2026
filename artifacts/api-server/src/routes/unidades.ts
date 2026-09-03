@@ -188,7 +188,7 @@ async function loadUnitData(
          FROM detalles_ventas_repuestos
          WHERE mes = ANY($1::int[])
          ORDER BY mes, monto_total DESC`,
-        [ytdMonths],
+        [months],
       )
     ).rows;
   }
@@ -205,7 +205,7 @@ async function loadUnitData(
          FROM detalles_ventas_lubfiltros
          WHERE mes = ANY($1::int[])
          ORDER BY mes, monto_total DESC`,
-        [ytdMonths],
+        [months],
       ),
       tx.query(
         `SELECT tipo,
@@ -239,11 +239,11 @@ async function loadUnitData(
            AND EXTRACT(month FROM s.fecha)::int = ANY($4::int[])
            AND ${branchPredicates("s", 5, 6)}
          ORDER BY s.fecha DESC`,
-        [from, to, unitId, ytdMonths, scope.branch, scope.branchScope],
+        [from, to, unitId, months, scope.branch, scope.branchScope],
       ),
       tx.query(
         `SELECT mes, monto FROM servicios_interno WHERE mes = ANY($1::int[]) ORDER BY mes`,
-        [ytdMonths],
+        [months],
       ),
       tx.query(
         `SELECT mes,
@@ -255,7 +255,7 @@ async function loadUnitData(
            AND ($2::uuid IS NULL OR sucursal_id = $2::uuid)
            AND ($3::uuid[] IS NULL OR sucursal_id = ANY($3::uuid[]))
          ORDER BY mes, monto DESC`,
-        [ytdMonths, scope.branch, scope.branchScope],
+        [months, scope.branch, scope.branchScope],
       ),
     ]);
     response.servicios = serviceRows.rows;
@@ -287,7 +287,7 @@ async function loadUnitData(
            AND mes = ANY($2::int[])
            AND unidad_negocio_id = $3::uuid
          ORDER BY monto DESC`,
-        [year, ytdMonths, unitId],
+        [year, months, unitId],
       ),
       tx.query(
         `SELECT marca,
