@@ -22,52 +22,18 @@ import { presupuestos, sucursales, unidadesNegocio } from "@/db/schema";
 import { ExcelParser, UNIDAD_LUBFILTROS, type RawRowData } from "@/lib/excel-parser";
 import { leerArchivoCrudo, localizarArchivoMasReciente } from "@/lib/raw-source-reader";
 import { leerFilasLubricanteVentasrepuesto } from "@/lib/as400-lubricantes";
+import { resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
 const HEADER_ROW = 12;
 const ANIO = 2026;
 const MES = 8;
 
-const quitarPrefijoCodigo = (v: unknown): string => (v ?? "").toString().trim().replace(/^\d+-/, "");
-const esMachineShopPorCodigo = (v: unknown): boolean => (v ?? "").toString().trim().startsWith("46-");
-const esDepositoTerritorialPorCodigo = (v: unknown): boolean => (v ?? "").toString().trim().startsWith("52-");
-const DICCIONARIO_SUCURSAL_XIBI: Record<string, string> = {
-  "35": "Puerto Ordaz", "37": "Puerto Ordaz", "38": "Barquisimeto", "44": "Maracaibo", "45": "Fmo Piar",
-  "46": "Puerto Ordaz", "51": "Barquisimeto", "53": "Puerto Ordaz", "54": "Puerto Ordaz", "58": "Caracas",
-  "59": "Valencia", "60": "Valencia", "78": "Caracas", "79": "Punto Fijo", "81": "Barquisimeto",
-  "82": "Puerto La Cruz", "90": "Barquisimeto", "92": "Puerto Ordaz", "114": "Caracas", "116": "Puerto Ordaz",
-  "127": "Valencia", "128": "Barquisimeto", "130": "Barquisimeto", "132": "Caracas", "137": "Puerto Ordaz",
-  "139": "Maracaibo", "140": "Puerto Ordaz", "153": "Puerto Ordaz", "154": "Valencia", "156": "Puerto Ordaz",
-  "171": "Puerto Ordaz", "173": "Barquisimeto", "175": "Puerto La Cruz", "178": "Puerto Ordaz",
-  "176": "Caracas", "181": "Valencia", "97": "Puerto Ordaz", "105": "Puerto Ordaz", "115": "Puerto Ordaz",
-  "122": "Puerto Ordaz", "123": "Puerto Ordaz", "124": "Puerto Ordaz", "125": "Puerto Ordaz",
-  "107": "Barquisimeto", "96": "Valencia", "118": "Valencia", "109": "Valencia", "95": "Maracaibo",
-  "113": "Maracaibo", "134": "Punto Fijo",
-};
-const DICCIONARIO_SUCURSAL_DEPOSITO_TERRITORIAL: Record<string, string> = {
-  "79091": "Caracas", "78941": "Valencia", "79865": "Valencia",
-};
-
-function resolverFilas(rows: RawRowData[]): RawRowData[] {
-  return rows.map((row) => {
-    const compania = quitarPrefijoCodigo(row["Compañia"]);
-    const codCuenta = parseInt((row["Cód. Cuenta"] ?? "").toString().trim(), 10).toString();
-    let sucursal: string;
-    if (esMachineShopPorCodigo(row["Sucursal"])) sucursal = "Machine Shop";
-    else if (compania.toLowerCase().includes("xibi") && DICCIONARIO_SUCURSAL_XIBI[codCuenta])
-      sucursal = DICCIONARIO_SUCURSAL_XIBI[codCuenta];
-    else if (esDepositoTerritorialPorCodigo(row["Sucursal"]) && DICCIONARIO_SUCURSAL_DEPOSITO_TERRITORIAL[codCuenta])
-      sucursal = DICCIONARIO_SUCURSAL_DEPOSITO_TERRITORIAL[codCuenta];
-    else sucursal = quitarPrefijoCodigo(row["Sucursal"]);
-    return { ...row, Compañia: compania, Sucursal: sucursal };
-  });
-}
-
 function leerYResolver(patron: RegExp): RawRowData[] {
   try {
     const archivo = localizarArchivoMasReciente(DOWNLOADS_DIR, patron);
     console.log(`→ Leyendo ${archivo}`);
-    return resolverFilas(leerArchivoCrudo(archivo, HEADER_ROW));
+    return leerArchivoCrudo(archivo, HEADER_ROW).map(resolverSucursalOportunidadesDetallado);
   } catch (error) {
     console.warn(`⚠️  No se encontró archivo para patrón ${patron}: ${(error as Error).message}`);
     return [];
