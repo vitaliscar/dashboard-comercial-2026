@@ -523,7 +523,7 @@ export default function CoordinadorPanel() {
           </span>
         </div>
         <Link
-          href="/evaluacion/unidad"
+          href="/evaluacion"
           className="hidden sm:inline-flex items-center gap-1.5 text-primary hover:underline"
         >
           <FileBarChart className="h-3.5 w-3.5" />

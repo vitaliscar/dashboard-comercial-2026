@@ -1,378 +1,350 @@
 "use server";
 
-import { and, eq, sql, ne, inArray } from "drizzle-orm";
-import {
-  cumplimientoAsesores,
-  facturas,
-  profiles,
-  presupuestos,
-  sucursales,
-  unidadesNegocio,
-} from "@/db/schema";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { cotizaciones, cumplimientoAsesores, presupuestos, sucursales, ventasPerdidas } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
-import { calcularScoreCompuesto, percentilEnGrupo, type MonthlyPoint } from "@/lib/performance-score";
+import type { MonthlyPoint } from "@/lib/performance-score";
+
+export type ReporteFiltros = {
+  anio: number;
+  /** Array vacío = todos los meses disponibles en los datos. */
+  meses: number[];
+  /** Array vacío = todas las sucursales visibles para el rol (RLS decide el alcance real). */
+  sucursalIds: string[];
+  /** Array vacío = todas las unidades visibles para el rol. */
+  unidadNegocioIds: string[];
+};
+
+export type Hallazgo = { tipo: "good" | "bad" | "warn"; titulo: string; texto: string };
 
 /**
- * Evaluación de desempeño del asesor autenticado (siempre sobre sí mismo — un
- * asesor solo puede ver/descargar su propio reporte, nunca el de un par).
+ * Reporte de cumplimiento filtrable (mes(es)/sucursal(es)/unidad(es)) que
+ * reemplaza las 3 páginas fijas de evaluación (asesor/sucursal/unidad). El
+ * alcance real de sucursales/unidades/asesores lo sigue decidiendo el RLS de
+ * Postgres (withAuth ya setea app.current_role/sucursal_id) -- esta acción
+ * solo agrega la dimensión de filtrado ad-hoc que pidió el usuario. La UI es
+ * la que oculta/bloquea selectores según el rol (ver EvaluacionFiltros).
  */
-export async function getEvaluacionAsesorAction(anio: number) {
-  return withAuth(async ({ tx, userId, role, profile }) => {
-    if (role !== "asesor") {
-      throw new Error("Esta evaluación es solo para el rol asesor");
-    }
+export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
+  return withAuth(async ({ tx, role, profile, userId }) => {
+    if (!role) throw new Error("El usuario no tiene un rol asignado");
 
-    const propio = await tx
-      .select({
-        mes: cumplimientoAsesores.mes,
-        venta: sql<number>`SUM(${cumplimientoAsesores.venta})::float`,
-        presupuesto: sql<number>`SUM(${cumplimientoAsesores.presupuesto})::float`,
-      })
-      .from(cumplimientoAsesores)
-      .where(and(eq(cumplimientoAsesores.anio, anio), eq(cumplimientoAsesores.asesorId, userId)))
-      .groupBy(cumplimientoAsesores.mes)
-      .orderBy(cumplimientoAsesores.mes);
-
-    const puntos: MonthlyPoint[] = propio.map((r) => ({
-      mes: r.mes,
-      venta: Number(r.venta ?? 0),
-      presupuesto: Number(r.presupuesto ?? 0),
-    }));
-
-    const [ticketPropioRes] = await tx
-      .select({
-        total: sql<number>`COALESCE(SUM(${facturas.monto}), 0)::float`,
-        cantidad: sql<number>`COUNT(*)::int`,
-      })
-      .from(facturas)
-      .where(
-        and(
-          eq(facturas.asesorId, userId),
-          sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-        ),
-      );
-    const ticketPropio =
-      ticketPropioRes && ticketPropioRes.cantidad > 0
-        ? ticketPropioRes.total / ticketPropioRes.cantidad
-        : 0;
-
-    // Pares: mismos asesores de la misma sucursal (excluyéndose a sí mismo).
-    const sucursalId = profile.sucursalId;
-    const pares = sucursalId
-      ? await tx
-          .select({
-            asesorId: cumplimientoAsesores.asesorId,
-            venta: sql<number>`SUM(${cumplimientoAsesores.venta})::float`,
-            presupuesto: sql<number>`SUM(${cumplimientoAsesores.presupuesto})::float`,
-          })
-          .from(cumplimientoAsesores)
-          .where(
-            and(
-              eq(cumplimientoAsesores.anio, anio),
-              eq(cumplimientoAsesores.sucursalId, sucursalId),
-              ne(cumplimientoAsesores.asesorId, userId),
-            ),
-          )
-          .groupBy(cumplimientoAsesores.asesorId)
-      : [];
-
-    const paresConDatos = pares.filter((p) => p.asesorId && Number(p.presupuesto) > 0);
-    const cumplimientosPares = paresConDatos.map(
-      (p) => (Number(p.venta) / Number(p.presupuesto)) * 100,
-    );
-
-    let ticketPromedioGrupo = 0;
-    if (sucursalId) {
-      const [gRes] = await tx
-        .select({
-          total: sql<number>`COALESCE(SUM(${facturas.monto}), 0)::float`,
-          cantidad: sql<number>`COUNT(*)::int`,
-        })
-        .from(facturas)
-        .where(
-          and(
-            eq(facturas.sucursalId, sucursalId),
-            sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-          ),
-        );
-      ticketPromedioGrupo = gRes && gRes.cantidad > 0 ? gRes.total / gRes.cantidad : 0;
-    }
-
-    const scoreResult = calcularScoreCompuesto({ puntos, ticketPropio, ticketPromedioGrupo });
-    const cumplimientoPropioTotal = scoreResult.cumplimiento;
-    const percentil = percentilEnGrupo(cumplimientoPropioTotal, cumplimientosPares);
-
-    const [asesorProfile] = await tx
-      .select({ nombreCompleto: profiles.nombreCompleto })
-      .from(profiles)
-      .where(eq(profiles.id, userId));
-
-    return {
-      asesor: asesorProfile?.nombreCompleto ?? "Asesor",
-      anio,
-      puntos,
-      ticketPropio,
-      ticketPromedioGrupo,
-      cantidadPares: paresConDatos.length,
-      percentilVsPares: percentil,
-      score: scoreResult,
-    };
-  });
-}
-
-/**
- * Evaluación de desempeño de una sucursal.
- * - coordinador: siempre su propia sucursal (se ignora sucursalIdParam).
- * - gerente_comercial / gerencia: requiere sucursalIdParam; el RLS de Postgres
- *   ya restringe el resultado a lo que ese rol puede ver (unidad asignada para
- *   gerente_comercial, todo para gerencia).
- */
-export async function getEvaluacionSucursalAction(anio: number, sucursalIdParam?: string) {
-  return withAuth(async ({ tx, role, profile }) => {
     if (role === "asesor") {
-      throw new Error("Esta evaluación no está disponible para el rol asesor");
+      return getReporteAsesorPropio(tx, userId, filtros);
     }
 
-    const sucursalId = role === "coordinador" ? profile.sucursalId : sucursalIdParam;
-    if (!sucursalId) {
-      throw new Error("Debe especificar una sucursal");
-    }
+    const mesesFiltro = filtros.meses.length > 0 ? filtros.meses : undefined;
+    const condiciones = [eq(presupuestos.anio, filtros.anio)];
+    if (mesesFiltro) condiciones.push(inArray(presupuestos.mes, mesesFiltro));
+    if (filtros.sucursalIds.length > 0) condiciones.push(inArray(presupuestos.sucursalId, filtros.sucursalIds));
+    if (filtros.unidadNegocioIds.length > 0)
+      condiciones.push(inArray(presupuestos.unidadNegocioId, filtros.unidadNegocioIds));
 
-    const propio = await tx
+    const rows = await tx
       .select({
         mes: presupuestos.mes,
-        presupuesto: sql<number>`SUM(${presupuestos.monto})::float`,
-      })
-      .from(presupuestos)
-      .where(and(eq(presupuestos.anio, anio), eq(presupuestos.sucursalId, sucursalId)))
-      .groupBy(presupuestos.mes);
-
-    const ventasPorMes = await tx
-      .select({
-        mes: sql<number>`EXTRACT(MONTH FROM ${facturas.fecha})::int`,
-        venta: sql<number>`SUM(${facturas.monto})::float`,
-      })
-      .from(facturas)
-      .where(
-        and(
-          sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-          eq(facturas.sucursalId, sucursalId),
-        ),
-      )
-      .groupBy(sql`EXTRACT(MONTH FROM ${facturas.fecha})`);
-
-    const ventaPorMesMap = new Map(ventasPorMes.map((v) => [v.mes, Number(v.venta ?? 0)]));
-    const puntos: MonthlyPoint[] = propio.map((r) => ({
-      mes: r.mes,
-      venta: ventaPorMesMap.get(r.mes) ?? 0,
-      presupuesto: Number(r.presupuesto ?? 0),
-    }));
-
-    const [ticketPropioRes] = await tx
-      .select({
-        total: sql<number>`COALESCE(SUM(${facturas.monto}), 0)::float`,
-        cantidad: sql<number>`COUNT(*)::int`,
-      })
-      .from(facturas)
-      .where(
-        and(
-          eq(facturas.sucursalId, sucursalId),
-          sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-        ),
-      );
-    const ticketPropio =
-      ticketPropioRes && ticketPropioRes.cantidad > 0
-        ? ticketPropioRes.total / ticketPropioRes.cantidad
-        : 0;
-
-    // Pares: todas las demás sucursales visibles según el RLS del rol actual.
-    const paresPresupuesto = await tx
-      .select({
         sucursalId: presupuestos.sucursalId,
-        presupuesto: sql<number>`SUM(${presupuestos.monto})::float`,
+        unidadNegocioId: presupuestos.unidadNegocioId,
+        monto: presupuestos.monto,
+        ventasCcv: presupuestos.ventasCcv,
+        ventasXibi: presupuestos.ventasXibi,
+        ventasEstrategicas: presupuestos.ventasEstrategicas,
       })
       .from(presupuestos)
-      .where(and(eq(presupuestos.anio, anio), ne(presupuestos.sucursalId, sucursalId)))
-      .groupBy(presupuestos.sucursalId);
+      .where(and(...condiciones));
 
-    const paresVenta = await tx
-      .select({
-        sucursalId: facturas.sucursalId,
-        venta: sql<number>`SUM(${facturas.monto})::float`,
-      })
-      .from(facturas)
-      .where(
-        and(
-          sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-          ne(facturas.sucursalId, sucursalId),
-        ),
-      )
-      .groupBy(facturas.sucursalId);
+    let totalVenta = 0;
+    let totalMeta = 0;
+    const porSucursal = new Map<string, { meta: number; venta: number }>();
+    const porSucursalMes = new Map<string, { meta: number; venta: number }>();
 
-    const ventaPorSucursal = new Map(paresVenta.map((v) => [v.sucursalId, Number(v.venta ?? 0)]));
-    const cumplimientosPares = paresPresupuesto
-      .filter((p) => Number(p.presupuesto) > 0)
-      .map((p) => ((ventaPorSucursal.get(p.sucursalId) ?? 0) / Number(p.presupuesto)) * 100);
+    rows.forEach((r) => {
+      const venta = Number(r.ventasCcv ?? 0) + Number(r.ventasXibi ?? 0) + Number(r.ventasEstrategicas ?? 0);
+      const meta = Number(r.monto ?? 0);
+      totalVenta += venta;
+      totalMeta += meta;
+      if (!r.sucursalId) return;
+      const s = porSucursal.get(r.sucursalId) ?? { meta: 0, venta: 0 };
+      s.meta += meta;
+      s.venta += venta;
+      porSucursal.set(r.sucursalId, s);
 
-    const [gRes] = await tx
-      .select({
-        total: sql<number>`COALESCE(SUM(${facturas.monto}), 0)::float`,
-        cantidad: sql<number>`COUNT(*)::int`,
-      })
-      .from(facturas)
-      .where(
-        and(sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`, ne(facturas.sucursalId, sucursalId)),
-      );
-    const ticketPromedioGrupo = gRes && gRes.cantidad > 0 ? gRes.total / gRes.cantidad : 0;
-
-    const scoreResult = calcularScoreCompuesto({ puntos, ticketPropio, ticketPromedioGrupo });
-    const percentil = percentilEnGrupo(scoreResult.cumplimiento, cumplimientosPares);
-
-    const [sucursalRow] = await tx
-      .select({ nombre: sucursales.nombre })
-      .from(sucursales)
-      .where(eq(sucursales.id, sucursalId));
-
-    return {
-      sucursal: sucursalRow?.nombre ?? "Sucursal",
-      anio,
-      puntos,
-      ticketPropio,
-      ticketPromedioGrupo,
-      cantidadPares: cumplimientosPares.length,
-      percentilVsPares: percentil,
-      score: scoreResult,
-    };
-  });
-}
-
-/**
- * Evaluación de desempeño de una unidad de negocio.
- * Sin comparación entre unidades (no tiene sentido comparar Repuestos vs.
- * Alquiler) — en su lugar, tendencia + desglose de cumplimiento por sucursal
- * dentro de esa unidad. El alcance de sucursales lo determina el RLS del rol
- * (coordinador: su sucursal; gerente_comercial/gerencia: todas las visibles).
- */
-export async function getEvaluacionUnidadAction(anio: number, unidadNegocioId: string) {
-  return withAuth(async ({ tx, role }) => {
-    if (role === "asesor") {
-      throw new Error("Esta evaluación no está disponible para el rol asesor");
-    }
-
-    const propio = await tx
-      .select({
-        mes: presupuestos.mes,
-        presupuesto: sql<number>`SUM(${presupuestos.monto})::float`,
-      })
-      .from(presupuestos)
-      .where(and(eq(presupuestos.anio, anio), eq(presupuestos.unidadNegocioId, unidadNegocioId)))
-      .groupBy(presupuestos.mes);
-
-    const ventasPorMes = await tx
-      .select({
-        mes: sql<number>`EXTRACT(MONTH FROM ${facturas.fecha})::int`,
-        venta: sql<number>`SUM(${facturas.monto})::float`,
-      })
-      .from(facturas)
-      .where(
-        and(
-          sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-          eq(facturas.unidadNegocioId, unidadNegocioId),
-        ),
-      )
-      .groupBy(sql`EXTRACT(MONTH FROM ${facturas.fecha})`);
-
-    const ventaPorMesMap = new Map(ventasPorMes.map((v) => [v.mes, Number(v.venta ?? 0)]));
-    const puntos: MonthlyPoint[] = propio.map((r) => ({
-      mes: r.mes,
-      venta: ventaPorMesMap.get(r.mes) ?? 0,
-      presupuesto: Number(r.presupuesto ?? 0),
-    }));
-
-    // Desglose por sucursal dentro de esta unidad (reemplaza la comparación de pares).
-    const presPorSucursal = await tx
-      .select({
-        sucursalId: presupuestos.sucursalId,
-        presupuesto: sql<number>`SUM(${presupuestos.monto})::float`,
-      })
-      .from(presupuestos)
-      .where(and(eq(presupuestos.anio, anio), eq(presupuestos.unidadNegocioId, unidadNegocioId)))
-      .groupBy(presupuestos.sucursalId);
-
-    const ventaPorSucursal = await tx
-      .select({
-        sucursalId: facturas.sucursalId,
-        venta: sql<number>`SUM(${facturas.monto})::float`,
-      })
-      .from(facturas)
-      .where(
-        and(
-          sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-          eq(facturas.unidadNegocioId, unidadNegocioId),
-        ),
-      )
-      .groupBy(facturas.sucursalId);
-
-    const ventaMap = new Map(ventaPorSucursal.map((v) => [v.sucursalId, Number(v.venta ?? 0)]));
-    const sucursalIds = presPorSucursal
-      .map((p) => p.sucursalId)
-      .filter((id): id is string => !!id);
-    const sucursalNombres = sucursalIds.length
-      ? await tx
-          .select({ id: sucursales.id, nombre: sucursales.nombre })
-          .from(sucursales)
-          .where(inArray(sucursales.id, sucursalIds))
-      : [];
-    const nombreMap = new Map(sucursalNombres.map((s) => [s.id, s.nombre]));
-
-    const desglosePorSucursal = presPorSucursal
-      .filter((p) => p.sucursalId && Number(p.presupuesto) > 0)
-      .map((p) => {
-        const venta = ventaMap.get(p.sucursalId!) ?? 0;
-        const presupuesto = Number(p.presupuesto);
-        return {
-          sucursal: nombreMap.get(p.sucursalId!) ?? "Sucursal",
-          venta,
-          presupuesto,
-          cumplimiento: (venta / presupuesto) * 100,
-        };
-      })
-      .sort((a, b) => b.cumplimiento - a.cumplimiento);
-
-    // Ticket promedio de la unidad completa (sin comparación entre unidades).
-    const [ticketRes] = await tx
-      .select({
-        total: sql<number>`COALESCE(SUM(${facturas.monto}), 0)::float`,
-        cantidad: sql<number>`COUNT(*)::int`,
-      })
-      .from(facturas)
-      .where(
-        and(
-          eq(facturas.unidadNegocioId, unidadNegocioId),
-          sql`EXTRACT(YEAR FROM ${facturas.fecha}) = ${anio}`,
-        ),
-      );
-    const ticketPropio = ticketRes && ticketRes.cantidad > 0 ? ticketRes.total / ticketRes.cantidad : 0;
-    // Sin grupo de comparación entre unidades: el score de ticket usa el propio
-    // ticket como referencia (ratio 1 = score 50, ni premia ni penaliza).
-    const scoreResult = calcularScoreCompuesto({
-      puntos,
-      ticketPropio,
-      ticketPromedioGrupo: ticketPropio,
+      const clave = `${r.sucursalId}|${r.mes}`;
+      const sm = porSucursalMes.get(clave) ?? { meta: 0, venta: 0 };
+      sm.meta += meta;
+      sm.venta += venta;
+      porSucursalMes.set(clave, sm);
     });
 
-    const [unidadRow] = await tx
-      .select({ nombre: unidadesNegocio.nombre })
-      .from(unidadesNegocio)
-      .where(eq(unidadesNegocio.id, unidadNegocioId));
+    const sucursalIds = [...porSucursal.keys()];
+    const sucursalRows = sucursalIds.length
+      ? await tx.select({ id: sucursales.id, nombre: sucursales.nombre }).from(sucursales).where(inArray(sucursales.id, sucursalIds))
+      : [];
+    const nombreSucursal = new Map(sucursalRows.map((s) => [s.id, s.nombre]));
+
+    const ranking = [...porSucursal.entries()]
+      .map(([id, v]) => ({
+        id,
+        label: nombreSucursal.get(id) ?? "Sucursal",
+        meta: v.meta,
+        facturado: v.venta,
+        pct: v.meta > 0 ? (v.venta / v.meta) * 100 : 0,
+      }))
+      .sort((a, b) => b.pct - a.pct);
+
+    const mesesUsados = mesesFiltro ?? [...new Set(rows.map((r) => r.mes))].sort((a, b) => a - b);
+    const heatmap = ranking.map((r) => ({
+      sucursal: r.label,
+      celdas: mesesUsados.map((m) => {
+        const sm = porSucursalMes.get(`${r.id}|${m}`);
+        return { mes: m, pct: sm && sm.meta > 0 ? (sm.venta / sm.meta) * 100 : null };
+      }),
+    }));
+
+    const cumplimientoGeneral = totalMeta > 0 ? (totalVenta / totalMeta) * 100 : 0;
+    const bajo70 = ranking.filter((r) => r.pct < 70);
+    const mejor = ranking[0] ?? null;
+    const peor = ranking.length > 1 ? ranking[ranking.length - 1] : null;
+
+    const hallazgos: Hallazgo[] = [
+      mejor
+        ? { tipo: "good", titulo: "Mejor desempeño", texto: `${mejor.label} lidera con ${mejor.pct.toFixed(1)}% de cumplimiento.` }
+        : null,
+      bajo70.length > 0
+        ? {
+            tipo: "bad",
+            titulo: "Sucursales bajo 70%",
+            texto: `${bajo70.length} de ${ranking.length} sucursales están bajo el 70% de cumplimiento.`,
+          }
+        : { tipo: "good", titulo: "Todas sobre 70%", texto: "Ninguna sucursal está por debajo del umbral crítico." },
+      peor && peor.id !== mejor?.id
+        ? { tipo: "warn", titulo: "Necesita atención", texto: `${peor.label} tiene el cumplimiento más bajo (${peor.pct.toFixed(1)}%).` }
+        : null,
+    ].filter((h): h is Hallazgo => h !== null);
 
     return {
-      unidad: unidadRow?.nombre ?? "Unidad de Negocio",
-      anio,
-      puntos,
-      ticketPropio,
-      desglosePorSucursal,
-      score: scoreResult,
+      tipo: "sucursal" as const,
+      anio: filtros.anio,
+      meses: mesesUsados,
+      cumplimientoGeneral,
+      totalVenta,
+      totalMeta,
+      ranking,
+      heatmap,
+      hallazgos,
     };
+  });
+}
+
+type Tx = Parameters<Parameters<typeof withAuth>[0]>[0]["tx"];
+
+async function getReporteAsesorPropio(tx: Tx, userId: string, filtros: ReporteFiltros) {
+  const mesesFiltro = filtros.meses.length > 0 ? filtros.meses : undefined;
+  const condiciones = [eq(cumplimientoAsesores.anio, filtros.anio), eq(cumplimientoAsesores.asesorId, userId)];
+  if (mesesFiltro) condiciones.push(inArray(cumplimientoAsesores.mes, mesesFiltro));
+  if (filtros.unidadNegocioIds.length > 0)
+    condiciones.push(inArray(cumplimientoAsesores.unidadNegocioId, filtros.unidadNegocioIds));
+
+  const rows = await tx
+    .select({
+      mes: cumplimientoAsesores.mes,
+      unidadNegocioId: cumplimientoAsesores.unidadNegocioId,
+      venta: cumplimientoAsesores.venta,
+      presupuesto: cumplimientoAsesores.presupuesto,
+    })
+    .from(cumplimientoAsesores)
+    .where(and(...condiciones));
+
+  let totalVenta = 0;
+  let totalMeta = 0;
+  const porMes = new Map<number, { meta: number; venta: number }>();
+  rows.forEach((r) => {
+    const venta = Number(r.venta ?? 0);
+    const meta = Number(r.presupuesto ?? 0);
+    totalVenta += venta;
+    totalMeta += meta;
+    const m = porMes.get(r.mes) ?? { meta: 0, venta: 0 };
+    m.meta += meta;
+    m.venta += venta;
+    porMes.set(r.mes, m);
+  });
+
+  const mesesUsados = mesesFiltro ?? [...new Set(rows.map((r) => r.mes))].sort((a, b) => a - b);
+  const puntos: MonthlyPoint[] = mesesUsados.map((mes) => {
+    const m = porMes.get(mes) ?? { meta: 0, venta: 0 };
+    return { mes, venta: m.venta, presupuesto: m.meta };
+  });
+
+  const cumplimientoGeneral = totalMeta > 0 ? (totalVenta / totalMeta) * 100 : 0;
+  const hallazgos: Hallazgo[] = [
+    {
+      tipo: cumplimientoGeneral >= 90 ? "good" : cumplimientoGeneral >= 70 ? "warn" : "bad",
+      titulo: "Tu cumplimiento del período",
+      texto: `${cumplimientoGeneral.toFixed(1)}% de la meta asignada en los meses seleccionados.`,
+    },
+  ];
+
+  return {
+    tipo: "asesor" as const,
+    anio: filtros.anio,
+    meses: mesesUsados,
+    cumplimientoGeneral,
+    totalVenta,
+    totalMeta,
+    puntos,
+    hallazgos,
+  };
+}
+
+export type GestionAsesorFila = {
+  codigoAsesor: string;
+  asesor: string;
+  cotizado: number;
+  clientesCotizados: number;
+  facturado: number;
+  presupuesto: number;
+  perdido: number;
+  clientesPerdidos: number;
+  tasaConversion: number; // facturado / cotizado
+  tasaPerdida: number; // perdido / cotizado
+  cumplimiento: number; // facturado / presupuesto
+  scorePonderado: number;
+};
+
+/**
+ * Análisis ponderado de gestión del asesor: cotizado -> facturado -> perdido,
+ * más capacidad de negociación (tasa de conversión / tasa de pérdida).
+ * Pedido explícito del usuario 2026-09-03, visible SOLO para gerencia,
+ * gerente_comercial y coordinador (nunca el propio asesor).
+ *
+ * Fuentes:
+ * - Cotizado + clientes cotizados: tabla `cotizaciones` (agrupado por
+ *   asesor_codigo, ~98% de las filas de agosto lo traen).
+ * - Facturado + presupuesto: `cumplimiento_asesores` (ya reconciliado con la
+ *   metodología exacta de esta sesión -- NO se usa cotizaciones.monto_facturado,
+ *   ese campo del loader legado no correlaciona con la venta real: un asesor
+ *   con $1,9M cotizado mostraba $167 ahí).
+ * - Perdido + clientes perdidos: `ventas_perdidas`, emparejado por NOMBRE de
+ *   asesor (columna de texto, 100% llena en agosto) contra el nombre en
+ *   cumplimiento_asesores -- ventas_perdidas.asesor_id solo está lleno ~98%
+ *   pero no hay forma de cruzarlo con codigo_asesor sin ese id, así que se usa
+ *   el nombre normalizado (trim + lowercase) como llave de emparejamiento.
+ *
+ * Gap conocido: "clientes facturados" (para completar el trío cotizado/
+ * facturado/perdido en cantidad de clientes, no solo monto) no está
+ * disponible -- facturas.asesor_id viene vacío en el 100% de las filas
+ * cargadas por los scripts AS400 de esta sesión (ver load-facturas-as400.ts).
+ * Se omite en vez de inventar un número.
+ *
+ * Score ponderado = 40% cumplimiento + 35% tasa de conversión + 25% (1 - tasa
+ * de pérdida), cada componente normalizado a 0-100 y capado a 100 antes de
+ * ponderar (un asesor con 300% de cumplimiento no debe pesar 3x más que uno
+ * al 100%).
+ */
+export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
+  return withAuth(async ({ tx, role }) => {
+    if (role !== "gerencia" && role !== "gerente_comercial" && role !== "coordinador") {
+      throw new Error("Este análisis no está disponible para tu rol");
+    }
+
+    const mesesFiltro = filtros.meses.length > 0 ? filtros.meses : undefined;
+
+    const condicionesCot = [sql`EXTRACT(YEAR FROM ${cotizaciones.fecha}) = ${filtros.anio}`];
+    if (mesesFiltro) condicionesCot.push(sql`EXTRACT(MONTH FROM ${cotizaciones.fecha}) = ANY(${mesesFiltro})`);
+    if (filtros.unidadNegocioIds.length > 0)
+      condicionesCot.push(inArray(cotizaciones.unidadNegocioId, filtros.unidadNegocioIds));
+
+    const cotRows = await tx
+      .select({
+        codigo: cotizaciones.asesorCodigo,
+        cliente: cotizaciones.cliente,
+        monto: cotizaciones.monto,
+      })
+      .from(cotizaciones)
+      .where(and(...condicionesCot));
+
+    const cotizadoPorCodigo = new Map<string, { monto: number; clientes: Set<string> }>();
+    cotRows.forEach((r) => {
+      if (!r.codigo) return;
+      const acc = cotizadoPorCodigo.get(r.codigo) ?? { monto: 0, clientes: new Set<string>() };
+      acc.monto += Number(r.monto ?? 0);
+      acc.clientes.add(r.cliente);
+      cotizadoPorCodigo.set(r.codigo, acc);
+    });
+
+    const condicionesVp = [sql`EXTRACT(YEAR FROM ${ventasPerdidas.fecha}) = ${filtros.anio}`];
+    if (mesesFiltro) condicionesVp.push(sql`EXTRACT(MONTH FROM ${ventasPerdidas.fecha}) = ANY(${mesesFiltro})`);
+    if (filtros.unidadNegocioIds.length > 0)
+      condicionesVp.push(inArray(ventasPerdidas.unidadNegocioId, filtros.unidadNegocioIds));
+    const vpRows = await tx
+      .select({ asesor: ventasPerdidas.asesor, cliente: ventasPerdidas.cliente, monto: ventasPerdidas.monto })
+      .from(ventasPerdidas)
+      .where(and(...condicionesVp));
+
+    const perdidoPorNombre = new Map<string, { monto: number; clientes: Set<string> }>();
+    vpRows.forEach((r) => {
+      const clave = (r.asesor ?? "").trim().toLowerCase();
+      if (!clave) return;
+      const acc = perdidoPorNombre.get(clave) ?? { monto: 0, clientes: new Set<string>() };
+      acc.monto += Number(r.monto ?? 0);
+      acc.clientes.add(r.cliente);
+      perdidoPorNombre.set(clave, acc);
+    });
+
+    const condicionesCa = [eq(cumplimientoAsesores.anio, filtros.anio)];
+    if (mesesFiltro) condicionesCa.push(inArray(cumplimientoAsesores.mes, mesesFiltro));
+    if (filtros.unidadNegocioIds.length > 0)
+      condicionesCa.push(inArray(cumplimientoAsesores.unidadNegocioId, filtros.unidadNegocioIds));
+    const caRows = await tx
+      .select({
+        codigo: cumplimientoAsesores.codigoAsesor,
+        asesor: cumplimientoAsesores.asesor,
+        venta: cumplimientoAsesores.venta,
+        presupuesto: cumplimientoAsesores.presupuesto,
+      })
+      .from(cumplimientoAsesores)
+      .where(and(...condicionesCa));
+
+    const facturadoPorCodigo = new Map<string, { asesor: string; venta: number; presupuesto: number }>();
+    caRows.forEach((r) => {
+      const acc = facturadoPorCodigo.get(r.codigo) ?? { asesor: r.asesor, venta: 0, presupuesto: 0 };
+      acc.venta += Number(r.venta ?? 0);
+      acc.presupuesto += Number(r.presupuesto ?? 0);
+      facturadoPorCodigo.set(r.codigo, acc);
+    });
+
+    const codigos = new Set([...cotizadoPorCodigo.keys(), ...facturadoPorCodigo.keys()]);
+    const filas: GestionAsesorFila[] = [...codigos].map((codigo) => {
+      const cot = cotizadoPorCodigo.get(codigo) ?? { monto: 0, clientes: new Set<string>() };
+      const fact = facturadoPorCodigo.get(codigo) ?? { asesor: codigo, venta: 0, presupuesto: 0 };
+      const nombreClave = fact.asesor.trim().toLowerCase();
+      const perdido = perdidoPorNombre.get(nombreClave) ?? { monto: 0, clientes: new Set<string>() };
+
+      const tasaConversion = cot.monto > 0 ? (fact.venta / cot.monto) * 100 : 0;
+      const tasaPerdida = cot.monto > 0 ? (perdido.monto / cot.monto) * 100 : 0;
+      const cumplimiento = fact.presupuesto > 0 ? (fact.venta / fact.presupuesto) * 100 : 0;
+
+      const scorePonderado =
+        Math.min(cumplimiento, 100) * 0.4 + Math.min(tasaConversion, 100) * 0.35 + (100 - Math.min(tasaPerdida, 100)) * 0.25;
+
+      return {
+        codigoAsesor: codigo,
+        asesor: fact.asesor,
+        cotizado: cot.monto,
+        clientesCotizados: cot.clientes.size,
+        facturado: fact.venta,
+        presupuesto: fact.presupuesto,
+        perdido: perdido.monto,
+        clientesPerdidos: perdido.clientes.size,
+        tasaConversion,
+        tasaPerdida,
+        cumplimiento,
+        scorePonderado,
+      };
+    });
+
+    filas.sort((a, b) => b.scorePonderado - a.scorePonderado);
+
+    return { anio: filtros.anio, meses: filtros.meses, filas };
   });
 }

@@ -112,22 +112,10 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Evaluación de Desempeño",
     items: [
       {
-        to: "/evaluacion/asesor",
-        label: "Mi Evaluación",
+        to: "/evaluacion",
+        label: "Reporte de Cumplimiento",
         icon: FileBarChart,
-        module: "evaluacion_asesor",
-      },
-      {
-        to: "/evaluacion/sucursal",
-        label: "Evaluación Sucursal",
-        icon: FileBarChart,
-        module: "evaluacion_sucursal",
-      },
-      {
-        to: "/evaluacion/unidad",
-        label: "Evaluación Unidad",
-        icon: FileBarChart,
-        module: "evaluacion_unidad",
+        module: "evaluacion",
       },
     ],
   },
@@ -187,9 +175,7 @@ const PAGE_TITLES = {
   "/cliente-360": "Clientes",
   "/comisiones": "Comisiones Proyectadas",
   "/simulador": "Simulador de Presupuesto",
-  "/evaluacion/asesor": "Mi Evaluación de Desempeño",
-  "/evaluacion/sucursal": "Evaluación de Desempeño — Sucursal",
-  "/evaluacion/unidad": "Evaluación de Desempeño — Unidad de Negocio",
+  "/evaluacion": "Reporte de Cumplimiento",
   "/ajustes-manuales": "Ajustes Manuales",
 } as const;
 
@@ -197,8 +183,8 @@ const PAGE_TITLES = {
 // (Playwright) — el botón global "Exportar PDF" navega ahí en vez de imprimir
 // crudo. El resto de las páginas cae al window.print() de siempre.
 const EVALUACION_ROUTE_BY_PATH: Record<string, string> = {
-  "/sucursal": "/evaluacion/sucursal",
-  "/coordinador": "/evaluacion/unidad",
+  "/sucursal": "/evaluacion",
+  "/coordinador": "/evaluacion",
 };
 
 function pageTitle(pathname: string): string {

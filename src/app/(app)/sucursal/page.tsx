@@ -212,7 +212,7 @@ export default function SucursalPage() {
 
       {role !== "asesor" && (
         <Link
-          href="/evaluacion/sucursal"
+          href="/evaluacion"
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
         >
           <FileBarChart className="h-3.5 w-3.5" />
