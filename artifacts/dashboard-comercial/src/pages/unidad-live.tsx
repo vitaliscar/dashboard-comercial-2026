@@ -1,21 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Boxes, Building2, Search, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
-import { LineChart, Line, XAxis, YAxis, LabelList } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales } from "@/hooks/use-catalogos";
 import { money } from "@/lib/format";
 import { diasVencidosDesde, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
 import { MESES } from "@/lib/format";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
 import { getMonthlySalesProjection } from "@/lib/business-days";
 import { getUnidadData, type UnidadData, type UnidadKey } from "@/lib/unidad-http";
 import { KpiCard } from "@/components/kpi-card";
@@ -75,36 +66,20 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
     return [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   }, [data.detallesMarcas]);
 
-  // Tendencia de participación por marca: para cada mes del filtro
-  // seleccionado, el % que representa cada marca top sobre el total de
-  // TODAS las marcas de ese mes (no solo las top 8) -- así el % de cada
-  // línea es la participación real, no un share artificial del subconjunto.
-  const brandNames = useMemo(() => brands.map(([name]) => name), [brands]);
-  const brandTrend = useMemo(() => {
+  // Participación (%) de cada marca top sobre el TOTAL de todas las marcas
+  // del período filtrado (no solo el subconjunto top-8) -- misma forma que
+  // SucursalPerformanceChart (barra que se llena hacia el 100%, color por
+  // umbral), reusada aquí en vez de un gráfico de línea nuevo.
+  const brandPerformance = useMemo(() => {
     const rows = data.detallesMarcas ?? [];
-    const porMes = new Map<number, Map<string, number>>();
-    const totalPorMes = new Map<number, number>();
-    rows.forEach((row) => {
-      const mes = Number(row.mes);
-      const amount = num(row.montoTotal ?? row.monto);
-      const name = label(row.marca);
-      if (!porMes.has(mes)) porMes.set(mes, new Map());
-      const marcas = porMes.get(mes)!;
-      marcas.set(name, (marcas.get(name) ?? 0) + amount);
-      totalPorMes.set(mes, (totalPorMes.get(mes) ?? 0) + amount);
-    });
-    return [...porMes.keys()]
-      .sort((a, b) => a - b)
-      .map((mes) => {
-        const total = totalPorMes.get(mes) ?? 0;
-        const marcas = porMes.get(mes)!;
-        const point: Record<string, number | string> = { mes: MESES[mes - 1]?.slice(0, 3) ?? String(mes) };
-        brandNames.forEach((name) => {
-          point[name] = total > 0 ? ((marcas.get(name) ?? 0) / total) * 100 : 0;
-        });
-        return point;
-      });
-  }, [data.detallesMarcas, brandNames]);
+    const totalGeneral = rows.reduce((sum, row) => sum + num(row.montoTotal ?? row.monto), 0);
+    return brands.map(([nombre, monto]) => ({
+      nombre,
+      monto,
+      presupuesto: totalGeneral,
+      pctCumplimiento: totalGeneral > 0 ? (monto / totalGeneral) * 100 : 0,
+    }));
+  }, [brands, data.detallesMarcas]);
 
   const inventory = useMemo(() => {
     const totals = new Map<string, number>();
@@ -248,78 +223,10 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
             )}
           </div>
         </div>
-      ) : brandNames.length > 0 && brandTrend.length > 0 ? (
-        <BrandTrendChart data={brandTrend} brandNames={brandNames} />
+      ) : brandPerformance.length > 0 ? (
+        <SucursalPerformanceChart data={brandPerformance} title="Cumplimiento por marca" />
       ) : null}
     </section>
-  );
-}
-
-const BRAND_TREND_COLORS = [
-  "var(--color-chart-1)",
-  "var(--color-chart-2)",
-  "var(--color-chart-3)",
-  "var(--color-chart-4)",
-  "var(--color-chart-5)",
-  "var(--color-chart-calm-1)",
-  "var(--color-chart-calm-2)",
-  "var(--color-chart-calm-3)",
-];
-
-/** Cada línea es la participación (%) de una marca sobre el total de ese
- * mes -- no el monto absoluto -- con la etiqueta de dato mostrando ese
- * mismo porcentaje en cada punto. Respeta el filtro de mes seleccionado
- * (brandTrend ya viene filtrado por data.detallesMarcas). */
-function BrandTrendChart({
-  data,
-  brandNames,
-}: {
-  data: Record<string, number | string>[];
-  brandNames: string[];
-}) {
-  const chartConfig = useMemo(
-    () =>
-      brandNames.reduce<ChartConfig>((config, name, i) => {
-        config[name] = { label: name, color: BRAND_TREND_COLORS[i % BRAND_TREND_COLORS.length] };
-        return config;
-      }, {}),
-    [brandNames],
-  );
-
-  return (
-    <div className="rounded-xl border bg-card p-4 card-elevated">
-      <SectionTitle
-        title="Cumplimiento por marca"
-        description="Participación (%) de cada marca sobre el total del mes seleccionado."
-      />
-      <ChartContainer config={chartConfig} className="mt-4 aspect-auto h-64 w-full">
-        <LineChart data={data} margin={{ top: 16, right: 8, left: 8, bottom: 0 }}>
-          <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-          <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent formatter={(value) => `${Number(value).toFixed(1)}%`} />} />
-          <ChartLegend content={<ChartLegendContent />} />
-          {brandNames.map((name, i) => (
-            <Line
-              key={name}
-              type="monotone"
-              dataKey={name}
-              name={name}
-              stroke={BRAND_TREND_COLORS[i % BRAND_TREND_COLORS.length]}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-            >
-              <LabelList
-                dataKey={name}
-                position="top"
-                formatter={(value: number) => `${value.toFixed(0)}%`}
-                fontSize={10}
-                fill={BRAND_TREND_COLORS[i % BRAND_TREND_COLORS.length]}
-              />
-            </Line>
-          ))}
-        </LineChart>
-      </ChartContainer>
-    </div>
   );
 }
 
