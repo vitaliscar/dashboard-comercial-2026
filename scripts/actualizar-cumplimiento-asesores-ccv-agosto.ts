@@ -85,9 +85,33 @@ async function main() {
       const ccv = totalesCcv[clave] || 0;
       const xibi = totalesXibi[clave] || 0;
       const est = totalesEstrategicas[clave] || 0;
+      const venta = ccv + xibi + est;
+      const existente = await tx
+        .select({ presupuesto: cumplimientoAsesores.presupuesto })
+        .from(cumplimientoAsesores)
+        .where(
+          and(
+            eq(cumplimientoAsesores.anio, ANIO),
+            eq(cumplimientoAsesores.mes, MES),
+            eq(cumplimientoAsesores.codigoAsesor, codigoAsesor),
+            eq(cumplimientoAsesores.unidadNegocioId, unidadId),
+          ),
+        )
+        .limit(1);
+      const presupuesto = Number(existente[0]?.presupuesto ?? 0);
+      // numeric(7,4) tope 999.9999 -- un asesor con presupuesto muy bajo y
+      // venta real alta puede superar el 1000%; se limita al máximo que la
+      // columna admite en vez de fallar la transacción completa.
+      const pctCumplimiento = presupuesto > 0 ? Math.min((venta / presupuesto) * 100, 999.9999) : 0;
       const resultado = await tx
         .update(cumplimientoAsesores)
-        .set({ ventaCcv: String(ccv), ventaXibi: String(xibi), ventaEstrategicas: String(est) })
+        .set({
+          venta: String(venta),
+          ventaCcv: String(ccv),
+          ventaXibi: String(xibi),
+          ventaEstrategicas: String(est),
+          pctCumplimiento: String(pctCumplimiento),
+        })
         .where(
           and(
             eq(cumplimientoAsesores.anio, ANIO),
