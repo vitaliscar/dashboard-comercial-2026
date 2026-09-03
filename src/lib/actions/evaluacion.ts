@@ -1,7 +1,16 @@
 "use server";
 
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { cotizaciones, cumplimientoAsesores, presupuestos, sucursales, ventasPerdidas } from "@/db/schema";
+import {
+  cotizaciones,
+  cumplimientoAsesores,
+  detallesVentasLubfiltros,
+  detallesVentasRepuestos,
+  presupuestos,
+  sucursales,
+  unidadesNegocio,
+  ventasPerdidas,
+} from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import type { MonthlyPoint } from "@/lib/performance-score";
 
@@ -122,6 +131,49 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
         : null,
     ].filter((h): h is Hallazgo => h !== null);
 
+    // Detalle por marca (Repuestos/Lub-Filtros) -- solo si la unidad
+    // seleccionada la incluye (o "todas"). Estas dos tablas son agregado
+    // nacional por marca+mes, sin sucursal_id, así que no se filtran por
+    // sucursal -- coherente con que ya son un residuo "No Definido" cuando
+    // no se puede atribuir a una marca conocida (ver scripts de agosto).
+    const unidadRows = await tx.select({ id: unidadesNegocio.id, nombre: unidadesNegocio.nombre }).from(unidadesNegocio);
+    const nombrePorUnidadId = new Map(unidadRows.map((u) => [u.id, u.nombre.toLowerCase()]));
+    const unidadesSeleccionadas =
+      filtros.unidadNegocioIds.length === 0
+        ? new Set(unidadRows.map((u) => u.nombre.toLowerCase()))
+        : new Set(filtros.unidadNegocioIds.map((id) => nombrePorUnidadId.get(id)).filter((n): n is string => !!n));
+
+    let detalleMarca: {
+      repuestos: { marca: string; monto: number }[];
+      lubfiltros: { marca: string; monto: number }[];
+    } | null = null;
+
+    if (unidadesSeleccionadas.has("repuestos") || unidadesSeleccionadas.has("lubricantes/filtros")) {
+      const condicionMes = mesesFiltro ? inArray(detallesVentasRepuestos.mes, mesesFiltro) : undefined;
+      const [repuestosRows, lubfiltrosRows] = await Promise.all([
+        unidadesSeleccionadas.has("repuestos")
+          ? tx
+              .select({ marca: detallesVentasRepuestos.marca, montoTotal: detallesVentasRepuestos.montoTotal })
+              .from(detallesVentasRepuestos)
+              .where(condicionMes)
+          : Promise.resolve([]),
+        unidadesSeleccionadas.has("lubricantes/filtros")
+          ? tx
+              .select({ marca: detallesVentasLubfiltros.marca, montoTotal: detallesVentasLubfiltros.montoTotal })
+              .from(detallesVentasLubfiltros)
+              .where(mesesFiltro ? inArray(detallesVentasLubfiltros.mes, mesesFiltro) : undefined)
+          : Promise.resolve([]),
+      ]);
+
+      const agrupar = (rows: { marca: string; montoTotal: string }[]) => {
+        const acc = new Map<string, number>();
+        rows.forEach((r) => acc.set(r.marca, (acc.get(r.marca) ?? 0) + Number(r.montoTotal)));
+        return [...acc.entries()].map(([marca, monto]) => ({ marca, monto })).sort((a, b) => b.monto - a.monto);
+      };
+
+      detalleMarca = { repuestos: agrupar(repuestosRows), lubfiltros: agrupar(lubfiltrosRows) };
+    }
+
     return {
       tipo: "sucursal" as const,
       anio: filtros.anio,
@@ -132,6 +184,7 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
       ranking,
       heatmap,
       hallazgos,
+      detalleMarca,
     };
   });
 }

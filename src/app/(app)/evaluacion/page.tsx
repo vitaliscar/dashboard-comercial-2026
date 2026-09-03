@@ -84,6 +84,33 @@ function HallazgoCard({ tipo, titulo, texto }: { tipo: "good" | "bad" | "warn"; 
   );
 }
 
+function MarcaBarCard({ titulo, filas }: { titulo: string; filas: { marca: string; monto: number }[] }) {
+  const max = Math.max(...filas.map((f) => f.monto), 1);
+  return (
+    <div className="card-elevated p-4">
+      <h3 className="mb-4 font-display text-sm font-semibold">{titulo}</h3>
+      <div className="flex flex-col gap-2.5">
+        {filas.slice(0, 10).map((f) => (
+          <div key={f.marca} className="flex items-center gap-3">
+            <span className="w-28 shrink-0 truncate text-xs font-medium" title={f.marca}>
+              {f.marca}
+            </span>
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/8">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{ width: `${Math.max(2, (f.monto / max) * 100)}%` }}
+              />
+            </div>
+            <span className="w-20 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+              {money(f.monto)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function EvaluacionPage() {
   const { role, profile } = useAuth();
   const permisos = permisosFiltro(role);
@@ -341,6 +368,17 @@ export default function EvaluacionPage() {
                   </table>
                 </div>
               </div>
+
+              {data.detalleMarca && (data.detalleMarca.repuestos.length > 0 || data.detalleMarca.lubfiltros.length > 0) && (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {data.detalleMarca.repuestos.length > 0 && (
+                    <MarcaBarCard titulo="Repuestos por marca" filas={data.detalleMarca.repuestos} />
+                  )}
+                  {data.detalleMarca.lubfiltros.length > 0 && (
+                    <MarcaBarCard titulo="Lub/Filtros por marca" filas={data.detalleMarca.lubfiltros} />
+                  )}
+                </div>
+              )}
             </>
           )}
 
