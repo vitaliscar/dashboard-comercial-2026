@@ -90,11 +90,111 @@ async function reconcile(tx: Queryable, session: SessionPayload) {
   return candidates;
 }
 
+/**
+ * Alertas reales y cerrables por CLIENTE (ventas perdidas, cotizaciones
+ * abiertas sin facturar) -- port de ccv-main (Next.js) 2026-09-04. Pedido
+ * del usuario: las alertas no deben ser solo cobranza; deben ser accionables
+ * con una fecha de cierre concreta, no promedios de tendencia. Aparte de
+ * `reconcile()` (que arma un solo CTE SQL grande) para no arriesgar romper
+ * las 4 categorías que ya funcionan -- mismo patrón de upsert, agregación en
+ * JS en vez de SQL crudo con GROUP BY anidado.
+ */
+async function reconcileClientAlerts(tx: Queryable, session: SessionPayload) {
+  const s = scope(session, "source", 1);
+  if (session.role === "asesor") return; // ventas_perdidas/cotizaciones no tienen asesor_id confiable para RLS de asesor aquí
+  const from60 = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+  const anioInicio = `${new Date().getUTCFullYear()}-01-01`;
+
+  const perdidas = await tx.query(
+    `SELECT cliente, asesor_id AS "asesorId", monto, razon, sucursal_id AS "sucursalId", unidad_negocio_id AS "unidadNegocioId"
+     FROM ventas_perdidas source WHERE fecha >= $${s.values.length + 1}::date AND ${s.sql}`,
+    [...s.values, from60],
+  );
+  const perdidasPorCliente = new Map<string, { monto: number; razon: string; sucursalId: string | null; unidadNegocioId: string | null; asesorId: string | null }>();
+  for (const r of perdidas.rows) {
+    const cliente = String(r.cliente ?? "").trim();
+    if (!cliente) continue;
+    const key = `${r.asesorId ?? "s"}|${cliente}`;
+    const curr = perdidasPorCliente.get(key) ?? { monto: 0, razon: String(r.razon ?? ""), sucursalId: r.sucursalId as string | null, unidadNegocioId: r.unidadNegocioId as string | null, asesorId: r.asesorId as string | null };
+    curr.monto += Number(r.monto ?? 0);
+    perdidasPorCliente.set(key, curr);
+  }
+
+  const cotizaciones = await tx.query(
+    `SELECT cliente, asesor_id AS "asesorId", asesor_codigo AS "asesorCodigo", monto, monto_facturado AS "montoFacturado",
+      etapa, fecha, sucursal_id AS "sucursalId", unidad_negocio_id AS "unidadNegocioId"
+     FROM cotizaciones source WHERE fecha >= $${s.values.length + 1}::date AND ${s.sql}`,
+    [...s.values, anioInicio],
+  );
+  const codigoToAsesorId = new Map<string, string>();
+  const roster = await tx.query(`SELECT codigo_asesor AS codigo, asesor_id AS "asesorId" FROM cumplimiento_asesores WHERE asesor_id IS NOT NULL`);
+  for (const r of roster.rows) if (r.codigo && r.asesorId) codigoToAsesorId.set(String(r.codigo).trim(), String(r.asesorId));
+
+  const nowMs = Date.now();
+  const cotizacionesAbiertas = new Map<string, { monto: number; ageDays: number; sucursalId: string | null; unidadNegocioId: string | null; asesorId: string | null }>();
+  for (const c of cotizaciones.rows) {
+    if (c.etapa === "venta_perdida") continue;
+    if (Number(c.montoFacturado ?? 0) > 0) continue;
+    const ageDays = Math.floor((nowMs - new Date(String(c.fecha)).getTime()) / 86400000);
+    if (ageDays < 10) continue;
+    const cliente = String(c.cliente ?? "").trim();
+    if (!cliente) continue;
+    const asesorId = (c.asesorId as string | null) ?? (c.asesorCodigo ? codigoToAsesorId.get(String(c.asesorCodigo).trim()) ?? null : null);
+    const key = `${asesorId ?? "s"}|${cliente}`;
+    const curr = cotizacionesAbiertas.get(key) ?? { monto: 0, ageDays, sucursalId: c.sucursalId as string | null, unidadNegocioId: c.unidadNegocioId as string | null, asesorId };
+    curr.monto += Number(c.monto ?? 0);
+    curr.ageDays = Math.max(curr.ageDays, ageDays);
+    cotizacionesAbiertas.set(key, curr);
+  }
+
+  const upserts: Array<{ clave: string; tipo: string; severidad: string; titulo: string; contexto: object; sucursalId: string | null; unidadNegocioId: string | null; asesorId: string | null }> = [];
+  perdidasPorCliente.forEach((v, key) => {
+    if (v.monto < 5000) return;
+    const cliente = key.split("|")[1];
+    upserts.push({
+      clave: `venta_perdida_cliente:${v.sucursalId ?? "s"}:${key}`, tipo: "ventas_perdidas",
+      severidad: v.monto >= 50000 ? "alta" : "media", titulo: `Venta perdida: ${cliente}`,
+      contexto: { detalle: `${v.razon || "Venta perdida"}, $${v.monto.toFixed(2)}`, monto: v.monto, cliente, accion: "Contactar de nuevo y ofrecer alternativa" },
+      sucursalId: v.sucursalId, unidadNegocioId: v.unidadNegocioId, asesorId: v.asesorId,
+    });
+  });
+  cotizacionesAbiertas.forEach((v, key) => {
+    if (v.monto < 3000) return;
+    const cliente = key.split("|")[1];
+    upserts.push({
+      clave: `cotizacion_abierta:${v.sucursalId ?? "s"}:${key}`, tipo: "cotizacion_factura",
+      severidad: v.ageDays >= 30 ? "alta" : "media", titulo: `Cotización abierta: ${cliente}`,
+      contexto: { detalle: `$${v.monto.toFixed(2)} cotizado hace ${v.ageDays} días, sin facturar`, monto: v.monto, cliente, accion: "Dar seguimiento y cerrar la cotización" },
+      sucursalId: v.sucursalId, unidadNegocioId: v.unidadNegocioId, asesorId: v.asesorId,
+    });
+  });
+
+  for (const u of upserts) {
+    await tx.query(
+      `INSERT INTO alertas (clave_natural, tipo, severidad, titulo, contexto, sucursal_id, unidad_negocio_id, asesor_id, estado)
+       VALUES ($1, $2::alerta_tipo, $3::alerta_severidad, $4, $5, $6::uuid, $7::uuid, $8::uuid, 'abierta'::alerta_estado)
+       ON CONFLICT (clave_natural) DO UPDATE SET severidad = EXCLUDED.severidad, titulo = EXCLUDED.titulo, contexto = EXCLUDED.contexto,
+         sucursal_id = EXCLUDED.sucursal_id, unidad_negocio_id = EXCLUDED.unidad_negocio_id, asesor_id = EXCLUDED.asesor_id,
+         estado = 'abierta', updated_at = now()`,
+      [u.clave, u.tipo, u.severidad, u.titulo, JSON.stringify(u.contexto), u.sucursalId, u.unidadNegocioId, u.asesorId],
+    );
+  }
+  // Cierra las que ya no aplican (mismo prefijo de clave_natural, ya no está en upserts)
+  const clavesVigentes = upserts.map((u) => u.clave);
+  await tx.query(
+    `UPDATE alertas SET estado = 'resuelta', updated_at = now()
+     WHERE estado = 'abierta' AND (clave_natural LIKE 'venta_perdida_cliente:%' OR clave_natural LIKE 'cotizacion_abierta:%')
+       AND NOT (clave_natural = ANY($1::text[]))`,
+    [clavesVigentes],
+  );
+}
+
 router.get("/alertas", async (req: Request, res: Response): Promise<void> => {
   const session = await authenticated(req, res); if (!session) return;
   try {
     const rows = await withScopedTransaction(session, async (tx) => {
       await reconcile(tx, session);
+      await reconcileClientAlerts(tx, session);
       const visible = alertScope(session, "a");
       return (await tx.query(`SELECT a.id, a.tipo, a.severidad, a.titulo, a.contexto, a.sucursal_id AS "sucursalId",
         a.unidad_negocio_id AS "unidadNegocioId", a.asesor_id AS "asesorId", a.estado, a.created_at AS "createdAt"
