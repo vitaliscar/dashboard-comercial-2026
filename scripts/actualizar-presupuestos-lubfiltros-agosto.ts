@@ -26,8 +26,9 @@ import { resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
 const HEADER_ROW = 12;
-const ANIO = 2026;
-const MES = 8;
+const now = new Date();
+const ANIO = Number(process.env.ANIO) || now.getUTCFullYear();
+const MES = Number(process.env.MES) || now.getUTCMonth() + 1;
 
 function leerYResolver(patron: RegExp): RawRowData[] {
   try {
