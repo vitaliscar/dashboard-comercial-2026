@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/evaluacion";
 import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
 import { BranchRanking } from "@/components/gerencia-nacional/BranchRanking";
+import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -319,7 +320,17 @@ export default function EvaluacionPage() {
 
           {data.tipo === "sucursal" && (
             <>
-              <BranchRanking rows={data.ranking} />
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <BranchRanking rows={data.ranking} />
+                <UnitDonut
+                  title="Composición por compañía"
+                  data={[
+                    { label: "Consorcio (CCV)", facturado: data.composicionCompania.ccv },
+                    { label: "Xibi B.V.", facturado: data.composicionCompania.xibi },
+                    { label: "Otra Empresa", facturado: data.composicionCompania.estrategicas },
+                  ]}
+                />
+              </div>
 
               <div className="card-elevated overflow-hidden">
                 <div className="border-b border-border p-4">
@@ -401,6 +412,38 @@ export default function EvaluacionPage() {
                   />
                 ))}
               </div>
+            </div>
+          )}
+
+          {permisos.puedeVerGestionAsesores && gestion && gestion.filas.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {(() => {
+                const mejorScore = gestion.filas[0];
+                const mejorConversion = [...gestion.filas].sort((a, b) => b.tasaConversion - a.tasaConversion)[0];
+                const mejorCumplimiento = [...gestion.filas].sort((a, b) => b.cumplimiento - a.cumplimiento)[0];
+                return (
+                  <>
+                    <KpiCard
+                      label="Mejor score de gestión"
+                      value={mejorScore.asesor}
+                      hint={`Score ${mejorScore.scorePonderado.toFixed(0)}`}
+                      accent="success"
+                    />
+                    <KpiCard
+                      label="Mejor tasa de conversión"
+                      value={mejorConversion.asesor}
+                      hint={`${pct(mejorConversion.tasaConversion, 0)} de lo cotizado se facturó`}
+                      accent="primary"
+                    />
+                    <KpiCard
+                      label="Mayor cumplimiento"
+                      value={mejorCumplimiento.asesor}
+                      hint={pct(mejorCumplimiento.cumplimiento, 0)}
+                      accent="ochre"
+                    />
+                  </>
+                );
+              })()}
             </div>
           )}
 

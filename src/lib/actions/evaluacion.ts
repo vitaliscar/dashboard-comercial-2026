@@ -65,14 +65,23 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
 
     let totalVenta = 0;
     let totalMeta = 0;
+    let totalCcv = 0;
+    let totalXibi = 0;
+    let totalEstrategicas = 0;
     const porSucursal = new Map<string, { meta: number; venta: number }>();
     const porSucursalMes = new Map<string, { meta: number; venta: number }>();
 
     rows.forEach((r) => {
-      const venta = Number(r.ventasCcv ?? 0) + Number(r.ventasXibi ?? 0) + Number(r.ventasEstrategicas ?? 0);
+      const ccv = Number(r.ventasCcv ?? 0);
+      const xibi = Number(r.ventasXibi ?? 0);
+      const estrategicas = Number(r.ventasEstrategicas ?? 0);
+      const venta = ccv + xibi + estrategicas;
       const meta = Number(r.monto ?? 0);
       totalVenta += venta;
       totalMeta += meta;
+      totalCcv += ccv;
+      totalXibi += xibi;
+      totalEstrategicas += estrategicas;
       if (!r.sucursalId) return;
       const s = porSucursal.get(r.sucursalId) ?? { meta: 0, venta: 0 };
       s.meta += meta;
@@ -204,6 +213,7 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
       heatmap,
       hallazgos,
       detalleMarca,
+      composicionCompania: { ccv: totalCcv, xibi: totalXibi, estrategicas: totalEstrategicas },
     };
   });
 }
