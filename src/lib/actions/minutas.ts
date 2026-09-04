@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import type { AppRole } from "@/lib/actions/auth";
+import { CLIENTES_SIN_ASESOR } from "@/lib/excel-parser";
 
 export type MinutaEstado = "pendiente" | "en_proceso" | "cumplido";
 
@@ -227,7 +228,13 @@ export async function getClientesDestinatarioAction(destinatarioId: string): Pro
 
     const set = new Set<string>();
     for (const rows of [cot, vp]) {
-      for (const r of rows) if (r.cliente) set.add(r.cliente);
+      for (const r of rows) {
+        // Clientes "venta casa" (ej. Visco) no tienen asesor real aunque el
+        // crudo traiga un código de sistema en esas filas -- reportado por
+        // el usuario 2026-09-04: Visco aparecía como cliente de Abiezer sin
+        // atenderlo. Se excluyen aquí igual que en excel-parser.ts.
+        if (r.cliente && !CLIENTES_SIN_ASESOR.has(r.cliente.trim().toLowerCase())) set.add(r.cliente);
+      }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   });

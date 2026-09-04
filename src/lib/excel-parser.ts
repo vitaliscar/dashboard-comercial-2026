@@ -122,7 +122,7 @@ const CLIENTE_SUCURSAL_FIJA: { [clienteCanonicoLower: string]: string } = {
 
 // Clientes "venta casa": nunca tienen asesor asignado, aunque el reporte de
 // origen traiga uno relacionado — clave en minúsculas del nombre canónico.
-const CLIENTES_SIN_ASESOR = new Set<string>(["visco orinoco, c.a"]);
+export const CLIENTES_SIN_ASESOR = new Set<string>(["visco orinoco, c.a"]);
 export const UNIDADES_CANONICAS: string[] = [
   "Repuestos",
   "Lubricantes/Filtros",
