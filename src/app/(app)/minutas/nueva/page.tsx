@@ -99,17 +99,33 @@ export default function NuevaMinutaPage() {
 
   // Alertas del destinatario, excluyendo las que ya se agregaron como
   // compromiso en esta sesión (para no dejar agregar la misma dos veces).
+  //
+  // BUG reportado por el usuario 2026-09-04: filtrar por
+  // "a.asesorId === destinatarioId OR a.sucursalId === sucursalDestinatario"
+  // dejaba pasar alertas de OTROS asesores de la misma sucursal (ej. "Hermes
+  // Heredia pierde muchas ventas" apareciendo al seleccionar a Abiezer
+  // Guerra), y alertas de cobranza sin asesor asignado (asesorId=null) de
+  // clientes que no son de ese asesor (ej. Venofic). El fallback por
+  // sucursal se quita: una alerta solo es candidata si (a) está atribuida
+  // directamente a ese asesor, o (b) es una alerta de cliente (cobranza) y
+  // ese cliente específico está en la cartera real del destinatario
+  // (mismo cruce que usa getClientesDestinatarioAction).
   const alertaIdsUsadas = new Set(compromisos.map((c) => c.alertaId).filter(Boolean));
+  const clientesDelDestinatario = useMemo(
+    () => new Set((clientesDestinatario ?? []).map((c) => c.toLowerCase())),
+    [clientesDestinatario],
+  );
   const alertasCandidatas = useMemo(() => {
     if (!alertasDisponibles || !destinatarioId) return [];
-    return alertasDisponibles.filter(
-      (a) =>
-        !alertaIdsUsadas.has(a.id) &&
-        (a.asesorId === destinatarioId ||
-          (sucursalDestinatario != null && a.sucursalId === sucursalDestinatario)),
-    );
+    return alertasDisponibles.filter((a) => {
+      if (alertaIdsUsadas.has(a.id)) return false;
+      if (a.asesorId === destinatarioId) return true;
+      const cliente = a.contexto?.cliente?.trim().toLowerCase();
+      if (a.asesorId == null && cliente && clientesDelDestinatario.has(cliente)) return true;
+      return false;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alertasDisponibles, destinatarioId, sucursalDestinatario, compromisos]);
+  }, [alertasDisponibles, destinatarioId, clientesDelDestinatario, compromisos]);
 
   const handleSelectDestinatario = (destId: string) => {
     const dest = destinatarios?.find((d) => d.id === destId);
