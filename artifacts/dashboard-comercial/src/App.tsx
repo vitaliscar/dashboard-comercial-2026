@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  ChevronDown,
   FileSpreadsheet,
   FileText,
   Filter,
@@ -22,10 +23,12 @@ import {
   X,
 } from "lucide-react";
 import { Link, Route, Switch, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { getHealthCheckQueryKey, useHealthCheck } from "@workspace/api-client-react";
 import type { UnidadKey } from "./lib/unidad-http";
 import { useAuth } from "./hooks/use-auth";
 import { AuthForm } from "./components/auth-form";
+import { getAlertas } from "./lib/alertas-http";
 
 // Code-splitting por ruta: cada rol solo descarga las páginas a las que
 // tiene acceso (ver ROLE_MODULE_ACCESS), en vez de las 16 en el bundle
@@ -41,9 +44,11 @@ const AlertasPage = lazy(() => import("./pages/alertas"));
 const Cliente360Page = lazy(() => import("./pages/cliente-360"));
 const EmbudoPage = lazy(() => import("./pages/embudo"));
 const DashboardPage = lazy(() => import("./pages/dashboard"));
+const GerenciaNacionalPage = lazy(() => import("./pages/gerencia-nacional"));
 const SucursalPage = lazy(() => import("./pages/sucursal"));
 const CoordinadorPage = lazy(() => import("./pages/coordinador"));
 const AsesorPanelPage = lazy(() => import("./pages/asesor-panel"));
+const EvaluacionPage = lazy(() => import("./pages/evaluacion"));
 const EvaluacionAsesorPage = lazy(() => import("./pages/evaluacion-asesor"));
 const EvaluacionSucursalPage = lazy(() => import("./pages/evaluacion-sucursal"));
 const EvaluacionUnidadPage = lazy(() => import("./pages/evaluacion-unidad"));
@@ -185,9 +190,7 @@ function RoleDashboardRoute({ path, role }: { path: string; role: DemoRole }) {
   if (path === "/coordinador" && role === "coordinador") return <CoordinadorPage />;
   if (path === "/asesor" && role === "asesor") return <AsesorPanelPage />;
   if (path === "/sucursal" && role === "coordinador") return <SucursalPage />;
-  // No existe una página dedicada "/gerencia-nacional" — /resumen ya cubre la
-  // vista consolidada de gerencia (ver dashboard.tsx / getDashboardRoute).
-  if (path === "/gerencia-nacional" && role === "gerencia") return <ResumenPage />;
+  if (path === "/gerencia-nacional" && role === "gerencia") return <GerenciaNacionalPage />;
   return <AccessDenied role={role} />;
 }
 
@@ -199,7 +202,13 @@ function DashboardApp() {
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [notice, setNotice] = useState("");
+  // "Administración" (Usuarios/Ajustes-manuales/Carga) es el grupo menos
+  // usado — colapsado por defecto reduce los 16 módulos planos que gerencia
+  // ve de una sola vez (viola la Ley de Hick sin esto). Se auto-expande si
+  // la ruta activa cae dentro, para no esconder dónde está el usuario.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    () => new Set(["Administración"]),
+  );
   const [query, setQuery] = useState("");
   const {
     session: authSession,
@@ -216,13 +225,18 @@ function DashboardApp() {
       retry: 1,
     },
   });
+  // La campana antes siempre decía "No hay nuevas notificaciones" sin
+  // importar el estado real — un afiche falso que entrena a desconfiar de
+  // toda señal futura. Ahora refleja el conteo real de alertas abiertas.
+  const { data: openAlertsCount = 0 } = useQuery({
+    queryKey: ["alertas", "open-count"],
+    queryFn: async () => (await getAlertas()).filter((a) => a.estado === "abierta").length,
+    enabled: isLiveSession,
+    refetchInterval: 60_000,
+  });
   const current = modules.find((item) => location === item.path) ?? modules.find((item) => item.path === "/dashboard")!;
   const currentLabel = DEMO_DASHBOARD_LABELS[location] ?? current.label;
   const groups = useMemo(() => [...new Set(modules.map((item) => item.group))], []);
-  const notify = (message: string) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(""), 2400);
-  };
   // Sin sesión real, `authRole` es null; el gate de abajo impide que este
   // valor llegue a renderizarse, pero el hook debe ejecutarse siempre.
   const accessibleModules = useMemo(
@@ -273,10 +287,27 @@ function DashboardApp() {
           {groups.map((group) => {
             const groupModules = accessibleModules.filter((item) => item.group === group);
             if (groupModules.length === 0) return null;
+            const isActiveGroup = groupModules.some((item) => location === item.path);
+            const isCollapsed = collapsedGroups.has(group) && !isActiveGroup;
             return (
             <div key={group} className="mb-5">
-              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40">{group}</p>
-              <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setCollapsedGroups((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(group)) next.delete(group);
+                    else next.add(group);
+                    return next;
+                  })
+                }
+                aria-expanded={!isCollapsed}
+                className="mb-2 flex w-full items-center justify-between px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
+              >
+                {group}
+                <ChevronDown size={12} className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
+              </button>
+              <div className={`space-y-1 ${isCollapsed ? "hidden" : ""}`}>
                 {groupModules.map((item) => {
                   const Icon = item.icon;
                   const itemHref = item.path === "/dashboard" ? DEMO_DASHBOARD_PATHS[role] : item.path;
@@ -310,7 +341,7 @@ function DashboardApp() {
           <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">{current.group}</p><h1 className="truncate font-display text-lg font-semibold">{currentLabel}</h1></div>
            <button type="button" aria-label="Abrir buscador de módulos" onClick={() => setPaletteOpen(true)} className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 sm:flex"><Search size={16} />Buscar <kbd className="ml-2 text-[10px] text-muted-foreground">⌘K</kbd></button>
            <button type="button" aria-label="Abrir buscador de módulos" onClick={() => setPaletteOpen(true)} className="flex size-11 items-center justify-center rounded-xl border border-border bg-card sm:hidden"><Search size={17} /></button>
-           <button type="button" aria-label="Ver notificaciones" onClick={() => notify("No hay nuevas notificaciones")} className="relative flex size-11 items-center justify-center rounded-xl border border-border bg-card"><Bell size={17} /><span className="absolute right-2 top-2 size-2 rounded-full border-2 border-card bg-rose-400" /></button>
+           <Link href="/alertas" aria-label={openAlertsCount > 0 ? `Ver alertas (${openAlertsCount} abiertas)` : "Ver alertas"} className="relative flex size-11 items-center justify-center rounded-xl border border-border bg-card"><Bell size={17} />{openAlertsCount > 0 && <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full border-2 border-card bg-rose-400 text-[9px] font-bold text-white">{openAlertsCount > 9 ? "9+" : openAlertsCount}</span>}</Link>
            <span title={apiHealth.isSuccess ? "API conectada" : "API no disponible"} className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-2 text-[10px] font-semibold sm:flex ${apiHealth.isSuccess ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-400" : apiHealth.isError ? "border-rose-400/20 bg-rose-400/10 text-rose-400" : "border-border bg-card text-muted-foreground"}`}><span className={`size-1.5 rounded-full ${apiHealth.isSuccess ? "bg-emerald-400" : apiHealth.isError ? "bg-rose-400" : "bg-muted-foreground"}`} />{apiHealth.isSuccess ? "API online" : apiHealth.isError ? "API offline" : "Conectando API"}</span>
            <div title={`Sesión de ${DEMO_ROLE_LABELS[role]}`} className="flex size-10 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">{roleInitials(role)}</div>
         </header>
@@ -319,7 +350,6 @@ function DashboardApp() {
              <div><div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary"><span className="size-1.5 rounded-full bg-primary" />DATOS REALES</div><p className="text-sm text-muted-foreground">Centro de decisiones comerciales</p><h2 className="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Buenos días, {authProfile?.nombre_completo ?? DEMO_ROLE_LABELS[role]}</h2></div>
           </div>
          {paletteOpen && <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12vh]" role="dialog" aria-modal="true" aria-label="Buscar módulos" onClick={() => setPaletteOpen(false)}><div className="ccv-command-panel w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center gap-2 border-b border-border pb-3"><Search size={17} className="text-primary" /><input autoFocus aria-label="Buscar módulo" placeholder="Buscar módulo..." className="w-full bg-transparent text-sm outline-none" value={query} onChange={(event) => setQuery(event.target.value)} /><button type="button" aria-label="Cerrar buscador" onClick={() => { setPaletteOpen(false); setQuery(""); }}><X size={16} /></button></div><div className="mt-3 max-h-72 overflow-y-auto">{(query ? visibleModules : accessibleModules).map((item) => <Link key={item.path} href={item.path} onClick={() => { setPaletteOpen(false); setQuery(""); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-primary/10"><item.icon size={16} className="text-primary" /><span>{item.label}</span><span className="ml-auto text-xs text-muted-foreground">{item.group}</span></Link>)}{query && visibleModules.length === 0 && <p className="p-4 text-sm text-muted-foreground">Sin módulos encontrados.</p>}</div></div></div>}
-         {notice && !paletteOpen && <div className="ccv-toast" role="status">{notice}</div>}
           <Suspense
             fallback={
               <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
@@ -336,6 +366,7 @@ function DashboardApp() {
                 <NuevaMinutaPage />
               </AuthenticatedModuleRoute>
             </Route>
+            <Route path="/evaluacion"><AuthenticatedModuleRoute><EvaluacionPage /></AuthenticatedModuleRoute></Route>
             <Route path="/evaluacion/asesor"><EvaluacionAsesorPage /></Route>
             <Route path="/evaluacion/sucursal"><EvaluacionSucursalPage /></Route>
             <Route path="/evaluacion/unidad"><EvaluacionUnidadPage /></Route>

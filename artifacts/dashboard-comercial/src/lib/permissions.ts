@@ -24,6 +24,7 @@ export type ModuleKey =
   | "cliente_360"
   | "comisiones"
   | "simulador"
+  | "evaluacion"
   | "evaluacion_asesor"
   | "evaluacion_sucursal"
   | "evaluacion_unidad"
@@ -60,6 +61,7 @@ const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   cliente_360: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
   comisiones: ["gerencia", "gerente_comercial", "coordinador"],
   simulador: ["gerencia", "gerente_comercial"],
+  evaluacion: ["gerencia", "gerente_comercial", "coordinador", "asesor"],
   evaluacion_asesor: ["asesor"],
   evaluacion_sucursal: ["gerencia", "gerente_comercial", "coordinador"],
   evaluacion_unidad: ["gerencia", "gerente_comercial", "coordinador"],

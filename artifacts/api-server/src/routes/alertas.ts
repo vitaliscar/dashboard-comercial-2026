@@ -43,7 +43,7 @@ async function reconcile(tx: Queryable, session: SessionPayload) {
              'cobranzas'::alerta_tipo AS tipo, 'alta'::alerta_severidad AS severidad,
              source.cliente || ' tiene facturas vencidas' AS titulo,
               json_build_object('detalle', COUNT(*)::text || ' facturas vencidas, debe ' || ROUND(SUM(source.saldo)::numeric, 2)::text,
-               'monto', SUM(source.saldo), 'accion', 'Llamar a cobrar')::text AS contexto,
+               'monto', SUM(source.saldo), 'accion', 'Llamar a cobrar', 'cliente', source.cliente)::text AS contexto,
               MIN(source.sucursal_id::text)::uuid AS sucursal_id, MIN(source.unidad_negocio_id::text)::uuid AS unidad_negocio_id, NULL::uuid AS asesor_id
       FROM cobranzas source
       WHERE source.saldo > 0 AND source.fecha_vencimiento < $1::date AND ${s.sql}
@@ -52,7 +52,7 @@ async function reconcile(tx: Queryable, session: SessionPayload) {
       SELECT 'cobranzas-prox:' || COALESCE(source.sucursal_id::text, 'none') || ':' || source.cliente, 'cobranzas'::alerta_tipo, 'media'::alerta_severidad,
              source.cliente || ': ' || COUNT(*)::text || ' factura(s) por vencer',
               json_build_object('detalle', 'Debe ' || ROUND(SUM(source.saldo)::numeric, 2)::text || ', la próxima vence el ' || MIN(source.fecha_vencimiento)::text,
-               'monto', SUM(source.saldo), 'accion', 'Recordar pago')::text,
+               'monto', SUM(source.saldo), 'accion', 'Recordar pago', 'cliente', source.cliente)::text,
               MIN(source.sucursal_id::text)::uuid, MIN(source.unidad_negocio_id::text)::uuid, NULL::uuid
       FROM cobranzas source WHERE source.saldo > 0 AND source.fecha_vencimiento BETWEEN $1::date AND $2::date AND ${s.sql}
       GROUP BY source.cliente, source.sucursal_id

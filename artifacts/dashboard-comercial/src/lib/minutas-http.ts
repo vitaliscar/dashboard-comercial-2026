@@ -25,7 +25,7 @@ export interface MinutaAlertaAbierta {
   tipo: string;
   severidad: "alta" | "media" | "baja";
   titulo: string;
-  contexto: { detalle?: string; accion?: string } | null;
+  contexto: { detalle?: string; accion?: string; cliente?: string | null } | null;
   sucursalId: string | null;
   unidadNegocioId: string | null;
   asesorId: string | null;
@@ -50,6 +50,8 @@ export const getMinutasHttp = () => request<any[]>("");
 export const getDestinatariosHttp = () => request<MinutaDestinatario[]>("/destinatarios");
 export const getAlertasAbiertasHttp = () => request<MinutaAlertaAbierta[]>("/alertas-abiertas");
 export const searchClientesHttp = (q: string) => request<string[]>(`/clientes?q=${encodeURIComponent(q)}`);
+export const getClientesDestinatarioHttp = (destinatarioId: string) =>
+  request<string[]>(`/clientes-destinatario/${destinatarioId}`);
 export const createMinutaHttp = (data: MinutaInput) =>
   request<any>("", { method: "POST", body: JSON.stringify(data) });
 export const updateMinutaHttp = (id: string, data: Pick<MinutaInput, "descripcion" | "fechaLimite" | "estado">) =>

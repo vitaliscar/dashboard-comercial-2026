@@ -115,6 +115,26 @@ interface MinutaItem {
   alertas: MinutaAlerta[];
 }
 
+function KpiFilterButton({
+  activo,
+  onClick,
+  children,
+}: {
+  activo: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg text-left transition ${activo ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:opacity-80"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function MinutasPage() {
   const { role, user } = useAuth();
   const [, setLocation] = useLocation();
@@ -135,11 +155,31 @@ export default function MinutasPage() {
   });
 
   const [sucursalFilter, setSucursalFilter] = useState<string>("all");
+  const [estadoFilter, setEstadoFilter] = useState<"all" | MinutaEstado | "vencida">("all");
+
+  const hoy = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const esVencida = (m: MinutaItem) =>
+    m.estado !== "cumplido" && !!m.fechaLimite && m.fechaLimite < hoy;
+
+  const minutasBase = useMemo(() => {
+    const rows = minutas ?? [];
+    return sucursalFilter === "all" ? rows : rows.filter((m) => m.sucursalId === sucursalFilter);
+  }, [minutas, sucursalFilter]);
 
   const minutasFiltradas = useMemo(() => {
-    if (sucursalFilter === "all") return minutas ?? [];
-    return (minutas ?? []).filter((m) => m.sucursalId === sucursalFilter);
-  }, [minutas, sucursalFilter]);
+    let rows = minutasBase;
+    if (estadoFilter === "vencida") rows = rows.filter((m) => esVencida(m));
+    else if (estadoFilter !== "all") rows = rows.filter((m) => m.estado === estadoFilter);
+    return [...rows].sort((a, b) => {
+      const prioridad = (m: MinutaItem) => (esVencida(m) ? 0 : m.estado === "pendiente" ? 1 : m.estado === "en_proceso" ? 2 : 3);
+      const dif = prioridad(a) - prioridad(b);
+      if (dif !== 0) return dif;
+      if (!a.fechaLimite && !b.fechaLimite) return 0;
+      if (!a.fechaLimite) return 1;
+      if (!b.fechaLimite) return -1;
+      return a.fechaLimite.localeCompare(b.fechaLimite);
+    });
+  }, [minutasBase, estadoFilter, hoy]);
 
   // Form state (solo edición — la creación vive en /minutas/nueva)
   const [form, setForm] = useState({
@@ -228,13 +268,14 @@ export default function MinutasPage() {
   const unidadNombre = (id?: string | null) => unidades?.find((u) => u.id === id)?.nombre ?? "—";
 
   const resumen = useMemo(() => {
-    const rows = minutasFiltradas;
+    const rows = minutasBase;
     const pendientes = rows.filter((m) => m.estado === "pendiente").length;
     const enProceso = rows.filter((m) => m.estado === "en_proceso").length;
     const cumplidas = rows.filter((m) => m.estado === "cumplido").length;
+    const vencidas = rows.filter((m) => esVencida(m)).length;
     const cumplimiento = rows.length > 0 ? (cumplidas / rows.length) * 100 : 0;
-    return { total: rows.length, pendientes, enProceso, cumplidas, cumplimiento };
-  }, [minutasFiltradas]);
+    return { total: rows.length, pendientes, enProceso, cumplidas, vencidas, cumplimiento };
+  }, [minutasBase, hoy]);
 
   if (isLoading && !minutas) {
     return <PageSkeleton kpis={4} blocks={[{ cols: 1, height: 400 }]} />;
@@ -327,27 +368,56 @@ export default function MinutasPage() {
         }
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard label="Total" value={String(resumen.total)} icon={ClipboardList} />
-        <KpiCard
-          label="Pendientes"
-          value={String(resumen.pendientes)}
-          icon={CircleDashed}
-          accent="warning"
-        />
-        <KpiCard
-          label="En proceso"
-          value={String(resumen.enProceso)}
-          icon={CircleDot}
-          accent="primary"
-        />
-        <KpiCard
-          label="Cumplimiento"
-          value={`${resumen.cumplimiento.toFixed(0)}%`}
-          icon={CircleCheck}
-          accent="success"
-          hint={`${resumen.cumplidas} cumplidas`}
-        />
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <KpiFilterButton activo={estadoFilter === "all"} onClick={() => setEstadoFilter("all")}>
+          <KpiCard label="Total" value={String(resumen.total)} icon={ClipboardList} />
+        </KpiFilterButton>
+        <KpiFilterButton
+          activo={estadoFilter === "pendiente"}
+          onClick={() => setEstadoFilter((f) => (f === "pendiente" ? "all" : "pendiente"))}
+        >
+          <KpiCard
+            label="Pendientes"
+            value={String(resumen.pendientes)}
+            icon={CircleDashed}
+            accent="warning"
+          />
+        </KpiFilterButton>
+        <KpiFilterButton
+          activo={estadoFilter === "en_proceso"}
+          onClick={() => setEstadoFilter((f) => (f === "en_proceso" ? "all" : "en_proceso"))}
+        >
+          <KpiCard
+            label="En proceso"
+            value={String(resumen.enProceso)}
+            icon={CircleDot}
+            accent="primary"
+          />
+        </KpiFilterButton>
+        <KpiFilterButton
+          activo={estadoFilter === "vencida"}
+          onClick={() => setEstadoFilter((f) => (f === "vencida" ? "all" : "vencida"))}
+        >
+          <KpiCard
+            label="Vencidas"
+            value={String(resumen.vencidas)}
+            icon={AlertTriangle}
+            accent={resumen.vencidas > 0 ? "danger" : "success"}
+            hint="Fecha límite pasada, sin cumplir"
+          />
+        </KpiFilterButton>
+        <KpiFilterButton
+          activo={estadoFilter === "cumplido"}
+          onClick={() => setEstadoFilter((f) => (f === "cumplido" ? "all" : "cumplido"))}
+        >
+          <KpiCard
+            label="Cumplimiento"
+            value={`${resumen.cumplimiento.toFixed(0)}%`}
+            icon={CircleCheck}
+            accent="success"
+            hint={`${resumen.cumplidas} cumplidas`}
+          />
+        </KpiFilterButton>
       </div>
 
       {role !== "asesor" && sucursales && sucursales.length > 1 && (
@@ -470,22 +540,25 @@ export default function MinutasPage() {
                           {unidadNombre(m.unidadNegocioId)}
                         </TableCell>
                         <TableCell className="px-4 py-3">
-                          <StatusPill kind={estadoKind(m.estado)}>
-                            {estadoLabel(m.estado)}
-                          </StatusPill>
+                          <div className="flex items-center gap-1.5">
+                            <StatusPill kind={estadoKind(m.estado)}>
+                              {estadoLabel(m.estado)}
+                            </StatusPill>
+                            {esVencida(m) && <StatusPill kind="danger">Vencida</StatusPill>}
+                          </div>
                         </TableCell>
                         <TableCell
                           className="px-4 py-3 text-right"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {canCreate && (
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(m)}>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="Editar minuta">
                               <Pencil className="size-3.5" />
                             </Button>
                           )}
                           {canDelete && (
                             <AlertDialog>
-                              <AlertDialogTrigger render={<Button variant="ghost" size="icon" />}>
+                              <AlertDialogTrigger render={<Button variant="ghost" size="icon" title="Eliminar minuta" />}>
                                 <Trash2 className="size-3.5 text-destructive" />
                               </AlertDialogTrigger>
                               <AlertDialogContent>

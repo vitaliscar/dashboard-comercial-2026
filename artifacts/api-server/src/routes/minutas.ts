@@ -114,6 +114,42 @@ router.get("/minutas/clientes", async (req, res) => {
   } catch (error) { req.log?.error?.(error); res.status(500).json({ message: "No se pudieron buscar clientes." }); }
 });
 
+/**
+ * Clientes "relacionados al destinatario" -- mismo cruce que en ccv-main
+ * (Next.js): cumplimiento_asesores.asesor_id -> codigo_asesor/asesor ->
+ * cotizaciones.asesor_codigo / ventas_perdidas.asesor. Pedido del usuario
+ * 2026-09-04: el campo cliente de un compromiso manual debe ser un
+ * desplegable acotado, no búsqueda global de texto libre.
+ */
+router.get("/minutas/clientes-destinatario/:id", async (req, res) => {
+  const session = await sessionOr401(req, res); if (!session) return;
+  const destinatarioId = uuid(req.params.id);
+  if (!destinatarioId) { res.status(400).json({ message: "El destinatario no es válido." }); return; }
+  try {
+    const rows = await withScopedTransaction(session, async (tx) => {
+      const roster = await tx.query(
+        `SELECT DISTINCT codigo_asesor AS codigo, asesor AS nombre FROM cumplimiento_asesores WHERE asesor_id = $1::uuid`,
+        [destinatarioId],
+      );
+      const codigos = roster.rows.map((r) => r.codigo).filter(Boolean);
+      const nombres = roster.rows.map((r) => r.nombre).filter(Boolean);
+      if (codigos.length === 0 && nombres.length === 0) return [];
+      const [cot, vp] = await Promise.all([
+        codigos.length
+          ? tx.query(`SELECT DISTINCT cliente FROM cotizaciones WHERE asesor_codigo = ANY($1::text[])`, [codigos])
+          : Promise.resolve({ rows: [] }),
+        nombres.length
+          ? tx.query(`SELECT DISTINCT cliente FROM ventas_perdidas WHERE asesor = ANY($1::text[])`, [nombres])
+          : Promise.resolve({ rows: [] }),
+      ]);
+      const set = new Set<string>();
+      for (const r of [...cot.rows, ...vp.rows]) if (r.cliente) set.add(r.cliente);
+      return [...set].sort((a, b) => a.localeCompare(b));
+    });
+    res.json(rows);
+  } catch (error) { req.log?.error?.(error); res.status(500).json({ message: "No se pudieron cargar los clientes del destinatario." }); }
+});
+
 router.get("/minutas/alertas-abiertas", async (req, res) => {
   const session = await sessionOr401(req, res); if (!session) return;
   try {

@@ -33,3 +33,59 @@ export const getEvaluacionSucursal = (anio: number, sucursalId?: string) =>
   request<EvaluacionSucursal>("sucursal", { anio, sucursalId });
 export const getEvaluacionUnidad = (anio: number, unidadId: string) =>
   request<EvaluacionUnidad>("unidad", { anio, unidadId });
+
+// ── Reporte unificado (v2) ──────────────────────────────────────────────────
+export type Hallazgo = { tipo: "good" | "bad" | "warn"; titulo: string; texto: string };
+export type MarcaMonto = { marca: string; monto: number };
+export type ReporteFiltros = { anio: number; meses: number[]; sucursalIds: string[]; unidadNegocioIds: string[] };
+
+export type ReporteSucursal = {
+  tipo: "sucursal";
+  anio: number;
+  meses: number[];
+  cumplimientoGeneral: number;
+  totalVenta: number;
+  totalMeta: number;
+  ranking: Array<{ id: string; label: string; meta: number; facturado: number; pct: number }>;
+  heatmap: Array<{ sucursal: string; celdas: Array<{ mes: number; pct: number | null }> }>;
+  hallazgos: Hallazgo[];
+  detalleMarca: { repuestos: MarcaMonto[]; lubfiltros: MarcaMonto[]; equipos: MarcaMonto[] } | null;
+  composicionCompania: { ccv: number; xibi: number; estrategicas: number };
+};
+export type ReporteAsesorPropio = {
+  tipo: "asesor";
+  anio: number;
+  meses: number[];
+  cumplimientoGeneral: number;
+  totalVenta: number;
+  totalMeta: number;
+  puntos: MonthlyPoint[];
+  hallazgos: Hallazgo[];
+};
+export type Reporte = ReporteSucursal | ReporteAsesorPropio;
+
+function csv(values: string[] | number[]): string | undefined {
+  return values.length > 0 ? values.join(",") : undefined;
+}
+
+export const getReporteEvaluacion = (filtros: ReporteFiltros) =>
+  request<Reporte>("reporte", {
+    anio: filtros.anio,
+    meses: csv(filtros.meses),
+    sucursalIds: csv(filtros.sucursalIds),
+    unidadNegocioIds: csv(filtros.unidadNegocioIds),
+  });
+
+export type GestionAsesorFila = {
+  codigoAsesor: string; asesor: string; cotizado: number; clientesCotizados: number; facturado: number;
+  presupuesto: number; perdido: number; clientesPerdidos: number; tasaConversion: number; tasaPerdida: number;
+  cumplimiento: number; scorePonderado: number;
+};
+export type GestionAsesores = { anio: number; meses: number[]; filas: GestionAsesorFila[] };
+
+export const getGestionAsesores = (filtros: ReporteFiltros) =>
+  request<GestionAsesores>("gestion-asesores", {
+    anio: filtros.anio,
+    meses: csv(filtros.meses),
+    unidadNegocioIds: csv(filtros.unidadNegocioIds),
+  });

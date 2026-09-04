@@ -102,22 +102,10 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Evaluación de Desempeño",
     items: [
       {
-        to: "/evaluacion/asesor",
-        label: "Mi Evaluación",
+        to: "/evaluacion",
+        label: "Evaluación de Desempeño",
         icon: FileBarChart,
-        module: "evaluacion_asesor",
-      },
-      {
-        to: "/evaluacion/sucursal",
-        label: "Evaluación Sucursal",
-        icon: FileBarChart,
-        module: "evaluacion_sucursal",
-      },
-      {
-        to: "/evaluacion/unidad",
-        label: "Evaluación Unidad",
-        icon: FileBarChart,
-        module: "evaluacion_unidad",
+        module: "evaluacion",
       },
     ],
   },
