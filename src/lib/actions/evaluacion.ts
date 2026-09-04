@@ -433,3 +433,74 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
     return { anio: filtros.anio, meses: filtros.meses, filas };
   });
 }
+
+/**
+ * Análisis narrativo generado por IA (Gemini) a partir de los mismos datos
+ * que ya se muestran en pantalla -- pedido del usuario 2026-09-04: que el
+ * texto no suene a plantilla ("la sucursal X tuvo Y% de cumplimiento..."
+ * repetido siempre igual), sino que la IA redacte distinto cada vez que se
+ * pide (ej. al exportar), mientras la pantalla se queda con la primera
+ * redacción a modo de consulta -- por eso esto es una acción aparte que el
+ * cliente llama explícitamente, no algo embebido en getReporteCumplimientoAction.
+ *
+ * Sin SDK nuevo: la API REST de Gemini es una sola llamada fetch, no amerita
+ * una dependencia (@google/generative-ai) para esto.
+ */
+export async function generarAnalisisNarrativoAction(resumen: {
+  tipo: "sucursal" | "asesor";
+  anio: number;
+  meses: number[];
+  cumplimientoGeneral: number;
+  totalVenta: number;
+  totalMeta: number;
+  ranking?: { label: string; meta: number; facturado: number; pct: number }[];
+  hallazgos: Hallazgo[];
+}): Promise<string> {
+  return withAuth(async () => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada en el servidor.");
+
+    const MESES_NOMBRE = [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    ];
+    const periodo = resumen.meses.length
+      ? resumen.meses.map((m) => MESES_NOMBRE[m - 1]).join(", ")
+      : "todo el año";
+
+    const prompt = `Eres un analista comercial senior escribiendo el resumen ejecutivo de un reporte interno de cumplimiento de ventas para gerencia de una empresa venezolana de maquinaria/equipos (Consorcio Cogestión Venequip).
+
+Datos del período (${periodo} ${resumen.anio}):
+- Cumplimiento general: ${resumen.cumplimientoGeneral.toFixed(1)}%
+- Facturado: $${resumen.totalVenta.toLocaleString("es-VE", { maximumFractionDigits: 0 })}
+- Meta: $${resumen.totalMeta.toLocaleString("es-VE", { maximumFractionDigits: 0 })}
+${resumen.ranking ? `- Ranking por sucursal (facturado vs meta):\n${resumen.ranking.map((r) => `  ${r.label}: ${r.pct.toFixed(1)}% ($${r.facturado.toLocaleString("es-VE", { maximumFractionDigits: 0 })} de $${r.meta.toLocaleString("es-VE", { maximumFractionDigits: 0 })})`).join("\n")}` : ""}
+- Hallazgos automáticos: ${resumen.hallazgos.map((h) => h.texto).join(" ")}
+
+Redacta un análisis narrativo de 3 a 5 párrafos cortos, en español, tono profesional directo (no genérico ni de plantilla). Interpreta los números -- no los repitas tal cual, explica qué significan para el negocio, qué riesgos u oportunidades sugieren, y qué debería priorizar gerencia. Varía el fraseo y el orden de ideas respecto a análisis anteriores que hayas podido generar para datos parecidos. No uses viñetas ni encabezados, solo prosa. No inventes cifras que no te di.`;
+
+    const respuesta = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.9 },
+        }),
+      },
+    );
+
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.text().catch(() => "");
+      throw new Error(`Gemini API error ${respuesta.status}: ${cuerpo.slice(0, 300)}`);
+    }
+
+    const json = (await respuesta.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const texto = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    if (!texto.trim()) throw new Error("Gemini no devolvió texto.");
+    return texto.trim();
+  });
+}

@@ -7,6 +7,7 @@ import { Download, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import {
+  generarAnalisisNarrativoAction,
   getGestionAsesoresAction,
   getReporteCumplimientoAction,
   type ReporteFiltros,
@@ -166,6 +167,31 @@ export default function EvaluacionPage() {
     queryKey: ["evaluacion-gestion-asesores", filtros],
     queryFn: () => getGestionAsesoresAction(filtros),
     enabled: permisos.puedeVerGestionAsesores,
+  });
+
+  // Se genera UNA vez por montaje/combinación de filtros y se queda fija en
+  // pantalla (staleTime Infinity) -- pedido del usuario 2026-09-04: la IA
+  // redacta distinto cada vez, así que la pantalla guarda la primera
+  // redacción "a modo de consulta" y cada exportación (que monta la página
+  // de cero vía Playwright, ver /api/evaluacion/pdf) genera una nueva.
+  const analisis = useQuery({
+    queryKey: ["evaluacion-analisis-narrativo", filtros, data?.tipo],
+    queryFn: () => {
+      const reporte = data!;
+      return generarAnalisisNarrativoAction({
+        tipo: reporte.tipo,
+        anio: reporte.anio,
+        meses: reporte.meses,
+        cumplimientoGeneral: reporte.cumplimientoGeneral,
+        totalVenta: reporte.totalVenta,
+        totalMeta: reporte.totalMeta,
+        ranking: reporte.tipo === "sucursal" ? reporte.ranking : undefined,
+        hallazgos: reporte.hallazgos,
+      });
+    },
+    enabled: !!data,
+    staleTime: Infinity,
+    retry: 1,
   });
 
   function toggleMes(m: number) {
@@ -332,6 +358,23 @@ export default function EvaluacionPage() {
             ))}
           </div>
 
+          <div className="card-elevated p-5">
+            <h3 className="mb-3 font-display text-sm font-semibold">Análisis narrativo</h3>
+            {analisis.isLoading ? (
+              <p className="text-sm text-muted-foreground">Generando análisis con IA…</p>
+            ) : analisis.isError ? (
+              <p className="text-sm text-danger">
+                No se pudo generar el análisis narrativo ({(analisis.error as Error)?.message ?? "error desconocido"}).
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3 text-sm leading-relaxed text-foreground">
+                {(analisis.data ?? "").split(/\n{2,}/).map((parrafo, i) => (
+                  <p key={i}>{parrafo}</p>
+                ))}
+              </div>
+            )}
+          </div>
+
           {data.tipo === "sucursal" && (
             <>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -426,38 +469,6 @@ export default function EvaluacionPage() {
                   />
                 ))}
               </div>
-            </div>
-          )}
-
-          {permisos.puedeVerGestionAsesores && gestion && gestion.filas.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {(() => {
-                const mejorScore = gestion.filas[0];
-                const mejorConversion = [...gestion.filas].sort((a, b) => b.tasaConversion - a.tasaConversion)[0];
-                const mejorCumplimiento = [...gestion.filas].sort((a, b) => b.cumplimiento - a.cumplimiento)[0];
-                return (
-                  <>
-                    <KpiCard
-                      label="Mejor score de gestión"
-                      value={mejorScore.asesor}
-                      hint={`Score ${mejorScore.scorePonderado.toFixed(0)}`}
-                      accent="success"
-                    />
-                    <KpiCard
-                      label="Mejor tasa de conversión"
-                      value={mejorConversion.asesor}
-                      hint={`${pct(mejorConversion.tasaConversion, 0)} de lo cotizado se facturó`}
-                      accent="primary"
-                    />
-                    <KpiCard
-                      label="Mayor cumplimiento"
-                      value={mejorCumplimiento.asesor}
-                      hint={pct(mejorCumplimiento.cumplimiento, 0)}
-                      accent="ochre"
-                    />
-                  </>
-                );
-              })()}
             </div>
           )}
 
