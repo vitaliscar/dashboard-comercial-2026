@@ -434,7 +434,7 @@ export default function NuevaMinutaPage() {
                   <button
                     key={alerta.id}
                     type="button"
-                    onClick={() => seleccionarAlerta(alerta)}
+                    onClick={() => (draft.alertaId === alerta.id ? quitarAlertaDelDraft() : seleccionarAlerta(alerta))}
                     className={`flex flex-col gap-1 rounded-md border p-3 text-left text-xs transition ${
                       draft.alertaId === alerta.id
                         ? "border-primary bg-primary/10"
@@ -454,6 +454,9 @@ export default function NuevaMinutaPage() {
                       <span className="text-[10px] text-primary font-medium">
                         Sugerido: {alerta.contexto.accion}
                       </span>
+                    )}
+                    {draft.alertaId === alerta.id && (
+                      <span className="text-[10px] font-semibold text-primary">✓ Seleccionada — clic para quitar</span>
                     )}
                   </button>
                 ))}
