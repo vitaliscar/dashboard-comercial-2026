@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import {
   cotizaciones,
   cumplimientoAsesores,
@@ -14,6 +14,23 @@ import {
 } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import type { MonthlyPoint } from "@/lib/performance-score";
+
+/**
+ * Roster de asesores activos (32) confirmado por el usuario 2026-09-04 --
+ * "Gestión del asesor" solo debe mostrar gente de esta lista, sin importar
+ * qué otros códigos traigan cotizaciones/cumplimiento_asesores (ex-asesores,
+ * códigos de prueba, etc.).
+ */
+const CODIGOS_ASESOR_ACTIVOS = new Set([
+  "75610", "81238", "75595", "44711", "57995", "46128", // Puerto Ordaz
+  "46125", "80068", "27931", "80868", // Puerto La Cruz
+  "95520", "48179", "45499", "81459", "48162", // Barquisimeto
+  "19415", "45497", "78297", "49935", "81592", // Valencia
+  "27124", "81300", "67094", // Caracas
+  "33236", "29177", "61812", "45511", "93031", // Maracaibo
+  "45501", "82001", // Punto Fijo
+  "34771", "31344", // Maturín
+]);
 
 export type ReporteFiltros = {
   anio: number;
@@ -331,8 +348,15 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
 
     const mesesFiltro = filtros.meses.length > 0 ? filtros.meses : undefined;
 
+    // OJO: sql`... = ANY(${array})` con un array plano de JS falla en runtime
+    // ("TypeError: The 'string' argument must be of type string or an
+    // instance of Buffer or ArrayBuffer") -- el driver no serializa el array
+    // como tipo Postgres automáticamente en este contexto. Se arma como OR de
+    // igualdades en su lugar, confirmado con el usuario 2026-09-04 que
+    // "Gestión del asesor" se quedaba cargando sin mostrar nada por esto.
     const condicionesCot = [sql`EXTRACT(YEAR FROM ${cotizaciones.fecha}) = ${filtros.anio}`];
-    if (mesesFiltro) condicionesCot.push(sql`EXTRACT(MONTH FROM ${cotizaciones.fecha}) = ANY(${mesesFiltro})`);
+    if (mesesFiltro)
+      condicionesCot.push(or(...mesesFiltro.map((m) => sql`EXTRACT(MONTH FROM ${cotizaciones.fecha}) = ${m}`))!);
     if (filtros.unidadNegocioIds.length > 0)
       condicionesCot.push(inArray(cotizaciones.unidadNegocioId, filtros.unidadNegocioIds));
 
@@ -355,7 +379,8 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
     });
 
     const condicionesVp = [sql`EXTRACT(YEAR FROM ${ventasPerdidas.fecha}) = ${filtros.anio}`];
-    if (mesesFiltro) condicionesVp.push(sql`EXTRACT(MONTH FROM ${ventasPerdidas.fecha}) = ANY(${mesesFiltro})`);
+    if (mesesFiltro)
+      condicionesVp.push(or(...mesesFiltro.map((m) => sql`EXTRACT(MONTH FROM ${ventasPerdidas.fecha}) = ${m}`))!);
     if (filtros.unidadNegocioIds.length > 0)
       condicionesVp.push(inArray(ventasPerdidas.unidadNegocioId, filtros.unidadNegocioIds));
     const vpRows = await tx
@@ -395,10 +420,9 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
       facturadoPorCodigo.set(r.codigo, acc);
     });
 
-    // Solo asesores del roster activo (cumplimiento_asesores) -- un código con
-    // cotizaciones pero que ya no está en el roster (ex-asesor, código
-    // dado de baja) no debe aparecer, pedido explícito del usuario 2026-09-04.
-    const codigos = new Set(facturadoPorCodigo.keys());
+    // Solo el roster de 32 asesores activos confirmado por el usuario
+    // 2026-09-04 -- no todo lo que traiga cumplimiento_asesores.
+    const codigos = new Set([...facturadoPorCodigo.keys()].filter((c) => CODIGOS_ASESOR_ACTIVOS.has(c)));
     const filas: GestionAsesorFila[] = [...codigos].map((codigo) => {
       const cot = cotizadoPorCodigo.get(codigo) ?? { monto: 0, clientes: new Set<string>() };
       const fact = facturadoPorCodigo.get(codigo) ?? { asesor: codigo, venta: 0, presupuesto: 0 };
@@ -486,7 +510,11 @@ Redacta un análisis narrativo de 3 a 5 párrafos cortos, en español, tono prof
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.9 },
+          // thinkingBudget: 0 -- sin esto, gemini-3.6-flash gasta varios
+          // segundos "pensando" antes de escribir un texto corto que no
+          // necesita razonamiento profundo (confirmado 2026-09-04: el
+          // análisis narrativo tardaba demasiado en aparecer).
+          generationConfig: { temperature: 0.9, thinkingConfig: { thinkingBudget: 128 } },
         }),
       },
     );
