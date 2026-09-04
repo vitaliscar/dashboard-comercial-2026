@@ -22,7 +22,7 @@ import * as path from "node:path";
 import { and, eq, gte, lt, ne } from "drizzle-orm";
 import { dbAdmin } from "@/db";
 import { cotizaciones, sucursales, unidadesNegocio } from "@/db/schema";
-import { ExcelParser, UNIDAD_LUBFILTROS } from "@/lib/excel-parser";
+import { ExcelParser, UNIDAD_LUBFILTROS, UNIDAD_REPUESTOS } from "@/lib/excel-parser";
 import { leerArchivoCrudo, localizarArchivoMasReciente } from "@/lib/raw-source-reader";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
@@ -38,13 +38,53 @@ async function main() {
   console.log(`→ ${filas.length} filas crudas`);
 
   const parser = new ExcelParser("", { sheetNames: ["Oportunidades"], sheets: { Oportunidades: filas } });
+  // getCotizacionesPrincipales() intenta netear Repuestos contra la hoja
+  // "Oportunidades LubFiltros" internamente -- esa hoja NO se descarga en el
+  // pipeline automático (no existe ese reporte por separado), así que la
+  // resta interna siempre da 0 y Repuestos queda inflado por el monto real
+  // de Lub/Filtros. Confirmado con el usuario 2026-09-04 ("cotizado de
+  // lubricantes filtros exagerado" -- en realidad era Repuestos sin netear).
+  // Se re-hace la resta acá mismo, contra las cotizaciones de Lub/Filtros que
+  // YA quedaron insertadas por actualizar-cotizaciones-lubfiltros-agosto.ts
+  // (debe correr ANTES que este script, ver reconciliar-mensual.sh).
   const todas = parser.getCotizacionesPrincipales();
-  // Lub/Filtros ya se carga con su propia lógica de neteo -- excluir aquí
-  // para no duplicar contra actualizar-cotizaciones-lubfiltros-agosto.ts.
-  const delMes = todas.filter(
+  const delMesSinNetear = todas.filter(
     (c) => c.unidadNegocio !== UNIDAD_LUBFILTROS && (c.fecha ?? "").startsWith(`${ANIO}-${String(MES).padStart(2, "0")}`),
   );
-  console.log(`→ ${delMes.length} cotizaciones de ${ANIO}-${MES} (sin Lub/Filtros)`);
+
+  const lubPorCliente = new Map<string, number>();
+  const inicioMesLub = `${ANIO}-${String(MES).padStart(2, "0")}-01`;
+  const inicioMesSiguienteLub = MES === 12 ? `${ANIO + 1}-01-01` : `${ANIO}-${String(MES + 1).padStart(2, "0")}-01`;
+  const unidadesPrevias = await dbAdmin.select().from(unidadesNegocio);
+  const unidadLubFiltrosPrevia = unidadesPrevias.find((u) => u.nombre.trim().toLowerCase() === "lubricantes/filtros");
+  if (unidadLubFiltrosPrevia) {
+    const lubRows = await dbAdmin
+      .select({ cliente: cotizaciones.cliente, monto: cotizaciones.monto })
+      .from(cotizaciones)
+      .where(
+        and(
+          eq(cotizaciones.unidadNegocioId, unidadLubFiltrosPrevia.id),
+          gte(cotizaciones.fecha, inicioMesLub),
+          lt(cotizaciones.fecha, inicioMesSiguienteLub),
+        ),
+      );
+    for (const r of lubRows) lubPorCliente.set(r.cliente, (lubPorCliente.get(r.cliente) ?? 0) + Number(r.monto));
+    console.log(`→ ${lubRows.length} cotizaciones de Lub/Filtros ya cargadas, para netear (${lubPorCliente.size} clientes)`);
+  }
+
+  const brutoRepuestosPorCliente = new Map<string, number>();
+  for (const c of delMesSinNetear) {
+    if (c.unidadNegocio !== UNIDAD_REPUESTOS) continue;
+    brutoRepuestosPorCliente.set(c.cliente, (brutoRepuestosPorCliente.get(c.cliente) ?? 0) + c.monto);
+  }
+  const delMes = delMesSinNetear.map((c) => {
+    if (c.unidadNegocio !== UNIDAD_REPUESTOS) return c;
+    const lub = lubPorCliente.get(c.cliente) ?? 0;
+    const bruto = brutoRepuestosPorCliente.get(c.cliente) ?? 0;
+    if (lub <= 0 || bruto <= 0) return c;
+    return { ...c, monto: c.monto - lub * (c.monto / bruto) };
+  });
+  console.log(`→ ${delMes.length} cotizaciones de ${ANIO}-${MES} (Repuestos neteado de Lub/Filtros, sin insertar Lub/Filtros aquí)`);
 
   await dbAdmin.transaction(async (tx) => {
     const sucursalesRows = await tx.select().from(sucursales);
