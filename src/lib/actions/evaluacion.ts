@@ -395,7 +395,10 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
       facturadoPorCodigo.set(r.codigo, acc);
     });
 
-    const codigos = new Set([...cotizadoPorCodigo.keys(), ...facturadoPorCodigo.keys()]);
+    // Solo asesores del roster activo (cumplimiento_asesores) -- un código con
+    // cotizaciones pero que ya no está en el roster (ex-asesor, código
+    // dado de baja) no debe aparecer, pedido explícito del usuario 2026-09-04.
+    const codigos = new Set(facturadoPorCodigo.keys());
     const filas: GestionAsesorFila[] = [...codigos].map((codigo) => {
       const cot = cotizadoPorCodigo.get(codigo) ?? { monto: 0, clientes: new Set<string>() };
       const fact = facturadoPorCodigo.get(codigo) ?? { asesor: codigo, venta: 0, presupuesto: 0 };

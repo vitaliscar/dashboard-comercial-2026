@@ -85,13 +85,23 @@ function HallazgoCard({ tipo, titulo, texto }: { tipo: "good" | "bad" | "warn"; 
   );
 }
 
-function MarcaBarCard({ titulo, filas }: { titulo: string; filas: { marca: string; monto: number }[] }) {
+/** Top 4 marcas + "Otra marca" con la suma de todo lo que quede debajo -- pedido
+ * del usuario 2026-09-04 para no listar 10+ marcas de cola larga en la card. */
+function agruparTop4MasOtras(filas: { marca: string; monto: number }[]): { marca: string; monto: number }[] {
+  if (filas.length <= 5) return filas;
+  const top4 = filas.slice(0, 4);
+  const resto = filas.slice(4).reduce((s, f) => s + f.monto, 0);
+  return resto > 0 ? [...top4, { marca: "Otra marca", monto: resto }] : top4;
+}
+
+function MarcaBarCard({ titulo, filas: filasCrudas }: { titulo: string; filas: { marca: string; monto: number }[] }) {
+  const filas = agruparTop4MasOtras(filasCrudas);
   const max = Math.max(...filas.map((f) => f.monto), 1);
   return (
     <div className="card-elevated p-4">
       <h3 className="mb-4 font-display text-sm font-semibold">{titulo}</h3>
       <div className="flex flex-col gap-2.5">
-        {filas.slice(0, 10).map((f) => (
+        {filas.map((f) => (
           <div key={f.marca} className="flex items-center gap-3">
             <span className="w-28 shrink-0 truncate text-xs font-medium" title={f.marca}>
               {f.marca}
@@ -126,9 +136,13 @@ export default function EvaluacionPage() {
   const parseListParam = (valor: string | null): string[] =>
     valor ? valor.split(",").filter(Boolean) : [];
 
-  const [meses, setMeses] = useState<number[]>(
-    parseListParam(searchParams.get("meses")).map(Number).filter((n) => !Number.isNaN(n)),
-  );
+  // Default = mes en curso, no "todos" -- un acumulado de 12 meses donde solo
+  // algunos tienen venta reconciliada da un cumplimiento artificialmente bajo
+  // ("forzado"), pedido del usuario 2026-09-04 corregir el default.
+  const [meses, setMeses] = useState<number[]>(() => {
+    const desdeUrl = parseListParam(searchParams.get("meses")).map(Number).filter((n) => !Number.isNaN(n));
+    return desdeUrl.length > 0 ? desdeUrl : [new Date().getMonth() + 1];
+  });
   const [sucursalIds, setSucursalIds] = useState<string[]>(parseListParam(searchParams.get("sucursalIds")));
   const [unidadNegocioIds, setUnidadNegocioIds] = useState<string[]>(() => {
     const desdeUrl = parseListParam(searchParams.get("unidadNegocioIds"));
