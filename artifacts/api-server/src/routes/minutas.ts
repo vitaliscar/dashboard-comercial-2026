@@ -143,7 +143,11 @@ router.get("/minutas/clientes-destinatario/:id", async (req, res) => {
           : Promise.resolve({ rows: [] }),
       ]);
       const set = new Set<string>();
-      for (const r of [...cot.rows, ...vp.rows]) if (r.cliente) set.add(r.cliente);
+      for (const r of [...cot.rows, ...vp.rows]) {
+        // Clientes "venta casa" (Visco) no tienen asesor real -- reportado
+        // 2026-09-04, mismo fix que ccv-main.
+        if (r.cliente && String(r.cliente).trim().toLowerCase() !== "visco orinoco, c.a") set.add(r.cliente);
+      }
       return [...set].sort((a, b) => a.localeCompare(b));
     });
     res.json(rows);
