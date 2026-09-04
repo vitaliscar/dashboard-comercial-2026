@@ -254,6 +254,52 @@ export async function reconcileAlertasAction() {
       });
     });
 
+    // 2b. Ventas perdidas por CLIENTE (no por asesor agregado) -- pedido del
+    // usuario 2026-09-04: las alertas deben ser reales y cerrables con una
+    // acción puntual ("llamar a este cliente"), no un promedio de tendencia
+    // ("el asesor pierde muchas ventas" no dice a quién llamar). Reusa el
+    // tipo "ventas_perdidas" del enum (clave distinta para no chocar con el
+    // bloque agregado de arriba) -- agregar un tipo nuevo al enum de
+    // Postgres necesitaría una migración, y esto es solo una granularidad
+    // distinta de la misma categoría.
+    const perdidasPorCliente = new Map<
+      string,
+      { monto: number; razon: string; sucursalId: string | null; unidadNegocioId: string | null; asesorId: string | null }
+    >();
+    perdidasRows.forEach((r) => {
+      const cliente = (r.cliente ?? "").trim();
+      if (!cliente) return;
+      const key = `${r.asesorId ?? "s"}|${cliente}`;
+      const curr = perdidasPorCliente.get(key) ?? {
+        monto: 0,
+        razon: r.razon ?? "",
+        sucursalId: r.sucursalId,
+        unidadNegocioId: r.unidadNegocioId,
+        asesorId: r.asesorId,
+      };
+      curr.monto += Number(r.monto ?? 0);
+      perdidasPorCliente.set(key, curr);
+    });
+    perdidasPorCliente.forEach((v, key) => {
+      if (v.monto < 5000) return; // filtra ruido de montos irrelevantes
+      const cliente = key.split("|")[1];
+      candidatas.push({
+        claveNatural: `venta_perdida_cliente:${v.sucursalId ?? "s"}:${key}`,
+        tipo: "ventas_perdidas",
+        severidad: v.monto >= 50000 ? "alta" : "media",
+        titulo: `Venta perdida: ${cliente}`,
+        contexto: {
+          detalle: `${v.razon || "Venta perdida"}, $${v.monto.toFixed(2)}`,
+          monto: v.monto,
+          cliente,
+          accion: "Contactar de nuevo y ofrecer alternativa",
+        },
+        sucursalId: v.sucursalId,
+        unidadNegocioId: v.unidadNegocioId,
+        asesorId: v.asesorId,
+      });
+    });
+
     // 3. Minutas — compromisos vencidos sin cerrar (destinatario no atendió)
     minutasRows.forEach((r) => {
       if (!r.fechaLimite || r.fechaLimite >= today) return;
@@ -386,6 +432,64 @@ export async function reconcileAlertasAction() {
           asesorId: null,
         });
       }
+    });
+
+    // 8. Cotizaciones ABIERTAS sin facturar, por CLIENTE -- pedido del usuario
+    // 2026-09-04: "cotizaciones_viejas" de arriba es un agregado por unidad
+    // (no dice qué cliente, no es una acción concreta). Esta es la versión
+    // real: cada cotización abierta (no perdida, no facturada aún) de un
+    // cliente puntual, cerrable con un compromiso con fecha de cierre.
+    // Umbral de 10 días (no 30) porque una cotización de 30+ días ya
+    // difícilmente se cierra -- se busca la ventana donde todavía es
+    // accionable, no el rezago histórico.
+    const asesorIdPorCodigo = new Map<string, string>();
+    asesoresRows.forEach((r) => {
+      const code = String(r.codigoAsesor ?? "").trim();
+      if (code && r.asesorId) asesorIdPorCodigo.set(code, r.asesorId);
+    });
+    const nowMs = Date.now();
+    const cotizacionesAbiertasPorCliente = new Map<
+      string,
+      { monto: number; ageDays: number; sucursalId: string | null; unidadNegocioId: string | null; asesorId: string | null }
+    >();
+    cotizacionesRows.forEach((c) => {
+      if (c.etapa === "venta_perdida") return;
+      if (Number(c.montoFacturado ?? 0) > 0) return; // ya facturada, no es una alerta
+      const ageDays = Math.floor((nowMs - new Date(c.fecha).getTime()) / 86400000);
+      if (ageDays < 10) return; // muy reciente, dale tiempo antes de alertar
+      const cliente = (c.cliente ?? "").trim();
+      if (!cliente) return;
+      const asesorId = c.asesorId ?? (c.asesorCodigo ? asesorIdPorCodigo.get(c.asesorCodigo.trim()) ?? null : null);
+      const key = `${asesorId ?? "s"}|${cliente}`;
+      const curr = cotizacionesAbiertasPorCliente.get(key) ?? {
+        monto: 0,
+        ageDays,
+        sucursalId: c.sucursalId,
+        unidadNegocioId: c.unidadNegocioId,
+        asesorId,
+      };
+      curr.monto += Number(c.monto ?? 0);
+      curr.ageDays = Math.max(curr.ageDays, ageDays);
+      cotizacionesAbiertasPorCliente.set(key, curr);
+    });
+    cotizacionesAbiertasPorCliente.forEach((v, key) => {
+      if (v.monto < 3000) return; // filtra ruido de cotizaciones menores
+      const cliente = key.split("|")[1];
+      candidatas.push({
+        claveNatural: `cotizacion_abierta:${v.sucursalId ?? "s"}:${key}`,
+        tipo: "cotizacion_factura",
+        severidad: v.ageDays >= 30 ? "alta" : "media",
+        titulo: `Cotización abierta: ${cliente}`,
+        contexto: {
+          detalle: `$${v.monto.toFixed(2)} cotizado hace ${v.ageDays} días, sin facturar`,
+          monto: v.monto,
+          cliente,
+          accion: "Dar seguimiento y cerrar la cotización",
+        },
+        sucursalId: v.sucursalId,
+        unidadNegocioId: v.unidadNegocioId,
+        asesorId: v.asesorId,
+      });
     });
 
     // Un asesor solo puede escribir (INSERT/UPDATE) alertas propias, y un
