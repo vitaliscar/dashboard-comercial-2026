@@ -13,6 +13,7 @@ import {
   facturas,
   ventasPerdidas,
   cobranzas,
+  cumplimientoAsesores,
 } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import type { AppRole } from "@/lib/actions/auth";
@@ -178,6 +179,57 @@ export async function searchClientesAction(q: string) {
       for (const r of rows) if (r.cliente) set.add(r.cliente);
     }
     return Array.from(set).slice(0, 15);
+  });
+}
+
+/**
+ * Clientes "relacionados al destinatario" para el desplegable de la nueva
+ * minuta -- pedido del usuario 2026-09-04: cuando no hay alerta que ya venga
+ * con cliente definido, el campo debe ser un desplegable acotado a los
+ * clientes de ESE destinatario, no una búsqueda global de texto libre.
+ *
+ * facturas.asesor_id viene vacío en el 100% de las filas cargadas por los
+ * scripts AS400 (ver nota en evaluacion.ts), así que no sirve para filtrar
+ * por destinatario directamente -- el puente real es
+ * cumplimiento_asesores.asesor_id -> codigo_asesor -> cotizaciones.asesor_codigo,
+ * y el nombre de asesor ya resuelto -> ventas_perdidas.asesor (texto).
+ * Si el destinatario no tiene ningún cruce (rol sin código de asesor, o sin
+ * actividad reconciliada), devuelve lista vacía -- el caller debe mostrar el
+ * campo igual pero sin opciones, no romper el formulario.
+ */
+export async function getClientesDestinatarioAction(destinatarioId: string): Promise<string[]> {
+  return withAuth(async ({ tx }) => {
+    const roster = await tx
+      .selectDistinct({ codigo: cumplimientoAsesores.codigoAsesor, nombre: cumplimientoAsesores.asesor })
+      .from(cumplimientoAsesores)
+      .where(eq(cumplimientoAsesores.asesorId, destinatarioId));
+
+    const codigos = roster.map((r) => r.codigo).filter(Boolean);
+    const nombres = roster.map((r) => r.nombre).filter(Boolean);
+    if (codigos.length === 0 && nombres.length === 0) return [];
+
+    const [cot, vp] = await Promise.all([
+      codigos.length > 0
+        ? tx
+            .selectDistinct({ cliente: cotizaciones.cliente })
+            .from(cotizaciones)
+            .where(inArray(cotizaciones.asesorCodigo, codigos))
+            .limit(100)
+        : Promise.resolve([]),
+      nombres.length > 0
+        ? tx
+            .selectDistinct({ cliente: ventasPerdidas.cliente })
+            .from(ventasPerdidas)
+            .where(inArray(ventasPerdidas.asesor, nombres))
+            .limit(100)
+        : Promise.resolve([]),
+    ]);
+
+    const set = new Set<string>();
+    for (const rows of [cot, vp]) {
+      for (const r of rows) if (r.cliente) set.add(r.cliente);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   });
 }
 

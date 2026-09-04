@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getDestinatariosDisponiblesAction,
-  searchClientesAction,
+  getClientesDestinatarioAction,
   createMinutaAction,
 } from "@/lib/actions/minutas";
 import { getAlertasAction } from "@/lib/actions/alertas";
@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -26,8 +25,32 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Plus, Trash2, Lock } from "lucide-react";
 
+type Compromiso = {
+  key: string;
+  descripcion: string;
+  fechaLimite: string;
+  cliente: string;
+  sucursalId: string | null;
+  unidadNegocioId: string | null;
+  alertaId: string | null;
+  alertaTitulo: string | null;
+  bloqueado: boolean; // cliente/unidad vienen de una alerta -- no editables
+};
+
+/**
+ * Flujo nuevo pedido por el usuario 2026-09-04 (/grill-me): una minuta =
+ * una reunión con un destinatario, que puede generar VARIOS compromisos
+ * (ej. una alerta de cobranza de un cliente + otra de un cliente distinto +
+ * uno manual sin alerta). Cada "Agregar" acumula un compromiso en pantalla;
+ * "Guardar" los crea todos de una vez como filas independientes de `minutas`
+ * (mismo destinatario/fecha) -- sin vínculo formal de "reunión" en la DB,
+ * confirmado con el usuario que no hace falta agruparlas después.
+ *
+ * Orden de campos: Destinatario primero, luego Fecha, luego el resto.
+ * Descripción es obligatoria para poder agregar un compromiso a la lista.
+ */
 export default function NuevaMinutaPage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -50,80 +73,119 @@ export default function NuevaMinutaPage() {
     enabled: canCreate,
   });
 
-  const [form, setForm] = useState({
-    fecha: new Date().toISOString().slice(0, 10),
-    destinatarioId: "",
-    cliente: "",
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [destinatarioId, setDestinatarioId] = useState("");
+  const [sucursalDestinatario, setSucursalDestinatario] = useState<string | null>(null);
+  const [unidadDestinatario, setUnidadDestinatario] = useState<string | null>(null);
+  const [compromisos, setCompromisos] = useState<Compromiso[]>([]);
+
+  const draftVacio = (): Omit<Compromiso, "key"> => ({
     descripcion: "",
     fechaLimite: "",
-    sucursalId: null as string | null,
-    unidadNegocioId: null as string | null,
-    alertaIds: [] as string[],
+    cliente: "",
+    sucursalId: sucursalDestinatario,
+    unidadNegocioId: unidadDestinatario,
+    alertaId: null,
+    alertaTitulo: null,
+    bloqueado: false,
+  });
+  const [draft, setDraft] = useState<Omit<Compromiso, "key">>(draftVacio());
+
+  const { data: clientesDestinatario } = useQuery({
+    queryKey: ["clientes-destinatario", destinatarioId],
+    queryFn: () => getClientesDestinatarioAction(destinatarioId),
+    enabled: !!destinatarioId,
   });
 
-  const [clienteSearch, setClienteSearch] = useState("");
-  const [clienteSuggestions, setClienteSuggestions] = useState<string[]>([]);
-  const [showClienteSuggestions, setShowClienteSuggestions] = useState(false);
-
-  useEffect(() => {
-    if (clienteSearch.trim().length < 2) {
-      setClienteSuggestions([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      try {
-        setClienteSuggestions(await searchClientesAction(clienteSearch));
-      } catch {
-        setClienteSuggestions([]);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [clienteSearch]);
-
-  // Alertas del destinatario elegido, más importantes primero (ya vienen
-  // ordenadas por severidad desde getAlertasAction).
+  // Alertas del destinatario, excluyendo las que ya se agregaron como
+  // compromiso en esta sesión (para no dejar agregar la misma dos veces).
+  const alertaIdsUsadas = new Set(compromisos.map((c) => c.alertaId).filter(Boolean));
   const alertasCandidatas = useMemo(() => {
-    if (!alertasDisponibles || !form.destinatarioId) return [];
+    if (!alertasDisponibles || !destinatarioId) return [];
     return alertasDisponibles.filter(
       (a) =>
-        a.asesorId === form.destinatarioId ||
-        (form.sucursalId != null && a.sucursalId === form.sucursalId),
+        !alertaIdsUsadas.has(a.id) &&
+        (a.asesorId === destinatarioId ||
+          (sucursalDestinatario != null && a.sucursalId === sucursalDestinatario)),
     );
-  }, [alertasDisponibles, form.destinatarioId, form.sucursalId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertasDisponibles, destinatarioId, sucursalDestinatario, compromisos]);
 
   const handleSelectDestinatario = (destId: string) => {
     const dest = destinatarios?.find((d) => d.id === destId);
-    setForm((f) => ({
-      ...f,
-      destinatarioId: destId,
+    setDestinatarioId(destId);
+    setSucursalDestinatario(dest?.sucursalId ?? null);
+    setUnidadDestinatario(dest?.unidadNegocioId ?? null);
+    // Cambiar de destinatario invalida los compromisos ya armados (eran para
+    // otra persona) -- se limpia la lista para no crear minutas cruzadas.
+    setCompromisos([]);
+    setDraft({
+      descripcion: "",
+      fechaLimite: "",
+      cliente: "",
       sucursalId: dest?.sucursalId ?? null,
       unidadNegocioId: dest?.unidadNegocioId ?? null,
-      alertaIds: [],
+      alertaId: null,
+      alertaTitulo: null,
+      bloqueado: false,
+    });
+  };
+
+  const seleccionarAlerta = (alerta: NonNullable<typeof alertasDisponibles>[number]) => {
+    setDraft({
+      descripcion: alerta.contexto?.accion ?? "",
+      fechaLimite: "",
+      cliente: alerta.contexto?.cliente ?? "",
+      sucursalId: alerta.sucursalId ?? sucursalDestinatario,
+      unidadNegocioId: alerta.unidadNegocioId ?? unidadDestinatario,
+      alertaId: alerta.id,
+      alertaTitulo: alerta.titulo,
+      bloqueado: true,
+    });
+  };
+
+  const quitarAlertaDelDraft = () => {
+    setDraft((d) => ({
+      ...d,
+      cliente: "",
+      alertaId: null,
+      alertaTitulo: null,
+      bloqueado: false,
+      unidadNegocioId: unidadDestinatario,
+      sucursalId: sucursalDestinatario,
     }));
   };
 
-  const toggleAlertaCheckbox = (alertaId: string, checked: boolean) => {
-    setForm((f) => ({
-      ...f,
-      alertaIds: checked ? [...f.alertaIds, alertaId] : f.alertaIds.filter((id) => id !== alertaId),
-    }));
+  const agregarCompromiso = () => {
+    if (!draft.descripcion.trim()) return;
+    setCompromisos((prev) => [...prev, { ...draft, key: crypto.randomUUID() }]);
+    setDraft(draftVacio());
+  };
+
+  const quitarCompromiso = (key: string) => {
+    setCompromisos((prev) => prev.filter((c) => c.key !== key));
   };
 
   const save = useMutation({
-    mutationFn: () =>
-      createMinutaAction({
-        fecha: form.fecha,
-        destinatarioId: form.destinatarioId,
-        cliente: form.cliente.trim() || null,
-        descripcion: form.descripcion,
-        fechaLimite: form.fechaLimite || null,
-        sucursalId: form.sucursalId,
-        unidadNegocioId: form.unidadNegocioId,
-        estado: "pendiente",
-        alertaIds: form.alertaIds,
-      }),
+    mutationFn: async () => {
+      for (const c of compromisos) {
+        await createMinutaAction({
+          fecha,
+          destinatarioId,
+          cliente: c.cliente.trim() || null,
+          descripcion: c.descripcion,
+          fechaLimite: c.fechaLimite || null,
+          sucursalId: c.sucursalId,
+          unidadNegocioId: c.unidadNegocioId,
+          estado: "pendiente",
+          alertaIds: c.alertaId ? [c.alertaId] : [],
+        });
+      }
+    },
     onSuccess: () => {
-      toast.success("Minuta creada");
+      toast.success(
+        compromisos.length === 1 ? "Minuta creada" : `Minuta creada con ${compromisos.length} compromisos`,
+      );
       qc.invalidateQueries({ queryKey: ["minutas"] });
       qc.invalidateQueries({ queryKey: ["alertas-abiertas"] });
       router.push("/minutas");
@@ -148,7 +210,7 @@ export default function NuevaMinutaPage() {
       <PageHeader
         eyebrow="CRM / Compromisos"
         title="Nueva minuta"
-        description="Redactá el compromiso y revisá las alertas abiertas del destinatario antes de enviarlo"
+        description="Elegí el destinatario, revisá sus alertas abiertas y armá uno o varios compromisos para esta reunión"
         action={
           <Button variant="outline" onClick={() => router.push("/minutas")}>
             <ArrowLeft data-icon="inline-start" /> Volver
@@ -156,173 +218,234 @@ export default function NuevaMinutaPage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
-        <div className="card-elevated p-5 flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <Label>Fecha</Label>
-              <Input
-                type="date"
-                value={form.fecha}
-                onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Fecha límite</Label>
-              <Input
-                type="date"
-                value={form.fechaLimite}
-                onChange={(e) => setForm({ ...form, fechaLimite: e.target.value })}
-              />
-            </div>
+      <div className="card-elevated p-5 grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1 col-span-2">
+          <Label>Destinatario</Label>
+          <Select
+            items={destinatarios?.map((d) => ({
+              value: d.id,
+              label: `${d.nombreCompleto} (${d.role})`,
+            }))}
+            value={destinatarioId}
+            onValueChange={(v) => handleSelectDestinatario(v ?? "")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar destinatario..." />
+            </SelectTrigger>
+            <SelectContent>
+              {destinatarios?.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.nombreCompleto} ({d.role})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div className="flex flex-col gap-1 col-span-2">
-              <Label>Destinatario</Label>
-              <Select
-                items={destinatarios?.map((d) => ({
-                  value: d.id,
-                  label: `${d.nombreCompleto} (${d.role})`,
-                }))}
-                value={form.destinatarioId}
-                onValueChange={(v) => handleSelectDestinatario(v ?? "")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar destinatario..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {destinatarios?.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.nombreCompleto} ({d.role})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="flex flex-col gap-1">
+          <Label>Fecha de la reunión</Label>
+          <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label>Sucursal del destinatario</Label>
+          <Input value={sucursalNombre(sucursalDestinatario)} disabled readOnly />
+        </div>
+      </div>
 
-            <div className="flex flex-col gap-1 col-span-2 relative">
-              <Label>Cliente (Opcional)</Label>
-              <Input
-                placeholder="Buscar cliente..."
-                value={form.cliente}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setForm({ ...form, cliente: val });
-                  setClienteSearch(val);
-                  setShowClienteSuggestions(true);
-                }}
-                onFocus={() => setShowClienteSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowClienteSuggestions(false), 200)}
-              />
-              {showClienteSuggestions && clienteSuggestions.length > 0 && (
-                <div className="absolute top-[100%] left-0 right-0 z-50 mt-1 max-h-40 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md">
-                  {clienteSuggestions.map((sug) => (
-                    <div
-                      key={sug}
-                      className="cursor-pointer rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                      onMouseDown={() => {
-                        setForm((f) => ({ ...f, cliente: sug }));
-                        setClienteSearch(sug);
-                        setShowClienteSuggestions(false);
-                      }}
-                    >
-                      {sug}
-                    </div>
-                  ))}
-                </div>
+      {!destinatarioId ? (
+        <p className="p-8 text-center text-sm text-muted-foreground">
+          Seleccioná un destinatario para ver sus alertas y armar los compromisos de esta reunión.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
+          <div className="card-elevated p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">
+                {draft.alertaId ? "Compromiso desde alerta" : "Nuevo compromiso"}
+              </h3>
+              {draft.alertaId && (
+                <Button variant="ghost" size="sm" className="text-xs" onClick={quitarAlertaDelDraft}>
+                  Quitar alerta
+                </Button>
               )}
             </div>
 
-            <div className="flex flex-col gap-1">
-              <Label>Sucursal (Auto)</Label>
-              <Input value={sucursalNombre(form.sucursalId)} disabled readOnly />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Unidad de negocio (Auto)</Label>
-              <Input value={unidadNombre(form.unidadNegocioId)} disabled readOnly />
-            </div>
+            {draft.alertaTitulo && (
+              <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                <Lock className="size-3.5 text-primary shrink-0" />
+                <span>
+                  Cliente y unidad vienen de la alerta:{" "}
+                  <strong className="font-semibold">{draft.alertaTitulo}</strong>
+                </span>
+              </div>
+            )}
 
-            <div className="flex flex-col gap-1 col-span-2">
-              <Label>Descripción del compromiso</Label>
-              <Textarea
-                rows={5}
-                value={form.descripcion}
-                onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button variant="outline" onClick={() => router.push("/minutas")}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => save.mutate()}
-              disabled={save.isPending || !form.descripcion.trim() || !form.destinatarioId}
-            >
-              {save.isPending ? "Guardando..." : "Guardar minuta"}
-            </Button>
-          </div>
-        </div>
-
-        <div className="card-elevated p-5 flex flex-col gap-3 lg:sticky lg:top-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-500" />
-            <h3 className="text-sm font-semibold">Alertas abiertas del destinatario</h3>
-          </div>
-
-          {!form.destinatarioId ? (
-            <p className="text-xs text-muted-foreground italic">
-              Seleccioná un destinatario para ver sus alertas más importantes y decidir si se
-              convierten en un compromiso.
-            </p>
-          ) : alertasCandidatas.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">
-              Este destinatario no tiene alertas abiertas ahora mismo.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2 max-h-[70vh] overflow-y-auto pr-1">
-              {alertasCandidatas.map((alerta) => {
-                const checked = form.alertaIds.includes(alerta.id);
-                return (
-                  <label
-                    key={alerta.id}
-                    className="flex items-start gap-2 text-xs rounded-md border border-border p-3 bg-muted/30 cursor-pointer hover:bg-muted/50"
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1 col-span-2">
+                <Label>Cliente (opcional)</Label>
+                {draft.bloqueado ? (
+                  <Input value={draft.cliente || "—"} disabled readOnly />
+                ) : (
+                  <Select
+                    items={[
+                      { value: "", label: "Sin cliente específico" },
+                      ...(clientesDestinatario ?? []).map((c) => ({ value: c, label: c })),
+                    ]}
+                    value={draft.cliente}
+                    onValueChange={(v) => setDraft((d) => ({ ...d, cliente: v ?? "" }))}
                   >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(c) => toggleAlertaCheckbox(alerta.id, Boolean(c))}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1 flex flex-col gap-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold">{alerta.titulo}</span>
-                        <Badge variant={severidadVariant(alerta.severidad)} className="text-[9px] shrink-0">
-                          {alerta.severidad}
-                        </Badge>
-                      </div>
-                      {alerta.contexto?.detalle && (
-                        <span className="text-muted-foreground">{alerta.contexto.detalle}</span>
-                      )}
-                      {alerta.contexto?.accion && (
-                        <span className="text-[10px] text-primary font-medium">
-                          Sugerido: {alerta.contexto.accion}
-                        </span>
-                      )}
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          )}
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar cliente..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin cliente específico</SelectItem>
+                      {(clientesDestinatario ?? []).map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {!draft.bloqueado && clientesDestinatario?.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    No hay clientes con actividad registrada para este destinatario todavía.
+                  </p>
+                )}
+              </div>
 
-          {form.alertaIds.length > 0 && (
-            <p className="text-[11px] text-muted-foreground border-t border-border pt-2">
-              {form.alertaIds.length} alerta(s) se adjuntarán a este compromiso.
-            </p>
-          )}
+              <div className="flex flex-col gap-1">
+                <Label>Unidad de negocio</Label>
+                {draft.bloqueado ? (
+                  <Input value={unidadNombre(draft.unidadNegocioId)} disabled readOnly />
+                ) : (
+                  <Select
+                    items={unidades?.map((u) => ({ value: u.id, label: u.nombre }))}
+                    value={draft.unidadNegocioId ?? ""}
+                    onValueChange={(v) => setDraft((d) => ({ ...d, unidadNegocioId: v || null }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar unidad..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unidades?.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label>Fecha límite</Label>
+                <Input
+                  type="date"
+                  value={draft.fechaLimite}
+                  onChange={(e) => setDraft((d) => ({ ...d, fechaLimite: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 col-span-2">
+                <Label>Descripción del compromiso *</Label>
+                <Textarea
+                  rows={4}
+                  value={draft.descripcion}
+                  onChange={(e) => setDraft((d) => ({ ...d, descripcion: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={agregarCompromiso} disabled={!draft.descripcion.trim()}>
+                <Plus data-icon="inline-start" /> Agregar a la minuta
+              </Button>
+            </div>
+
+            {compromisos.length > 0 && (
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Compromisos de esta reunión ({compromisos.length})
+                </h4>
+                {compromisos.map((c) => (
+                  <div
+                    key={c.key}
+                    className="flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-3 text-xs"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <p className="font-medium text-foreground">{c.descripcion}</p>
+                      <p className="text-muted-foreground">
+                        {c.cliente || "Sin cliente"} · {unidadNombre(c.unidadNegocioId)}
+                        {c.fechaLimite ? ` · Vence ${c.fechaLimite}` : ""}
+                        {c.alertaTitulo ? ` · Desde alerta` : ""}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => quitarCompromiso(c.key)} title="Quitar">
+                      <Trash2 className="size-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => router.push("/minutas")}>
+                Cancelar
+              </Button>
+              <Button onClick={() => save.mutate()} disabled={save.isPending || compromisos.length === 0}>
+                {save.isPending
+                  ? "Guardando..."
+                  : `Guardar minuta${compromisos.length > 1 ? ` (${compromisos.length} compromisos)` : ""}`}
+              </Button>
+            </div>
+          </div>
+
+          <div className="card-elevated p-5 flex flex-col gap-3 lg:sticky lg:top-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-amber-500" />
+              <h3 className="text-sm font-semibold">Alertas abiertas del destinatario</h3>
+            </div>
+
+            {alertasCandidatas.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">
+                No quedan alertas abiertas por convertir en compromiso -- podés seguir agregando
+                compromisos manuales igual.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-[70vh] overflow-y-auto pr-1">
+                {alertasCandidatas.map((alerta) => (
+                  <button
+                    key={alerta.id}
+                    type="button"
+                    onClick={() => seleccionarAlerta(alerta)}
+                    className={`flex flex-col gap-1 rounded-md border p-3 text-left text-xs transition ${
+                      draft.alertaId === alerta.id
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-muted/30 hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold">{alerta.titulo}</span>
+                      <Badge variant={severidadVariant(alerta.severidad)} className="text-[9px] shrink-0">
+                        {alerta.severidad}
+                      </Badge>
+                    </div>
+                    {alerta.contexto?.detalle && (
+                      <span className="text-muted-foreground">{alerta.contexto.detalle}</span>
+                    )}
+                    {alerta.contexto?.accion && (
+                      <span className="text-[10px] text-primary font-medium">
+                        Sugerido: {alerta.contexto.accion}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

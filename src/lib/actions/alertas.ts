@@ -30,7 +30,11 @@ type Candidata = {
   tipo: AlertaTipo;
   severidad: Severidad;
   titulo: string;
-  contexto: { detalle: string; monto?: number; accion?: string };
+  // cliente explícito (no derivarlo del título por regex) -- pedido del
+  // usuario 2026-09-04: al crear una minuta desde una alerta, cliente y
+  // unidad deben auto-llenarse y bloquearse. null en los tipos que no son
+  // sobre un cliente puntual (cumplimiento de asesor, cotizaciones viejas, etc).
+  contexto: { detalle: string; monto?: number; accion?: string; cliente?: string | null };
   sucursalId: string | null;
   unidadNegocioId: string | null;
   asesorId: string | null;
@@ -128,6 +132,7 @@ export async function reconcileAlertasAction() {
         contexto: {
           detalle: `${v.facturas} facturas vencidas, debe ${v.saldo.toFixed(2)}`,
           monto: v.saldo,
+          cliente,
           accion: "Llamar a cobrar",
         },
         sucursalId: v.sucursalId,
@@ -176,6 +181,7 @@ export async function reconcileAlertasAction() {
         contexto: {
           detalle: `Debe ${v.saldo.toFixed(2)}, la próxima vence el ${v.proximaFecha}`,
           monto: v.saldo,
+          cliente,
           accion: "Recordar pago",
         },
         sucursalId: v.sucursalId,
@@ -258,6 +264,7 @@ export async function reconcileAlertasAction() {
         titulo: `Minuta vencida: ${r.destinatarioNombre ?? "destinatario"}`,
         contexto: {
           detalle: `${(r.descripcion ?? "").slice(0, 80)}${r.cliente ? ` — Cliente: ${r.cliente}` : ""}`,
+          cliente: r.cliente ?? null,
           accion: "Dar seguimiento",
         },
         sucursalId: r.sucursalId,
@@ -314,6 +321,7 @@ export async function reconcileAlertasAction() {
         contexto: {
           detalle: `${concentracion.toFixed(0)}% de toda la cartera vencida es de este cliente (${v.saldo.toFixed(2)})`,
           monto: v.saldo,
+          cliente,
           accion: "Buscar más clientes",
         },
         sucursalId: v.sucursalId,
@@ -471,7 +479,12 @@ export async function getAlertasAction() {
       .map((r) => ({
         ...r,
         contexto: r.contexto
-          ? (JSON.parse(r.contexto) as { detalle: string; monto?: number; accion?: string })
+          ? (JSON.parse(r.contexto) as {
+              detalle: string;
+              monto?: number;
+              accion?: string;
+              cliente?: string | null;
+            })
           : null,
       }))
       .sort((a, b) => {
