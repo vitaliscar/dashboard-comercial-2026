@@ -114,6 +114,10 @@ const CLIENTE_CANONICO_POR_PREFIJO: Array<{ prefijo: string; canonico: string }>
 // origen — clave en minúsculas del nombre YA canonicalizado (CLIENTE_CANONICO).
 const CLIENTE_SUCURSAL_FIJA: { [clienteCanonicoLower: string]: string } = {
   "cardon iv, s.a.": "Punto Fijo",
+  // Pedido del usuario 2026-09-04: Visco no tiene sucursal real en el
+  // crudo (Cod.Suc/Sucursal vienen inconsistentes) -- se fija a FMO Piar
+  // en Tradicionales, Lubricantes/Filtros y Oportunidades Detallado.
+  "visco orinoco, c.a": "FMO Piar",
 };
 
 // Clientes "venta casa": nunca tienen asesor asignado, aunque el reporte de
@@ -1624,7 +1628,9 @@ export class ExcelParser {
         asesor: this.clienteSinAsesor(clienteFactura)
           ? ""
           : this.normalizarTexto(row["Nombre Asesor"]),
-        codigoAsesor: this.normalizarTexto(row["Código Asesor"]),
+        codigoAsesor: this.clienteSinAsesor(clienteFactura)
+          ? ""
+          : this.normalizarTexto(row["Código Asesor"]),
         sucursal:
           this.sucursalFijaPorCliente(clienteFactura) ?? this.normalizarSucursal(row["Sucursal"]),
       };
