@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import {
+  getAnalisisNarrativo,
   getGestionAsesores,
   getReporteEvaluacion,
   type GestionAsesorFila,
@@ -52,6 +53,27 @@ export default function EvaluacionPage() {
     queryKey: ["evaluacion-gestion-asesores", filtros],
     queryFn: () => getGestionAsesores(filtros),
     enabled: puedeVerGestionAsesores,
+  });
+
+  // Se genera una vez por montaje/combinación de filtros y se queda fija en
+  // pantalla; cada exportación futura (si se agrega) generaría una nueva.
+  const analisis = useQuery({
+    queryKey: ["evaluacion-analisis-narrativo", filtros, reporte.data?.tipo],
+    queryFn: () => {
+      const r = reporte.data!;
+      return getAnalisisNarrativo({
+        anio: r.anio,
+        meses: r.meses,
+        cumplimientoGeneral: r.cumplimientoGeneral,
+        totalVenta: r.totalVenta,
+        totalMeta: r.totalMeta,
+        ranking: r.tipo === "sucursal" ? r.ranking : undefined,
+        hallazgos: r.hallazgos,
+      });
+    },
+    enabled: !!reporte.data,
+    staleTime: Infinity,
+    retry: 1,
   });
 
   const toggle = (arr: number[], v: number) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
@@ -133,6 +155,25 @@ export default function EvaluacionPage() {
         <ReporteAsesor data={reporte.data} />
       ) : (
         <ReporteSucursal data={reporte.data} />
+      )}
+
+      {reporte.data && (
+        <div className="rounded-lg border bg-card p-5">
+          <h3 className="mb-3 text-sm font-semibold">Análisis narrativo</h3>
+          {analisis.isLoading ? (
+            <p className="text-sm text-muted-foreground">Generando análisis con IA…</p>
+          ) : analisis.isError ? (
+            <p className="text-sm text-destructive">
+              No se pudo generar el análisis narrativo ({(analisis.error as Error)?.message ?? "error desconocido"}).
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3 text-sm leading-relaxed text-foreground">
+              {(analisis.data ?? "").split(/\n{2,}/).map((parrafo, i) => (
+                <p key={i}>{parrafo}</p>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {puedeVerGestionAsesores && (

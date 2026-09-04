@@ -89,3 +89,22 @@ export const getGestionAsesores = (filtros: ReporteFiltros) =>
     meses: csv(filtros.meses),
     unidadNegocioIds: csv(filtros.unidadNegocioIds),
   });
+
+export const getAnalisisNarrativo = (resumen: {
+  anio: number;
+  meses: number[];
+  cumplimientoGeneral: number;
+  totalVenta: number;
+  totalMeta: number;
+  ranking?: Array<{ label: string; meta: number; facturado: number; pct: number }>;
+  hallazgos: Hallazgo[];
+}) =>
+  request<{ texto: string }>("analisis-narrativo", {
+    anio: resumen.anio,
+    meses: csv(resumen.meses),
+    cumplimientoGeneral: resumen.cumplimientoGeneral,
+    totalVenta: resumen.totalVenta,
+    totalMeta: resumen.totalMeta,
+    ranking: resumen.ranking ? JSON.stringify(resumen.ranking) : undefined,
+    hallazgos: JSON.stringify(resumen.hallazgos.map((h) => h.texto)),
+  }).then((r) => r.texto);

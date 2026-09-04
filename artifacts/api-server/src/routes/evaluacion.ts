@@ -3,6 +3,19 @@ import { currentSession, withScopedTransaction } from "./auth";
 
 const router = Router();
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Roster de 32 asesores activos confirmado por el usuario 2026-09-04 -- ver
+ * la misma constante en ccv-main (Next.js) src/lib/actions/evaluacion.ts. */
+const CODIGOS_ASESOR_ACTIVOS = new Set([
+  "75610", "81238", "75595", "44711", "57995", "46128",
+  "46125", "80068", "27931", "80868",
+  "95520", "48179", "45499", "81459", "48162",
+  "19415", "45497", "78297", "49935", "81592",
+  "27124", "81300", "67094",
+  "33236", "29177", "61812", "45511", "93031",
+  "45501", "82001",
+  "34771", "31344",
+]);
 type Session = NonNullable<Awaited<ReturnType<typeof currentSession>>>;
 type Queryable = { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> };
 type Point = { mes: number; venta: number; presupuesto: number };
@@ -422,7 +435,7 @@ router.get("/evaluacion/gestion-asesores", async (req: Request, res: Response): 
 
       // Solo asesores del roster activo (cumplimiento_asesores) -- ver nota
       // equivalente en ccv-main sobre por qué no se usa el set de cotizados.
-      const codigos = [...facturadoPorCodigo.keys()];
+      const codigos = [...facturadoPorCodigo.keys()].filter((c) => CODIGOS_ASESOR_ACTIVOS.has(c));
       const filas: GestionAsesorFila[] = codigos.map((codigo) => {
         const cot = cotizadoPorCodigo.get(codigo) ?? { monto: 0, clientes: new Set<string>() };
         const fact = facturadoPorCodigo.get(codigo)!;
@@ -445,6 +458,69 @@ router.get("/evaluacion/gestion-asesores", async (req: Request, res: Response): 
   } catch (error) {
     req.log?.error?.({ error }, "gestion asesores failed");
     res.status(500).json({ message: "No se pudo cargar la gestión de asesores." });
+  }
+});
+
+/**
+ * Análisis narrativo con IA (Gemini) -- port de ccv-main (Next.js). Misma
+ * llamada REST directa (sin SDK), mismo prompt y mismo thinkingBudget bajo
+ * (128, no 0 -- gemini-3.6-flash rechaza 0 con 400) para que no tarde
+ * demasiado en aparecer (confirmado con el usuario 2026-09-04).
+ */
+router.get("/evaluacion/analisis-narrativo", async (req: Request, res: Response): Promise<void> => {
+  const session = await currentSession(req);
+  if (!session) { res.status(401).json({ message: "Sesión no válida." }); return; }
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) { res.status(500).json({ message: "GEMINI_API_KEY no está configurada en el servidor." }); return; }
+
+  const anio = year(req.query.anio);
+  if (!anio) { res.status(400).json({ message: "El año enviado no es válido." }); return; }
+  const cumplimientoGeneral = Number(req.query.cumplimientoGeneral ?? 0);
+  const totalVenta = Number(req.query.totalVenta ?? 0);
+  const totalMeta = Number(req.query.totalMeta ?? 0);
+  const meses = parseIntList(req.query.meses);
+  const hallazgos: string[] = typeof req.query.hallazgos === "string" ? JSON.parse(req.query.hallazgos) : [];
+  const ranking: { label: string; meta: number; facturado: number; pct: number }[] =
+    typeof req.query.ranking === "string" ? JSON.parse(req.query.ranking) : [];
+
+  const MESES_NOMBRE = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const periodo = meses.length ? meses.map((m) => MESES_NOMBRE[m - 1]).join(", ") : "todo el año";
+
+  const prompt = `Eres un analista comercial senior escribiendo el resumen ejecutivo de un reporte interno de cumplimiento de ventas para gerencia de una empresa venezolana de maquinaria/equipos (Consorcio Cogestión Venequip).
+
+Datos del período (${periodo} ${anio}):
+- Cumplimiento general: ${cumplimientoGeneral.toFixed(1)}%
+- Facturado: $${totalVenta.toLocaleString("es-VE", { maximumFractionDigits: 0 })}
+- Meta: $${totalMeta.toLocaleString("es-VE", { maximumFractionDigits: 0 })}
+${ranking.length ? `- Ranking por sucursal (facturado vs meta):\n${ranking.map((r) => `  ${r.label}: ${r.pct.toFixed(1)}% ($${r.facturado.toLocaleString("es-VE", { maximumFractionDigits: 0 })} de $${r.meta.toLocaleString("es-VE", { maximumFractionDigits: 0 })})`).join("\n")}` : ""}
+- Hallazgos automáticos: ${hallazgos.join(" ")}
+
+Redacta un análisis narrativo de 3 a 5 párrafos cortos, en español, tono profesional directo (no genérico ni de plantilla). Interpreta los números -- no los repitas tal cual, explica qué significan para el negocio, qué riesgos u oportunidades sugieren, y qué debería priorizar gerencia. Varía el fraseo y el orden de ideas respecto a análisis anteriores que hayas podido generar para datos parecidos. No uses viñetas ni encabezados, solo prosa. No inventes cifras que no te di.`;
+
+  try {
+    const respuesta = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.9, thinkingConfig: { thinkingBudget: 128 } },
+        }),
+      },
+    );
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.text().catch(() => "");
+      res.status(502).json({ message: `Gemini API error ${respuesta.status}: ${cuerpo.slice(0, 300)}` });
+      return;
+    }
+    const json = (await respuesta.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const texto = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    if (!texto.trim()) { res.status(502).json({ message: "Gemini no devolvió texto." }); return; }
+    res.json({ texto: texto.trim() });
+  } catch (error) {
+    req.log?.error?.({ error }, "analisis narrativo failed");
+    res.status(500).json({ message: "No se pudo generar el análisis narrativo." });
   }
 });
 
