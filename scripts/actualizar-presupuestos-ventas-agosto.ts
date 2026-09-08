@@ -90,7 +90,14 @@ async function main() {
   // contar doble contra el BC de Repuestos) -- sale de ventasgeneral, igual
   // que getServiciosNuevo(). Xibi Servicios no tiene archivo fuente (0).
   try {
-    const archivoServ = localizarArchivoMasReciente(DOWNLOADS_DIR, /^ventasgeneral-32-SERVICIO-.*\.xls$/i);
+    // Fijar el mes en el patrón: "más reciente" sin esto agarra el archivo de
+    // ventasgeneral del mes en curso una vez que rueda el calendario, dejando
+    // en 0 todo lo que no aparece ahí (confirmado 2026-09-08 con FMO Piar
+    // Servicios: pasó de $19.514,36 a $0 al aparecer el archivo de septiembre).
+    const archivoServ = localizarArchivoMasReciente(
+      DOWNLOADS_DIR,
+      new RegExp(`^ventasgeneral-32-SERVICIO-${ANIO}-${MES}-.*\\.xls$`, "i"),
+    );
     console.log(`→ Leyendo ${archivoServ}`);
     const filasServ = leerArchivoCrudo(archivoServ, 6);
     const parserServ = new ExcelParser("", { sheetNames: ["Servicios"], sheets: { Servicios: filasServ } });
