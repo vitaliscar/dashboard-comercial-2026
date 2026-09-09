@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { currentSession, getPool, withScopedTransaction } from "./auth";
+import { aplicarAjustesAPresupuestos, cargarAjustesManuales, sumaAjuste } from "../lib/ajustes-manuales";
 
 const router = Router();
 const UUID_RE =
@@ -208,7 +209,6 @@ router.get("/resumen", async (req: Request, res: Response) => {
   const servicesWhere = whereFor("s", scope, "fecha", true, false);
   const budgetWhere = whereFor("p", scope, undefined, true, false);
   const advisorWhere = whereFor("ca", scope);
-  const adjustmentWhere = whereFor("a", scope);
   const cotMonthlyWhere = whereFor("c", scope, "fecha", false);
   const lostMonthlyWhere = whereFor("v", scope, "fecha", false);
   const budgetMonthlyWhere = whereFor("p", scope, undefined, false, false);
@@ -229,7 +229,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
       presupuestos,
       presupuestosMensual,
       cumplimientoAsesor,
-      ajustesManuales,
+      ajustes,
       ] = await Promise.all([
       tx.query(
         `SELECT c.unidad_negocio_id AS "unidadNegocioId",
@@ -342,30 +342,8 @@ router.get("/resumen", async (req: Request, res: Response) => {
             params,
           )
         : Promise.resolve({ rows: [] }),
-      session.role === "gerencia"
-        ? tx.query(
-            `SELECT a.id, a.anio, a.mes, a.sucursal_id AS "sucursalId",
-                    a.unidad_negocio_id AS "unidadNegocioId", a.monto,
-                    a.motivo, a.creado_por AS "creadoPor"
-             FROM ajustes_manuales a WHERE ${adjustmentWhere}`,
-            params,
-          )
-        : Promise.resolve({ rows: [] }),
+      cargarAjustesManuales(tx, year),
     ]);
-
-    const adjustmentRows = ajustesManuales.rows.map((adjustment) => ({
-      id: adjustment.id,
-      anio: adjustment.anio,
-      mes: adjustment.mes,
-      sucursalId: adjustment.sucursalId,
-      unidadNegocioId: adjustment.unidadNegocioId,
-      monto: "0",
-      ventasCcv: adjustment.monto,
-      ventasXibi: "0",
-      ventasEstrategicas: "0",
-      ajusteManual: true,
-      motivo: adjustment.motivo,
-    }));
 
       return {
       cotizaciones: cotizaciones.rows,
@@ -380,8 +358,36 @@ router.get("/resumen", async (req: Request, res: Response) => {
       ventasPerdidasClientes: ventasPerdidasClientes.rows,
       ventasPerdidasRazones: ventasPerdidasRazones.rows,
       servicios: servicios.rows,
-      presupuestos: [...presupuestos.rows, ...adjustmentRows],
-      presupuestosMensual: presupuestosMensual.rows,
+      presupuestos: aplicarAjustesAPresupuestos(
+        presupuestos.rows as {
+          mes: number;
+          sucursalId: string | null;
+          unidadNegocioId: string | null;
+          ventasCcv: string | null;
+          ventasXibi: string | null;
+          ventasEstrategicas: string | null;
+        }[],
+        ajustes,
+      ),
+      presupuestosMensual: presupuestosMensual.rows.map((row) => {
+        const mes = Number(row.mes);
+        const unidadNegocioId = (row.unidadNegocioId as string | null) ?? null;
+        // Sin scope.branch la fila ya agrega TODAS las sucursales -- sumar
+        // el ajuste de cualquier sucursal que aplique a esa unidad+mes, no
+        // solo el de una (mismo patrón que coordinador.ts en Next.js).
+        const sucAjuste = (columna: "ccv" | "xibi" | "estrategico" | "total") =>
+          scope.branch
+            ? sumaAjuste(ajustes, { mes, sucursalId: scope.branch, unidadNegocioId, columna })
+            : ajustes
+                .filter((a) => a.mes === mes && a.columna === columna && (a.unidadNegocioId === null || a.unidadNegocioId === unidadNegocioId))
+                .reduce((sum, a) => sum + a.monto, 0);
+        return {
+          ...row,
+          ventasCcv: String(Number(row.ventasCcv ?? 0) + sucAjuste("ccv") + sucAjuste("total")),
+          ventasXibi: String(Number(row.ventasXibi ?? 0) + sucAjuste("xibi")),
+          ventasEstrategicas: String(Number(row.ventasEstrategicas ?? 0) + sucAjuste("estrategico")),
+        };
+      }),
       cumplimientoAsesor: cumplimientoAsesor.rows,
       };
     });

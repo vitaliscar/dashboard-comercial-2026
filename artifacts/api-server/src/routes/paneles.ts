@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { currentSession, withScopedTransaction } from "./auth";
+import { cargarAjustesManuales, type AjusteRow } from "../lib/ajustes-manuales";
 
 const router = Router();
 const UUID_RE =
@@ -146,7 +147,26 @@ router.get("/coordinador/year", async (req: Request, res: Response): Promise<voi
     res.json(await withScopedTransaction(auth.session, async (tx: Queryable) => {
       const allMonths = Array.from({ length: 12 }, (_, i) => i + 1);
       const result = await tx.query(`SELECT p.mes, p.unidad_negocio_id AS "unidadNegocioId", COALESCE(SUM(p.monto),0) AS monto, COALESCE(SUM(p.ventas_ccv),0) AS "ventasCcv", COALESCE(SUM(p.ventas_xibi),0) AS "ventasXibi", COALESCE(SUM(p.ventas_estrategicas),0) AS "ventasEstrategicas" FROM presupuestos p WHERE ${budgetWhere("p", false)} GROUP BY p.mes, p.unidad_negocio_id`, budgetParams(auth.anio, allMonths, auth.selectedScope, false));
-      return { presupuestos: result.rows };
+      const ajustes = await cargarAjustesManuales(tx, auth.anio);
+      const branches: string[] = auth.selectedScope.branches ?? [];
+      const matchAjuste = (a: AjusteRow, mes: number, unidadNegocioId: string | null, columna: AjusteRow["columna"]) =>
+        a.mes === mes &&
+        a.columna === columna &&
+        (a.unidadNegocioId === null || a.unidadNegocioId === unidadNegocioId) &&
+        (branches.length === 0 || a.sucursalId === null || branches.includes(a.sucursalId));
+      const sumAjuste = (mes: number, unidadNegocioId: string | null, columna: AjusteRow["columna"]) =>
+        ajustes.filter((a) => matchAjuste(a, mes, unidadNegocioId, columna)).reduce((sum, a) => sum + a.monto, 0);
+      const presupuestos = result.rows.map((r) => {
+        const mes = Number(r.mes);
+        const unidadNegocioId = (r.unidadNegocioId as string | null) ?? null;
+        return {
+          ...r,
+          ventasCcv: String(Number(r.ventasCcv ?? 0) + sumAjuste(mes, unidadNegocioId, "ccv") + sumAjuste(mes, unidadNegocioId, "total")),
+          ventasXibi: String(Number(r.ventasXibi ?? 0) + sumAjuste(mes, unidadNegocioId, "xibi")),
+          ventasEstrategicas: String(Number(r.ventasEstrategicas ?? 0) + sumAjuste(mes, unidadNegocioId, "estrategico")),
+        };
+      });
+      return { presupuestos };
     }));
   } catch (error) { req.log?.error?.({ error }, "coordinador year failed"); res.status(500).json({ message: "No se pudo cargar el panel de coordinador." }); }
 });

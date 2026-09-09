@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { currentSession, withScopedTransaction, type SessionPayload } from "./auth";
+import { cargarAjustesManuales, type AjusteRow } from "../lib/ajustes-manuales";
 
 const router = Router();
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,15 +29,31 @@ router.get("/embudo", async (req: Request, res: Response): Promise<void> => {
       const tc = filter(session, "c", 5, branchIds, unitIds);
       const tp = filter(session, "p", 5 + tc.values.length, branchIds, unitIds, false);
       const tr = filter(session, "r", 5 + tc.values.length + tp.values.length, branchIds, unitIds, false);
-      const [quotes, budgets, totals] = await Promise.all([
+      const [quotes, budgets, totals, ajustes] = await Promise.all([
         tx.query(`SELECT c.id, c.unidad_negocio_id AS "unidadNegocioId", c.monto, c.fecha, c.etapa FROM cotizaciones c WHERE c.fecha >= $1::date AND c.fecha < $2::date AND ${c.sql}`, [`${year}-01-01`, `${year + 1}-01-01`, ...c.values]),
         tx.query(`SELECT p.id, p.mes, p.unidad_negocio_id AS "unidadNegocioId", p.ventas_ccv AS "ventasCcv", p.ventas_xibi AS "ventasXibi", p.ventas_estrategicas AS "ventasEstrategicas" FROM presupuestos p WHERE p.anio = $1::int AND ${p.sql}`, [year, ...p.values]),
         tx.query(`SELECT COALESCE((SELECT SUM(c.monto) FROM cotizaciones c WHERE c.fecha >= $1::date AND c.fecha < $2::date AND (CARDINALITY($3::int[]) = 0 OR EXTRACT(month FROM c.fecha)::int = ANY($3::int[])) AND ${tc.sql}), 0) AS cotizado,
           COALESCE((SELECT SUM(p.ventas_ccv + p.ventas_xibi + p.ventas_estrategicas) FROM presupuestos p WHERE p.anio = $4::int AND (CARDINALITY($3::int[]) = 0 OR p.mes = ANY($3::int[])) AND ${tp.sql}), 0) AS facturado,
           COALESCE((SELECT SUM(r.saldo) FROM cobranzas r WHERE ${tr.sql}), 0) AS saldo`, [`${year}-01-01`, `${year + 1}-01-01`, selectedMonths, year, ...tc.values, ...tp.values, ...tr.values]),
+        cargarAjustesManuales(tx, year),
       ]);
-      const row = totals.rows[0] ?? {}; const facturado = Number(row.facturado ?? 0);
-      return { cotizaciones: quotes.rows, presupuestos: budgets.rows, totales: { cotizado: Number(row.cotizado ?? 0), facturado, cobrado: facturado - Number(row.saldo ?? 0) } };
+      const row = totals.rows[0] ?? {};
+      // Sin sucursalId por fila no se puede reasignar con precisión -- se
+      // suma cualquier ajuste cuya sucursal/unidad caiga dentro del filtro
+      // solicitado (branchIds/unitIds vacío = todas), igual que en Next.js.
+      const matchAjuste = (a: AjusteRow, mes: number) =>
+        a.mes === mes &&
+        (branchIds.length === 0 || a.sucursalId === null || branchIds.includes(a.sucursalId)) &&
+        (unitIds.length === 0 || a.unidadNegocioId === null || unitIds.includes(a.unidadNegocioId));
+      const ajusteTotal = ajustes
+        .filter((a) => selectedMonths.includes(a.mes) && matchAjuste(a, a.mes))
+        .reduce((sum, a) => sum + a.monto, 0);
+      const budgetsConAjuste = budgets.rows.map((r) => {
+        const extra = ajustes.filter((a) => matchAjuste(a, Number(r.mes))).reduce((sum, a) => sum + a.monto, 0);
+        return extra === 0 ? r : { ...r, ventasCcv: String(Number(r.ventasCcv ?? 0) + extra) };
+      });
+      const facturado = Number(row.facturado ?? 0) + ajusteTotal;
+      return { cotizaciones: quotes.rows, presupuestos: budgetsConAjuste, totales: { cotizado: Number(row.cotizado ?? 0), facturado, cobrado: facturado - Number(row.saldo ?? 0) } };
     });
     res.json(data);
   } catch (error) { req.log?.error?.({ error, detail: error instanceof Error ? error.message : String(error) }, "embudo query failed"); res.status(500).json({ message: "No se pudo cargar el embudo." }); }

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { currentSession, withScopedTransaction } from "./auth";
+import { aplicarAjustesAPresupuestos, cargarAjustesManuales } from "../lib/ajustes-manuales";
 
 const router = Router();
 const UUID_RE =
@@ -100,7 +101,7 @@ async function loadUnitData(
   const budgetParams = [year, months, unitId, scope.branch, scope.branchScope];
   const ytdBudgetParams = [year, ytdMonths, unitId, scope.branch, scope.branchScope];
 
-  const [presupuestos, presupuestosYtd, cobranzas, cotizado] = await Promise.all([
+  const [presupuestos, presupuestosYtd, cobranzas, cotizado, ajustes] = await Promise.all([
     tx.query(
       `SELECT p.id,
               p.anio,
@@ -167,12 +168,23 @@ async function loadUnitData(
          AND ${branchPredicates("c", 5, 6)}`,
       [from, to, months, unitId, scope.branch, scope.branchScope],
     ),
+    cargarAjustesManuales(tx, year),
   ]);
+
+  const conUnidad = (rows: Record<string, unknown>[]) =>
+    rows.map((r) => ({ ...r, unidadNegocioId: unitId })) as {
+      mes: number;
+      sucursalId: string | null;
+      unidadNegocioId: string | null;
+      ventasCcv: string | null;
+      ventasXibi: string | null;
+      ventasEstrategicas: string | null;
+    }[];
 
   const response: Record<string, unknown> = {
     unit: { key, id: unitId, nombre: unit.nombre },
-    presupuestos: presupuestos.rows,
-    presupuestosYtd: presupuestosYtd.rows,
+    presupuestos: aplicarAjustesAPresupuestos(conUnidad(presupuestos.rows), ajustes),
+    presupuestosYtd: aplicarAjustesAPresupuestos(conUnidad(presupuestosYtd.rows), ajustes),
     cobranzas: cobranzas.rows,
     cotizado: cotizado.rows[0] ?? { montoTotal: 0, cantidad: 0 },
   };
