@@ -62,10 +62,27 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Replit resuelve /api -> api-server a nivel de su propia infraestructura
+    // (fuera de este repo). Para dev local fuera de Replit hace falta este
+    // proxy explícito; no afecta `vite build` (solo aplica al dev server).
+    proxy: {
+      '/api': {
+        target: `http://localhost:${process.env.LOCAL_API_PORT ?? '8787'}`,
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,
     host: '0.0.0.0',
     allowedHosts: true,
+    // `vite preview` no hereda server.proxy -- necesario para hostear este
+    // build de desarrollo detrás de un servicio systemd persistente.
+    proxy: {
+      '/api': {
+        target: `http://localhost:${process.env.LOCAL_API_PORT ?? '8787'}`,
+        changeOrigin: true,
+      },
+    },
   },
 });
