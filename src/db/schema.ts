@@ -489,6 +489,13 @@ export const ajustesManuales = pgTable(
     mes: integer("mes").notNull(),
     sucursalId: uuid("sucursal_id").references(() => sucursales.id),
     unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
+    // A qué columna de `presupuestos` se suma este ajuste. "total" (default)
+    // afecta el total combinado sin tocar el desglose CCV/Xibi/Estratégicas --
+    // usar "ccv"/"xibi"/"estrategico" para reclasificar entre columnas (dos
+    // filas con signo opuesto, mismo total neto, ver ajustes-manuales-helper.ts).
+    columna: text("columna", { enum: ["ccv", "xibi", "estrategico", "total"] })
+      .notNull()
+      .default("total"),
     monto: numeric("monto", { precision: 14, scale: 2 }).notNull(),
     motivo: text("motivo").notNull(),
     creadoPor: uuid("creado_por")

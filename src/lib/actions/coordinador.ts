@@ -13,6 +13,20 @@ import {
 import { withAuth } from "@/lib/actions/with-auth";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
 import type { DateRange, MonthFilter } from "@/lib/date-range";
+import { cargarAjustesManuales, sumaAjuste, type AjusteFila } from "@/lib/ajustes-manuales-helper";
+
+// Sin sucursalId (rol no-coordinador) la query ya agrega TODAS las
+// sucursales en una sola fila por mes+unidad -- sumar el ajuste de cada
+// sucursal que aplique a esa unidad+mes, no solo el de una.
+function sumaAjusteGrupo(
+  ajustes: AjusteFila[],
+  params: { mes: number; sucursalId: string | null; unidadNegocioId: string | null; columna: "ccv" | "xibi" | "estrategico" | "total" },
+) {
+  if (params.sucursalId) return sumaAjuste(ajustes, params);
+  return ajustes
+    .filter((a) => a.mes === params.mes && a.columna === params.columna && (a.unidadNegocioId === null || a.unidadNegocioId === params.unidadNegocioId))
+    .reduce((sum, a) => sum + a.monto, 0);
+}
 
 function inCond(col: SQLWrapper, values: string[]) {
   return values && values.length > 0 ? inArray(col, values) : undefined;
@@ -40,14 +54,23 @@ export async function getCoordinadorYearAction(data: { anio: number }) {
       )
       .groupBy(presupuestos.mes, presupuestos.unidadNegocioId);
 
+    const ajustes = await cargarAjustesManuales(tx, data.anio);
+
     return {
-      presupuestos: rows.map((r) => ({
-        ...r,
-        monto: Number(r.monto ?? 0),
-        ventasCcv: Number(r.ventasCcv ?? 0),
-        ventasXibi: Number(r.ventasXibi ?? 0),
-        ventasEstrategicas: Number(r.ventasEstrategicas ?? 0),
-      })),
+      presupuestos: rows.map((r) => {
+        const base = { mes: r.mes, sucursalId, unidadNegocioId: r.unidadNegocioId };
+        return {
+          ...r,
+          monto: Number(r.monto ?? 0),
+          ventasCcv:
+            Number(r.ventasCcv ?? 0) +
+            sumaAjusteGrupo(ajustes, { ...base, columna: "ccv" }) +
+            sumaAjusteGrupo(ajustes, { ...base, columna: "total" }),
+          ventasXibi: Number(r.ventasXibi ?? 0) + sumaAjusteGrupo(ajustes, { ...base, columna: "xibi" }),
+          ventasEstrategicas:
+            Number(r.ventasEstrategicas ?? 0) + sumaAjusteGrupo(ajustes, { ...base, columna: "estrategico" }),
+        };
+      }),
     };
   });
 }

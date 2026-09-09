@@ -6,6 +6,7 @@ import { withAuth } from "@/lib/actions/with-auth";
 import { unidadId } from "@/lib/server/unidades";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
 import { getAllMonthsCap, getDateRangesForMonths, type MonthFilter } from "@/lib/date-range";
+import { aplicarAjustesAPresupuestos, cargarAjustesManuales } from "@/lib/ajustes-manuales-helper";
 
 // Fuente de verdad del cumplimiento (presupuesto vs facturado) — no `facturas`,
 // que es transaccional y no reconciliada. Mismo patrón que servicios/lubfiltros.
@@ -25,12 +26,13 @@ export async function getPresupuestosRepuestosAction(data: {
             Array.from({ length: monthCap }, (_, i) => i + 1),
           );
 
-    return tx
+    const rows = await tx
       .select({
         id: presupuestos.id,
         anio: presupuestos.anio,
         mes: presupuestos.mes,
         sucursalId: presupuestos.sucursalId,
+        unidadNegocioId: presupuestos.unidadNegocioId,
         monto: presupuestos.monto,
         ventasCcv: presupuestos.ventasCcv,
         ventasXibi: presupuestos.ventasXibi,
@@ -45,6 +47,9 @@ export async function getPresupuestosRepuestosAction(data: {
           eq(presupuestos.unidadNegocioId, await unidadId("repuestos")),
         ),
       );
+
+    const ajustes = await cargarAjustesManuales(tx, data.anio);
+    return aplicarAjustesAPresupuestos(rows, ajustes);
   });
 }
 

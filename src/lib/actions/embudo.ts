@@ -3,6 +3,7 @@
 import { and, eq, gte, inArray, lt, sql, type SQLWrapper } from "drizzle-orm";
 import { cotizaciones, presupuestos, cobranzas } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
+import { aplicarAjustesAPresupuestos, cargarAjustesManuales } from "@/lib/ajustes-manuales-helper";
 
 function unitCond(col: SQLWrapper, unidades: string[]) {
   return unidades.length > 0 ? inArray(col, unidades) : undefined;
@@ -42,11 +43,12 @@ export async function getEmbudoPresupuestosAnioAction(data: {
   unidades: string[];
   sucursales?: string[];
 }) {
-  return withAuth(({ tx }) => {
-    return tx
+  return withAuth(async ({ tx }) => {
+    const rows = await tx
       .select({
         id: presupuestos.id,
         mes: presupuestos.mes,
+        sucursalId: presupuestos.sucursalId,
         unidadNegocioId: presupuestos.unidadNegocioId,
         ventasCcv: presupuestos.ventasCcv,
         ventasXibi: presupuestos.ventasXibi,
@@ -60,6 +62,9 @@ export async function getEmbudoPresupuestosAnioAction(data: {
           sucursalCond(presupuestos.sucursalId, data.sucursales ?? []),
         ),
       );
+
+    const ajustes = await cargarAjustesManuales(tx, data.anio);
+    return aplicarAjustesAPresupuestos(rows, ajustes);
   });
 }
 
@@ -100,6 +105,18 @@ export async function getEmbudoTotalesAction(data: {
         ),
       );
 
+    // Ajustes manuales: el total ya combina ccv+xibi+estrategico, así que
+    // cualquier ajuste (sea cual sea su columna) suma directo aquí, filtrado
+    // por los mismos meses/unidades/sucursales de la query de arriba.
+    const ajustes = await cargarAjustesManuales(tx, data.anio, data.meses.length > 0 ? data.meses : undefined);
+    const ajusteTotal = ajustes
+      .filter(
+        (a) =>
+          (data.unidades.length === 0 || a.unidadNegocioId === null || data.unidades.includes(a.unidadNegocioId)) &&
+          (sucursales.length === 0 || a.sucursalId === null || sucursales.includes(a.sucursalId)),
+      )
+      .reduce((sum, a) => sum + a.monto, 0);
+
     const [saldoRow] = await tx
       .select({ total: sql<string>`coalesce(sum(${cobranzas.saldo}), 0)` })
       .from(cobranzas)
@@ -111,7 +128,7 @@ export async function getEmbudoTotalesAction(data: {
       );
 
     const cotizado = Number(cotRow?.total ?? 0);
-    const facturado = Number(facRow?.total ?? 0);
+    const facturado = Number(facRow?.total ?? 0) + ajusteTotal;
     const cobrado = facturado - Number(saldoRow?.total ?? 0);
     return { cotizado, facturado, cobrado };
   });

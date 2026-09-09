@@ -12,6 +12,7 @@ import { withAuth } from "@/lib/actions/with-auth";
 import { unidadId } from "@/lib/server/unidades";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
 import { getAllMonthsCap, type DateRange, type MonthFilter } from "@/lib/date-range";
+import { aplicarAjustesAPresupuestos, cargarAjustesManuales } from "@/lib/ajustes-manuales-helper";
 
 export async function getServiciosAction(data: { ranges: DateRange[]; sucursal: string | "all" }) {
   return withAuth(async ({ tx }) => {
@@ -44,12 +45,13 @@ export async function getPresupuestosServiciosAction(data: {
             Array.from({ length: monthCap }, (_, i) => i + 1),
           );
 
-    return tx
+    const rows = await tx
       .select({
         id: presupuestos.id,
         anio: presupuestos.anio,
         mes: presupuestos.mes,
         sucursalId: presupuestos.sucursalId,
+        unidadNegocioId: presupuestos.unidadNegocioId,
         monto: presupuestos.monto,
         ventasCcv: presupuestos.ventasCcv,
         ventasXibi: presupuestos.ventasXibi,
@@ -64,6 +66,9 @@ export async function getPresupuestosServiciosAction(data: {
           eq(presupuestos.unidadNegocioId, await unidadId("servicios")),
         ),
       );
+
+    const ajustes = await cargarAjustesManuales(tx, data.anio);
+    return aplicarAjustesAPresupuestos(rows, ajustes);
   });
 }
 

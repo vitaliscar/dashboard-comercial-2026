@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import type { MonthlyPoint } from "@/lib/performance-score";
+import { aplicarAjustesAPresupuestos, cargarAjustesManuales } from "@/lib/ajustes-manuales-helper";
 
 /**
  * Roster de asesores activos (32) confirmado por el usuario 2026-09-04 --
@@ -67,7 +68,7 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
     if (filtros.unidadNegocioIds.length > 0)
       condiciones.push(inArray(presupuestos.unidadNegocioId, filtros.unidadNegocioIds));
 
-    const rows = await tx
+    const rowsCrudo = await tx
       .select({
         mes: presupuestos.mes,
         sucursalId: presupuestos.sucursalId,
@@ -79,6 +80,9 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
       })
       .from(presupuestos)
       .where(and(...condiciones));
+
+    const ajustes = await cargarAjustesManuales(tx, filtros.anio, mesesFiltro);
+    const rows = aplicarAjustesAPresupuestos(rowsCrudo, ajustes);
 
     let totalVenta = 0;
     let totalMeta = 0;

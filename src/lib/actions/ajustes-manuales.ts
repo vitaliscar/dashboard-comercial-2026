@@ -3,6 +3,7 @@
 import { eq, desc } from "drizzle-orm";
 import { ajustesManuales, sucursales, unidadesNegocio, profiles } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
+import type { ColumnaAjuste } from "@/lib/ajustes-manuales-helper";
 
 function requireAdmin(isAdmin: boolean) {
   if (!isAdmin) {
@@ -19,6 +20,7 @@ export async function getAjustesManualesAction(anio: number) {
         id: ajustesManuales.id,
         anio: ajustesManuales.anio,
         mes: ajustesManuales.mes,
+        columna: ajustesManuales.columna,
         monto: ajustesManuales.monto,
         motivo: ajustesManuales.motivo,
         createdAt: ajustesManuales.createdAt,
@@ -37,6 +39,7 @@ export async function getAjustesManualesAction(anio: number) {
       id: r.id,
       anio: r.anio,
       mes: r.mes,
+      columna: r.columna,
       monto: Number(r.monto),
       motivo: r.motivo,
       createdAt: r.createdAt.toISOString(),
@@ -52,6 +55,7 @@ export async function createAjusteManualAction(data: {
   mes: number;
   sucursalId: string | null;
   unidadNegocioId: string | null;
+  columna?: ColumnaAjuste;
   monto: number;
   motivo: string;
 }) {
@@ -70,6 +74,7 @@ export async function createAjusteManualAction(data: {
       mes: data.mes,
       sucursalId: data.sucursalId,
       unidadNegocioId: data.unidadNegocioId,
+      columna: data.columna ?? "total",
       monto: String(data.monto),
       motivo: data.motivo.trim(),
       creadoPor: userId,

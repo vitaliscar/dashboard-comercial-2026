@@ -3,6 +3,7 @@
 import { eq, sql } from "drizzle-orm";
 import { presupuestos } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
+import { cargarAjustesManuales, sumaAjuste } from "@/lib/ajustes-manuales-helper";
 
 /** Reemplaza rpc_resumen_mensual — reshape directo de `presupuestos` (meta=monto,
  * facturado=ventas_ccv+ventas_xibi+ventas_estrategicas), filtrado por mes/sucursal/unidad
@@ -28,6 +29,17 @@ export async function getResumenMensualAction(data: { anio: number }) {
       .from(presupuestos)
       .where(eq(presupuestos.anio, data.anio));
 
-    return rows;
+    const ajustes = await cargarAjustesManuales(tx, data.anio);
+    if (ajustes.length === 0) return rows;
+
+    return rows.map((r) => {
+      const base = { mes: r.mes, sucursalId: r.sucursalId, unidadNegocioId: r.unidadNegocioId };
+      const ajusteTotal =
+        sumaAjuste(ajustes, { ...base, columna: "ccv" }) +
+        sumaAjuste(ajustes, { ...base, columna: "xibi" }) +
+        sumaAjuste(ajustes, { ...base, columna: "estrategico" }) +
+        sumaAjuste(ajustes, { ...base, columna: "total" });
+      return { ...r, facturado: String(Number(r.facturado) + ajusteTotal) };
+    });
   });
 }

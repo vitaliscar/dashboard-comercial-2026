@@ -41,6 +41,7 @@ export default function AjustesManualesPage() {
     mes: new Date().getMonth() + 1,
     sucursalId: "",
     unidadNegocioId: "",
+    columna: "total" as "ccv" | "xibi" | "estrategico" | "total",
     monto: "",
     motivo: "",
   });
@@ -57,7 +58,14 @@ export default function AjustesManualesPage() {
       toast.success("Ajuste registrado");
       queryClient.invalidateQueries({ queryKey: ["ajustes-manuales"] });
       setOpen(false);
-      setForm({ mes: new Date().getMonth() + 1, sucursalId: "", unidadNegocioId: "", monto: "", motivo: "" });
+      setForm({
+        mes: new Date().getMonth() + 1,
+        sucursalId: "",
+        unidadNegocioId: "",
+        columna: "total",
+        monto: "",
+        motivo: "",
+      });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -94,6 +102,7 @@ export default function AjustesManualesPage() {
       mes: form.mes,
       sucursalId: form.sucursalId || null,
       unidadNegocioId: form.unidadNegocioId || null,
+      columna: form.columna,
       monto,
       motivo: form.motivo,
     });
@@ -181,6 +190,23 @@ export default function AjustesManualesPage() {
                   </Select>
                 </div>
                 <div>
+                  <Label>Columna afectada</Label>
+                  <Select
+                    value={form.columna}
+                    onValueChange={(v) => setForm({ ...form, columna: v as typeof form.columna })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="total">Total (CCV por defecto)</SelectItem>
+                      <SelectItem value="ccv">CCV</SelectItem>
+                      <SelectItem value="xibi">Xibi</SelectItem>
+                      <SelectItem value="estrategico">Estratégico / Otra Empresa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label>Monto (usar negativo para restar)</Label>
                   <Input
                     type="number"
@@ -223,6 +249,7 @@ export default function AjustesManualesPage() {
                 <th className="py-2">Mes</th>
                 <th className="py-2">Sucursal</th>
                 <th className="py-2">Unidad</th>
+                <th className="py-2">Columna</th>
                 <th className="py-2 text-right">Monto</th>
                 <th className="py-2">Motivo</th>
                 <th className="py-2">Creado por</th>
@@ -235,6 +262,7 @@ export default function AjustesManualesPage() {
                   <td className="py-2">{MESES[a.mes - 1]}</td>
                   <td className="py-2">{a.sucursal}</td>
                   <td className="py-2">{a.unidad}</td>
+                  <td className="py-2 capitalize">{a.columna}</td>
                   <td className="py-2 text-right">{money(a.monto)}</td>
                   <td className="py-2">{a.motivo}</td>
                   <td className="py-2">{a.creadoPor}</td>

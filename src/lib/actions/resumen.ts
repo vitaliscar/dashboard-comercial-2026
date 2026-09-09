@@ -12,6 +12,7 @@ import {
 import { withAuth } from "@/lib/actions/with-auth";
 import { dateRangeCondition } from "@/lib/server/query-helpers";
 import { getAllMonthsCap, type DateRange, type MonthFilter } from "@/lib/date-range";
+import { aplicarAjustesAPresupuestos, cargarAjustesManuales } from "@/lib/ajustes-manuales-helper";
 
 export async function getResumenDataAction(data: {
   anio: number;
@@ -218,6 +219,8 @@ export async function getResumenDataAction(data: {
         : Promise.resolve([]),
     ]);
 
+    const ajustes = await cargarAjustesManuales(tx, anio);
+
     return {
       cotizaciones: cot,
       cotizacionesPrevMonth: cotPrev,
@@ -230,7 +233,7 @@ export async function getResumenDataAction(data: {
       ventasPerdidasClientes: vpClientes,
       ventasPerdidasRazones: vpRazones,
       servicios: serv,
-      presupuestos: pre,
+      presupuestos: aplicarAjustesAPresupuestos(pre, ajustes),
       cumplimientoAsesor: ca,
     };
   });
