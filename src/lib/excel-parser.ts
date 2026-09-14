@@ -1364,7 +1364,12 @@ export class ExcelParser {
     const datos = this.leerHoja("Oportunidades").filter(
       (row) =>
         !this.debeExcluir(row["Sucursal"] || "") &&
-        !esClienteEmpresaPropia(row["Cód. Cuenta"], row["Nombre de Cuenta"]),
+        !esClienteEmpresaPropia(row["Cód. Cuenta"], row["Nombre de Cuenta"]) &&
+        // Cuando Cód./Nombre de Cuenta vienen vacíos, determinarCliente() cae a
+        // "Nombre de Cliente Potencial" (ver más abajo) -- si ese fallback también
+        // resuelve a la empresa propia, el chequeo de arriba no lo detecta porque
+        // Cód. Cuenta vacío != "100". Se revisa también aquí.
+        !esClienteEmpresaPropia(null, row["Nombre de Cliente Potencial"]),
     );
 
     const lubCotizadoPorCliente = this.getLubCotizadoPorCliente();
