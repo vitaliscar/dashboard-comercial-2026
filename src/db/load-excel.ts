@@ -3,21 +3,18 @@
  * Reemplaza src/integrations/supabase/load-excel.ts (Supabase).
  * DELETE + INSERT completo por corrida (patrón semanal).
  *
- * users/profiles/user_roles se siembran directamente en Postgres (ya no hay
- * Supabase Auth): cada usuario nuevo recibe un password temporal aleatorio,
- * hasheado con argon2id — nunca queda en texto plano ni es adivinable.
+ * users/profiles/user_roles YA NO se siembran desde este Excel: viven
+ * nativamente en Postgres y se gestionan desde /usuarios en la app (ver
+ * src/lib/actions/usuarios.ts). Este archivo solo lee profiles existentes
+ * para resolver asesor_id por nombre en las tablas que sí siguen viniendo
+ * del Excel/Sheet (cotizaciones, facturas, ventas_perdidas, etc.).
  */
 
 import path from "path";
-import { hash as argon2Hash } from "@node-rs/argon2";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/db";
 import {
-  users,
   profiles,
-  profileUnidadesNegocio,
-  userRoles,
-  sessions,
   sucursales,
   unidadesNegocio,
   cotizaciones,
@@ -48,7 +45,6 @@ import {
 } from "@/db/schema";
 import {
   ExcelParser,
-  mapRolToAppRole,
   SUCURSALES_CANONICAS,
   UNIDADES_CANONICAS,
   UNIDAD_EQUIPOS,
@@ -68,10 +64,6 @@ interface LoadResult {
 
 /** Cliente de transacción de dbAdmin — todo el pipeline de carga corre atómico. */
 export type DbAdminTx = Parameters<Parameters<typeof dbAdmin.transaction>[0]>[0];
-
-function generateTemporaryPassword(): string {
-  return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
-}
 
 function byNormalizedName<T extends { nombre: string; id: string }>(
   rows: T[],
@@ -120,116 +112,32 @@ export async function seedCatalogos(tx: DbAdminTx): Promise<{
 }
 
 /**
- * Crea (o reutiliza) un `users` real por cada fila de la hoja Usuarios y
- * sincroniza profiles/user_roles. Devuelve mapas para resolver asesor_id.
+ * usuarios/profiles YA NO se siembran desde el Excel — viven nativamente en
+ * Postgres y se administran desde /usuarios en la app (ver
+ * src/lib/actions/usuarios.ts). Esta función solo lee los profiles ya
+ * existentes para poder resolver asesor_id por nombre en las demás tablas
+ * (cotizaciones, facturas, ventas_perdidas, etc., que sí siguen viniendo del
+ * Excel/Sheet).
  */
-async function seedUsuarios(
-  tx: DbAdminTx,
-  parser: ExcelParser,
-  sucursalesMap: Map<string, string>,
-  unidadesMap: Map<string, string>,
-): Promise<{
+async function loadUsuariosDesdeDb(tx: DbAdminTx): Promise<{
   asesorIdPorNombre: Map<string, string>;
   count: number;
   userProfiles: Array<{ id: string; nombre_completo: string }>;
 }> {
-  const usuarios = parser.getUsuarios();
+  const existingProfiles = await tx
+    .select({ id: profiles.id, nombreCompleto: profiles.nombreCompleto })
+    .from(profiles);
+
   const asesorIdPorNombre = new Map<string, string>();
   const userProfiles: Array<{ id: string; nombre_completo: string }> = [];
-  let count = 0;
 
-  // Single query for existing users
-  const existingUsers = await tx.select({ id: users.id, email: users.email }).from(users);
-  const existingMap = new Map(existingUsers.map((u) => [u.email.toLowerCase(), u.id]));
-
-  // Solo sincronizar passwords/roles/isActive si EXCEL_SYNC_IDENTITY=1 (explícito).
-  // Por defecto la carga rutinaria no reescribe identidad (CN-028).
-  const syncIdentity = process.env.EXCEL_SYNC_IDENTITY === "1";
-
-  // Cache argon2 password hashes so identical passwords (e.g. "inicio2026") are hashed only once
-  const passHashCache = new Map<string, string>();
-  const getPasswordHash = async (rawPass: string): Promise<string> => {
-    let cached = passHashCache.get(rawPass);
-    if (!cached) {
-      cached = await argon2Hash(rawPass);
-      passHashCache.set(rawPass, cached);
-    }
-    return cached;
-  };
-
-  for (const u of usuarios) {
-    if (!u.email) continue;
-    const cleanEmail = u.email.trim().toLowerCase();
-    const rawPass = u.contraseña?.trim();
-
-    let userId = existingMap.get(cleanEmail);
-    const isNew = !userId;
-
-    if (userId) {
-      // Usuario existente: nunca resetear password/isActive en carga rutinaria.
-      if (syncIdentity && rawPass) {
-        const passwordHash = await getPasswordHash(rawPass);
-        await tx.update(users).set({ passwordHash, isActive: true }).where(eq(users.id, userId));
-        await tx.delete(sessions).where(eq(sessions.userId, userId));
-      }
-    } else {
-      const pass = rawPass || generateTemporaryPassword();
-      const passwordHash = await getPasswordHash(pass);
-      const [created] = await tx
-        .insert(users)
-        .values({ email: cleanEmail, passwordHash, isActive: true })
-        .returning({ id: users.id });
-      userId = created.id;
-      existingMap.set(cleanEmail, userId);
-      await tx.insert(profiles).values({ id: userId, email: cleanEmail });
-    }
-
-    const sucursalId = sucursalesMap.get(u.sucursal.trim().toLowerCase()) ?? null;
-    const { role, unidadNegocio } = mapRolToAppRole(u.rol);
-    const unidadNombre = unidadNegocio ?? u.unidadesNegocio?.[0] ?? null;
-    const unidadId = unidadNombre
-      ? (unidadesMap.get(unidadNombre.trim().toLowerCase()) ?? null)
-      : null;
-
-    await tx
-      .update(profiles)
-      .set({ nombreCompleto: u.nombre, sucursalId, unidadNegocioId: unidadId })
-      .where(eq(profiles.id, userId));
-
-    // Roles: solo al crear usuario nuevo, o con EXCEL_SYNC_IDENTITY=1.
-    if (isNew || syncIdentity) {
-      await tx.delete(userRoles).where(eq(userRoles.userId, userId));
-      await tx.insert(userRoles).values({ userId, role });
-    }
-
-    // Multi-unidad para gerente_comercial — RLS (can_read_row en
-    // 0001_rls_policies.sql) consulta ESTA tabla, no profiles.unidad_negocio_id
-    // (que solo guarda la primera unidad, para compatibilidad legacy). Sin esto,
-    // un gerente_comercial no ve NINGÚN dato scoped por unidad (presupuestos,
-    // equipos_por_marca, equipos_inventario, etc.) — la condición RLS siempre
-    // evalúa a false.
-    await tx.delete(profileUnidadesNegocio).where(eq(profileUnidadesNegocio.profileId, userId));
-    const unidadesAsignadasIds = Array.from(
-      new Set(
-        (u.unidadesNegocio ?? [])
-          .map((nombre) => unidadesMap.get(nombre.trim().toLowerCase()))
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    if (unidadesAsignadasIds.length > 0) {
-      await tx
-        .insert(profileUnidadesNegocio)
-        .values(
-          unidadesAsignadasIds.map((unidadNegocioId) => ({ profileId: userId, unidadNegocioId })),
-        );
-    }
-
-    userProfiles.push({ id: userId, nombre_completo: u.nombre });
-    asesorIdPorNombre.set(u.nombre.trim().toLowerCase(), userId);
-    count++;
+  for (const p of existingProfiles) {
+    if (!p.nombreCompleto) continue;
+    userProfiles.push({ id: p.id, nombre_completo: p.nombreCompleto });
+    asesorIdPorNombre.set(p.nombreCompleto.trim().toLowerCase(), p.id);
   }
 
-  return { asesorIdPorNombre, count, userProfiles };
+  return { asesorIdPorNombre, count: userProfiles.length, userProfiles };
 }
 
 function resolveFKs(
@@ -283,12 +191,12 @@ export async function loadExcelToPostgres(
       console.log("→ Sembrando sucursales y unidades de negocio...");
       const { sucursales: sucursalesMap, unidades: unidadesMap } = await seedCatalogos(tx);
 
-      console.log("→ Cargando usuarios...");
+      console.log("→ Leyendo usuarios existentes (ya no se siembran desde Excel)...");
       const {
         asesorIdPorNombre,
         count: usuariosCount,
         userProfiles,
-      } = await seedUsuarios(tx, parser, sucursalesMap, unidadesMap);
+      } = await loadUsuariosDesdeDb(tx);
       result.rowsAffected["usuarios"] = usuariosCount;
 
       // Fuzzy-match de nombres de asesor pre-normalizando los nombres de perfil
