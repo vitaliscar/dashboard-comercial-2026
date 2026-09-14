@@ -123,6 +123,26 @@ const CLIENTE_SUCURSAL_FIJA: { [clienteCanonicoLower: string]: string } = {
 // Clientes "venta casa": nunca tienen asesor asignado, aunque el reporte de
 // origen traiga uno relacionado — clave en minúsculas del nombre canónico.
 export const CLIENTES_SIN_ASESOR = new Set<string>(["visco orinoco, c.a"]);
+
+// Cód. Cuenta 100 = la propia empresa (Consorcio de Cogestión Venequip) --
+// aparece como "cliente" en algunas cotizaciones por error de captura en el
+// CRM (transferencias internas, muestras, placeholders), nunca es una venta
+// real a un tercero. Se excluye por completo de cotizaciones (no debe
+// aparecer en "Top Clientes" ni sumar al monto cotizado de ninguna unidad) --
+// confirmado con el usuario 2026-09-14.
+const COD_CUENTA_EMPRESA_PROPIA = "100";
+const NOMBRE_EMPRESA_PROPIA = "consorcio de cogestion venequip";
+function esClienteEmpresaPropia(codCuenta: unknown, nombreCuenta: unknown): boolean {
+  const cod = (codCuenta ?? "").toString().trim().replace(/^0+/, "");
+  if (cod === COD_CUENTA_EMPRESA_PROPIA) return true;
+  const nombre = (nombreCuenta ?? "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, ""); // quita acentos (Cogestión -> Cogestion)
+  return nombre.startsWith(NOMBRE_EMPRESA_PROPIA);
+}
 export const UNIDADES_CANONICAS: string[] = [
   "Repuestos",
   "Lubricantes/Filtros",
@@ -639,6 +659,7 @@ export class ExcelParser {
       );
       const sucursal = row["Nom. Sucursal"] || "";
 
+      if (esClienteEmpresaPropia(row["Cód. Cliente"], row["Nombre del Cliente"])) return false;
       return meses.includes(mes) && anioRow === anio && !this.debeExcluir(sucursal);
     });
 
@@ -1331,6 +1352,7 @@ export class ExcelParser {
     const datos = this.leerHoja("Oportunidades LubFiltros");
     const map: { [cliente: string]: number } = {};
     datos.forEach((row) => {
+      if (esClienteEmpresaPropia(row["Cód. Cliente"], row["Nombre del Cliente"])) return;
       const cliente = this.normalizarNombreCliente(this.normalizarTexto(row["Nombre del Cliente"]));
       if (!cliente) return;
       map[cliente] = (map[cliente] || 0) + this.parseNumber(row["Monto Cotizado"]);
@@ -1340,7 +1362,9 @@ export class ExcelParser {
 
   getCotizacionesPrincipales(): Cotizacion[] {
     const datos = this.leerHoja("Oportunidades").filter(
-      (row) => !this.debeExcluir(row["Sucursal"] || ""),
+      (row) =>
+        !this.debeExcluir(row["Sucursal"] || "") &&
+        !esClienteEmpresaPropia(row["Cód. Cuenta"], row["Nombre de Cuenta"]),
     );
 
     const lubCotizadoPorCliente = this.getLubCotizadoPorCliente();
