@@ -85,6 +85,23 @@ const SUCURSAL_CANONICA: { [key: string]: string } = {
   "direccion general": "Dirección General",
 };
 
+// Cuenta propia (Consorcio de Cogestión Venequip, código "100"): nunca debe
+// contarse como cliente en cotizaciones. Ver mismo fix aplicado en ccv-main.
+const COD_CUENTA_EMPRESA_PROPIA = "100";
+const NOMBRE_EMPRESA_PROPIA = "consorcio de cogestion venequip";
+
+function esClienteEmpresaPropia(codCuenta: unknown, nombreCuenta: unknown): boolean {
+  const cod = (codCuenta ?? "").toString().trim().replace(/^0+/, "");
+  if (cod === COD_CUENTA_EMPRESA_PROPIA) return true;
+  const nombre = (nombreCuenta ?? "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, ""); // quita acentos (Cogestión -> Cogestion)
+  return nombre.startsWith(NOMBRE_EMPRESA_PROPIA);
+}
+
 export const SUCURSALES_CANONICAS: string[] = Array.from(new Set(Object.values(SUCURSAL_CANONICA)));
 export const UNIDADES_CANONICAS: string[] = [
   "Repuestos",
@@ -592,6 +609,7 @@ export class ExcelParser {
       );
       const sucursal = row["Nom. Sucursal"] || "";
 
+      if (esClienteEmpresaPropia(row["Cód. Cliente"], row["Nombre del Cliente"])) return false;
       return meses.includes(mes) && anioRow === anio && !this.debeExcluir(sucursal);
     });
 
@@ -1188,6 +1206,7 @@ export class ExcelParser {
     const datos = this.leerHoja("Oportunidades LubFiltros");
     const map: { [cliente: string]: number } = {};
     datos.forEach((row) => {
+      if (esClienteEmpresaPropia(row["Cód. Cliente"], row["Nombre del Cliente"])) return;
       const cliente = this.normalizarTexto(row["Nombre del Cliente"]);
       if (!cliente) return;
       map[cliente] = (map[cliente] || 0) + this.parseNumber(row["Monto Cotizado"]);
@@ -1197,7 +1216,10 @@ export class ExcelParser {
 
   getCotizacionesPrincipales(): Cotizacion[] {
     const datos = this.leerHoja("Oportunidades").filter(
-      (row) => !this.debeExcluir(row["Sucursal"] || ""),
+      (row) =>
+        !this.debeExcluir(row["Sucursal"] || "") &&
+        !esClienteEmpresaPropia(row["Cód. Cuenta"], row["Nombre de Cuenta"]) &&
+        !esClienteEmpresaPropia(null, row["Nombre de Cliente Potencial"]),
     );
 
     const lubCotizadoPorCliente = this.getLubCotizadoPorCliente();
