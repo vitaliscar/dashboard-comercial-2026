@@ -171,6 +171,38 @@ const normalizeName = (s: string): string =>
  * Action de upload manual — ver src/lib/actions/carga.ts, que lo parsea en
  * un worker thread aparte para no bloquear el proceso que sirve requests).
  */
+// Las 24 hojas que ExcelParser.leerHoja() pide en algun punto del parseo
+// (ver llamadas a leerHoja("...") en src/lib/excel-parser.ts). Si el Sheet
+// origen ya no trae la mayoria de estos nombres exactos, es senal de que fue
+// reestructurado y loadExcelToPostgres no debe proceder con el DELETE+INSERT.
+const HOJAS_ESPERADAS = [
+  "Canales",
+  "Clientes Potenciales",
+  "Cuentas por Cobrar",
+  "CumplimientoAsesoresBase",
+  "CumplimientoBase",
+  "Detalles de Ventas Equipos",
+  "Detalles de Ventas LUBFILTROS",
+  "Detalles de Ventas Repuestos",
+  "Detalles Servicios Estrategicos",
+  "Facturacion",
+  "Google My Business",
+  "Instagram",
+  "Inventario Disponible Equipos",
+  "Inventario LubFiltros",
+  "Inventario Tránsito Equipos",
+  "LubricantesFiltros",
+  "Oportunidades",
+  "Oportunidades LubFiltros",
+  "Post Historias",
+  "Servicios",
+  "Servicios Interno",
+  "Usuarios",
+  "Ventas Casa",
+  "Ventas Perdidas",
+];
+const MAX_HOJAS_FALTANTES_TOLERADAS = 3;
+
 export async function loadExcelToPostgres(
   excelSource: string | Buffer | ExcelParser,
 ): Promise<LoadResult> {
@@ -185,6 +217,22 @@ export async function loadExcelToPostgres(
     await dbAdmin.transaction(async (tx) => {
       console.log("📊 Iniciando carga de Excel a Postgres local...");
       const parser = excelSource instanceof ExcelParser ? excelSource : new ExcelParser(excelSource);
+
+      // Bloqueo defensivo: el Sheet en vivo fue reestructurado (varias hojas
+      // que este parser espera ya no existen con ese nombre exacto). Sin
+      // esto, la carga sigue de largo con DELETE+INSERT aunque la mayoria de
+      // tablas vengan vacias — borra datos reales y los reemplaza con casi
+      // nada, en silencio. Abortar ANTES de tocar la DB si faltan demasiadas.
+      const hojasDisponibles = new Set(parser.obtenerNombresHojas());
+      const hojasFaltantesUpfront = HOJAS_ESPERADAS.filter((h) => !hojasDisponibles.has(h));
+      if (hojasFaltantesUpfront.length > MAX_HOJAS_FALTANTES_TOLERADAS) {
+        throw new Error(
+          `Carga abortada: ${hojasFaltantesUpfront.length} hojas esperadas no existen en el Sheet ` +
+            `(mapeo de nombres desactualizado, ver excel-parser.ts). Hojas faltantes: ` +
+            hojasFaltantesUpfront.join(", "),
+        );
+      }
+
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
 
