@@ -86,6 +86,7 @@ export async function getResumenDataAction(data: {
       vpClientes,
       vpRazones,
       serv,
+      serviciosClientes,
       pre,
       ca,
     ] = await Promise.all([
@@ -202,6 +203,22 @@ export async function getResumenDataAction(data: {
         .from(servicios)
         .where(servCond)
         .groupBy(servicios.unidadNegocioId),
+      // Top Clientes de Servicios: `facturas` solo trae el lado Xibi/"Otra
+      // Empresa" (getFacturasPrincipales excluye a propósito el resto para no
+      // duplicar el ingreso, ver comentario en excel-parser.ts línea ~1524) --
+      // el detalle de cliente del lado CCV vive acá, en `servicios` (AS400).
+      // Sin este query, Top Clientes de Servicios quedaba casi vacío aunque el
+      // monto total (que sí combina ambas fuentes) fuera correcto.
+      tx
+        .select({
+          unidadNegocioId: servicios.unidadNegocioId,
+          sucursalId: servicios.sucursalId,
+          cliente: servicios.cliente,
+          montoTotal: sum(servicios.monto),
+        })
+        .from(servicios)
+        .where(servCond)
+        .groupBy(servicios.unidadNegocioId, servicios.sucursalId, servicios.cliente),
       tx
         .select()
         .from(presupuestos)
@@ -233,6 +250,7 @@ export async function getResumenDataAction(data: {
       ventasPerdidasClientes: vpClientes,
       ventasPerdidasRazones: vpRazones,
       servicios: serv,
+      serviciosClientes,
       presupuestos: aplicarAjustesAPresupuestos(pre, ajustes),
       cumplimientoAsesor: ca,
     };

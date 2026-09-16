@@ -391,6 +391,29 @@ export default function ResumenPage() {
           });
         }
       });
+      // Servicios: `facturas` solo trae el lado Xibi/"Otra Empresa" (ver
+      // excel-parser.ts), el detalle de cliente CCV vive en `servicios` (AS400)
+      // -- sin esto, Top Clientes de Servicios quedaba casi vacío.
+      if (cat === "Servicios") {
+        const filteredServClientes = (rawData.serviciosClientes || []).filter((s) => {
+          const dbName = s.unidadNegocioId ? unitMap.get(s.unidadNegocioId) : "";
+          return dbName && mapDbUnidadToUi(dbName) === cat;
+        });
+        filteredServClientes.forEach((s) => {
+          const key = `${s.cliente}|${s.sucursalId || ""}`;
+          const existing = facClientMap.get(key);
+          const m = Number(s.montoTotal || 0);
+          if (existing) {
+            existing.monto += m;
+          } else {
+            facClientMap.set(key, {
+              cliente: s.cliente,
+              sucursal: s.sucursalId ? sucMap.get(s.sucursalId) || "" : "",
+              monto: m,
+            });
+          }
+        });
+      }
       const topClientes = Array.from(facClientMap.values())
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
