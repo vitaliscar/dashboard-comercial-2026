@@ -22,7 +22,7 @@ import { presupuestos, sucursales, unidadesNegocio } from "@/db/schema";
 import { ExcelParser, UNIDAD_LUBFILTROS, type RawRowData } from "@/lib/excel-parser";
 import { leerArchivoCrudo, localizarArchivoMasReciente } from "@/lib/raw-source-reader";
 import { leerFilasLubricanteVentasrepuesto } from "@/lib/as400-lubricantes";
-import { resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
+import { DICCIONARIO_SUCURSAL_XIBI, resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
 const HEADER_ROW = 12;
@@ -68,14 +68,34 @@ async function main() {
     const mes = parseInt(String(row["Mes"] ?? ""), 10);
     const anio = parseInt(String(row["Año"] ?? ""), 10);
     if (mes !== MES || anio !== ANIO) return;
-    const sucursal = (row["Sucursal"] ?? "").toString().trim();
-    // Sucursal cruda viene en mayúsculas ("PUERTO ORDAZ", "LOS RUICES") --
-    // se normaliza a Title Case simple + Los Ruices->Caracas al insertar.
-    const sucursalNormalizada = sucursal
-      .toLowerCase()
-      .replace(/(^|\s)([a-záéíóúñ])/g, (_m, sp, ch) => sp + ch.toUpperCase());
-    const clave = sucursalNormalizada === "Los Ruices" ? "Caracas" : sucursalNormalizada;
+    const sucursalCruda = (row["Sucursal"] ?? "").toString().trim();
     const compania = (row["Compañía"] ?? row["Compañia"] ?? "").toString().trim().toUpperCase();
+
+    let clave: string;
+    if (sucursalCruda === "Xibi B.V" && compania.includes("XIBI")) {
+      // Bajo compañía Xibi, "Sucursal" no es una sucursal real (siempre
+      // "Xibi B.V") -- la sucursal real sale del mismo diccionario
+      // Cód. Cliente->sucursal usado en Oportunidades Detallado (ej. Visco
+      // Orinoco, cliente 45, es venta real atribuida a FMO Piar a nivel de
+      // sucursal -- solo se excluye de comisión de asesor, no de aquí --
+      // confirmado con el usuario 2026-09-15). Cód. Cliente=35 (intercompania
+      // Xibi->CCV) ya viene excluido por leerFilasLubricanteVentasrepuesto().
+      const codCliente = (row["Cód. Cliente"] ?? "").toString().trim();
+      const resuelta = DICCIONARIO_SUCURSAL_XIBI[codCliente];
+      if (!resuelta) {
+        console.warn(`⚠️  Xibi sin resolver: Cód. Cliente="${codCliente}" no está en DICCIONARIO_SUCURSAL_XIBI`);
+        return;
+      }
+      clave = resuelta;
+    } else {
+      // Sucursal cruda viene en mayúsculas ("PUERTO ORDAZ", "LOS RUICES") --
+      // se normaliza a Title Case simple + Los Ruices->Caracas al insertar.
+      const sucursalNormalizada = sucursalCruda
+        .toLowerCase()
+        .replace(/(^|\s)([a-záéíóúñ])/g, (_m, sp, ch) => sp + ch.toUpperCase());
+      clave = sucursalNormalizada === "Los Ruices" ? "Caracas" : sucursalNormalizada;
+    }
+
     const monto = parseFloat(String(row["P.V.P. Total $ Extendido"] ?? "0").replace(/,/g, "")) || 0;
     if (compania.includes("XIBI")) directoXibi[clave] = (directoXibi[clave] || 0) + monto;
     else directoCcv[clave] = (directoCcv[clave] || 0) + monto;
