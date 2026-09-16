@@ -835,10 +835,10 @@ export class ExcelParser {
   }
 
   /**
-   * Hoja: LubricantesFiltros
+   * Hoja: Lubricantes/Filtros
    */
   getLubricantesFiltos(meses: number[], anio: number): any[] {
-    const datos = this.leerHoja("LubricantesFiltros");
+    const datos = this.leerHoja("Lubricantes/Filtros");
 
     return datos
       .filter((row) => {
@@ -1491,7 +1491,7 @@ export class ExcelParser {
    * restar.
    */
   private getLubMontoPorSucursal(): { [claveSucursalMes: string]: number } {
-    const datos = this.leerHoja("LubricantesFiltros");
+    const datos = this.leerHoja("Lubricantes/Filtros");
     const map: { [claveSucursalMes: string]: number } = {};
     datos.forEach((row) => {
       const compania = (row["Compañía"] ?? row["Compañia"] ?? "").toString().trim().toUpperCase();
@@ -1745,7 +1745,7 @@ export class ExcelParser {
    * usen exactamente la misma base y no haya desalineación.
    */
   getFacturasLubFiltros(): FacturaNueva[] {
-    const datos = this.leerHoja("LubricantesFiltros");
+    const datos = this.leerHoja("Lubricantes/Filtros");
     return datos
       .filter((row) => !this.debeExcluir(row["Sucursal"] || ""))
       .map((row) => {
@@ -2388,7 +2388,7 @@ export class ExcelParser {
     });
 
     // LUBFILTROS
-    const lubfiltrosHoja = this.leerHoja("LubricantesFiltros");
+    const lubfiltrosHoja = this.leerHoja("Lubricantes/Filtros");
     const headerLubfiltros = lubfiltrosHoja.length > 0 ? Object.keys(lubfiltrosHoja[0]) : [];
     const mesLubIdx = headerLubfiltros.indexOf("Mes");
     const anioLubIdx = headerLubfiltros.indexOf("Año");

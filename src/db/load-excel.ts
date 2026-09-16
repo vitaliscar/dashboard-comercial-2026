@@ -191,7 +191,7 @@ const HOJAS_ESPERADAS = [
   "Inventario Disponible Equipos",
   "Inventario LubFiltros",
   "Inventario Tránsito Equipos",
-  "LubricantesFiltros",
+  "Lubricantes/Filtros",
   "Oportunidades",
   "Oportunidades LubFiltros",
   "Post Historias",
