@@ -68,7 +68,7 @@ export const ComplianceGauge = memo(function ComplianceGauge({
                 dataKey="value"
                 cornerRadius={8}
                 fill={color}
-                background={{ fill: "oklch(0.22 0.01 255)" }}
+                background={{ fill: "var(--color-border)" }}
                 {...chartAnimation}
               />
             </RadialBarChart>

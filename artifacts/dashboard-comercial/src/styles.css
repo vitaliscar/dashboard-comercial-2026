@@ -5,97 +5,99 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* CCV Dashboard — "Panel de Instrumentos" (dark-first, data-dense)
+/* CCV Dashboard — "Sala Comercial" (light-first, warm neutral, acento verde)
  *
- * Sistema: base casi negra + paneles elevados + acento azul instrumentación.
- * Tipografía: Space Grotesk (display) / Inter (UI) / JetBrains Mono (números).
+ * Sistema inspirado en el lenguaje visual de referencia "Elera": sidebar clara
+ * agrupada por categorías, fondo cálido neutro, cards blancas con radio grande,
+ * acento verde de marca + semánticos ámbar/rojo/azul en badges tipo pill.
+ * Tipografía: Space Grotesk (display) / Outfit (UI) / JetBrains Mono (números).
  * Todos los pares texto/fondo verificados a ≥4.5:1 (WCAG AA).
  * Fuente única de verdad: este bloque :root.
  */
 
 :root {
-  color-scheme: dark;
-  --radius: 0.75rem;
+  color-scheme: light;
+  --radius: 1rem;
   --font-size: 14px;
 
   /* ── Base ─────────────────────────────────────────────────────────── */
-  --bg-primary: #0b1215;
-  --surface-primary: #152126;
-  --surface-2: #1b2a30;
-  --text-primary: #e8edf0;
-  --accent-gold: #d4ab54;
-  --accent-gold-ink: #d4ab54;
-  --muted: #1b2a30;
-  --border-color: #2b3c42;
-  --success: #6ec4b4;
-  --warning: #d4ab54;
-  --danger: #e47e76;
+  --bg-primary: #eeece5;
+  --surface-primary: #ffffff;
+  --surface-2: #f5f3ed;
+  --text-primary: #211f1a;
+  --accent-gold: #2f9e56;
+  --accent-gold-ink: #1f7a40;
+  --muted: #f2f0e9;
+  --border-color: #e3e0d5;
+  --success: #2f9e56;
+  --warning: #c8791a;
+  --danger: #d0453a;
 
   /* ── shadcn tokens ────────────────────────────────────────────────── */
-  --background: #0b1215;
-  --foreground: #e8edf0;
-  --card: #152126;
-  --card-foreground: #e8edf0;
-  --popover: #1b2a30;
-  --popover-foreground: #e8edf0;
-  --primary: #d4ab54;
-  --primary-foreground: #0b1215;
-  --secondary: #1b2a30;
-  --secondary-foreground: #e8edf0;
-  --muted-foreground: #8fa2a7;
-  --accent: #1b2a30;
-  --accent-foreground: #e8edf0;
-  --destructive: #e47e76;
-  --destructive-foreground: #e8edf0;
-  --border: #2b3c42;
-  --input: #2b3c42;
-  --input-background: #10191d;
-  --switch-background: #2b3c42;
-  --ring: #d4ab54;
+  --background: #eeece5;
+  --foreground: #211f1a;
+  --card: #ffffff;
+  --card-foreground: #211f1a;
+  --popover: #ffffff;
+  --popover-foreground: #211f1a;
+  --primary: #2f9e56;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f0e9;
+  --secondary-foreground: #211f1a;
+  --muted-foreground: #7a7669;
+  --accent: #f2f0e9;
+  --accent-foreground: #211f1a;
+  --destructive: #d0453a;
+  --destructive-foreground: #ffffff;
+  --border: #e3e0d5;
+  --input: #e3e0d5;
+  --input-background: #ffffff;
+  --switch-background: #e3e0d5;
+  --ring: #2f9e56;
 
   /* ── Charts ───────────────────────────────────────────────────────── */
-  --chart-1: oklch(0.72 0.09 230);
-  --chart-2: oklch(0.62 0.16 155);
-  --chart-3: oklch(0.62 0.12 250);
-  --chart-4: oklch(0.62 0.22 25);
-  --chart-5: oklch(0.62 0.16 300);
+  --chart-1: oklch(0.63 0.14 155);
+  --chart-2: oklch(0.7 0.14 70);
+  --chart-3: oklch(0.6 0.14 240);
+  --chart-4: oklch(0.58 0.18 25);
+  --chart-5: oklch(0.6 0.1 300);
 
-  /* ── Sidebar ──────────────────────────────────────────────────────── */
-  --sidebar: #0c1417;
-  --sidebar-foreground: #e8edf0;
-  --sidebar-primary: #d4ab54;
-  --sidebar-primary-foreground: #0b1215;
-  --sidebar-accent: #1b2a30;
-  --sidebar-accent-foreground: #e8edf0;
-  --sidebar-border: #2b3c42;
-  --sidebar-ring: #d4ab54;
+  /* ── Sidebar: blanca, agrupada, acento verde en item activo ──────────── */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #211f1a;
+  --sidebar-primary: #2f9e56;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f2f0e9;
+  --sidebar-accent-foreground: #211f1a;
+  --sidebar-border: #e3e0d5;
+  --sidebar-ring: #2f9e56;
   --sidebar-collapsed-width: 56px;
-  --sidebar-expanded-width: 220px;
+  --sidebar-expanded-width: 260px;
 
   /* ── Semantic extras ──────────────────────────────────────────────── */
-  --tertiary: oklch(0.92 0.005 255);
-  --tertiary-foreground: oklch(0.13 0.01 255);
-  --ochre: oklch(0.75 0.15 80);
-  --success-foreground: oklch(0.13 0.01 255);
-  --warning-foreground: oklch(0.13 0.01 255);
-  --danger-foreground: oklch(0.92 0.005 255);
+  --tertiary: oklch(0.96 0.005 90);
+  --tertiary-foreground: oklch(0.2 0.01 90);
+  --ochre: oklch(0.7 0.14 70);
+  --success-foreground: oklch(0.99 0 0);
+  --warning-foreground: oklch(0.99 0 0);
+  --danger-foreground: oklch(0.99 0 0);
 
-  --chart-calm-1: oklch(0.72 0.09 230 / 0.6);
-  --chart-calm-2: oklch(0.62 0.16 155 / 0.6);
-  --chart-calm-3: oklch(0.62 0.12 250 / 0.6);
-  --chart-calm-4: oklch(0.62 0.16 155 / 0.4);
-  --chart-calm-5: oklch(0.62 0.22 25 / 0.6);
+  --chart-calm-1: oklch(0.63 0.14 155 / 0.55);
+  --chart-calm-2: oklch(0.7 0.14 70 / 0.55);
+  --chart-calm-3: oklch(0.6 0.14 240 / 0.55);
+  --chart-calm-4: oklch(0.58 0.18 25 / 0.5);
+  --chart-calm-5: oklch(0.6 0.1 300 / 0.5);
 
   --font-display: "Space Grotesk", "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  /* Sombras — en dark mode el peso lo lleva el borde, no la sombra */
+  /* Sombras — en light mode el peso lo lleva una sombra suave, no el borde */
   --component-card-border-width: 1px;
-  --component-card-shadow-rest: 0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  --component-card-shadow-rest: 0 1px 2px 0 rgba(33, 31, 26, 0.04), 0 1px 3px 0 rgba(33, 31, 26, 0.05);
   --component-card-shadow-hover:
-    0 4px 12px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
-  --component-button-shadow-rest: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    0 8px 20px -4px rgba(33, 31, 26, 0.1), 0 2px 8px -2px rgba(33, 31, 26, 0.06);
+  --component-button-shadow-rest: 0 1px 2px 0 rgba(33, 31, 26, 0.06);
   --component-button-shadow-press: none;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -339,23 +341,23 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* ── Status pills — dark: fondo tintado + texto claro ──────────────── */
+/* ── Status pills — light: fondo pastel + texto saturado (pill) ──────── */
 @utility status-success {
-  background: oklch(0.62 0.16 155 / 0.12);
-  color: oklch(0.75 0.16 155);
-  border: 1px solid oklch(0.62 0.16 155 / 0.3);
+  background: oklch(0.63 0.14 155 / 0.12);
+  color: oklch(0.4 0.12 155);
+  border: 1px solid oklch(0.63 0.14 155 / 0.28);
 }
 
 @utility status-warning {
-  background: oklch(0.75 0.15 80 / 0.12);
-  color: oklch(0.82 0.15 80);
-  border: 1px solid oklch(0.75 0.15 80 / 0.3);
+  background: oklch(0.7 0.14 70 / 0.16);
+  color: oklch(0.45 0.13 55);
+  border: 1px solid oklch(0.7 0.14 70 / 0.3);
 }
 
 @utility status-danger {
-  background: oklch(0.62 0.22 25 / 0.12);
-  color: oklch(0.75 0.2 25);
-  border: 1px solid oklch(0.62 0.22 25 / 0.3);
+  background: oklch(0.58 0.18 25 / 0.12);
+  color: oklch(0.45 0.18 25);
+  border: 1px solid oklch(0.58 0.18 25 / 0.28);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -531,14 +533,14 @@
 /* Production shell: visual language shared with the approved CCV direction. */
 .ccv-shell {
   background:
-    radial-gradient(circle at 94% -10%, rgba(212, 171, 84, .1), transparent 28rem),
-    radial-gradient(circle at -8% 90%, rgba(110, 196, 180, .06), transparent 25rem),
-    #0b1215;
+    radial-gradient(circle at 94% -10%, rgba(47, 158, 86, .07), transparent 28rem),
+    radial-gradient(circle at -8% 90%, rgba(200, 121, 26, .05), transparent 25rem),
+    #eeece5;
   font-family: "Outfit", ui-sans-serif, sans-serif;
 }
 .ccv-shell .bg-card {
-  background: linear-gradient(145deg, rgba(27, 42, 48, .96), rgba(20, 32, 37, .96));
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(33, 31, 26, .05);
 }
 .ccv-shell button,
 .ccv-shell a,
@@ -551,20 +553,7 @@
 .ccv-shell select:focus-visible,
 .ccv-shell input:focus-visible {
   outline: 2px solid var(--primary);
-  box-shadow: 0 0 0 4px rgba(212, 171, 84, .16);
-}
-.ccv-toast {
-  position: fixed;
-  right: 1.25rem;
-  bottom: 1.25rem;
-  z-index: 60;
-  border: 1px solid rgba(110, 196, 180, .38);
-  border-radius: .75rem;
-  background: #1b2a30;
-  color: #e8edf0;
-  padding: .7rem 1rem;
-  font-size: .75rem;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, .24);
+  box-shadow: 0 0 0 4px rgba(47, 158, 86, .18);
 }
 .ccv-command-panel {
   animation: ccv-fade-in-up 180ms var(--ease-out) both;
@@ -575,31 +564,6 @@
 .ccv-legend-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--primary); }
 .ccv-legend-dot.teal { background: var(--success); }
 .ccv-chart-months { display: flex; justify-content: space-between; color: var(--muted-foreground); font: .65rem var(--font-mono); margin-top: .45rem; }
-.ccv-unit-line { display: grid; grid-template-columns: 82px minmax(70px, 1fr) 42px minmax(130px, auto); align-items: center; gap: .7rem; padding: .65rem 0; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); font-size: .75rem; }
-.ccv-unit-line strong, .ccv-unit-line small { font-family: var(--font-mono); }
-.ccv-unit-line small { color: var(--muted-foreground); font-size: .63rem; }
-.ccv-unit-track { height: 7px; overflow: hidden; border-radius: 99px; background: color-mix(in oklab, var(--foreground) 10%, transparent); }
-.ccv-unit-track i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
-.ccv-unit-track i.good { background: var(--success); }
-.ccv-signal-stack { display: grid; gap: .8rem; }
-.ccv-signal-stack > div { border-left: 2px solid var(--primary); padding: .2rem 0 .2rem .75rem; }
-.ccv-signal-stack > div.good { border-color: var(--success); }
-.ccv-signal-stack > div.risk { border-color: var(--danger); }
-.ccv-signal-stack strong { display: block; font: 600 1.2rem var(--font-mono); }
-.ccv-signal-stack span, .ccv-next-hito small { display: block; color: var(--muted-foreground); font-size: .68rem; }
-.ccv-next-hito > strong { display: block; color: var(--primary); font: 600 1.5rem var(--font-mono); }
-.ccv-next-hito > span { display: block; margin: .55rem 0 .25rem; font-weight: 600; font-size: .75rem; }
-.ccv-aging-visual { display: flex; align-items: end; gap: .8rem; height: 190px; padding: 0 .5rem; border-bottom: 1px solid var(--border); }
-.ccv-aging-item { display: flex; flex: 1; height: 100%; flex-direction: column; align-items: center; justify-content: end; gap: .45rem; }
-.ccv-aging-item strong { font: .65rem var(--font-mono); color: var(--muted-foreground); }
-.ccv-aging-item i { display: block; width: 100%; min-height: 12px; border-radius: 7px 7px 2px 2px; background: var(--primary); }
-.ccv-aging-item:first-child i { background: var(--success); }
-.ccv-aging-item:last-child i { background: var(--danger); }
-.ccv-aging-item span { color: var(--muted-foreground); font-size: .65rem; }
-@media (max-width: 640px) {
-  .ccv-unit-line { grid-template-columns: 72px minmax(50px, 1fr) 40px; }
-  .ccv-unit-line small { display: none; }
-}
 @media (prefers-reduced-motion: reduce) {
   .ccv-command-panel { animation: none; }
 }

@@ -326,7 +326,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <img src="/Logo_CCV.png" alt="CCV" className="size-8 object-contain shrink-0" />
           <div className={cn("min-w-0", collapsed && "lg:hidden")}>
-            <div className="font-display font-bold text-white text-sm leading-tight">CCV</div>
+            <div className="font-display font-bold text-sidebar-foreground text-sm leading-tight">CCV</div>
             <div className="text-[9px] tracking-widest text-primary font-display font-bold uppercase">
               {roleLabel(role)}
             </div>
@@ -341,7 +341,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           title={collapsed ? "Expandir menú" : "Colapsar menú"}
           className={cn(
             "hidden lg:flex items-center gap-2 mx-2 mt-2 px-2 py-1.5 rounded-md shrink-0",
-            "text-white/50 hover:text-white hover:bg-sidebar-accent/60",
+            "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent",
             "transition-colors duration-150 ease-out",
             "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
             collapsed && "justify-center",
@@ -361,7 +361,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div key={group.title} className={cn("px-2", i > 0 && "mt-3")}>
               <p
                 className={cn(
-                  "px-2 pb-1 text-[10px] font-display font-bold uppercase tracking-wider text-white/40",
+                  "px-2 pb-1 text-[10px] font-display font-bold uppercase tracking-wider text-sidebar-foreground/40",
                   collapsed && "lg:hidden",
                 )}
               >
@@ -380,15 +380,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                         "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm tracking-wide",
                         "transition-[background-color,color] duration-150 ease-out",
                         active
-                          ? "bg-primary/10 text-white font-semibold ring-1 ring-inset ring-primary/25"
-                          : "text-white/70 hover:text-white hover:bg-sidebar-accent/60",
+                          ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                         collapsed && "lg:justify-center",
                       )}
                     >
                       <n.icon
                         className={cn(
                           "size-4 shrink-0",
-                          active ? "text-primary" : "text-sidebar-accent-foreground/50",
+                          active ? "text-primary-foreground" : "text-sidebar-accent-foreground/50",
                         )}
                       />
                       <span className={cn("whitespace-nowrap", collapsed && "lg:hidden")}>
@@ -409,7 +409,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             onClick={handleSignOut}
             title="Cerrar sesión"
             className={cn(
-              "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-white/70 hover:text-white hover:bg-sidebar-accent/60 transition-[background-color,color] duration-150",
+              "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-[background-color,color] duration-150",
               collapsed && "lg:justify-center",
             )}
           >
@@ -429,7 +429,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 "U"}
             </div>
             <div className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
-              <div className="text-xs font-semibold text-white truncate">
+              <div className="text-xs font-semibold text-sidebar-foreground truncate">
                 {profile?.nombre_completo ?? "Usuario"}
               </div>
               <StatusPill kind="neutral">{roleLabel(role)}</StatusPill>
