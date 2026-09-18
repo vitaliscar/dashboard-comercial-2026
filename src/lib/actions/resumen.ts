@@ -209,6 +209,14 @@ export async function getResumenDataAction(data: {
       // el detalle de cliente del lado CCV vive acá, en `servicios` (AS400).
       // Sin este query, Top Clientes de Servicios quedaba casi vacío aunque el
       // monto total (que sí combina ambas fuentes) fuera correcto.
+      //
+      // Excluye "Consorcio de Cogestión Venequip" como cliente: es venta
+      // interna (la compañía facturándose servicios a sí misma), ya
+      // contabilizada aparte en `servicios_interno` -- listarla en el top de
+      // clientes reales confunde al usuario final. No se toca `servCond`
+      // (usado también para los totales agregados) para no alterar esas
+      // cifras sin que se haya pedido -- el usuario solo reportó el gap en
+      // el top de clientes, confirmado 2026-09-18.
       tx
         .select({
           unidadNegocioId: servicios.unidadNegocioId,
@@ -217,7 +225,7 @@ export async function getResumenDataAction(data: {
           montoTotal: sum(servicios.monto),
         })
         .from(servicios)
-        .where(servCond)
+        .where(and(servCond, sql`${servicios.cliente} NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'`))
         .groupBy(servicios.unidadNegocioId, servicios.sucursalId, servicios.cliente),
       tx
         .select()
