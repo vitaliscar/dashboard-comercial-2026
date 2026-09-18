@@ -84,22 +84,26 @@ export default function ParetoPage() {
   const { role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const anio = filters.anio;
-  const mes = filters.meses === "all" ? 0 : (filters.meses[0] ?? 0);
+  const meses = filters.meses === "all" || (Array.isArray(filters.meses) && filters.meses.length === 0)
+    ? "all"
+    : filters.meses;
+  const mesSelect = meses === "all" ? 0 : meses.length === 1 ? meses[0] : 0;
   const [fuente, setFuente] = useState<ParetoFuente>("facturado");
 
   const setAnio = (newAnio: number) => {
     setFilters({ anio: newAnio });
   };
   const setMes = (newMes: number) => {
+    // Solo escribe un mes puntual; "Todos" = YTD sin pisar multi-mes ajeno al seleccionar 0.
     setFilters({ meses: newMes === 0 ? "all" : [newMes] });
   };
 
   const canView = canAccessModule(role, "pareto");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["pareto", fuente, anio, mes],
+    queryKey: ["pareto", fuente, anio, meses],
     enabled: canView,
-    queryFn: () => getParetoDataAction({ fuente, anio, mes }),
+    queryFn: () => getParetoDataAction({ fuente, anio, meses }),
   });
 
   const { rows, totalGeneral, top20Count, top20Sum, top20Share } = useMemo(() => {
@@ -196,7 +200,7 @@ export default function ParetoPage() {
           </div>
           <div className="flex flex-col gap-1">
             <Label className="text-xs text-muted-foreground">Mes</Label>
-            <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
+            <Select value={String(mesSelect)} onValueChange={(v) => setMes(Number(v))}>
               <SelectTrigger className="w-36">
                 <SelectValue />
               </SelectTrigger>

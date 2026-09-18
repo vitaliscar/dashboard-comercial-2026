@@ -125,14 +125,14 @@ function esClienteAjusteManual(nombre: string | null | undefined): boolean {
 
 function Clientes360Tab({
   anio,
-  mes,
-  sucursalId,
+  meses,
+  sucursales,
   selectedUnidades,
   initialSearch,
 }: {
   anio: number;
-  mes: number;
-  sucursalId: string | undefined;
+  meses: number[] | "all";
+  sucursales: string[];
   selectedUnidades: string[];
   initialSearch: string;
 }) {
@@ -145,14 +145,14 @@ function Clientes360Tab({
   const hoy = useMemo(() => new Date(), []);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["cliente-360", fuente, anio, mes, sucursalId, selectedUnidades, role, profile?.id],
+    queryKey: ["cliente-360", fuente, anio, meses, sucursales, selectedUnidades, role, profile?.id],
     enabled: canView,
     queryFn: () =>
       getCliente360DataAction({
         fuente,
         anio,
-        mes,
-        sucursalId,
+        meses,
+        sucursales,
         unidades: selectedUnidades,
       }),
   });
@@ -210,8 +210,16 @@ function Clientes360Tab({
       if (p.sucursal_id) e.sucursales.add(p.sucursal_id);
     });
 
+    // Enrichment only — no agregar clientes fuera del periodo (evita que el KPI
+    // "Clientes" cuente el año completo cuando el filtro es un mes).
+    const enrichOnly = (nombre: string) => {
+      const key = normalize(nombre);
+      if (!key || esClienteAjusteManual(nombre)) return null;
+      return porCliente.get(key) ?? null;
+    };
+
     data.facturas.forEach((f) => {
-      const e = upsert(f.cliente);
+      const e = enrichOnly(f.cliente);
       if (!e) return;
       e.ltv += Number(f.monto) || 0;
       const fecha = new Date(f.fecha);
@@ -220,13 +228,13 @@ function Clientes360Tab({
     });
 
     data.ventasPerdidas.forEach((v) => {
-      const e = upsert(v.cliente);
+      const e = enrichOnly(v.cliente);
       if (!e) return;
       e.montoPerdidoReciente += Number(v.monto) || 0;
     });
 
     data.cobranzas.forEach((c) => {
-      const e = upsert(c.cliente);
+      const e = enrichOnly(c.cliente);
       if (!e) return;
       e.saldoVencido += Number(c.saldo) || 0;
       const dias = diasEntre(c.fechaVencimiento, hoy);
@@ -617,8 +625,8 @@ export default function ClientesPage() {
 
   const { filters, setFilters } = useSharedFilters();
   const anio = filters.anio;
-  const mes = filters.meses === "all" ? 0 : (filters.meses[0] ?? 0);
-  const sucursalId = filters.sucursales[0] ?? undefined;
+  const meses = filters.meses;
+  const selectedSucursales = filters.sucursales;
   const selectedUnidades = filters.unidades;
 
   const { data: sucursales } = useSucursales();
@@ -660,15 +668,16 @@ export default function ClientesPage() {
         sucursalMulti
         unitOptions={unitOptions}
         defaultAnio={anio}
-        defaultMes={filters.meses}
+        defaultMes={meses}
+        defaultSucursales={selectedSucursales}
         defaultUnits={selectedUnidades}
         showAllMonths
       />
 
       <Clientes360Tab
         anio={anio}
-        mes={mes}
-        sucursalId={sucursalId}
+        meses={meses}
+        sucursales={selectedSucursales}
         selectedUnidades={selectedUnidades}
         initialSearch={clienteParam ?? ""}
       />

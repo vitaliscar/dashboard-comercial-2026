@@ -205,6 +205,7 @@ export default function SucursalPage() {
             .map(({ value, label }) => ({ value, label }));
         })()}
         defaultMes={meses}
+        defaultSucursal={filters.sucursales[0] ?? "all"}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}
         showAllMonths

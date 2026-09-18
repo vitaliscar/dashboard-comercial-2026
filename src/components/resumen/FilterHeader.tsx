@@ -56,6 +56,8 @@ interface FilterHeaderProps {
   defaultMes?: number[] | "all";
   defaultAnio: number;
   defaultSucursal?: string;
+  /** Hidrata el multi-select de sucursales desde shared filters. */
+  defaultSucursales?: string[];
   defaultUnit?: string;
   defaultUnits?: string[];
   showAllMonths?: boolean;
@@ -70,6 +72,7 @@ export function FilterHeader({
   defaultMes,
   defaultAnio,
   defaultSucursal,
+  defaultSucursales,
   defaultUnit,
   defaultUnits,
 }: FilterHeaderProps) {
@@ -81,7 +84,7 @@ export function FilterHeader({
   const [selectedMonths, setSelectedMonths] = useState<number[] | "all">(defaultMes ?? "all");
   const [anio, setAnio] = useState(defaultAnio);
   const [sucursal, setSucursal] = useState(defaultSucursal ?? "all");
-  const [selectedSucursales, setSelectedSucursales] = useState<string[]>([]);
+  const [selectedSucursales, setSelectedSucursales] = useState<string[]>(defaultSucursales ?? []);
   const [selectedUnits, setSelectedUnits] = useState<string[]>(defaultUnits ?? []);
 
   useEffect(() => {
@@ -93,6 +96,9 @@ export function FilterHeader({
   useEffect(() => {
     setSucursal(defaultSucursal ?? "all");
   }, [defaultSucursal]);
+  useEffect(() => {
+    if (defaultSucursales !== undefined) setSelectedSucursales(defaultSucursales);
+  }, [defaultSucursales]);
   useEffect(() => {
     if (defaultUnits) {
       setSelectedUnits(defaultUnits);

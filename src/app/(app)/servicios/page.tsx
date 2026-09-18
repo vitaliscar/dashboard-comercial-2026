@@ -356,6 +356,7 @@ export default function ServiciosPage() {
             : undefined
         }
         defaultMes={meses}
+        defaultSucursal={filters.sucursales[0] ?? "all"}
         defaultAnio={anio}
         showAllMonths
       />

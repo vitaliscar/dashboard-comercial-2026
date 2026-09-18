@@ -235,6 +235,7 @@ export default function GerenciaNacionalPage() {
           label: unidadLabelInfo(u.nombre).label,
         }))}
         defaultMes={meses}
+        defaultSucursales={selectedSucursales}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}
         showAllMonths

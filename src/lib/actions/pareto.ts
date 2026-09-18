@@ -1,22 +1,44 @@
 "use server";
 
-import { and, gte, lt, sum } from "drizzle-orm";
-import { cotizaciones, facturas, ventasPerdidas } from "@/db/schema";
+import { and, sum, sql } from "drizzle-orm";
+import { cotizaciones, facturas, ventasPerdidas, servicios } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
+import { getDateRangesForMonths, type MonthFilter } from "@/lib/date-range";
+import { dateRangeCondition } from "@/lib/server/query-helpers";
 
 export type ParetoFuente = "cotizado" | "facturado" | "perdido";
+
+/** Misma exclusión que Top Clientes / Cliente 360 (venta interna). */
+const EXCLURE_CONSORCIO = sql`cliente NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'`;
+
+type ParetoRow = {
+  cliente: string;
+  asesor: string | null;
+  monto: number;
+  sucursal_id: string | null;
+};
+
+function mergeParetoRows(parts: ParetoRow[][]): ParetoRow[] {
+  const map = new Map<string, ParetoRow>();
+  for (const rows of parts) {
+    for (const r of rows) {
+      const key = `${r.cliente}\0${r.asesor ?? ""}\0${r.sucursal_id ?? ""}`;
+      const cur = map.get(key);
+      if (cur) cur.monto += r.monto;
+      else map.set(key, { ...r });
+    }
+  }
+  return Array.from(map.values());
+}
 
 export async function getParetoDataAction(data: {
   fuente: ParetoFuente;
   anio: number;
-  mes: number;
+  meses: MonthFilter;
 }) {
   return withAuth(async ({ tx }) => {
-    const { fuente, anio, mes } = data;
-    const desde = mes === 0 ? `${anio}-01-01` : `${anio}-${String(mes).padStart(2, "0")}-01`;
-    const hastaAnio = mes === 0 || mes === 12 ? anio + 1 : anio;
-    const hastaMes = mes === 0 || mes === 12 ? 1 : mes + 1;
-    const hasta = `${hastaAnio}-${String(hastaMes).padStart(2, "0")}-01`;
+    const { fuente, anio, meses } = data;
+    const ranges = getDateRangesForMonths(anio, meses);
 
     if (fuente === "cotizado") {
       const rows = await tx
@@ -27,21 +49,47 @@ export async function getParetoDataAction(data: {
           sucursal_id: cotizaciones.sucursalId,
         })
         .from(cotizaciones)
-        .where(and(gte(cotizaciones.fecha, desde), lt(cotizaciones.fecha, hasta)))
+        .where(and(dateRangeCondition(cotizaciones.fecha, ranges)))
         .groupBy(cotizaciones.cliente, cotizaciones.asesorCodigo, cotizaciones.sucursalId);
       return rows.map((r) => ({ ...r, monto: Number(r.monto ?? 0) }));
     } else if (fuente === "facturado") {
-      const rows = await tx
-        .select({
-          cliente: facturas.cliente,
-          asesor: facturas.asesor,
-          monto: sum(facturas.monto),
-          sucursal_id: facturas.sucursalId,
-        })
-        .from(facturas)
-        .where(and(gte(facturas.fecha, desde), lt(facturas.fecha, hasta)))
-        .groupBy(facturas.cliente, facturas.asesor, facturas.sucursalId);
-      return rows.map((r) => ({ ...r, monto: Number(r.monto ?? 0) }));
+      // Misma fuente que Top Clientes Facturados: facturas + servicios (AS400).
+      const [facRows, servRows] = await Promise.all([
+        tx
+          .select({
+            cliente: facturas.cliente,
+            asesor: facturas.asesor,
+            monto: sum(facturas.monto),
+            sucursal_id: facturas.sucursalId,
+          })
+          .from(facturas)
+          .where(and(dateRangeCondition(facturas.fecha, ranges), EXCLURE_CONSORCIO))
+          .groupBy(facturas.cliente, facturas.asesor, facturas.sucursalId),
+        tx
+          .select({
+            cliente: servicios.cliente,
+            asesor: servicios.asesor,
+            monto: sum(servicios.monto),
+            sucursal_id: servicios.sucursalId,
+          })
+          .from(servicios)
+          .where(and(dateRangeCondition(servicios.fecha, ranges), EXCLURE_CONSORCIO))
+          .groupBy(servicios.cliente, servicios.asesor, servicios.sucursalId),
+      ]);
+      return mergeParetoRows([
+        facRows.map((r) => ({
+          cliente: r.cliente,
+          asesor: r.asesor,
+          monto: Number(r.monto ?? 0),
+          sucursal_id: r.sucursal_id,
+        })),
+        servRows.map((r) => ({
+          cliente: r.cliente,
+          asesor: r.asesor,
+          monto: Number(r.monto ?? 0),
+          sucursal_id: r.sucursal_id,
+        })),
+      ]);
     } else {
       const rows = await tx
         .select({
@@ -51,7 +99,7 @@ export async function getParetoDataAction(data: {
           sucursal_id: ventasPerdidas.sucursalId,
         })
         .from(ventasPerdidas)
-        .where(and(gte(ventasPerdidas.fecha, desde), lt(ventasPerdidas.fecha, hasta)))
+        .where(and(dateRangeCondition(ventasPerdidas.fecha, ranges)))
         .groupBy(ventasPerdidas.cliente, ventasPerdidas.asesor, ventasPerdidas.sucursalId);
       return rows.map((r) => ({ ...r, monto: Number(r.monto ?? 0) }));
     }

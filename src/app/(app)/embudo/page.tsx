@@ -210,6 +210,7 @@ export default function EmbudoPage() {
         sucursalOptions={sucursalOptions}
         sucursalMulti={isFullAccessRole(role)}
         defaultMes={meses}
+        defaultSucursales={selectedSucursales}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}
         showAllMonths

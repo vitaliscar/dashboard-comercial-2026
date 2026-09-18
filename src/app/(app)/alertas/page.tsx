@@ -300,6 +300,7 @@ export default function AlertasPage() {
         sucursalOptions={sucursalOptions}
         sucursalMulti={isFullAccessRole(role)}
         defaultMes={meses}
+        defaultSucursales={selectedSucursales}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}
         showAllMonths

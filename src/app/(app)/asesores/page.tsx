@@ -288,6 +288,7 @@ export default function AsesoresPage() {
         onApplyFilters={handleApplyFilters}
         defaultAnio={anio}
         defaultMes={meses}
+        defaultSucursales={selectedSucursales}
         defaultUnits={selectedUnidades}
         sucursalOptions={sucursalOptions}
         sucursalMulti={isFullAccessRole(role)}

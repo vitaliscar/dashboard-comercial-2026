@@ -246,6 +246,7 @@ export default function RepuestosPage() {
         }
         unitOptions={undefined}
         defaultMes={meses}
+        defaultSucursal={filters.sucursales[0] ?? "all"}
         defaultAnio={anio}
         showAllMonths
       />

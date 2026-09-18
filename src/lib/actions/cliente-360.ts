@@ -1,41 +1,71 @@
 "use server";
 
-import { and, eq, gte, gt, inArray, lt, sum, max, min, type SQLWrapper } from "drizzle-orm";
-import { cotizaciones, facturas, ventasPerdidas, cobranzas } from "@/db/schema";
+import { and, gte, gt, inArray, sum, max, min, sql, type SQLWrapper } from "drizzle-orm";
+import { cotizaciones, facturas, ventasPerdidas, cobranzas, servicios } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
+import { getDateRangesForMonths, type MonthFilter } from "@/lib/date-range";
+import { dateRangeCondition } from "@/lib/server/query-helpers";
 
 export type Cliente360Fuente = "cotizado" | "facturado" | "perdido";
 
 function unitCond(col: SQLWrapper, unidades: string[]) {
-  return unidades && unidades.length > 0 ? inArray(col, unidades) : undefined;
+  return unidades.length > 0 ? inArray(col, unidades) : undefined;
 }
 
-function sucursalCond(col: SQLWrapper, sucursalId?: string) {
-  return sucursalId && sucursalId !== "all" ? eq(col, sucursalId) : undefined;
+function sucursalesCond(col: SQLWrapper, sucursales: string[]) {
+  return sucursales.length > 0 ? inArray(col, sucursales) : undefined;
+}
+
+/** Misma exclusión que Top Clientes en resumen (venta interna, todas las U/N). */
+const EXCLURE_CONSORCIO = sql`cliente NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'`;
+
+type ParetoRow = { cliente: string; monto: number; sucursal_id: string | null };
+
+function mergeParetoRows(parts: ParetoRow[][]): ParetoRow[] {
+  const map = new Map<string, ParetoRow>();
+  for (const rows of parts) {
+    for (const r of rows) {
+      const key = `${r.cliente}\0${r.sucursal_id ?? ""}`;
+      const cur = map.get(key);
+      if (cur) cur.monto += r.monto;
+      else map.set(key, { ...r });
+    }
+  }
+  return Array.from(map.values());
 }
 
 export async function getCliente360DataAction(data: {
   fuente: Cliente360Fuente;
   anio: number;
-  mes: number;
+  /** Multi-mes o "all" (YTD). */
+  meses: MonthFilter;
+  sucursales?: string[];
   sucursalId?: string;
   unidades: string[];
 }) {
   return withAuth(async ({ tx }) => {
-    const { fuente, anio, mes, sucursalId, unidades } = data;
+    const { fuente, anio, meses, unidades } = data;
+    const sucursales =
+      data.sucursales && data.sucursales.length > 0
+        ? data.sucursales
+        : data.sucursalId && data.sucursalId !== "all"
+          ? [data.sucursalId]
+          : [];
 
-    const desde = mes === 0 ? `${anio}-01-01` : `${anio}-${String(mes).padStart(2, "0")}-01`;
-    const hastaAnio = mes === 0 || mes === 12 ? anio + 1 : anio;
-    const hastaMes = mes === 0 || mes === 12 ? 1 : mes + 1;
-    const hasta = `${hastaAnio}-${String(hastaMes).padStart(2, "0")}-01`;
+    const ranges = getDateRangesForMonths(anio, meses);
+    const fechaFacturas = dateRangeCondition(facturas.fecha, ranges);
+    const fechaServicios = dateRangeCondition(servicios.fecha, ranges);
+    const fechaCotizaciones = dateRangeCondition(cotizaciones.fecha, ranges);
+    const fechaVentasPerdidas = dateRangeCondition(ventasPerdidas.fecha, ranges);
 
     const hace90d = new Date();
     hace90d.setDate(hace90d.getDate() - 90);
     const hace90dStr = hace90d.toISOString().slice(0, 10);
 
-    let paretoPromise;
+    let pareto: ParetoRow[] = [];
+
     if (fuente === "cotizado") {
-      paretoPromise = tx
+      const rows = await tx
         .select({
           cliente: cotizaciones.cliente,
           monto: sum(cotizaciones.monto),
@@ -44,32 +74,71 @@ export async function getCliente360DataAction(data: {
         .from(cotizaciones)
         .where(
           and(
-            gte(cotizaciones.fecha, desde),
-            lt(cotizaciones.fecha, hasta),
-            sucursalCond(cotizaciones.sucursalId, sucursalId),
+            fechaCotizaciones,
+            sucursalesCond(cotizaciones.sucursalId, sucursales),
             unitCond(cotizaciones.unidadNegocioId, unidades),
+            EXCLURE_CONSORCIO,
           ),
         )
         .groupBy(cotizaciones.cliente, cotizaciones.sucursalId);
+      pareto = rows.map((r) => ({
+        cliente: r.cliente,
+        monto: Number(r.monto ?? 0),
+        sucursal_id: r.sucursal_id,
+      }));
     } else if (fuente === "facturado") {
-      paretoPromise = tx
-        .select({
-          cliente: facturas.cliente,
-          monto: sum(facturas.monto),
-          sucursal_id: facturas.sucursalId,
-        })
-        .from(facturas)
-        .where(
-          and(
-            gte(facturas.fecha, desde),
-            lt(facturas.fecha, hasta),
-            sucursalCond(facturas.sucursalId, sucursalId),
-            unitCond(facturas.unidadNegocioId, unidades),
-          ),
-        )
-        .groupBy(facturas.cliente, facturas.sucursalId);
+      // Misma lógica que Top Clientes Facturados en Resumen:
+      // - facturas = detalle transaccional (Xibi/Otra Empresa, etc.)
+      // - servicios = detalle CCV AS400 (la mayoría del facturado de Servicios)
+      // Sin la tabla servicios, filtrar "Servicios + agosto" deja ~2 clientes.
+      const [facRows, servRows] = await Promise.all([
+        tx
+          .select({
+            cliente: facturas.cliente,
+            monto: sum(facturas.monto),
+            sucursal_id: facturas.sucursalId,
+          })
+          .from(facturas)
+          .where(
+            and(
+              fechaFacturas,
+              sucursalesCond(facturas.sucursalId, sucursales),
+              unitCond(facturas.unidadNegocioId, unidades),
+              EXCLURE_CONSORCIO,
+            ),
+          )
+          .groupBy(facturas.cliente, facturas.sucursalId),
+        tx
+          .select({
+            cliente: servicios.cliente,
+            monto: sum(servicios.monto),
+            sucursal_id: servicios.sucursalId,
+          })
+          .from(servicios)
+          .where(
+            and(
+              fechaServicios,
+              sucursalesCond(servicios.sucursalId, sucursales),
+              unitCond(servicios.unidadNegocioId, unidades),
+              EXCLURE_CONSORCIO,
+            ),
+          )
+          .groupBy(servicios.cliente, servicios.sucursalId),
+      ]);
+      pareto = mergeParetoRows([
+        facRows.map((r) => ({
+          cliente: r.cliente,
+          monto: Number(r.monto ?? 0),
+          sucursal_id: r.sucursal_id,
+        })),
+        servRows.map((r) => ({
+          cliente: r.cliente,
+          monto: Number(r.monto ?? 0),
+          sucursal_id: r.sucursal_id,
+        })),
+      ]);
     } else {
-      paretoPromise = tx
+      const rows = await tx
         .select({
           cliente: ventasPerdidas.cliente,
           monto: sum(ventasPerdidas.monto),
@@ -78,79 +147,101 @@ export async function getCliente360DataAction(data: {
         .from(ventasPerdidas)
         .where(
           and(
-            gte(ventasPerdidas.fecha, desde),
-            lt(ventasPerdidas.fecha, hasta),
-            sucursalCond(ventasPerdidas.sucursalId, sucursalId),
+            fechaVentasPerdidas,
+            sucursalesCond(ventasPerdidas.sucursalId, sucursales),
             unitCond(ventasPerdidas.unidadNegocioId, unidades),
           ),
         )
         .groupBy(ventasPerdidas.cliente, ventasPerdidas.sucursalId);
-    }
-
-    const facturasHealthPromise = tx
-      .select({
-        cliente: facturas.cliente,
-        fecha: max(facturas.fecha),
-        monto: sum(facturas.monto),
-      })
-      .from(facturas)
-      .where(
-        and(
-          sucursalCond(facturas.sucursalId, sucursalId),
-          unitCond(facturas.unidadNegocioId, unidades),
-        ),
-      )
-      .groupBy(facturas.cliente);
-
-    const ventasPerdidasHealthPromise = tx
-      .select({
-        cliente: ventasPerdidas.cliente,
-        monto: sum(ventasPerdidas.monto),
-      })
-      .from(ventasPerdidas)
-      .where(
-        and(
-          gte(ventasPerdidas.fecha, hace90dStr),
-          sucursalCond(ventasPerdidas.sucursalId, sucursalId),
-          unitCond(ventasPerdidas.unidadNegocioId, unidades),
-        ),
-      )
-      .groupBy(ventasPerdidas.cliente);
-
-    const cobranzasHealthPromise = tx
-      .select({
-        cliente: cobranzas.cliente,
-        saldo: sum(cobranzas.saldo),
-        fechaVencimiento: min(cobranzas.fechaVencimiento),
-      })
-      .from(cobranzas)
-      .where(
-        and(
-          gt(cobranzas.saldo, "0"),
-          sucursalCond(cobranzas.sucursalId, sucursalId),
-          unitCond(cobranzas.unidadNegocioId, unidades),
-        ),
-      )
-      .groupBy(cobranzas.cliente);
-
-    const [paretoRows, facturasRows, ventasPerdidasRows, cobranzasRows] = await Promise.all([
-      paretoPromise,
-      facturasHealthPromise,
-      ventasPerdidasHealthPromise,
-      cobranzasHealthPromise,
-    ]);
-
-    return {
-      pareto: paretoRows.map((r) => ({
+      pareto = rows.map((r) => ({
         cliente: r.cliente,
         monto: Number(r.monto ?? 0),
         sucursal_id: r.sucursal_id,
-      })),
-      facturas: facturasRows.map((r) => ({
-        cliente: r.cliente,
-        fecha: r.fecha ?? "",
-        monto: Number(r.monto ?? 0),
-      })),
+      }));
+    }
+
+    // LTV del periodo: facturas + servicios (misma fuente que Top Clientes facturado).
+    const [facLtv, servLtv, ventasPerdidasRows, cobranzasRows] = await Promise.all([
+      tx
+        .select({
+          cliente: facturas.cliente,
+          fecha: max(facturas.fecha),
+          monto: sum(facturas.monto),
+        })
+        .from(facturas)
+        .where(
+          and(
+            fechaFacturas,
+            sucursalesCond(facturas.sucursalId, sucursales),
+            unitCond(facturas.unidadNegocioId, unidades),
+            EXCLURE_CONSORCIO,
+          ),
+        )
+        .groupBy(facturas.cliente),
+      tx
+        .select({
+          cliente: servicios.cliente,
+          fecha: max(servicios.fecha),
+          monto: sum(servicios.monto),
+        })
+        .from(servicios)
+        .where(
+          and(
+            fechaServicios,
+            sucursalesCond(servicios.sucursalId, sucursales),
+            unitCond(servicios.unidadNegocioId, unidades),
+            EXCLURE_CONSORCIO,
+          ),
+        )
+        .groupBy(servicios.cliente),
+      tx
+        .select({
+          cliente: ventasPerdidas.cliente,
+          monto: sum(ventasPerdidas.monto),
+        })
+        .from(ventasPerdidas)
+        .where(
+          and(
+            gte(ventasPerdidas.fecha, hace90dStr),
+            sucursalesCond(ventasPerdidas.sucursalId, sucursales),
+            unitCond(ventasPerdidas.unidadNegocioId, unidades),
+          ),
+        )
+        .groupBy(ventasPerdidas.cliente),
+      tx
+        .select({
+          cliente: cobranzas.cliente,
+          saldo: sum(cobranzas.saldo),
+          fechaVencimiento: min(cobranzas.fechaVencimiento),
+        })
+        .from(cobranzas)
+        .where(
+          and(
+            gt(cobranzas.saldo, "0"),
+            sucursalesCond(cobranzas.sucursalId, sucursales),
+            unitCond(cobranzas.unidadNegocioId, unidades),
+          ),
+        )
+        .groupBy(cobranzas.cliente),
+    ]);
+
+    const ltvMap = new Map<string, { cliente: string; fecha: string; monto: number }>();
+    for (const r of [...facLtv, ...servLtv]) {
+      const key = r.cliente;
+      const monto = Number(r.monto ?? 0);
+      const fecha = r.fecha ?? "";
+      const cur = ltvMap.get(key);
+      if (!cur) {
+        ltvMap.set(key, { cliente: key, fecha, monto });
+      } else {
+        cur.monto += monto;
+        if (fecha && (!cur.fecha || fecha > cur.fecha)) cur.fecha = fecha;
+      }
+    }
+
+    return {
+      pareto,
+      facturas: Array.from(ltvMap.values()),
       ventasPerdidas: ventasPerdidasRows.map((r) => ({
         cliente: r.cliente,
         monto: Number(r.monto ?? 0),

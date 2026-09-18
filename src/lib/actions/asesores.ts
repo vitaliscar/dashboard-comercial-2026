@@ -26,22 +26,22 @@ export async function getAsesoresRawDataAction(data: {
   return withAuth(async ({ tx, role, profile }) => {
     const { anio, meses, ranges, selectedSucursales, selectedUnidades } = data;
 
-    const sucursalId =
+    const sucursalFilter =
       role === "coordinador"
         ? profile.sucursalId
-        : selectedSucursales.length > 0
-          ? selectedSucursales[0]
-          : null;
+          ? [profile.sucursalId]
+          : []
+        : selectedSucursales;
 
     const cotConds = [
       dateRangeCondition(cotizaciones.fecha, ranges),
-      sucursalId ? eq(cotizaciones.sucursalId, sucursalId) : undefined,
+      inCond(cotizaciones.sucursalId, sucursalFilter),
       inCond(cotizaciones.unidadNegocioId, selectedUnidades),
     ].filter(Boolean);
 
     const vpConds = [
       dateRangeCondition(ventasPerdidas.fecha, ranges),
-      sucursalId ? eq(ventasPerdidas.sucursalId, sucursalId) : undefined,
+      inCond(ventasPerdidas.sucursalId, sucursalFilter),
       inCond(ventasPerdidas.unidadNegocioId, selectedUnidades),
     ].filter(Boolean);
 
@@ -50,7 +50,7 @@ export async function getAsesoresRawDataAction(data: {
       meses !== "all" && Array.isArray(meses) && meses.length > 0
         ? inArray(cumplimientoAsesores.mes, meses)
         : undefined,
-      sucursalId ? eq(cumplimientoAsesores.sucursalId, sucursalId) : undefined,
+      inCond(cumplimientoAsesores.sucursalId, sucursalFilter),
       inCond(cumplimientoAsesores.unidadNegocioId, selectedUnidades),
     ].filter(Boolean);
 
@@ -60,7 +60,7 @@ export async function getAsesoresRawDataAction(data: {
       meses !== "all" && Array.isArray(meses) && meses.length > 0
         ? inArray(ventasCasa.mes, meses)
         : undefined,
-      sucursalId ? eq(ventasCasa.sucursalId, sucursalId) : undefined,
+      inCond(ventasCasa.sucursalId, sucursalFilter),
       inCond(ventasCasa.unidadNegocioId, selectedUnidades),
     ].filter(Boolean);
 
