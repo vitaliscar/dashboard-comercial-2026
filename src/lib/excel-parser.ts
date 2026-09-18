@@ -1515,6 +1515,10 @@ export class ExcelParser {
   private getLubMontoPorCompaniaSucursal(): { [claveCompaniaSucursalMes: string]: number } {
     const datos = this.leerHoja("Lubricantes/Filtros");
     const map: { [claveCompaniaSucursalMes: string]: number } = {};
+    // Xibi sin resolver: si el diccionario no trae el cliente, su lubricante no
+    // se resta del Repuestos de esa sucursal y el numero queda inflado en
+    // silencio. Se avisa (mismo criterio que load-facturas-as400.ts).
+    const xibiSinResolver = new Map<string, { filas: number; monto: number }>();
     datos.forEach((row) => {
       const grupo = this.grupoCompania(row["Compañía"] ?? row["Compañia"]);
       if (!grupo) return;
@@ -1527,7 +1531,16 @@ export class ExcelParser {
         grupo === "xibi"
           ? this.normalizarSucursal(DICCIONARIO_SUCURSAL_XIBI[codCliente] ?? "")
           : this.normalizarSucursal(row["Sucursal"]);
-      if (!sucursal) return;
+      if (!sucursal) {
+        // Cod. Cliente 35 = intercompania Xibi->CCV, se excluye a proposito.
+        if (grupo === "xibi" && codCliente !== "35") {
+          const acc = xibiSinResolver.get(codCliente) ?? { filas: 0, monto: 0 };
+          acc.filas += 1;
+          acc.monto += this.parseNumber(row["P.V.P. Total $ Extendido"]);
+          xibiSinResolver.set(codCliente, acc);
+        }
+        return;
+      }
       // Clave por sucursal+mes+año: "Lubricantes/Filtros" puede traer varios
       // meses a la vez (el Excel manual acumula todo el histórico en una sola
       // hoja) — sin esto se restaría el lubricante de TODOS los meses contra
@@ -1538,6 +1551,12 @@ export class ExcelParser {
       const clave = `${grupo}|${sucursal}|${anio}-${mes}`;
       map[clave] = (map[clave] || 0) + this.parseNumber(row["P.V.P. Total $ Extendido"]);
     });
+    if (xibiSinResolver.size > 0) {
+      console.warn(
+        "⚠️  Lubricante Xibi sin sucursal (Cód. Cliente no está en DICCIONARIO_SUCURSAL_XIBI, no se netea de Repuestos):",
+        Object.fromEntries(xibiSinResolver),
+      );
+    }
     return map;
   }
 

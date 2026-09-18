@@ -14,7 +14,7 @@ import {
 import { withAuth } from "@/lib/actions/with-auth";
 import { hashPassword } from "@/lib/auth/password";
 import { validatePasswordStrength } from "@/lib/auth/password-policy";
-import { canCreateDeleteUsers, isFullAccessRole } from "@/lib/permissions";
+import { canCreateDeleteUsers, canGrantAdminPrivileges, isFullAccessRole } from "@/lib/permissions";
 
 export type AppRole = (typeof appRole.enumValues)[number];
 
@@ -114,6 +114,21 @@ export async function setUserRoleAction(data: { userId: string; newRole: AppRole
       throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar roles");
     }
 
+    // Solo un administrador puede otorgar el rol administrador ni modificar a
+    // quien ya lo es: si no, gerencia se autopromueve o degrada a un admin.
+    if (!canGrantAdminPrivileges(role)) {
+      if (parsed.newRole === "administrador") {
+        throw new Error("Unauthorized: Solo un Administrador puede otorgar el rol Administrador");
+      }
+      const actual = await tx
+        .select({ role: userRoles.role })
+        .from(userRoles)
+        .where(eq(userRoles.userId, parsed.userId));
+      if (actual.some((r) => r.role === "administrador")) {
+        throw new Error("Unauthorized: Solo un Administrador puede modificar el rol de un Administrador");
+      }
+    }
+
     await tx.delete(userRoles).where(eq(userRoles.userId, parsed.userId));
     await tx.insert(userRoles).values({
       userId: parsed.userId,
@@ -167,6 +182,9 @@ export async function setProfileAdminAction(data: { userId: string; isAdmin: boo
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
       throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar permisos de admin");
+    }
+    if (parsed.isAdmin && !canGrantAdminPrivileges(role)) {
+      throw new Error("Unauthorized: Solo un Administrador puede activar el permiso de admin");
     }
 
     await tx

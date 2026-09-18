@@ -112,6 +112,12 @@ export function isFullAccessRole(role: AppRole | null | undefined): boolean {
   return role === "administrador" || role === "gerencia";
 }
 
+/** Solo Administrador puede otorgar el rol administrador o activar profiles.is_admin
+ * (Gerencia no puede autopromoverse: barrera en acción + RLS + trigger, ver 0021). */
+export function canGrantAdminPrivileges(role: AppRole | null | undefined): boolean {
+  return role === "administrador";
+}
+
 /** Solo Administrador puede crear o eliminar usuarios. */
 export function canCreateDeleteUsers(role: AppRole | null | undefined): boolean {
   return role === "administrador";

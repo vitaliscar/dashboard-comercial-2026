@@ -403,7 +403,7 @@ function EditUserDialog({
                   <SelectValue placeholder="Sin rol asignado" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
+                  {ROLES.filter((r) => r !== "administrador" || canDelete || currentRole === "administrador").map((r) => (
                     <SelectItem key={r} value={r}>
                       {roleLabel(r)}
                     </SelectItem>
@@ -502,7 +502,7 @@ function EditUserDialog({
                   </p>
                 </div>
               </div>
-              <Checkbox checked={profile.isAdmin} onCheckedChange={(c) => setAdmin.mutate(!!c)} />
+              <Checkbox checked={profile.isAdmin} disabled={!canDelete} onCheckedChange={(c) => setAdmin.mutate(!!c)} />
             </div>
 
             {/* Acciones peligrosas */}
