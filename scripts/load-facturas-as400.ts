@@ -13,12 +13,18 @@
  * Neteo de lubricante (getLubMontoPorFactura, resta el P.V.P. de
  * LubricantesFiltros del bruto de Repuestos por Nro.Factura(s) para no contar
  * doble): se alimenta con las mismas filas de src/lib/as400-lubricantes.ts
- * que usa load-facturas-lubfiltros-as400.ts.
+ * que usa load-facturas-lubfiltros-from-sheet.ts.
  *
  * Alcance: SOLO las unidades que produce este reporte (Repuestos, Servicios,
  * Equipos, Alquiler vía CRM) — Lubricantes/Filtros ya lo cubre
- * load-facturas-lubfiltros-as400.ts. Delete scoped a las unidades que
+ * load-facturas-lubfiltros-from-sheet.ts. Delete scoped a las unidades que
  * realmente aparecen en las filas parseadas.
+ *
+ * NUNCA borrar/reinsertar Lubricantes/Filtros aquí: getFacturasPrincipales()
+ * reclasifica unas pocas ventas estratégicas a Lub, y si esa unidad entra en
+ * el delete-scope se pierden los ~100+ clientes de la hoja Lubricantes/Filtros
+ * (bug 2026-09-18: agosto Lub quedaba en 4 clientes en vez de ~111). Top
+ * Clientes / Cliente 360 de Lub dependen de esa hoja.
  *
  * Gap conocido (igual que en los scripts anteriores): no resuelve `asesor_id`
  * (requiere el fuzzy-match de seedUsuarios). `asesor` (texto libre) sí se guarda.
@@ -32,7 +38,7 @@ import * as path from "node:path";
 import { dbAdmin } from "@/db";
 import { facturas } from "@/db/schema";
 import { seedCatalogos, insertChunked, type DbAdminTx } from "@/db/load-excel";
-import { ExcelParser } from "@/lib/excel-parser";
+import { ExcelParser, UNIDAD_LUBFILTROS } from "@/lib/excel-parser";
 import {
   leerArchivoCrudo,
   localizarArchivoMasReciente,
@@ -83,6 +89,17 @@ async function main() {
     .filter((f) => (f.fecha ?? "9999") >= "2026-01-01");
   console.log(`→ ${facturasRaw.length} facturas parseadas`);
 
+  // Excluir Lub: esa unidad la carga load-facturas-lubfiltros-from-sheet.ts.
+  // Incluirla aquí borra los clientes de la hoja Lub al reclasificar estratégicas.
+  const facturasCrm = facturasRaw.filter(
+    (f) => (f.unidadNegocio ?? "").trim().toLowerCase() !== UNIDAD_LUBFILTROS.trim().toLowerCase(),
+  );
+  const lubExcluidas = facturasRaw.length - facturasCrm.length;
+  console.log(
+    `→ ${facturasCrm.length} facturas CRM (Repuestos/Servicios/Equipos/Alquiler)` +
+      (lubExcluidas > 0 ? `; ${lubExcluidas} Lub estratégicas omitidas (no tocar hoja Lub)` : ""),
+  );
+
   let fechasFallbackCount = 0;
   const sucursalesNoResueltas = new Map<string, number>();
   const unidadesNoResueltas = new Map<string, number>();
@@ -90,6 +107,7 @@ async function main() {
   await dbAdmin.transaction(async (tx: DbAdminTx) => {
     const { sucursales: sucursalesMap, unidades: unidadesMap } = await seedCatalogos(tx);
     const today = new Date().toISOString().slice(0, 10);
+    const lubId = unidadesMap.get(UNIDAD_LUBFILTROS.trim().toLowerCase()) ?? null;
 
     const buscarSucursalId = (texto: string): string | null => {
       const id = sucursalesMap.get(texto.trim().toLowerCase()) ?? null;
@@ -107,7 +125,9 @@ async function main() {
 
     const idsUnidades = Array.from(
       new Set(
-        facturasRaw.map((f) => buscarUnidadId(f.unidadNegocio)).filter((id): id is string => !!id),
+        facturasCrm
+          .map((f) => buscarUnidadId(f.unidadNegocio))
+          .filter((id): id is string => !!id && id !== lubId),
       ),
     );
     if (idsUnidades.length > 0) {
@@ -121,7 +141,7 @@ async function main() {
     const insertadas = await insertChunked(
       tx,
       facturas,
-      facturasRaw.map((f) => {
+      facturasCrm.map((f) => {
         if (!f.fecha) fechasFallbackCount++;
         return {
           fecha: f.fecha ?? today,
