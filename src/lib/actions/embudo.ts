@@ -108,11 +108,17 @@ export async function getEmbudoTotalesAction(data: {
     // Ajustes manuales: el total ya combina ccv+xibi+estrategico, así que
     // cualquier ajuste (sea cual sea su columna) suma directo aquí, filtrado
     // por los mismos meses/unidades/sucursales de la query de arriba.
-    const ajustes = await cargarAjustesManuales(tx, data.anio, data.meses.length > 0 ? data.meses : undefined);
+    const ajustes = await cargarAjustesManuales(
+      tx,
+      data.anio,
+      data.meses.length > 0 ? data.meses : undefined,
+    );
     const ajusteTotal = ajustes
       .filter(
         (a) =>
-          (data.unidades.length === 0 || a.unidadNegocioId === null || data.unidades.includes(a.unidadNegocioId)) &&
+          (data.unidades.length === 0 ||
+            a.unidadNegocioId === null ||
+            data.unidades.includes(a.unidadNegocioId)) &&
           (sucursales.length === 0 || a.sucursalId === null || sucursales.includes(a.sucursalId)),
       )
       .reduce((sum, a) => sum + a.monto, 0);

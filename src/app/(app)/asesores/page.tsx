@@ -29,15 +29,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useState, useMemo } from "react";
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  ReferenceLine,
-  LabelList,
-} from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, ReferenceLine, LabelList } from "recharts";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   Shield,

@@ -15,7 +15,11 @@ export interface AjusteFila {
 }
 
 /** Trae los ajustes manuales del año dado (todos los meses) para aplicarlos en memoria. */
-export async function cargarAjustesManuales(tx: Tx, anio: number, meses?: number[]): Promise<AjusteFila[]> {
+export async function cargarAjustesManuales(
+  tx: Tx,
+  anio: number,
+  meses?: number[],
+): Promise<AjusteFila[]> {
   const rows = await tx
     .select({
       sucursalId: ajustesManuales.sucursalId,
@@ -71,12 +75,27 @@ export function aplicarAjustesAPresupuestos<T extends PresupuestoConAjustable>(
     // así que un ajuste sin columna específica cae en CCV por convención.
     ventasCcv: String(
       Number(row.ventasCcv ?? 0) +
-        sumaAjuste(ajustes, { mes: row.mes, sucursalId: row.sucursalId, unidadNegocioId: row.unidadNegocioId, columna: "ccv" }) +
-        sumaAjuste(ajustes, { mes: row.mes, sucursalId: row.sucursalId, unidadNegocioId: row.unidadNegocioId, columna: "total" }),
+        sumaAjuste(ajustes, {
+          mes: row.mes,
+          sucursalId: row.sucursalId,
+          unidadNegocioId: row.unidadNegocioId,
+          columna: "ccv",
+        }) +
+        sumaAjuste(ajustes, {
+          mes: row.mes,
+          sucursalId: row.sucursalId,
+          unidadNegocioId: row.unidadNegocioId,
+          columna: "total",
+        }),
     ),
     ventasXibi: String(
       Number(row.ventasXibi ?? 0) +
-        sumaAjuste(ajustes, { mes: row.mes, sucursalId: row.sucursalId, unidadNegocioId: row.unidadNegocioId, columna: "xibi" }),
+        sumaAjuste(ajustes, {
+          mes: row.mes,
+          sucursalId: row.sucursalId,
+          unidadNegocioId: row.unidadNegocioId,
+          columna: "xibi",
+        }),
     ),
     ventasEstrategicas: String(
       Number(row.ventasEstrategicas ?? 0) +
@@ -92,7 +111,12 @@ export function aplicarAjustesAPresupuestos<T extends PresupuestoConAjustable>(
 
 export function sumaAjuste(
   ajustes: AjusteFila[],
-  params: { mes: number; sucursalId?: string | null; unidadNegocioId?: string | null; columna: ColumnaAjuste },
+  params: {
+    mes: number;
+    sucursalId?: string | null;
+    unidadNegocioId?: string | null;
+    columna: ColumnaAjuste;
+  },
 ): number {
   return ajustes
     .filter(

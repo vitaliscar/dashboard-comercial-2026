@@ -202,12 +202,7 @@ const ROLES_USUARIO_CANONICAS: { [key: string]: string } = {
 
 const ROLES_USUARIO_VALIDOS = new Set(Object.values(ROLES_USUARIO_CANONICAS));
 
-export type AppRole =
-  | "administrador"
-  | "gerencia"
-  | "gerente_comercial"
-  | "coordinador"
-  | "asesor";
+export type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 /**
  * Mapea la etiqueta de rol de la hoja Usuarios (8 valores) al enum app_role
@@ -1663,8 +1658,7 @@ export class ExcelParser {
     // manual armado a mano) — se deriva aquí directo de las fechas.
     const mesAnioCierre = (row: RawRowData): { mes: number; anio: number } | null => {
       const fecha =
-        this.excelDateToISO(row["Fecha Documento"]) ??
-        this.excelDateToISO(row["Fecha de Cierre"]);
+        this.excelDateToISO(row["Fecha Documento"]) ?? this.excelDateToISO(row["Fecha de Cierre"]);
       if (!fecha) return null;
       const mes = parseInt(fecha.slice(5, 7), 10);
       const anio = parseInt(fecha.slice(0, 4), 10);
@@ -1767,9 +1761,14 @@ export class ExcelParser {
    * en exactamente ese monto). Neteo por mes+unidadNegocio, distribuido
    * proporcionalmente entre las filas de La Cruz para no alterar el total.
    */
-  private netearMaturinDePuertoLaCruz<T extends { sucursal: string; fecha: string | null; unidadNegocio: string | null; monto: number }>(
-    filas: T[],
-  ): T[] {
+  private netearMaturinDePuertoLaCruz<
+    T extends {
+      sucursal: string;
+      fecha: string | null;
+      unidadNegocio: string | null;
+      monto: number;
+    },
+  >(filas: T[]): T[] {
     const clave = (fecha: string, unidad: string) => `${fecha}|${unidad}`;
     const maturinPorClave: { [clave: string]: number } = {};
     filas.forEach((f) => {
@@ -2023,9 +2022,7 @@ export class ExcelParser {
         row["Dias Vencidos"] ?? row["DIAS VENCIDO"] ?? row["Días Vencidos"],
       );
       const diasVencidos =
-        diasExplicitos > 0
-          ? diasExplicitos
-          : this.diasVencidosDesdeFecha(fechaVencimiento, corte);
+        diasExplicitos > 0 ? diasExplicitos : this.diasVencidosDesdeFecha(fechaVencimiento, corte);
 
       if (!grupos.has(key)) {
         grupos.set(key, {

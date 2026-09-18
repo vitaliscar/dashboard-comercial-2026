@@ -43,7 +43,9 @@ async function main() {
     sheetNames: ["Lubricantes/Filtros"],
     sheets: { "Lubricantes/Filtros": rows },
   });
-  const facturasRaw = parser.getFacturasLubFiltros().filter((f) => (f.fecha ?? "9999") >= "2026-01-01");
+  const facturasRaw = parser
+    .getFacturasLubFiltros()
+    .filter((f) => (f.fecha ?? "9999") >= "2026-01-01");
   console.log(`→ ${facturasRaw.length} filas parseadas`);
 
   const sucursalesNoResueltas = new Map<string, number>();
@@ -61,7 +63,9 @@ async function main() {
       return id;
     };
 
-    await tx.delete(facturas).where(and(eq(facturas.unidadNegocioId, lubFiltrosId), gte(facturas.fecha, "2026-01-01")));
+    await tx
+      .delete(facturas)
+      .where(and(eq(facturas.unidadNegocioId, lubFiltrosId), gte(facturas.fecha, "2026-01-01")));
     const insertadas = await insertChunked(
       tx,
       facturas,

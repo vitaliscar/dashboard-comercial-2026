@@ -22,7 +22,10 @@ import { presupuestos, sucursales, unidadesNegocio } from "@/db/schema";
 import { ExcelParser, UNIDAD_LUBFILTROS, type RawRowData } from "@/lib/excel-parser";
 import { leerArchivoCrudo, localizarArchivoMasReciente } from "@/lib/raw-source-reader";
 import { leerFilasLubricanteVentasrepuesto } from "@/lib/as400-lubricantes";
-import { DICCIONARIO_SUCURSAL_XIBI, resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
+import {
+  DICCIONARIO_SUCURSAL_XIBI,
+  resolverSucursalOportunidadesDetallado,
+} from "@/lib/as400-sucursales";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
 const HEADER_ROW = 12;
@@ -83,7 +86,9 @@ async function main() {
       const codCliente = (row["Cód. Cliente"] ?? "").toString().trim();
       const resuelta = DICCIONARIO_SUCURSAL_XIBI[codCliente];
       if (!resuelta) {
-        console.warn(`⚠️  Xibi sin resolver: Cód. Cliente="${codCliente}" no está en DICCIONARIO_SUCURSAL_XIBI`);
+        console.warn(
+          `⚠️  Xibi sin resolver: Cód. Cliente="${codCliente}" no está en DICCIONARIO_SUCURSAL_XIBI`,
+        );
         return;
       }
       clave = resuelta;
@@ -116,13 +121,19 @@ async function main() {
   Object.entries(reclasXibi).forEach(([s, v]) => (totalXibi[s] = (totalXibi[s] || 0) + v));
   const totalEstrategicas: Totales = { ...reclasEstrategicas };
 
-  const claves = new Set([...Object.keys(totalCcv), ...Object.keys(totalXibi), ...Object.keys(totalEstrategicas)]);
+  const claves = new Set([
+    ...Object.keys(totalCcv),
+    ...Object.keys(totalXibi),
+    ...Object.keys(totalEstrategicas),
+  ]);
 
   await dbAdmin.transaction(async (tx) => {
     const sucursalesRows = await tx.select().from(sucursales);
     const unidadesRows = await tx.select().from(unidadesNegocio);
     const sucursalMap = new Map(sucursalesRows.map((s) => [s.nombre.trim().toLowerCase(), s.id]));
-    const unidadId = unidadesRows.find((u) => u.nombre.trim().toLowerCase() === "lubricantes/filtros")?.id;
+    const unidadId = unidadesRows.find(
+      (u) => u.nombre.trim().toLowerCase() === "lubricantes/filtros",
+    )?.id;
     if (!unidadId) throw new Error('unidad "Lubricantes/Filtros" no existe en catálogo');
 
     let actualizadas = 0;
@@ -149,15 +160,31 @@ async function main() {
         .returning({ id: presupuestos.id });
       if (resultado.length > 0) {
         actualizadas++;
-        console.log(`✓ ${sucursal}: CCV=${ccv.toFixed(2)} Xibi=${xibi.toFixed(2)} Estrategicas=${est.toFixed(2)}`);
+        console.log(
+          `✓ ${sucursal}: CCV=${ccv.toFixed(2)} Xibi=${xibi.toFixed(2)} Estrategicas=${est.toFixed(2)}`,
+        );
       } else {
-        console.warn(`⚠️  No existe fila presupuestos para Lubricantes/Filtros / ${sucursal} en ${ANIO}-${MES}`);
+        console.warn(
+          `⚠️  No existe fila presupuestos para Lubricantes/Filtros / ${sucursal} en ${ANIO}-${MES}`,
+        );
       }
     }
     console.log(`\n✅ ${actualizadas} filas actualizadas`);
-    console.log(`\nTotal CCV: ${Object.values(totalCcv).reduce((a, b) => a + b, 0).toFixed(2)}`);
-    console.log(`Total Xibi: ${Object.values(totalXibi).reduce((a, b) => a + b, 0).toFixed(2)}`);
-    console.log(`Total Estratégicas: ${Object.values(totalEstrategicas).reduce((a, b) => a + b, 0).toFixed(2)}`);
+    console.log(
+      `\nTotal CCV: ${Object.values(totalCcv)
+        .reduce((a, b) => a + b, 0)
+        .toFixed(2)}`,
+    );
+    console.log(
+      `Total Xibi: ${Object.values(totalXibi)
+        .reduce((a, b) => a + b, 0)
+        .toFixed(2)}`,
+    );
+    console.log(
+      `Total Estratégicas: ${Object.values(totalEstrategicas)
+        .reduce((a, b) => a + b, 0)
+        .toFixed(2)}`,
+    );
   });
 }
 

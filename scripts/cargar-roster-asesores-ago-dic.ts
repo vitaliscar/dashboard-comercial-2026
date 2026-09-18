@@ -66,11 +66,7 @@ function leerCsv(ruta: string): FilaRoster[] {
 // Sin tilde/acento y en minúscula -- el CSV del Sheet viene sin acentos
 // ("Maturin", no "Maturín") y con nombres de unidad abreviados ("Lub/Filtros").
 const sinAcentos = (texto: string): string =>
-  texto
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+  texto.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 const ALIAS_UNIDAD: Record<string, string> = {
   "lub/filtros": "lubricantes/filtros",
@@ -92,7 +88,7 @@ async function main() {
     const sucursalesNoResueltas = new Set<string>();
     let insertadas = 0;
     let preservadas = 0;
-    let sinTocar = 0;
+    const sinTocar = 0;
 
     for (const mes of meses) {
       const filasDelMes = filas.filter((f) => f.mes === mes);

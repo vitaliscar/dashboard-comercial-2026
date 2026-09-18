@@ -57,7 +57,8 @@ export default function NuevaMinutaPage() {
   const qc = useQueryClient();
   const { role } = useAuth();
 
-  const canCreate = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
+  const canCreate =
+    isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -201,7 +202,9 @@ export default function NuevaMinutaPage() {
     },
     onSuccess: () => {
       toast.success(
-        compromisos.length === 1 ? "Minuta creada" : `Minuta creada con ${compromisos.length} compromisos`,
+        compromisos.length === 1
+          ? "Minuta creada"
+          : `Minuta creada con ${compromisos.length} compromisos`,
       );
       qc.invalidateQueries({ queryKey: ["minutas"] });
       qc.invalidateQueries({ queryKey: ["alertas-abiertas"] });
@@ -281,7 +284,12 @@ export default function NuevaMinutaPage() {
                 {draft.alertaId ? "Compromiso desde alerta" : "Nuevo compromiso"}
               </h3>
               {draft.alertaId && (
-                <Button variant="ghost" size="sm" className="text-xs" onClick={quitarAlertaDelDraft}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={quitarAlertaDelDraft}
+                >
                   Quitar alerta
                 </Button>
               )}
@@ -398,7 +406,12 @@ export default function NuevaMinutaPage() {
                         {c.alertaTitulo ? ` · Desde alerta` : ""}
                       </p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => quitarCompromiso(c.key)} title="Quitar">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => quitarCompromiso(c.key)}
+                      title="Quitar"
+                    >
                       <Trash2 className="size-3.5 text-destructive" />
                     </Button>
                   </div>
@@ -410,7 +423,10 @@ export default function NuevaMinutaPage() {
               <Button variant="outline" onClick={() => router.push("/minutas")}>
                 Cancelar
               </Button>
-              <Button onClick={() => save.mutate()} disabled={save.isPending || compromisos.length === 0}>
+              <Button
+                onClick={() => save.mutate()}
+                disabled={save.isPending || compromisos.length === 0}
+              >
                 {save.isPending
                   ? "Guardando..."
                   : `Guardar minuta${compromisos.length > 1 ? ` (${compromisos.length} compromisos)` : ""}`}
@@ -435,7 +451,11 @@ export default function NuevaMinutaPage() {
                   <button
                     key={alerta.id}
                     type="button"
-                    onClick={() => (draft.alertaId === alerta.id ? quitarAlertaDelDraft() : seleccionarAlerta(alerta))}
+                    onClick={() =>
+                      draft.alertaId === alerta.id
+                        ? quitarAlertaDelDraft()
+                        : seleccionarAlerta(alerta)
+                    }
                     className={`flex flex-col gap-1 rounded-md border p-3 text-left text-xs transition ${
                       draft.alertaId === alerta.id
                         ? "border-primary bg-primary/10"
@@ -444,7 +464,10 @@ export default function NuevaMinutaPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold">{alerta.titulo}</span>
-                      <Badge variant={severidadVariant(alerta.severidad)} className="text-[9px] shrink-0">
+                      <Badge
+                        variant={severidadVariant(alerta.severidad)}
+                        className="text-[9px] shrink-0"
+                      >
                         {alerta.severidad}
                       </Badge>
                     </div>
@@ -457,7 +480,9 @@ export default function NuevaMinutaPage() {
                       </span>
                     )}
                     {draft.alertaId === alerta.id && (
-                      <span className="text-[10px] font-semibold text-primary">✓ Seleccionada — clic para quitar</span>
+                      <span className="text-[10px] font-semibold text-primary">
+                        ✓ Seleccionada — clic para quitar
+                      </span>
                     )}
                   </button>
                 ))}

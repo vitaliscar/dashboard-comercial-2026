@@ -24,14 +24,38 @@ import { isFullAccessRole } from "@/lib/permissions";
  * códigos de prueba, etc.).
  */
 const CODIGOS_ASESOR_ACTIVOS = new Set([
-  "75610", "81238", "75595", "44711", "57995", "46128", // Puerto Ordaz
-  "46125", "80068", "27931", "80868", // Puerto La Cruz
-  "95520", "48179", "45499", "81459", "48162", // Barquisimeto
-  "19415", "45497", "78297", "49935", "81592", // Valencia
-  "27124", "81300", "67094", // Caracas
-  "33236", "29177", "61812", "45511", "93031", // Maracaibo
-  "45501", "82001", // Punto Fijo
-  "34771", "31344", // Maturín
+  "75610",
+  "81238",
+  "75595",
+  "44711",
+  "57995",
+  "46128", // Puerto Ordaz
+  "46125",
+  "80068",
+  "27931",
+  "80868", // Puerto La Cruz
+  "95520",
+  "48179",
+  "45499",
+  "81459",
+  "48162", // Barquisimeto
+  "19415",
+  "45497",
+  "78297",
+  "49935",
+  "81592", // Valencia
+  "27124",
+  "81300",
+  "67094", // Caracas
+  "33236",
+  "29177",
+  "61812",
+  "45511",
+  "93031", // Maracaibo
+  "45501",
+  "82001", // Punto Fijo
+  "34771",
+  "31344", // Maturín
 ]);
 
 export type ReporteFiltros = {
@@ -65,7 +89,8 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
     const mesesFiltro = filtros.meses.length > 0 ? filtros.meses : undefined;
     const condiciones = [eq(presupuestos.anio, filtros.anio)];
     if (mesesFiltro) condiciones.push(inArray(presupuestos.mes, mesesFiltro));
-    if (filtros.sucursalIds.length > 0) condiciones.push(inArray(presupuestos.sucursalId, filtros.sucursalIds));
+    if (filtros.sucursalIds.length > 0)
+      condiciones.push(inArray(presupuestos.sucursalId, filtros.sucursalIds));
     if (filtros.unidadNegocioIds.length > 0)
       condiciones.push(inArray(presupuestos.unidadNegocioId, filtros.unidadNegocioIds));
 
@@ -119,7 +144,10 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
 
     const sucursalIds = [...porSucursal.keys()];
     const sucursalRows = sucursalIds.length
-      ? await tx.select({ id: sucursales.id, nombre: sucursales.nombre }).from(sucursales).where(inArray(sucursales.id, sucursalIds))
+      ? await tx
+          .select({ id: sucursales.id, nombre: sucursales.nombre })
+          .from(sucursales)
+          .where(inArray(sucursales.id, sucursalIds))
       : [];
     const nombreSucursal = new Map(sucursalRows.map((s) => [s.id, s.nombre]));
 
@@ -149,7 +177,11 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
 
     const hallazgos: Hallazgo[] = [
       mejor
-        ? { tipo: "good", titulo: "Mejor desempeño", texto: `${mejor.label} lidera con ${mejor.pct.toFixed(1)}% de cumplimiento.` }
+        ? {
+            tipo: "good",
+            titulo: "Mejor desempeño",
+            texto: `${mejor.label} lidera con ${mejor.pct.toFixed(1)}% de cumplimiento.`,
+          }
         : null,
       bajo70.length > 0
         ? {
@@ -157,9 +189,17 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
             titulo: "Sucursales bajo 70%",
             texto: `${bajo70.length} de ${ranking.length} sucursales están bajo el 70% de cumplimiento.`,
           }
-        : { tipo: "good", titulo: "Todas sobre 70%", texto: "Ninguna sucursal está por debajo del umbral crítico." },
+        : {
+            tipo: "good",
+            titulo: "Todas sobre 70%",
+            texto: "Ninguna sucursal está por debajo del umbral crítico.",
+          },
       peor && peor.id !== mejor?.id
-        ? { tipo: "warn", titulo: "Necesita atención", texto: `${peor.label} tiene el cumplimiento más bajo (${peor.pct.toFixed(1)}%).` }
+        ? {
+            tipo: "warn",
+            titulo: "Necesita atención",
+            texto: `${peor.label} tiene el cumplimiento más bajo (${peor.pct.toFixed(1)}%).`,
+          }
         : null,
     ].filter((h): h is Hallazgo => h !== null);
 
@@ -168,12 +208,18 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
     // nacional por marca+mes, sin sucursal_id, así que no se filtran por
     // sucursal -- coherente con que ya son un residuo "No Definido" cuando
     // no se puede atribuir a una marca conocida (ver scripts de agosto).
-    const unidadRows = await tx.select({ id: unidadesNegocio.id, nombre: unidadesNegocio.nombre }).from(unidadesNegocio);
+    const unidadRows = await tx
+      .select({ id: unidadesNegocio.id, nombre: unidadesNegocio.nombre })
+      .from(unidadesNegocio);
     const nombrePorUnidadId = new Map(unidadRows.map((u) => [u.id, u.nombre.toLowerCase()]));
     const unidadesSeleccionadas =
       filtros.unidadNegocioIds.length === 0
         ? new Set(unidadRows.map((u) => u.nombre.toLowerCase()))
-        : new Set(filtros.unidadNegocioIds.map((id) => nombrePorUnidadId.get(id)).filter((n): n is string => !!n));
+        : new Set(
+            filtros.unidadNegocioIds
+              .map((id) => nombrePorUnidadId.get(id))
+              .filter((n): n is string => !!n),
+          );
 
     let detalleMarca: {
       repuestos: { marca: string; monto: number }[];
@@ -188,18 +234,25 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
     ) {
       const condicionEquipos = [eq(equiposPorMarca.anio, filtros.anio)];
       if (mesesFiltro) condicionEquipos.push(inArray(equiposPorMarca.mes, mesesFiltro));
-      if (filtros.sucursalIds.length > 0) condicionEquipos.push(inArray(equiposPorMarca.sucursalId, filtros.sucursalIds));
+      if (filtros.sucursalIds.length > 0)
+        condicionEquipos.push(inArray(equiposPorMarca.sucursalId, filtros.sucursalIds));
 
       const [repuestosRows, lubfiltrosRows, equiposRows] = await Promise.all([
         unidadesSeleccionadas.has("repuestos")
           ? tx
-              .select({ marca: detallesVentasRepuestos.marca, montoTotal: detallesVentasRepuestos.montoTotal })
+              .select({
+                marca: detallesVentasRepuestos.marca,
+                montoTotal: detallesVentasRepuestos.montoTotal,
+              })
               .from(detallesVentasRepuestos)
               .where(mesesFiltro ? inArray(detallesVentasRepuestos.mes, mesesFiltro) : undefined)
           : Promise.resolve([]),
         unidadesSeleccionadas.has("lubricantes/filtros")
           ? tx
-              .select({ marca: detallesVentasLubfiltros.marca, montoTotal: detallesVentasLubfiltros.montoTotal })
+              .select({
+                marca: detallesVentasLubfiltros.marca,
+                montoTotal: detallesVentasLubfiltros.montoTotal,
+              })
               .from(detallesVentasLubfiltros)
               .where(mesesFiltro ? inArray(detallesVentasLubfiltros.mes, mesesFiltro) : undefined)
           : Promise.resolve([]),
@@ -213,8 +266,12 @@ export async function getReporteCumplimientoAction(filtros: ReporteFiltros) {
 
       const agrupar = (rows: { marca: string; montoTotal?: string; monto?: string }[]) => {
         const acc = new Map<string, number>();
-        rows.forEach((r) => acc.set(r.marca, (acc.get(r.marca) ?? 0) + Number(r.montoTotal ?? r.monto ?? 0)));
-        return [...acc.entries()].map(([marca, monto]) => ({ marca, monto })).sort((a, b) => b.monto - a.monto);
+        rows.forEach((r) =>
+          acc.set(r.marca, (acc.get(r.marca) ?? 0) + Number(r.montoTotal ?? r.monto ?? 0)),
+        );
+        return [...acc.entries()]
+          .map(([marca, monto]) => ({ marca, monto }))
+          .sort((a, b) => b.monto - a.monto);
       };
 
       detalleMarca = {
@@ -244,7 +301,10 @@ type Tx = Parameters<Parameters<typeof withAuth>[0]>[0]["tx"];
 
 async function getReporteAsesorPropio(tx: Tx, userId: string, filtros: ReporteFiltros) {
   const mesesFiltro = filtros.meses.length > 0 ? filtros.meses : undefined;
-  const condiciones = [eq(cumplimientoAsesores.anio, filtros.anio), eq(cumplimientoAsesores.asesorId, userId)];
+  const condiciones = [
+    eq(cumplimientoAsesores.anio, filtros.anio),
+    eq(cumplimientoAsesores.asesorId, userId),
+  ];
   if (mesesFiltro) condiciones.push(inArray(cumplimientoAsesores.mes, mesesFiltro));
   if (filtros.unidadNegocioIds.length > 0)
     condiciones.push(inArray(cumplimientoAsesores.unidadNegocioId, filtros.unidadNegocioIds));
@@ -361,7 +421,9 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
     // "Gestión del asesor" se quedaba cargando sin mostrar nada por esto.
     const condicionesCot = [sql`EXTRACT(YEAR FROM ${cotizaciones.fecha}) = ${filtros.anio}`];
     if (mesesFiltro)
-      condicionesCot.push(or(...mesesFiltro.map((m) => sql`EXTRACT(MONTH FROM ${cotizaciones.fecha}) = ${m}`))!);
+      condicionesCot.push(
+        or(...mesesFiltro.map((m) => sql`EXTRACT(MONTH FROM ${cotizaciones.fecha}) = ${m}`))!,
+      );
     if (filtros.unidadNegocioIds.length > 0)
       condicionesCot.push(inArray(cotizaciones.unidadNegocioId, filtros.unidadNegocioIds));
 
@@ -385,11 +447,17 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
 
     const condicionesVp = [sql`EXTRACT(YEAR FROM ${ventasPerdidas.fecha}) = ${filtros.anio}`];
     if (mesesFiltro)
-      condicionesVp.push(or(...mesesFiltro.map((m) => sql`EXTRACT(MONTH FROM ${ventasPerdidas.fecha}) = ${m}`))!);
+      condicionesVp.push(
+        or(...mesesFiltro.map((m) => sql`EXTRACT(MONTH FROM ${ventasPerdidas.fecha}) = ${m}`))!,
+      );
     if (filtros.unidadNegocioIds.length > 0)
       condicionesVp.push(inArray(ventasPerdidas.unidadNegocioId, filtros.unidadNegocioIds));
     const vpRows = await tx
-      .select({ asesor: ventasPerdidas.asesor, cliente: ventasPerdidas.cliente, monto: ventasPerdidas.monto })
+      .select({
+        asesor: ventasPerdidas.asesor,
+        cliente: ventasPerdidas.cliente,
+        monto: ventasPerdidas.monto,
+      })
       .from(ventasPerdidas)
       .where(and(...condicionesVp));
 
@@ -417,9 +485,16 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
       .from(cumplimientoAsesores)
       .where(and(...condicionesCa));
 
-    const facturadoPorCodigo = new Map<string, { asesor: string; venta: number; presupuesto: number }>();
+    const facturadoPorCodigo = new Map<
+      string,
+      { asesor: string; venta: number; presupuesto: number }
+    >();
     caRows.forEach((r) => {
-      const acc = facturadoPorCodigo.get(r.codigo) ?? { asesor: r.asesor, venta: 0, presupuesto: 0 };
+      const acc = facturadoPorCodigo.get(r.codigo) ?? {
+        asesor: r.asesor,
+        venta: 0,
+        presupuesto: 0,
+      };
       acc.venta += Number(r.venta ?? 0);
       acc.presupuesto += Number(r.presupuesto ?? 0);
       facturadoPorCodigo.set(r.codigo, acc);
@@ -427,19 +502,26 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
 
     // Solo el roster de 32 asesores activos confirmado por el usuario
     // 2026-09-04 -- no todo lo que traiga cumplimiento_asesores.
-    const codigos = new Set([...facturadoPorCodigo.keys()].filter((c) => CODIGOS_ASESOR_ACTIVOS.has(c)));
+    const codigos = new Set(
+      [...facturadoPorCodigo.keys()].filter((c) => CODIGOS_ASESOR_ACTIVOS.has(c)),
+    );
     const filas: GestionAsesorFila[] = [...codigos].map((codigo) => {
       const cot = cotizadoPorCodigo.get(codigo) ?? { monto: 0, clientes: new Set<string>() };
       const fact = facturadoPorCodigo.get(codigo) ?? { asesor: codigo, venta: 0, presupuesto: 0 };
       const nombreClave = fact.asesor.trim().toLowerCase();
-      const perdido = perdidoPorNombre.get(nombreClave) ?? { monto: 0, clientes: new Set<string>() };
+      const perdido = perdidoPorNombre.get(nombreClave) ?? {
+        monto: 0,
+        clientes: new Set<string>(),
+      };
 
       const tasaConversion = cot.monto > 0 ? (fact.venta / cot.monto) * 100 : 0;
       const tasaPerdida = cot.monto > 0 ? (perdido.monto / cot.monto) * 100 : 0;
       const cumplimiento = fact.presupuesto > 0 ? (fact.venta / fact.presupuesto) * 100 : 0;
 
       const scorePonderado =
-        Math.min(cumplimiento, 100) * 0.4 + Math.min(tasaConversion, 100) * 0.35 + (100 - Math.min(tasaPerdida, 100)) * 0.25;
+        Math.min(cumplimiento, 100) * 0.4 +
+        Math.min(tasaConversion, 100) * 0.35 +
+        (100 - Math.min(tasaPerdida, 100)) * 0.25;
 
       return {
         codigoAsesor: codigo,
@@ -486,8 +568,18 @@ export async function generarAnalisisNarrativoAction(resumen: {
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY no está configurada en el servidor.");
 
     const MESES_NOMBRE = [
-      "enero", "febrero", "marzo", "abril", "mayo", "junio",
-      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre",
     ];
     const periodo = resumen.meses.length
       ? resumen.meses.map((m) => MESES_NOMBRE[m - 1]).join(", ")
@@ -527,10 +619,11 @@ Redacta un análisis narrativo de 3 a 5 párrafos cortos, en español, tono prof
     const json = (await respuesta.json()) as {
       content?: { type: string; text?: string }[];
     };
-    const texto = json.content
-      ?.filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("") ?? "";
+    const texto =
+      json.content
+        ?.filter((b) => b.type === "text")
+        .map((b) => b.text ?? "")
+        .join("") ?? "";
     if (!texto.trim()) throw new Error("Anthropic no devolvió texto.");
     return texto.trim();
   });

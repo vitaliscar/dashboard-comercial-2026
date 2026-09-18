@@ -131,30 +131,30 @@ export const CompanyMonthlyStackedLines = memo(function CompanyMonthlyStackedLin
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                 {(Object.keys(COMPANY_COLORS) as (keyof typeof COMPANY_COLORS)[]).map(
                   (key, lane) => (
-                  <Area
-                    key={key}
-                    type="monotone"
-                    dataKey={key}
-                    name={COMPANY_LABELS[key]}
-                    stackId="companias"
-                    stroke={COMPANY_COLORS[key]}
-                    fill={COMPANY_COLORS[key]}
-                    fillOpacity={0.15}
-                    strokeWidth={2.5}
-                    dot={renderDot}
-                    {...chartAnimation}
-                  >
-                    <LabelList
+                    <Area
+                      key={key}
+                      type="monotone"
                       dataKey={key}
-                      content={createLastPointLabel(
-                        data.length,
-                        (v) => money(v),
-                        COMPANY_COLORS[key],
-                        lane,
-                      )}
-                    />
-                  </Area>
-                ),
+                      name={COMPANY_LABELS[key]}
+                      stackId="companias"
+                      stroke={COMPANY_COLORS[key]}
+                      fill={COMPANY_COLORS[key]}
+                      fillOpacity={0.15}
+                      strokeWidth={2.5}
+                      dot={renderDot}
+                      {...chartAnimation}
+                    >
+                      <LabelList
+                        dataKey={key}
+                        content={createLastPointLabel(
+                          data.length,
+                          (v) => money(v),
+                          COMPANY_COLORS[key],
+                          lane,
+                        )}
+                      />
+                    </Area>
+                  ),
                 )}
               </AreaChart>
             </ResponsiveContainer>

@@ -95,7 +95,6 @@ export function AuthProvider({
       cancelled = true;
     };
     // Solo al montar: la hidratación inicial viene de props del servidor.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value: AuthContextValue = {

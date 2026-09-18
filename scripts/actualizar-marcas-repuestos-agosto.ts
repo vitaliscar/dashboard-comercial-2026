@@ -18,7 +18,11 @@ import * as path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { dbAdmin } from "@/db";
 import { presupuestos, unidadesNegocio, detallesVentasRepuestos } from "@/db/schema";
-import { leerArchivoCrudo, localizarArchivosOrdenados, type RawRowData } from "@/lib/raw-source-reader";
+import {
+  leerArchivoCrudo,
+  localizarArchivosOrdenados,
+  type RawRowData,
+} from "@/lib/raw-source-reader";
 
 const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR ?? path.join(os.homedir(), "Downloads");
 const HEADER_ROW = 8;
@@ -52,7 +56,8 @@ const esProveedorExcluidoPorNombre = (nombre: string): boolean => {
 // tradicionales quedaba casi 3x por encima del oficial reconciliado.
 const COD_CLIENTE_INTERCOMPANIA_XIBI = "35";
 const esIntercompaniaXibi = (row: RawRowData): boolean =>
-  (row["Cód. Cliente"] ?? "").toString().trim().replace(/^0+/, "") === COD_CLIENTE_INTERCOMPANIA_XIBI;
+  (row["Cód. Cliente"] ?? "").toString().trim().replace(/^0+/, "") ===
+  COD_CLIENTE_INTERCOMPANIA_XIBI;
 
 const MAPEO_MARCA: Record<string, string> = {
   BQ: "Blumaq",
@@ -152,7 +157,9 @@ function leerFilasDelMes(patron: RegExp): RawRowData[] {
   for (const archivo of candidatos) {
     const filas = leerArchivoCrudo(archivo, HEADER_ROW);
     const tieneMes = filas.some(
-      (row) => parseInt(String(row["Mes"] ?? ""), 10) === MES && parseInt(String(row["Año"] ?? ""), 10) === ANIO,
+      (row) =>
+        parseInt(String(row["Mes"] ?? ""), 10) === MES &&
+        parseInt(String(row["Año"] ?? ""), 10) === ANIO,
     );
     if (tieneMes) {
       console.log(`→ Leyendo ${archivo}`);
@@ -193,7 +200,9 @@ async function main() {
     }
     filas
       .sort((a, b) => Number(b.montoTotal) - Number(a.montoTotal))
-      .forEach((f) => console.log(`✓ ${f.marca}: CCV=${f.ventasCcv} Xibi=${f.ventasXibi} Total=${f.montoTotal}`));
+      .forEach((f) =>
+        console.log(`✓ ${f.marca}: CCV=${f.ventasCcv} Xibi=${f.ventasXibi} Total=${f.montoTotal}`),
+      );
     console.log(`\n✅ ${filas.length} marcas insertadas para mes=${MES}`);
   });
 }

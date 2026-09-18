@@ -32,17 +32,25 @@ const ANIO = Number(process.env.ANIO) || now.getUTCFullYear();
 const MES = Number(process.env.MES) || now.getUTCMonth() + 1;
 
 async function main() {
-  const archivo = localizarArchivoMasReciente(DOWNLOADS_DIR, /^ReporteEmbudoOportunidades_.*\.xlsx$/i);
+  const archivo = localizarArchivoMasReciente(
+    DOWNLOADS_DIR,
+    /^ReporteEmbudoOportunidades_.*\.xlsx$/i,
+  );
   console.log(`→ Leyendo ${archivo}`);
   const filas = leerArchivoCrudo(archivo, HEADER_ROW);
   console.log(`→ ${filas.length} filas crudas`);
 
-  const parser = new ExcelParser("", { sheetNames: ["Oportunidades"], sheets: { Oportunidades: filas } });
+  const parser = new ExcelParser("", {
+    sheetNames: ["Oportunidades"],
+    sheets: { Oportunidades: filas },
+  });
   const todas = parser.getCotizacionesPrincipales();
   // Lub/Filtros ya se carga con su propia lógica de neteo -- excluir aquí
   // para no duplicar contra actualizar-cotizaciones-lubfiltros-agosto.ts.
   const delMes = todas.filter(
-    (c) => c.unidadNegocio !== UNIDAD_LUBFILTROS && (c.fecha ?? "").startsWith(`${ANIO}-${String(MES).padStart(2, "0")}`),
+    (c) =>
+      c.unidadNegocio !== UNIDAD_LUBFILTROS &&
+      (c.fecha ?? "").startsWith(`${ANIO}-${String(MES).padStart(2, "0")}`),
   );
   console.log(`→ ${delMes.length} cotizaciones de ${ANIO}-${MES} (sin Lub/Filtros)`);
 
@@ -51,13 +59,16 @@ async function main() {
     const unidadesRows = await tx.select().from(unidadesNegocio);
     const sucursalMap = new Map(sucursalesRows.map((s) => [s.nombre.trim().toLowerCase(), s.id]));
     const unidadMap = new Map(unidadesRows.map((u) => [u.nombre.trim().toLowerCase(), u.id]));
-    const unidadLubFiltros = unidadesRows.find((u) => u.nombre.trim().toLowerCase() === "lubricantes/filtros");
+    const unidadLubFiltros = unidadesRows.find(
+      (u) => u.nombre.trim().toLowerCase() === "lubricantes/filtros",
+    );
     if (!unidadLubFiltros) throw new Error('unidad "Lubricantes/Filtros" no existe en catálogo');
 
     // Reemplaza el mes completo (todas las unidades menos Lub/Filtros) --
     // evita duplicar filas si se corre dos veces al día.
     const inicioMes = `${ANIO}-${String(MES).padStart(2, "0")}-01`;
-    const inicioMesSiguiente = MES === 12 ? `${ANIO + 1}-01-01` : `${ANIO}-${String(MES + 1).padStart(2, "0")}-01`;
+    const inicioMesSiguiente =
+      MES === 12 ? `${ANIO + 1}-01-01` : `${ANIO}-${String(MES + 1).padStart(2, "0")}-01`;
     await tx
       .delete(cotizaciones)
       .where(

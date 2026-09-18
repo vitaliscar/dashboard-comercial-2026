@@ -39,7 +39,12 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { canAccessModule, canDownloadData, type ModuleKey, isFullAccessRole } from "@/lib/permissions";
+import {
+  canAccessModule,
+  canDownloadData,
+  type ModuleKey,
+  isFullAccessRole,
+} from "@/lib/permissions";
 import { StatusPill } from "@/components/status-pill";
 import { CommandPalette } from "@/components/command-palette";
 import { Kbd } from "@/components/ui/kbd";
@@ -274,15 +279,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   });
 
   const [visionGeneral, gestionComercial, finanzas, mercadeo, evaluacionDesempeno, administracion] =
-    NAV_GROUPS.map(
-    (group) => ({
+    NAV_GROUPS.map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) =>
-          canAccessModule(role, item.module) && (!item.requiresAdmin || profile?.is_admin),
+        (item) => canAccessModule(role, item.module) && (!item.requiresAdmin || profile?.is_admin),
       ),
-    }),
-  );
+    }));
 
   // Un gerente_comercial de una sola unidad (repuestos, servicios o
   // lubricantes/filtros) ya cae directo en la vista de su unidad al entrar a

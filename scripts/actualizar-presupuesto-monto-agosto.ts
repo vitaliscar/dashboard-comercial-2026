@@ -19,29 +19,64 @@ const normalizarSucursal = (s: string) => (s === "Los Ruices" ? "Caracas" : s);
 
 const MONTOS: Record<string, Record<string, number>> = {
   Repuestos: {
-    "Puerto Ordaz": 104170, "FMO Piar": 229174, "Puerto La Cruz": 41669,
-    Barquisimeto: 69446, Valencia: 55511, Caracas: 55558, Maracaibo: 48613,
-    "Punto Fijo": 90281, Maturín: 0, "Machine Shop": 0,
+    "Puerto Ordaz": 104170,
+    "FMO Piar": 229174,
+    "Puerto La Cruz": 41669,
+    Barquisimeto: 69446,
+    Valencia: 55511,
+    Caracas: 55558,
+    Maracaibo: 48613,
+    "Punto Fijo": 90281,
+    Maturín: 0,
+    "Machine Shop": 0,
   },
   "Lubricantes/Filtros": {
-    "Puerto Ordaz": 154007, "FMO Piar": 113240, "Puerto La Cruz": 31707,
-    Barquisimeto: 36237, Valencia: 59586, "Los Ruices": 22648, Maracaibo: 36237,
-    "Punto Fijo": 24451, Maturín: 0, "Machine Shop": 0,
+    "Puerto Ordaz": 154007,
+    "FMO Piar": 113240,
+    "Puerto La Cruz": 31707,
+    Barquisimeto: 36237,
+    Valencia: 59586,
+    "Los Ruices": 22648,
+    Maracaibo: 36237,
+    "Punto Fijo": 24451,
+    Maturín: 0,
+    "Machine Shop": 0,
   },
   Servicios: {
-    "Puerto Ordaz": 38495, "FMO Piar": 83784, "Puerto La Cruz": 40760,
-    Barquisimeto: 45289, Valencia: 84373, "Los Ruices": 49818, Maracaibo: 60551,
-    "Punto Fijo": 45289, Maturín: 4529, "Machine Shop": 0,
+    "Puerto Ordaz": 38495,
+    "FMO Piar": 83784,
+    "Puerto La Cruz": 40760,
+    Barquisimeto: 45289,
+    Valencia: 84373,
+    "Los Ruices": 49818,
+    Maracaibo: 60551,
+    "Punto Fijo": 45289,
+    Maturín: 4529,
+    "Machine Shop": 0,
   },
   Equipos: {
-    "Puerto Ordaz": 26298, "FMO Piar": 0, "Puerto La Cruz": 32873,
-    Barquisimeto: 49309, Valencia: 85469, Caracas: 92044, Maracaibo: 26298,
-    "Punto Fijo": 16436, Maturín: 0, "Machine Shop": 0,
+    "Puerto Ordaz": 26298,
+    "FMO Piar": 0,
+    "Puerto La Cruz": 32873,
+    Barquisimeto: 49309,
+    Valencia: 85469,
+    Caracas: 92044,
+    Maracaibo: 26298,
+    "Punto Fijo": 16436,
+    Maturín: 0,
+    "Machine Shop": 0,
   },
   Alquiler: {
-    "Puerto Ordaz": 3536, "FMO Piar": 0, "Puerto La Cruz": 127299,
-    Barquisimeto: 56577, Valencia: 357145, Caracas: 130835, Maracaibo: 28289,
-    "Punto Fijo": 3536, Maturín: 0, "Machine Shop": 0,
+    "Puerto Ordaz": 3536,
+    "FMO Piar": 0,
+    "Puerto La Cruz": 127299,
+    Barquisimeto: 56577,
+    Valencia: 357145,
+    Caracas: 130835,
+    Maracaibo: 28289,
+    "Punto Fijo": 3536,
+    Maturín: 0,
+    "Machine Shop": 0,
   },
 };
 
@@ -83,7 +118,9 @@ async function main() {
           actualizadas++;
           console.log(`✓ ${unidad} / ${sucursal}: monto=${monto}`);
         } else {
-          console.warn(`⚠️  No existe fila presupuestos para ${unidad} / ${sucursal} en ${ANIO}-${MES}`);
+          console.warn(
+            `⚠️  No existe fila presupuestos para ${unidad} / ${sucursal} en ${ANIO}-${MES}`,
+          );
         }
       }
     }

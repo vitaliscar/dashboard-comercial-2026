@@ -44,7 +44,10 @@ const CODIGO_SUCURSAL: Record<string, string> = {
   "46": "Machine Shop",
 };
 
-const ETAPA_POR_ESTATUS: Record<string, "desarrollo" | "propuesta_negociacion" | "venta_perdida" | "desconocido"> = {
+const ETAPA_POR_ESTATUS: Record<
+  string,
+  "desarrollo" | "propuesta_negociacion" | "venta_perdida" | "desconocido"
+> = {
   "re-impresa": "desarrollo",
   impresa: "desarrollo",
   activa: "desarrollo",
@@ -144,7 +147,9 @@ async function main() {
       const nombreSucursal = CODIGO_SUCURSAL[grupo.sucursalCodigo];
       const sucursalId = nombreSucursal ? sucursalMap.get(nombreSucursal.toLowerCase()) : undefined;
       if (!sucursalId) {
-        sucursalesNoResueltas.add(`${grupo.sucursalCodigo} (${nombreSucursal ?? "código desconocido"})`);
+        sucursalesNoResueltas.add(
+          `${grupo.sucursalCodigo} (${nombreSucursal ?? "código desconocido"})`,
+        );
         continue;
       }
       const etapa = ETAPA_POR_ESTATUS[grupo.estatus] ?? "desconocido";

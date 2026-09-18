@@ -403,7 +403,9 @@ function EditUserDialog({
                   <SelectValue placeholder="Sin rol asignado" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.filter((r) => r !== "administrador" || canDelete || currentRole === "administrador").map((r) => (
+                  {ROLES.filter(
+                    (r) => r !== "administrador" || canDelete || currentRole === "administrador",
+                  ).map((r) => (
                     <SelectItem key={r} value={r}>
                       {roleLabel(r)}
                     </SelectItem>
@@ -502,7 +504,11 @@ function EditUserDialog({
                   </p>
                 </div>
               </div>
-              <Checkbox checked={profile.isAdmin} disabled={!canDelete} onCheckedChange={(c) => setAdmin.mutate(!!c)} />
+              <Checkbox
+                checked={profile.isAdmin}
+                disabled={!canDelete}
+                onCheckedChange={(c) => setAdmin.mutate(!!c)}
+              />
             </div>
 
             {/* Acciones peligrosas */}
@@ -928,7 +934,9 @@ export default function UsuariosPage() {
         <div className="card-elevated p-4 rounded-xl flex flex-col gap-1">
           <p className="text-xs text-muted-foreground font-medium">Gerentes</p>
           <p className="text-2xl font-bold font-display text-accent">
-            {(roleCount.administrador ?? 0) + (roleCount.gerencia ?? 0) + (roleCount.gerente_comercial ?? 0)}
+            {(roleCount.administrador ?? 0) +
+              (roleCount.gerencia ?? 0) +
+              (roleCount.gerente_comercial ?? 0)}
           </p>
           <p className="text-[11px] text-muted-foreground">admin + nacional + comercial</p>
         </div>

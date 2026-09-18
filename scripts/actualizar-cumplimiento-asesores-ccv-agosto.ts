@@ -42,7 +42,10 @@ function leerYResolver(patron: RegExp): RawRowData[] {
 type Totales = { [claveAsesorUnidad: string]: number };
 
 function sumarPorAsesorUnidad(rows: RawRowData[]): Totales {
-  const parser = new ExcelParser("", { sheetNames: ["Facturacion"], sheets: { Facturacion: rows } });
+  const parser = new ExcelParser("", {
+    sheetNames: ["Facturacion"],
+    sheets: { Facturacion: rows },
+  });
   const facturas = parser.getFacturasPrincipales();
   const totales: Totales = {};
   facturas.forEach((f) => {

@@ -139,7 +139,9 @@ export async function getResumenDataAction(data: {
           montoTotal: sum(cotizaciones.monto),
         })
         .from(cotizaciones)
-        .where(and(cotCond, sql`${cotizaciones.cliente} NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'`))
+        .where(
+          and(cotCond, sql`${cotizaciones.cliente} NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'`),
+        )
         .groupBy(cotizaciones.unidadNegocioId, cotizaciones.sucursalId, cotizaciones.cliente),
       tx
         .select({

@@ -1,5 +1,5 @@
 /**
-* ESTÁNDAR OFICIAL desde agosto 2026 en adelante (decisión 2026-09-11): esta metodología
+ * ESTÁNDAR OFICIAL desde agosto 2026 en adelante (decisión 2026-09-11): esta metodología
  * de prorrateo es la fuente de verdad única para Postgres Y para el Sheet a partir de
  * agosto. Nombre de archivo dice "agosto" mas soporta MES=<n> para cualquier mes --
  * usarlo cada mes, no solo agosto. El Sheet sigue usando su propio hack de offset
@@ -67,7 +67,8 @@ const CODIGO_SUCURSAL: Record<string, string> = {
 
 function elegirArchivoDelMes(patron: RegExp, headerRow: number): RawRowData[] {
   const candidatos = localizarArchivosOrdenados(DOWNLOADS_DIR, patron);
-  if (candidatos.length === 0) throw new Error(`No se encontró ningún archivo que matchee ${patron}`);
+  if (candidatos.length === 0)
+    throw new Error(`No se encontró ningún archivo que matchee ${patron}`);
   for (const archivo of candidatos) {
     const filas = leerArchivoCrudo(archivo, headerRow);
     const tieneMes = filas.some((row) => {
@@ -80,7 +81,9 @@ function elegirArchivoDelMes(patron: RegExp, headerRow: number): RawRowData[] {
       return filas;
     }
   }
-  console.warn(`⚠️  Ninguno de los candidatos para ${patron} trae filas de ${ANIO}-${MES}; usando el más reciente igual.`);
+  console.warn(
+    `⚠️  Ninguno de los candidatos para ${patron} trae filas de ${ANIO}-${MES}; usando el más reciente igual.`,
+  );
   return leerArchivoCrudo(candidatos[0], headerRow);
 }
 
@@ -96,7 +99,10 @@ async function main() {
   )[0];
   console.log(`→ Leyendo ${archivoCcv}`);
   const rowsCcv = leerArchivoCrudo(archivoCcv, 12).map(resolverSucursalOportunidadesDetallado);
-  const parser = new ExcelParser("", { sheetNames: ["Facturacion"], sheets: { Facturacion: rowsCcv } });
+  const parser = new ExcelParser("", {
+    sheetNames: ["Facturacion"],
+    sheets: { Facturacion: rowsCcv },
+  });
   const facturas = parser.getFacturasPrincipales();
 
   const ventaPorClave = new Map<Clave, number>();
@@ -123,7 +129,8 @@ async function main() {
     if (codCliente === COD_CLIENTE_VISCO) return; // VISCO nunca es de un asesor real
 
     const codVendedor = (row["Cód. Vendedor"] ?? "").toString().trim();
-    const codigoAsesor = codVendedor === "99999" ? (row["Cód.Vend.OV"] ?? "").toString().trim() : codVendedor;
+    const codigoAsesor =
+      codVendedor === "99999" ? (row["Cód.Vend.OV"] ?? "").toString().trim() : codVendedor;
     if (!codigoAsesor) return;
 
     const codigoSucursal = (row["Cód.Suc."] ?? "").toString().trim();
@@ -156,7 +163,10 @@ async function main() {
     const oficialPorSucursalUnidad = new Map<string, number>();
     oficialRows.forEach((r) => {
       if (!r.sucursalId || !r.unidadNegocioId) return;
-      oficialPorSucursalUnidad.set(`${r.sucursalId}|${r.unidadNegocioId}`, Number(r.ventasCcv ?? 0));
+      oficialPorSucursalUnidad.set(
+        `${r.sucursalId}|${r.unidadNegocioId}`,
+        Number(r.ventasCcv ?? 0),
+      );
     });
 
     // Catálogo de filas existentes para el mes -- se usa para separar bruto de
@@ -178,7 +188,10 @@ async function main() {
     );
 
     // Agrupar las claves por (sucursal, unidad) para calcular el factor de prorrateo.
-    const gruposPorSucursalUnidad = new Map<string, { sucursal: string; unidad: string; codigoAsesor: string; bruto: number }[]>();
+    const gruposPorSucursalUnidad = new Map<
+      string,
+      { sucursal: string; unidad: string; codigoAsesor: string; bruto: number }[]
+    >();
     for (const [k, bruto] of ventaPorClave) {
       const [sucursal, unidad, codigoAsesor] = k.split("|");
       const gk = `${sucursal}|${unidad}`;
@@ -197,7 +210,9 @@ async function main() {
       }
       const totalOficial = oficialPorSucursalUnidad.get(`${sucursalId}|${unidadId}`) ?? 0;
 
-      const catalogados = items.filter((i) => existentesPorClave.has(`${i.codigoAsesor}|${sucursalId}|${unidadId}`));
+      const catalogados = items.filter((i) =>
+        existentesPorClave.has(`${i.codigoAsesor}|${sucursalId}|${unidadId}`),
+      );
       const sinCatalogar = items.length - catalogados.length;
       const sumaBruta = catalogados.reduce((s, i) => s + i.bruto, 0);
       // MAX(0, MIN(1, oficial/bruta)) -- si oficial es negativo o bruta es 0
@@ -223,7 +238,11 @@ async function main() {
         const pct = presupuesto > 0 ? Math.min((ventaMostrada / presupuesto) * 100, 999.9999) : 0;
         await tx
           .update(cumplimientoAsesores)
-          .set({ venta: String(ventaMostrada), ventaCcv: String(ventaMostrada), pctCumplimiento: String(pct) })
+          .set({
+            venta: String(ventaMostrada),
+            ventaCcv: String(ventaMostrada),
+            pctCumplimiento: String(pct),
+          })
           .where(eq(cumplimientoAsesores.id, existente.id));
         actualizadas++;
       }
@@ -235,9 +254,14 @@ async function main() {
       console.log(`  Casa ${gk}: ${casa.toFixed(2)}`);
     }
 
-    console.log(`\n✅ ${actualizadas} filas de cumplimiento_asesores actualizadas con venta precisa`);
+    console.log(
+      `\n✅ ${actualizadas} filas de cumplimiento_asesores actualizadas con venta precisa`,
+    );
     if (noResueltas.length > 0) {
-      console.warn(`⚠️  ${noResueltas.length} combinaciones sin fila correspondiente:`, noResueltas.slice(0, 20));
+      console.warn(
+        `⚠️  ${noResueltas.length} combinaciones sin fila correspondiente:`,
+        noResueltas.slice(0, 20),
+      );
     }
   });
 }

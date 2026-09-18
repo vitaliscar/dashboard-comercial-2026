@@ -105,10 +105,7 @@ export const DICCIONARIO_SUCURSAL_XIBI: Record<string, string> = {
 // diccionario por Cód. Cuenta. Confirmado con el usuario 2026-09-02.
 const CODIGO_SUCURSAL_DEPOSITO_TERRITORIAL = "52";
 export const esDepositoTerritorialPorCodigo = (sucursalCruda: unknown): boolean =>
-  (sucursalCruda ?? "")
-    .toString()
-    .trim()
-    .startsWith(`${CODIGO_SUCURSAL_DEPOSITO_TERRITORIAL}-`);
+  (sucursalCruda ?? "").toString().trim().startsWith(`${CODIGO_SUCURSAL_DEPOSITO_TERRITORIAL}-`);
 
 export const DICCIONARIO_SUCURSAL_DEPOSITO_TERRITORIAL: Record<string, string> = {
   "79091": "Caracas", // CORPORACION DIGITEL, C.A.

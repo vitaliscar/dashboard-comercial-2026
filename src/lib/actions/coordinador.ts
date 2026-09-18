@@ -20,11 +20,21 @@ import { cargarAjustesManuales, sumaAjuste, type AjusteFila } from "@/lib/ajuste
 // sucursal que aplique a esa unidad+mes, no solo el de una.
 function sumaAjusteGrupo(
   ajustes: AjusteFila[],
-  params: { mes: number; sucursalId: string | null; unidadNegocioId: string | null; columna: "ccv" | "xibi" | "estrategico" | "total" },
+  params: {
+    mes: number;
+    sucursalId: string | null;
+    unidadNegocioId: string | null;
+    columna: "ccv" | "xibi" | "estrategico" | "total";
+  },
 ) {
   if (params.sucursalId) return sumaAjuste(ajustes, params);
   return ajustes
-    .filter((a) => a.mes === params.mes && a.columna === params.columna && (a.unidadNegocioId === null || a.unidadNegocioId === params.unidadNegocioId))
+    .filter(
+      (a) =>
+        a.mes === params.mes &&
+        a.columna === params.columna &&
+        (a.unidadNegocioId === null || a.unidadNegocioId === params.unidadNegocioId),
+    )
     .reduce((sum, a) => sum + a.monto, 0);
 }
 
@@ -66,9 +76,11 @@ export async function getCoordinadorYearAction(data: { anio: number }) {
             Number(r.ventasCcv ?? 0) +
             sumaAjusteGrupo(ajustes, { ...base, columna: "ccv" }) +
             sumaAjusteGrupo(ajustes, { ...base, columna: "total" }),
-          ventasXibi: Number(r.ventasXibi ?? 0) + sumaAjusteGrupo(ajustes, { ...base, columna: "xibi" }),
+          ventasXibi:
+            Number(r.ventasXibi ?? 0) + sumaAjusteGrupo(ajustes, { ...base, columna: "xibi" }),
           ventasEstrategicas:
-            Number(r.ventasEstrategicas ?? 0) + sumaAjusteGrupo(ajustes, { ...base, columna: "estrategico" }),
+            Number(r.ventasEstrategicas ?? 0) +
+            sumaAjusteGrupo(ajustes, { ...base, columna: "estrategico" }),
         };
       }),
     };

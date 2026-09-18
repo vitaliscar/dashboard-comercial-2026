@@ -47,8 +47,7 @@ export async function parseExcelInWorker(
 
     const raw = await fs.readFile(outputPath, "utf-8");
     const parsed = JSON.parse(raw) as
-      | { sheetNames: string[]; sheets: Record<string, RawRowData[]> }
-      | { error: string };
+      { sheetNames: string[]; sheets: Record<string, RawRowData[]> } | { error: string };
     if ("error" in parsed) {
       throw new Error(parsed.error);
     }

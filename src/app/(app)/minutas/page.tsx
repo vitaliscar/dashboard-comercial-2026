@@ -143,7 +143,8 @@ export default function MinutasPage() {
   const [editing, setEditing] = useState<MinutaItem | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  const canCreate = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
+  const canCreate =
+    isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
   const canDelete = isFullAccessRole(role);
 
   const { data: sucursales } = useSucursales();
@@ -180,7 +181,8 @@ export default function MinutasPage() {
     // Vencidas y pendientes primero (lo más urgente arriba), luego por fecha
     // límite ascendente (la más próxima primero); sin fecha límite al final.
     return [...rows].sort((a, b) => {
-      const prioridad = (m: MinutaItem) => (esVencida(m) ? 0 : m.estado === "pendiente" ? 1 : m.estado === "en_proceso" ? 2 : 3);
+      const prioridad = (m: MinutaItem) =>
+        esVencida(m) ? 0 : m.estado === "pendiente" ? 1 : m.estado === "en_proceso" ? 2 : 3;
       const dif = prioridad(a) - prioridad(b);
       if (dif !== 0) return dif;
       if (!a.fechaLimite && !b.fechaLimite) return 0;
@@ -582,13 +584,22 @@ export default function MinutasPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           {canCreate && (
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="Editar minuta">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(m)}
+                              title="Editar minuta"
+                            >
                               <Pencil className="size-3.5" />
                             </Button>
                           )}
                           {canDelete && (
                             <AlertDialog>
-                              <AlertDialogTrigger render={<Button variant="ghost" size="icon" title="Eliminar minuta" />}>
+                              <AlertDialogTrigger
+                                render={
+                                  <Button variant="ghost" size="icon" title="Eliminar minuta" />
+                                }
+                              >
                                 <Trash2 className="size-3.5 text-destructive" />
                               </AlertDialogTrigger>
                               <AlertDialogContent>

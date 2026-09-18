@@ -264,7 +264,13 @@ export async function reconcileAlertasAction() {
     // distinta de la misma categoría.
     const perdidasPorCliente = new Map<
       string,
-      { monto: number; razon: string; sucursalId: string | null; unidadNegocioId: string | null; asesorId: string | null }
+      {
+        monto: number;
+        razon: string;
+        sucursalId: string | null;
+        unidadNegocioId: string | null;
+        asesorId: string | null;
+      }
     >();
     perdidasRows.forEach((r) => {
       const cliente = (r.cliente ?? "").trim();
@@ -450,7 +456,13 @@ export async function reconcileAlertasAction() {
     const nowMs = Date.now();
     const cotizacionesAbiertasPorCliente = new Map<
       string,
-      { monto: number; ageDays: number; sucursalId: string | null; unidadNegocioId: string | null; asesorId: string | null }
+      {
+        monto: number;
+        ageDays: number;
+        sucursalId: string | null;
+        unidadNegocioId: string | null;
+        asesorId: string | null;
+      }
     >();
     cotizacionesRows.forEach((c) => {
       if (c.etapa === "venta_perdida") return;
@@ -459,7 +471,9 @@ export async function reconcileAlertasAction() {
       if (ageDays < 10) return; // muy reciente, dale tiempo antes de alertar
       const cliente = (c.cliente ?? "").trim();
       if (!cliente) return;
-      const asesorId = c.asesorId ?? (c.asesorCodigo ? asesorIdPorCodigo.get(c.asesorCodigo.trim()) ?? null : null);
+      const asesorId =
+        c.asesorId ??
+        (c.asesorCodigo ? (asesorIdPorCodigo.get(c.asesorCodigo.trim()) ?? null) : null);
       const key = `${asesorId ?? "s"}|${cliente}`;
       const curr = cotizacionesAbiertasPorCliente.get(key) ?? {
         monto: 0,

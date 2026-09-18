@@ -53,7 +53,9 @@ function elegirArchivoConDatosDelMes(
   for (const archivo of candidatos) {
     const filas = leerArchivoCrudo(archivo, headerRow);
     const tieneMes = filas.some(
-      (row) => parseInt(String(row["Mes"] ?? ""), 10) === mes && parseInt(String(row["Año"] ?? ""), 10) === anio,
+      (row) =>
+        parseInt(String(row["Mes"] ?? ""), 10) === mes &&
+        parseInt(String(row["Año"] ?? ""), 10) === anio,
     );
     if (tieneMes) return { archivo, filas };
   }
@@ -81,7 +83,8 @@ export function leerFilasLubricanteVentasrepuesto(
   for (const patron of PATRONES_VENTASREPUESTO) {
     try {
       const candidatos = localizarArchivosOrdenados(downloadsDir, patron);
-      if (candidatos.length === 0) throw new Error(`No se encontró ningún archivo que matchee ${patron}`);
+      if (candidatos.length === 0)
+        throw new Error(`No se encontró ningún archivo que matchee ${patron}`);
       if (anio === undefined || mes === undefined) {
         console.log(`→ Leyendo ${candidatos[0]}`);
         filas.push(...leerArchivoCrudo(candidatos[0], HEADER_ROW));

@@ -202,7 +202,10 @@ export async function searchClientesAction(q: string) {
 export async function getClientesDestinatarioAction(destinatarioId: string): Promise<string[]> {
   return withAuth(async ({ tx }) => {
     const roster = await tx
-      .selectDistinct({ codigo: cumplimientoAsesores.codigoAsesor, nombre: cumplimientoAsesores.asesor })
+      .selectDistinct({
+        codigo: cumplimientoAsesores.codigoAsesor,
+        nombre: cumplimientoAsesores.asesor,
+      })
       .from(cumplimientoAsesores)
       .where(eq(cumplimientoAsesores.asesorId, destinatarioId));
 
@@ -234,7 +237,8 @@ export async function getClientesDestinatarioAction(destinatarioId: string): Pro
         // crudo traiga un código de sistema en esas filas -- reportado por
         // el usuario 2026-09-04: Visco aparecía como cliente de Abiezer sin
         // atenderlo. Se excluyen aquí igual que en excel-parser.ts.
-        if (r.cliente && !CLIENTES_SIN_ASESOR.has(r.cliente.trim().toLowerCase())) set.add(r.cliente);
+        if (r.cliente && !CLIENTES_SIN_ASESOR.has(r.cliente.trim().toLowerCase()))
+          set.add(r.cliente);
       }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));

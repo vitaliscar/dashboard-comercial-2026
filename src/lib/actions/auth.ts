@@ -17,13 +17,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { sessionExpiryDate, isSessionExpired, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { logAuthFailure } from "@/lib/logger";
 
-export type AppRole =
-  | "administrador"
-  | "gerencia"
-  | "gerente_comercial"
-  | "coordinador"
-  | "asesor";
-
+export type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 const isProd = process.env.NODE_ENV === "production";
 // La cookie de sesion solo debe ser Secure si realmente se sirve por HTTPS.

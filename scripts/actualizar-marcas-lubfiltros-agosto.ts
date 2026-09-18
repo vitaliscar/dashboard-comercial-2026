@@ -61,7 +61,11 @@ async function main() {
   });
 
   const [fila] = await dbAdmin
-    .select({ ccv: presupuestos.ventasCcv, xibi: presupuestos.ventasXibi, est: presupuestos.ventasEstrategicas })
+    .select({
+      ccv: presupuestos.ventasCcv,
+      xibi: presupuestos.ventasXibi,
+      est: presupuestos.ventasEstrategicas,
+    })
     .from(presupuestos)
     .innerJoin(unidadesNegocio, eq(unidadesNegocio.id, presupuestos.unidadNegocioId))
     .where(
@@ -92,9 +96,15 @@ async function main() {
   const residualXibi = Math.max(0, Number(fila.xibi) - identificadoXibi);
   const residualEst = Math.max(0, Number(fila.est));
 
-  console.log(`Oficial CCV=${fila.ccv} vs identificado=${identificadoCcv.toFixed(2)} → No Definido CCV=${residualCcv.toFixed(2)}`);
-  console.log(`Oficial Xibi=${fila.xibi} vs identificado=${identificadoXibi.toFixed(2)} → No Definido Xibi=${residualXibi.toFixed(2)}`);
-  console.log(`Oficial Estratégicas=${fila.est} (sin fuente de marca) → No Definido Est=${residualEst.toFixed(2)}`);
+  console.log(
+    `Oficial CCV=${fila.ccv} vs identificado=${identificadoCcv.toFixed(2)} → No Definido CCV=${residualCcv.toFixed(2)}`,
+  );
+  console.log(
+    `Oficial Xibi=${fila.xibi} vs identificado=${identificadoXibi.toFixed(2)} → No Definido Xibi=${residualXibi.toFixed(2)}`,
+  );
+  console.log(
+    `Oficial Estratégicas=${fila.est} (sin fuente de marca) → No Definido Est=${residualEst.toFixed(2)}`,
+  );
 
   await dbAdmin.transaction(async (tx) => {
     await tx.delete(detallesVentasLubfiltros).where(eq(detallesVentasLubfiltros.mes, MES));
@@ -120,7 +130,9 @@ async function main() {
     inserts
       .sort((a, b) => Number(b.montoTotal) - Number(a.montoTotal))
       .forEach((f) =>
-        console.log(`✓ ${f.marca}: CCV=${f.ventasCcv} Xibi=${f.ventasXibi} Est=${f.ventasEstrategicas} Total=${f.montoTotal}`),
+        console.log(
+          `✓ ${f.marca}: CCV=${f.ventasCcv} Xibi=${f.ventasXibi} Est=${f.ventasEstrategicas} Total=${f.montoTotal}`,
+        ),
       );
     console.log(`\n✅ ${inserts.length} marcas insertadas para mes=${MES}`);
   });

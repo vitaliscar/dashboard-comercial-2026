@@ -201,7 +201,10 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" aria-label="Cargando sesión" />
+        <Loader2
+          className="size-8 animate-spin text-muted-foreground"
+          aria-label="Cargando sesión"
+        />
       </div>
     );
   }
@@ -239,7 +242,10 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
-            <AlertDialogCancel onClick={handleLogoutClick} className="w-full sm:w-auto h-10 font-medium">
+            <AlertDialogCancel
+              onClick={handleLogoutClick}
+              className="w-full sm:w-auto h-10 font-medium"
+            >
               Cerrar sesión
             </AlertDialogCancel>
             <AlertDialogAction

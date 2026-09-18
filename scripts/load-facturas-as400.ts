@@ -33,7 +33,11 @@ import { dbAdmin } from "@/db";
 import { facturas } from "@/db/schema";
 import { seedCatalogos, insertChunked, type DbAdminTx } from "@/db/load-excel";
 import { ExcelParser } from "@/lib/excel-parser";
-import { leerArchivoCrudo, localizarArchivoMasReciente, type RawRowData } from "@/lib/raw-source-reader";
+import {
+  leerArchivoCrudo,
+  localizarArchivoMasReciente,
+  type RawRowData,
+} from "@/lib/raw-source-reader";
 import { leerFilasLubricanteVentasrepuesto } from "@/lib/as400-lubricantes";
 import { resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
 
@@ -74,7 +78,9 @@ async function main() {
     sheets: { Facturacion: filas, "Lubricantes/Filtros": filasLubFiltros },
   });
 
-  const facturasRaw = parser.getFacturasPrincipales().filter((f) => (f.fecha ?? "9999") >= "2026-01-01");
+  const facturasRaw = parser
+    .getFacturasPrincipales()
+    .filter((f) => (f.fecha ?? "9999") >= "2026-01-01");
   console.log(`→ ${facturasRaw.length} facturas parseadas`);
 
   let fechasFallbackCount = 0;
@@ -105,7 +111,11 @@ async function main() {
       ),
     );
     if (idsUnidades.length > 0) {
-      await tx.delete(facturas).where(and(inArray(facturas.unidadNegocioId, idsUnidades), gte(facturas.fecha, "2026-01-01")));
+      await tx
+        .delete(facturas)
+        .where(
+          and(inArray(facturas.unidadNegocioId, idsUnidades), gte(facturas.fecha, "2026-01-01")),
+        );
     }
 
     const insertadas = await insertChunked(

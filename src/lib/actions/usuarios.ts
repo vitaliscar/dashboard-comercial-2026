@@ -18,12 +18,13 @@ import { canCreateDeleteUsers, canGrantAdminPrivileges, isFullAccessRole } from 
 
 export type AppRole = (typeof appRole.enumValues)[number];
 
-const appRoleSchema = z.enum(
-  ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"] as [
-    AppRole,
-    ...AppRole[],
-  ],
-);
+const appRoleSchema = z.enum([
+  "administrador",
+  "gerencia",
+  "gerente_comercial",
+  "coordinador",
+  "asesor",
+] as [AppRole, ...AppRole[]]);
 const uuidSchema = z.string().uuid();
 const nullableUuidSchema = uuidSchema.nullable();
 
@@ -125,7 +126,9 @@ export async function setUserRoleAction(data: { userId: string; newRole: AppRole
         .from(userRoles)
         .where(eq(userRoles.userId, parsed.userId));
       if (actual.some((r) => r.role === "administrador")) {
-        throw new Error("Unauthorized: Solo un Administrador puede modificar el rol de un Administrador");
+        throw new Error(
+          "Unauthorized: Solo un Administrador puede modificar el rol de un Administrador",
+        );
       }
     }
 
@@ -146,7 +149,9 @@ export async function setProfileSucursalAction(data: {
   const parsed = setProfileSucursalSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
-      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar sucursales");
+      throw new Error(
+        "Unauthorized: Solo Gerencia Nacional o Administrador puede modificar sucursales",
+      );
     }
 
     await tx
@@ -165,7 +170,9 @@ export async function setProfileUnidadAction(data: {
   const parsed = setProfileUnidadSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
-      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar unidades");
+      throw new Error(
+        "Unauthorized: Solo Gerencia Nacional o Administrador puede modificar unidades",
+      );
     }
 
     await tx
@@ -181,7 +188,9 @@ export async function setProfileAdminAction(data: { userId: string; isAdmin: boo
   const parsed = setProfileAdminSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
-      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar permisos de admin");
+      throw new Error(
+        "Unauthorized: Solo Gerencia Nacional o Administrador puede modificar permisos de admin",
+      );
     }
     if (parsed.isAdmin && !canGrantAdminPrivileges(role)) {
       throw new Error("Unauthorized: Solo un Administrador puede activar el permiso de admin");
@@ -204,7 +213,9 @@ export async function toggleProfileUnidadAction(data: {
   const parsed = toggleProfileUnidadSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
-      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar unidades asignadas");
+      throw new Error(
+        "Unauthorized: Solo Gerencia Nacional o Administrador puede modificar unidades asignadas",
+      );
     }
 
     if (parsed.checked) {
@@ -238,7 +249,9 @@ export async function toggleProfileSucursalAction(data: {
   const parsed = toggleProfileSucursalSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
-      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar sucursales asignadas");
+      throw new Error(
+        "Unauthorized: Solo Gerencia Nacional o Administrador puede modificar sucursales asignadas",
+      );
     }
 
     if (parsed.checked) {
@@ -318,7 +331,9 @@ export async function resetPasswordAction(data: { userId: string; newPassword: s
   const parsed = resetPasswordSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
-      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede restablecer contraseñas");
+      throw new Error(
+        "Unauthorized: Solo Gerencia Nacional o Administrador puede restablecer contraseñas",
+      );
     }
 
     const strengthError = validatePasswordStrength(parsed.newPassword);
@@ -341,7 +356,9 @@ export async function setUserActiveAction(data: { userId: string; isActive: bool
   const parsed = setUserActiveSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
     if (!isFullAccessRole(role)) {
-      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede activar/desactivar usuarios");
+      throw new Error(
+        "Unauthorized: Solo Gerencia Nacional o Administrador puede activar/desactivar usuarios",
+      );
     }
 
     await tx

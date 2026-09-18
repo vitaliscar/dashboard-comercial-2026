@@ -40,7 +40,8 @@ function permisosFiltro(role: AppRole | null) {
     esAsesor: role === "asesor",
     // Análisis de gestión (cotizado/facturado/perdido) por asesor -- nunca
     // visible para el propio asesor, pedido explícito del usuario 2026-09-03.
-    puedeVerGestionAsesores: isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador",
+    puedeVerGestionAsesores:
+      isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador",
   };
 }
 
@@ -69,7 +70,15 @@ function ToggleChip({
   );
 }
 
-function HallazgoCard({ tipo, titulo, texto }: { tipo: "good" | "bad" | "warn"; titulo: string; texto: string }) {
+function HallazgoCard({
+  tipo,
+  titulo,
+  texto,
+}: {
+  tipo: "good" | "bad" | "warn";
+  titulo: string;
+  texto: string;
+}) {
   const estilos = {
     good: "border-success/30 bg-success/5",
     bad: "border-danger/30 bg-danger/5",
@@ -82,7 +91,9 @@ function HallazgoCard({ tipo, titulo, texto }: { tipo: "good" | "bad" | "warn"; 
   } as const;
   return (
     <div className={cn("rounded-2xl border p-4", estilos[tipo])}>
-      <p className={cn("text-[10px] font-bold uppercase tracking-wider", textoTitulo[tipo])}>{titulo}</p>
+      <p className={cn("text-[10px] font-bold uppercase tracking-wider", textoTitulo[tipo])}>
+        {titulo}
+      </p>
       <p className="mt-1.5 text-sm leading-snug text-foreground">{texto}</p>
     </div>
   );
@@ -90,14 +101,22 @@ function HallazgoCard({ tipo, titulo, texto }: { tipo: "good" | "bad" | "warn"; 
 
 /** Top 4 marcas + "Otra marca" con la suma de todo lo que quede debajo -- pedido
  * del usuario 2026-09-04 para no listar 10+ marcas de cola larga en la card. */
-function agruparTop4MasOtras(filas: { marca: string; monto: number }[]): { marca: string; monto: number }[] {
+function agruparTop4MasOtras(
+  filas: { marca: string; monto: number }[],
+): { marca: string; monto: number }[] {
   if (filas.length <= 5) return filas;
   const top4 = filas.slice(0, 4);
   const resto = filas.slice(4).reduce((s, f) => s + f.monto, 0);
   return resto > 0 ? [...top4, { marca: "Otra marca", monto: resto }] : top4;
 }
 
-function MarcaBarCard({ titulo, filas: filasCrudas }: { titulo: string; filas: { marca: string; monto: number }[] }) {
+function MarcaBarCard({
+  titulo,
+  filas: filasCrudas,
+}: {
+  titulo: string;
+  filas: { marca: string; monto: number }[];
+}) {
   const filas = agruparTop4MasOtras(filasCrudas);
   const max = Math.max(...filas.map((f) => f.monto), 1);
   return (
@@ -144,14 +163,22 @@ export default function EvaluacionPage() {
   // algunos tienen venta reconciliada da un cumplimiento artificialmente bajo
   // ("forzado"), pedido del usuario 2026-09-04 corregir el default.
   const [meses, setMeses] = useState<number[]>(() => {
-    const desdeUrl = parseListParam(searchParams.get("meses")).map(Number).filter((n) => !Number.isNaN(n));
+    const desdeUrl = parseListParam(searchParams.get("meses"))
+      .map(Number)
+      .filter((n) => !Number.isNaN(n));
     return desdeUrl.length > 0 ? desdeUrl : [new Date().getMonth() + 1];
   });
-  const [sucursalIds, setSucursalIds] = useState<string[]>(parseListParam(searchParams.get("sucursalIds")));
+  const [sucursalIds, setSucursalIds] = useState<string[]>(
+    parseListParam(searchParams.get("sucursalIds")),
+  );
   const [unidadNegocioIds, setUnidadNegocioIds] = useState<string[]>(() => {
     const desdeUrl = parseListParam(searchParams.get("unidadNegocioIds"));
     if (desdeUrl.length > 0) return desdeUrl;
-    return permisos.puedeElegirUnidad ? [] : (profile?.unidad_negocio_id ? [profile.unidad_negocio_id] : []);
+    return permisos.puedeElegirUnidad
+      ? []
+      : profile?.unidad_negocio_id
+        ? [profile.unidad_negocio_id]
+        : [];
   });
   const [descargando, setDescargando] = useState(false);
 
@@ -204,7 +231,9 @@ export default function EvaluacionPage() {
     setSucursalIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
   function toggleUnidad(id: string) {
-    setUnidadNegocioIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setUnidadNegocioIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   }
 
   async function descargarReporte(formato: "html" | "pdf") {
@@ -245,7 +274,11 @@ export default function EvaluacionPage() {
                 disabled={descargando}
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium disabled:opacity-60"
               >
-                {descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {descargando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
                 HTML
               </button>
               <button
@@ -253,7 +286,11 @@ export default function EvaluacionPage() {
                 disabled={descargando}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
               >
-                {descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {descargando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
                 PDF
               </button>
             </div>
@@ -271,7 +308,11 @@ export default function EvaluacionPage() {
               Todos
             </ToggleChip>
             {MESES.map((nombre, i) => (
-              <ToggleChip key={nombre} activo={meses.includes(i + 1)} onClick={() => toggleMes(i + 1)}>
+              <ToggleChip
+                key={nombre}
+                activo={meses.includes(i + 1)}
+                onClick={() => toggleMes(i + 1)}
+              >
                 {nombre}
               </ToggleChip>
             ))}
@@ -280,13 +321,19 @@ export default function EvaluacionPage() {
 
         {permisos.puedeElegirSucursal && (
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sucursales</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Sucursales
+            </p>
             <div className="flex flex-wrap gap-1.5">
               <ToggleChip activo={sucursalIds.length === 0} onClick={() => setSucursalIds([])}>
                 Todas
               </ToggleChip>
               {(sucursales ?? []).map((s) => (
-                <ToggleChip key={s.id} activo={sucursalIds.includes(s.id)} onClick={() => toggleSucursal(s.id)}>
+                <ToggleChip
+                  key={s.id}
+                  activo={sucursalIds.includes(s.id)}
+                  onClick={() => toggleSucursal(s.id)}
+                >
                   {s.nombre}
                 </ToggleChip>
               ))}
@@ -300,11 +347,18 @@ export default function EvaluacionPage() {
               Unidades de negocio
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <ToggleChip activo={unidadNegocioIds.length === 0} onClick={() => setUnidadNegocioIds([])}>
+              <ToggleChip
+                activo={unidadNegocioIds.length === 0}
+                onClick={() => setUnidadNegocioIds([])}
+              >
                 Todas
               </ToggleChip>
               {(unidades ?? []).map((u) => (
-                <ToggleChip key={u.id} activo={unidadNegocioIds.includes(u.id)} onClick={() => toggleUnidad(u.id)}>
+                <ToggleChip
+                  key={u.id}
+                  activo={unidadNegocioIds.includes(u.id)}
+                  onClick={() => toggleUnidad(u.id)}
+                >
                   {u.nombre}
                 </ToggleChip>
               ))}
@@ -317,11 +371,18 @@ export default function EvaluacionPage() {
               Unidad de negocio
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <ToggleChip activo={unidadNegocioIds.length === 0} onClick={() => setUnidadNegocioIds([])}>
+              <ToggleChip
+                activo={unidadNegocioIds.length === 0}
+                onClick={() => setUnidadNegocioIds([])}
+              >
                 Todas las mías
               </ToggleChip>
               {(unidades ?? []).map((u) => (
-                <ToggleChip key={u.id} activo={unidadNegocioIds.includes(u.id)} onClick={() => toggleUnidad(u.id)}>
+                <ToggleChip
+                  key={u.id}
+                  activo={unidadNegocioIds.includes(u.id)}
+                  onClick={() => toggleUnidad(u.id)}
+                >
                   {u.nombre}
                 </ToggleChip>
               ))}
@@ -352,7 +413,11 @@ export default function EvaluacionPage() {
               <KpiCard
                 label="Meses incluidos"
                 value={String(data.meses.length || 12)}
-                hint={data.meses.length === 0 ? "Todos los disponibles" : data.meses.map((m) => MESES[m - 1]).join(", ")}
+                hint={
+                  data.meses.length === 0
+                    ? "Todos los disponibles"
+                    : data.meses.map((m) => MESES[m - 1]).join(", ")
+                }
               />
             </div>
           </div>
@@ -369,7 +434,8 @@ export default function EvaluacionPage() {
               <p className="text-sm text-muted-foreground">Generando análisis con IA…</p>
             ) : analisis.isError ? (
               <p className="text-sm text-danger">
-                No se pudo generar el análisis narrativo ({(analisis.error as Error)?.message ?? "error desconocido"}).
+                No se pudo generar el análisis narrativo (
+                {(analisis.error as Error)?.message ?? "error desconocido"}).
               </p>
             ) : (
               <div className="flex flex-col gap-3 text-sm leading-relaxed text-foreground">
@@ -396,7 +462,9 @@ export default function EvaluacionPage() {
 
               <div className="card-elevated overflow-hidden">
                 <div className="border-b border-border p-4">
-                  <h3 className="font-display text-sm font-semibold">Cumplimiento por sucursal y mes</h3>
+                  <h3 className="font-display text-sm font-semibold">
+                    Cumplimiento por sucursal y mes
+                  </h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -448,10 +516,16 @@ export default function EvaluacionPage() {
                   data.detalleMarca.equipos.length > 0) && (
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {data.detalleMarca.repuestos.length > 0 && (
-                      <MarcaBarCard titulo="Repuestos por marca" filas={data.detalleMarca.repuestos} />
+                      <MarcaBarCard
+                        titulo="Repuestos por marca"
+                        filas={data.detalleMarca.repuestos}
+                      />
                     )}
                     {data.detalleMarca.lubfiltros.length > 0 && (
-                      <MarcaBarCard titulo="Lub/Filtros por marca" filas={data.detalleMarca.lubfiltros} />
+                      <MarcaBarCard
+                        titulo="Lub/Filtros por marca"
+                        filas={data.detalleMarca.lubfiltros}
+                      />
                     )}
                     {data.detalleMarca.equipos.length > 0 && (
                       <MarcaBarCard titulo="Equipos por marca" filas={data.detalleMarca.equipos} />
@@ -480,28 +554,43 @@ export default function EvaluacionPage() {
           {permisos.puedeVerGestionAsesores && (
             <div className="card-elevated overflow-hidden">
               <div className="border-b border-border p-4">
-                <h3 className="font-display text-sm font-semibold">Gestión del asesor: cotizado → facturado → perdido</h3>
+                <h3 className="font-display text-sm font-semibold">
+                  Gestión del asesor: cotizado → facturado → perdido
+                </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Score ponderado = 40% cumplimiento + 35% tasa de conversión (facturado/cotizado) + 25% (1 − tasa de
-                  pérdida). Refleja capacidad de negociación, no solo volumen.
+                  Score ponderado = 40% cumplimiento + 35% tasa de conversión (facturado/cotizado) +
+                  25% (1 − tasa de pérdida). Refleja capacidad de negociación, no solo volumen.
                 </p>
               </div>
               {cargandoGestion || !gestion ? (
                 <div className="p-6 text-sm text-muted-foreground">Cargando…</div>
               ) : gestion.filas.length === 0 ? (
-                <div className="p-6 text-sm text-muted-foreground">Sin cotizaciones en el período seleccionado.</div>
+                <div className="p-6 text-sm text-muted-foreground">
+                  Sin cotizaciones en el período seleccionado.
+                </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-accent">
                       <tr>
-                        {["Asesor", "Cotizado", "Clientes cot.", "Facturado", "Cumplimiento", "Perdido", "Clientes perd.", "Conversión", "Score"].map(
-                          (h) => (
-                            <th key={h} className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-accent-foreground">
-                              {h}
-                            </th>
-                          ),
-                        )}
+                        {[
+                          "Asesor",
+                          "Cotizado",
+                          "Clientes cot.",
+                          "Facturado",
+                          "Cumplimiento",
+                          "Perdido",
+                          "Clientes perd.",
+                          "Conversión",
+                          "Score",
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-accent-foreground"
+                          >
+                            {h}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
@@ -509,7 +598,9 @@ export default function EvaluacionPage() {
                         <tr key={f.codigoAsesor} className="border-t border-border">
                           <td className="px-3 py-2 font-medium">{f.asesor}</td>
                           <td className="px-3 py-2 tabular-nums">{money(f.cotizado)}</td>
-                          <td className="px-3 py-2 text-center tabular-nums">{f.clientesCotizados}</td>
+                          <td className="px-3 py-2 text-center tabular-nums">
+                            {f.clientesCotizados}
+                          </td>
                           <td className="px-3 py-2 tabular-nums">{money(f.facturado)}</td>
                           <td
                             className={cn(
@@ -525,9 +616,13 @@ export default function EvaluacionPage() {
                             {f.presupuesto > 0 ? pct(f.cumplimiento, 0) : "—"}
                           </td>
                           <td className="px-3 py-2 tabular-nums text-danger">{money(f.perdido)}</td>
-                          <td className="px-3 py-2 text-center tabular-nums">{f.clientesPerdidos}</td>
+                          <td className="px-3 py-2 text-center tabular-nums">
+                            {f.clientesPerdidos}
+                          </td>
                           <td className="px-3 py-2 tabular-nums">{pct(f.tasaConversion, 0)}</td>
-                          <td className="px-3 py-2 text-right font-semibold tabular-nums">{f.scorePonderado.toFixed(0)}</td>
+                          <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                            {f.scorePonderado.toFixed(0)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

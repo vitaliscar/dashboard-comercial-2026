@@ -8,7 +8,13 @@ import { roleLabel } from "@/lib/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { AppRole } from "@/hooks/use-auth";
 
-const ROLES: AppRole[] = ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"];
+const ROLES: AppRole[] = [
+  "administrador",
+  "gerencia",
+  "gerente_comercial",
+  "coordinador",
+  "asesor",
+];
 
 const MODULE_LABELS: Record<ModuleKey, string> = {
   resumen: "Resumen",
@@ -113,9 +119,7 @@ export function RolePermissionsPanel() {
                     <td key={r} className="px-4 py-2 text-center">
                       <Checkbox
                         checked={isChecked(r, m)}
-                        onCheckedChange={(c) =>
-                          toggle.mutate({ role: r, module: m, canView: !!c })
-                        }
+                        onCheckedChange={(c) => toggle.mutate({ role: r, module: m, canView: !!c })}
                       />
                     </td>
                   ),

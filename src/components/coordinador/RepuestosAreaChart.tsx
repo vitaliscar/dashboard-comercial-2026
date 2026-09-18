@@ -94,7 +94,12 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
             >
               <LabelList
                 dataKey="venta"
-                content={createLastPointLabel(data.length, (v) => money(v), "var(--color-venta)", 0)}
+                content={createLastPointLabel(
+                  data.length,
+                  (v) => money(v),
+                  "var(--color-venta)",
+                  0,
+                )}
               />
             </Area>
           </AreaChart>

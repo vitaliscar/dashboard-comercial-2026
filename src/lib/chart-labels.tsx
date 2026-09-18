@@ -138,15 +138,7 @@ export function createHorizontalLineLabel(
     if (nx == null || ny == null) return null;
 
     return (
-      <text
-        x={nx + dx}
-        y={ny}
-        dy={4}
-        textAnchor="start"
-        fill={fill}
-        fontSize={9}
-        fontWeight={700}
-      >
+      <text x={nx + dx} y={ny} dy={4} textAnchor="start" fill={fill} fontSize={9} fontWeight={700}>
         {formatter(Number(value))}
       </text>
     );

@@ -48,7 +48,10 @@ function excelFechaToISO(v: unknown): string | null {
 
 function parseNumero(v: unknown): number {
   if (typeof v === "number") return v;
-  const s = String(v ?? "").trim().replace(/\./g, "").replace(",", ".");
+  const s = String(v ?? "")
+    .trim()
+    .replace(/\./g, "")
+    .replace(",", ".");
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
@@ -63,7 +66,8 @@ async function main() {
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
 
   const headerRowIdx = rows.findIndex((r) => Array.isArray(r) && r.includes(HEADER_ROW_MARKER));
-  if (headerRowIdx === -1) throw new Error(`No se encontró la fila de encabezados ("${HEADER_ROW_MARKER}")`);
+  if (headerRowIdx === -1)
+    throw new Error(`No se encontró la fila de encabezados ("${HEADER_ROW_MARKER}")`);
   const headers = rows[headerRowIdx] as string[];
   const idx = (nombre: string) => {
     const i = headers.indexOf(nombre);
@@ -85,7 +89,10 @@ async function main() {
   const dataRows = rows.slice(headerRowIdx + 1).filter((r) => Array.isArray(r) && r[0] != null);
 
   const perdidas = dataRows.filter(
-    (r) => String(r[iEstatus] ?? "").trim().toUpperCase() === "VENTA PERDIDA",
+    (r) =>
+      String(r[iEstatus] ?? "")
+        .trim()
+        .toUpperCase() === "VENTA PERDIDA",
   );
 
   console.log(`→ ${dataRows.length} filas totales, ${perdidas.length} con Estatus "Venta Perdida"`);
@@ -94,18 +101,23 @@ async function main() {
   const uniRows = await dbAdmin.select().from(unidadesNegocio);
   const repuestos = uniRows.find((u) => u.nombre === "Repuestos");
   const lubFiltros = uniRows.find((u) => u.nombre === "Lubricantes/Filtros");
-  if (!repuestos || !lubFiltros) throw new Error("Unidades Repuestos/Lubricantes-Filtros no existen en catálogo");
+  if (!repuestos || !lubFiltros)
+    throw new Error("Unidades Repuestos/Lubricantes-Filtros no existen en catálogo");
 
   const sinResolverSucursal = new Set<string>();
   const registros = perdidas
     .map((r) => {
       const fecha = excelFechaToISO(r[iFechaVP]);
       if (!fecha) return null;
-      const codSuc = String(r[iSuc] ?? "").trim().padStart(2, "0");
+      const codSuc = String(r[iSuc] ?? "")
+        .trim()
+        .padStart(2, "0");
       const sucursalNombre = SUCURSAL_POR_CODIGO[codSuc] ?? "No Definido";
       const suc = sucRows.find((s) => s.nombre === sucursalNombre);
       if (!suc) sinResolverSucursal.add(`${codSuc} -> ${sucursalNombre}`);
-      const supl = String(r[iSupl] ?? "").trim().toUpperCase();
+      const supl = String(r[iSupl] ?? "")
+        .trim()
+        .toUpperCase();
       const unidad = LUB_SUPPLIERS.has(supl) ? lubFiltros : repuestos;
       const monto = parseNumero(r[iPrecioUnit]) * parseNumero(r[iCantVP]);
       return {
@@ -144,9 +156,9 @@ async function main() {
 
     // Reemplaza el rango completo para evitar duplicados si se corre 2 veces.
     await dbAdmin.transaction(async (tx) => {
-      await tx.delete(ventasPerdidas).where(
-        and(gte(ventasPerdidas.fecha, min), lt(ventasPerdidas.fecha, maxSiguienteISO)),
-      );
+      await tx
+        .delete(ventasPerdidas)
+        .where(and(gte(ventasPerdidas.fecha, min), lt(ventasPerdidas.fecha, maxSiguienteISO)));
       for (const r of registros) {
         await tx.insert(ventasPerdidas).values(r);
       }

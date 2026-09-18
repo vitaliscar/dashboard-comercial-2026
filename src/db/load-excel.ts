@@ -221,7 +221,8 @@ export async function loadExcelToPostgres(
   try {
     await dbAdmin.transaction(async (tx) => {
       console.log("📊 Iniciando carga de Excel a Postgres local...");
-      const parser = excelSource instanceof ExcelParser ? excelSource : new ExcelParser(excelSource);
+      const parser =
+        excelSource instanceof ExcelParser ? excelSource : new ExcelParser(excelSource);
 
       // Bloqueo defensivo: el Sheet en vivo fue reestructurado (varias hojas
       // que este parser espera ya no existen con ese nombre exacto). Sin
@@ -834,9 +835,9 @@ export async function loadExcelToPostgres(
 
 const CHUNK = 2500;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function insertChunked(
   tx: DbAdminTx,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tabla drizzle generica, el tipo exacto depende de cada llamador
   table: any,
   rows: Record<string, unknown>[],
 ): Promise<number> {

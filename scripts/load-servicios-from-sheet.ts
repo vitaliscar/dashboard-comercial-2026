@@ -72,28 +72,32 @@ async function main() {
     const insertadas = await insertChunked(
       tx,
       servicios,
-      serviciosRaw.filter((s) => (s.fecha ?? today) >= "2026-01-01").map((s) => {
-        if (!s.fecha) fechasFallbackCount++;
-        return {
-          fecha: s.fecha ?? today,
-          cliente: s.cliente,
-          monto: String(s.monto),
-          tipoServicio: s.tipoServicio || null,
-          categoriaVenta: s.categoriaVenta || null,
-          compania: s.compania || null,
-          asesor: s.asesor || null,
-          taller: s.taller || null,
-          csa: s.csa || null,
-          sucursalId: buscarSucursalId(s.sucursal),
-          unidadNegocioId: buscarUnidadId(UNIDAD_SERVICIOS),
-        };
-      }),
+      serviciosRaw
+        .filter((s) => (s.fecha ?? today) >= "2026-01-01")
+        .map((s) => {
+          if (!s.fecha) fechasFallbackCount++;
+          return {
+            fecha: s.fecha ?? today,
+            cliente: s.cliente,
+            monto: String(s.monto),
+            tipoServicio: s.tipoServicio || null,
+            categoriaVenta: s.categoriaVenta || null,
+            compania: s.compania || null,
+            asesor: s.asesor || null,
+            taller: s.taller || null,
+            csa: s.csa || null,
+            sucursalId: buscarSucursalId(s.sucursal),
+            unidadNegocioId: buscarUnidadId(UNIDAD_SERVICIOS),
+          };
+        }),
     );
     console.log(`✅ ${insertadas} filas insertadas en servicios`);
   });
 
   if (fechasFallbackCount > 0) {
-    console.warn(`⚠️  ${fechasFallbackCount} filas sin fecha — se usó la fecha de hoy como fallback.`);
+    console.warn(
+      `⚠️  ${fechasFallbackCount} filas sin fecha — se usó la fecha de hoy como fallback.`,
+    );
   }
   if (sucursalesNoResueltas.size > 0) {
     console.warn("⚠️  Sucursales no encontradas:");

@@ -101,11 +101,14 @@ async function main() {
     // aparece ahi (confirmado 2026-09-08, FMO Piar Servicios 19514.36 -> 0).
     const archivoServ = localizarArchivoMasReciente(
       DOWNLOADS_DIR,
-      new RegExp(`^ventasgeneral-32-SERVICIO-${ANIO}-${MES}-.*\.xls$`, "i"),
+      new RegExp(`^ventasgeneral-32-SERVICIO-${ANIO}-${MES}-.*\\.xls$`, "i"),
     );
     console.log(`→ Leyendo ${archivoServ}`);
     const filasServ = leerArchivoCrudo(archivoServ, 6);
-    const parserServ = new ExcelParser("", { sheetNames: ["Servicios"], sheets: { Servicios: filasServ } });
+    const parserServ = new ExcelParser("", {
+      sheetNames: ["Servicios"],
+      sheets: { Servicios: filasServ },
+    });
     const servicios = parserServ.getServiciosNuevo();
     servicios.forEach((s) => {
       if (s.categoriaVenta !== "EXTERNO") return;
@@ -164,7 +167,9 @@ async function main() {
           `✓ ${sucursal} / ${unidad}: CCV=${ventasCcv.toFixed(2)} Xibi=${ventasXibi.toFixed(2)} Estrategicas=${ventasEstrategicas.toFixed(2)}`,
         );
       } else {
-        console.warn(`⚠️  No existe fila presupuestos para ${sucursal} / ${unidad} en ${ANIO}-${MES}`);
+        console.warn(
+          `⚠️  No existe fila presupuestos para ${sucursal} / ${unidad} en ${ANIO}-${MES}`,
+        );
       }
     }
     console.log(`\n✅ ${actualizadas} filas de presupuestos actualizadas`);
