@@ -23,7 +23,7 @@
  *   (json por defecto: /tmp/lubfiltros_sheet.json)
  */
 import { readFileSync } from "node:fs";
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { dbAdmin } from "@/db";
 import { facturas } from "@/db/schema";
 import { seedCatalogos, insertChunked, type DbAdminTx } from "@/db/load-excel";
@@ -43,7 +43,7 @@ async function main() {
     sheetNames: ["Lubricantes/Filtros"],
     sheets: { "Lubricantes/Filtros": rows },
   });
-  const facturasRaw = parser.getFacturasLubFiltros();
+  const facturasRaw = parser.getFacturasLubFiltros().filter((f) => (f.fecha ?? "9999") >= "2026-01-01");
   console.log(`→ ${facturasRaw.length} filas parseadas`);
 
   const sucursalesNoResueltas = new Map<string, number>();
@@ -61,7 +61,7 @@ async function main() {
       return id;
     };
 
-    await tx.delete(facturas).where(eq(facturas.unidadNegocioId, lubFiltrosId));
+    await tx.delete(facturas).where(and(eq(facturas.unidadNegocioId, lubFiltrosId), gte(facturas.fecha, "2026-01-01")));
     const insertadas = await insertChunked(
       tx,
       facturas,

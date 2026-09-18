@@ -24,6 +24,7 @@
  *    dump_servicios_json.py en el servidor)
  */
 import { readFileSync } from "node:fs";
+import { gte } from "drizzle-orm";
 import { dbAdmin } from "@/db";
 import { servicios } from "@/db/schema";
 import { seedCatalogos, insertChunked, type DbAdminTx } from "@/db/load-excel";
@@ -65,11 +66,13 @@ async function main() {
       return id;
     };
 
-    await tx.delete(servicios);
+    // Acotado a 2026+: el Sheet solo trae 2026, asi que un DELETE total
+    // borraria el backfill historico 2024/2025 (bug real 2026-09-18).
+    await tx.delete(servicios).where(gte(servicios.fecha, "2026-01-01"));
     const insertadas = await insertChunked(
       tx,
       servicios,
-      serviciosRaw.map((s) => {
+      serviciosRaw.filter((s) => (s.fecha ?? today) >= "2026-01-01").map((s) => {
         if (!s.fecha) fechasFallbackCount++;
         return {
           fecha: s.fecha ?? today,

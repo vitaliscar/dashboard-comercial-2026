@@ -25,14 +25,15 @@
  *
  * Uso: bun scripts/load-facturas-as400.ts
  */
-import { inArray } from "drizzle-orm";
+import { and, gte, inArray } from "drizzle-orm";
+import { existsSync, readFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { dbAdmin } from "@/db";
 import { facturas } from "@/db/schema";
 import { seedCatalogos, insertChunked, type DbAdminTx } from "@/db/load-excel";
 import { ExcelParser } from "@/lib/excel-parser";
-import { leerArchivoCrudo, localizarArchivoMasReciente } from "@/lib/raw-source-reader";
+import { leerArchivoCrudo, localizarArchivoMasReciente, type RawRowData } from "@/lib/raw-source-reader";
 import { leerFilasLubricanteVentasrepuesto } from "@/lib/as400-lubricantes";
 import { resolverSucursalOportunidadesDetallado } from "@/lib/as400-sucursales";
 
@@ -59,7 +60,13 @@ async function main() {
   });
   console.log(`→ ${filas.length} filas crudas combinadas (Oportunidades Detallado, 3 compañías)`);
 
-  const filasLubFiltros = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR);
+  // Neteo con TODO 2026 (dump del Sheet, ver dump_lubfiltros_json.py): los
+  // ventasrepuesto crudos solo traen el mes en curso, y con eso el Repuestos
+  // de ene-ago quedaba sin netear (bug real 2026-09-18).
+  const LUB_JSON = "/tmp/lubfiltros_sheet.json";
+  const filasLubFiltros = existsSync(LUB_JSON)
+    ? (JSON.parse(readFileSync(LUB_JSON, "utf-8")).rows as RawRowData[])
+    : leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR);
   console.log(`→ ${filasLubFiltros.length} filas de LubricantesFiltros (para neteo)`);
 
   const parser = new ExcelParser("", {
@@ -67,7 +74,7 @@ async function main() {
     sheets: { Facturacion: filas, "Lubricantes/Filtros": filasLubFiltros },
   });
 
-  const facturasRaw = parser.getFacturasPrincipales();
+  const facturasRaw = parser.getFacturasPrincipales().filter((f) => (f.fecha ?? "9999") >= "2026-01-01");
   console.log(`→ ${facturasRaw.length} facturas parseadas`);
 
   let fechasFallbackCount = 0;
@@ -98,7 +105,7 @@ async function main() {
       ),
     );
     if (idsUnidades.length > 0) {
-      await tx.delete(facturas).where(inArray(facturas.unidadNegocioId, idsUnidades));
+      await tx.delete(facturas).where(and(inArray(facturas.unidadNegocioId, idsUnidades), gte(facturas.fecha, "2026-01-01")));
     }
 
     const insertadas = await insertChunked(

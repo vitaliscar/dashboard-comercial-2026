@@ -16,14 +16,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, ShieldAlert } from "lucide-react";
 
-/** Inactividad máxima antes de cerrar (o preguntar a administrador). */
-const IDLE_MS = 3 * 60 * 1000;
-/** Gracia solo para administrador tras el aviso (sigue en wall-clock / segundo plano). */
-const ADMIN_GRACE_MS = 30 * 1000;
+/** Inactividad máxima antes de preguntar si mantener la sesión. */
+const IDLE_MS = 8 * 60 * 1000;
+/** Gracia tras el aviso (sigue en wall-clock / segundo plano). */
+const GRACE_MS = 30 * 1000;
 
 export function ProtectedShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { session, role, loading, signOut } = useAuth();
+  const { session, loading, signOut } = useAuth();
 
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -82,7 +82,6 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
     if (!session || loggingOutRef.current) return;
 
     const now = Date.now();
-    const isAdmin = role === "administrador";
 
     // Fase de gracia / cierre: siempre wall-clock (también con pestaña oculta).
     if (logoutAtRef.current != null) {
@@ -104,18 +103,17 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Inactividad cumplida.
-    if (!isAdmin || document.visibilityState === "hidden") {
+    // Inactividad cumplida: en segundo plano cierra; si la pestaña está visible, pregunta.
+    if (document.visibilityState === "hidden") {
       void doLogout();
       return;
     }
 
-    // Administrador con pestaña visible: preguntar y dar gracia.
-    logoutAtRef.current = now + ADMIN_GRACE_MS;
+    logoutAtRef.current = now + GRACE_MS;
     warningOpenRef.current = true;
-    setTimeLeft(Math.ceil(ADMIN_GRACE_MS / 1000));
+    setTimeLeft(Math.ceil(GRACE_MS / 1000));
     setIsWarningOpen(true);
-  }, [session, role, doLogout, scheduleHiddenDeadline]);
+  }, [session, doLogout, scheduleHiddenDeadline]);
 
   useEffect(() => {
     tickRef.current = tick;
@@ -234,8 +232,8 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
               ¿Mantener la sesión abierta?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground text-sm max-w-xs">
-              Llevas 3 minutos inactivo. Como administrador puedes mantener la sesión; si no
-              respondes se cerrará en{" "}
+              Llevas 8 minutos inactivo. ¿Quieres mantener la sesión abierta? Si no respondes se
+              cerrará en{" "}
               <span className="font-bold text-destructive font-mono text-base">{timeLeft}</span>{" "}
               segundos (también si la pestaña está en segundo plano).
             </AlertDialogDescription>
