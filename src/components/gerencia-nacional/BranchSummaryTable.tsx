@@ -46,14 +46,18 @@ const STATUS_LABEL: Record<ReturnType<typeof statusFromPct90>, string> = {
 
 export const BranchSummaryTable = memo(function BranchSummaryTable({
   rows,
+  title = "Resumen por sucursal",
+  emptyDescription = "No hay facturación registrada por sucursal en el período seleccionado.",
 }: {
   rows: BranchSummaryRow[];
+  title?: string;
+  emptyDescription?: string;
 }) {
   if (rows.length === 0) {
     return (
       <div className="card-elevated overflow-hidden">
         <div className="border-b border-border p-4">
-          <h3 className="font-display text-sm font-semibold">Resumen por sucursal</h3>
+          <h3 className="font-display text-sm font-semibold">{title}</h3>
         </div>
         <Empty>
           <EmptyHeader>
@@ -61,9 +65,7 @@ export const BranchSummaryTable = memo(function BranchSummaryTable({
               <Building2 />
             </EmptyMedia>
             <EmptyTitle>Sin datos para el período</EmptyTitle>
-            <EmptyDescription>
-              No hay facturación registrada por sucursal en el período seleccionado.
-            </EmptyDescription>
+            <EmptyDescription>{emptyDescription}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       </div>
@@ -73,7 +75,7 @@ export const BranchSummaryTable = memo(function BranchSummaryTable({
   return (
     <div className="card-elevated section-enter overflow-hidden">
       <div className="border-b border-border p-4">
-        <h3 className="font-display text-sm font-semibold">Resumen por sucursal</h3>
+        <h3 className="font-display text-sm font-semibold">{title}</h3>
       </div>
       {/* Mobile card view (<600px) */}
       <div className="min-[600px]:hidden flex flex-col divide-y divide-border">

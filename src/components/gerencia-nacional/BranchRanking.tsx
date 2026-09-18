@@ -44,7 +44,13 @@ function getAxisConfig(maxPct: number) {
   };
 }
 
-export const BranchRanking = memo(function BranchRanking({ rows }: { rows: BranchRow[] }) {
+export const BranchRanking = memo(function BranchRanking({
+  rows,
+  title = "Cumplimiento por sucursal",
+}: {
+  rows: BranchRow[];
+  title?: string;
+}) {
   const chartAnimation = useChartAnimation();
   const chartData = rows.map((r) => ({
     ...r,
@@ -57,7 +63,7 @@ export const BranchRanking = memo(function BranchRanking({ rows }: { rows: Branc
 
   return (
     <div className="card-elevated section-enter flex h-full flex-col p-4">
-      <h3 className="font-display text-sm font-semibold">Cumplimiento por sucursal</h3>
+      <h3 className="font-display text-sm font-semibold">{title}</h3>
       <div className="mt-1 mb-3 flex flex-wrap justify-center gap-3 text-[10px] text-muted-foreground">
         <LegendDot color={ACCENT_VAR.success} label="Meta (90%+)" />
         <LegendDot color={ACCENT_VAR.warning} label="Aceptable (70-89%)" />

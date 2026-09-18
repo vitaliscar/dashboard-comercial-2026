@@ -3,481 +3,239 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
-import { useUnidades } from "@/hooks/use-catalogos";
-import { MESES } from "@/lib/format";
+import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
+import { KpiCard } from "@/components/kpi-card";
+import { PageHeader } from "@/components/page-header";
+import { money, pct, statusFromPct } from "@/lib/format";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
-import { getDateRangesForMonths, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
-import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
+import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
 import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
+import { UnitMetaVsVenta, type UnitChartRow } from "@/components/gerencia-nacional/UnitMetaVsVenta";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
-import { CompanyTrendChart } from "@/components/coordinador/CompanyTrendChart";
-import { UnitAmountBars } from "@/components/coordinador/UnitAmountBars";
-import { GlobalMonthlyCombo, type MonthlyRow } from "@/components/coordinador/GlobalMonthlyCombo";
-import { RepuestosAreaChart } from "@/components/coordinador/RepuestosAreaChart";
-import { ServiciosBarWithMarkers } from "@/components/coordinador/ServiciosBarWithMarkers";
-import { LubFiltrosComboLines } from "@/components/coordinador/LubFiltrosComboLines";
+import { BranchRanking } from "@/components/gerencia-nacional/BranchRanking";
 import {
-  EquiposAlquilerStacked,
-  type EquiposAlquilerRow,
-} from "@/components/coordinador/EquiposAlquilerStacked";
-import { ReceivablesTable, type ReceivableRow } from "@/components/coordinador/ReceivablesTable";
-import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-  EmptyMedia,
-} from "@/components/ui/empty";
+  BranchSummaryTable,
+  type BranchSummaryRow,
+} from "@/components/gerencia-nacional/BranchSummaryTable";
+import { getAllowedMonths } from "@/lib/date-range";
+import { useMemo, useCallback } from "react";
+import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import {
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-} from "recharts";
-import { useMemo, useEffect, useDeferredValue } from "react";
-import { Shield, Users, FileBarChart } from "lucide-react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { resolverAsesor, normalizarNombre, VENTAS_CASA } from "@/lib/asesores-catalogo";
-import {
-  getCoordinadorYearAction,
-  getCoordinadorCobranzasAction,
-  getCoordinadorScorecardAction,
-} from "@/lib/actions/coordinador";
+import { getCoordinadorYearAction } from "@/lib/actions/coordinador";
 
-type Acc = {
-  facturado: number;
-  presupuesto: number;
-  ccv: number;
-  xibi: number;
-  estrategicas: number;
-};
-const emptyMonth = (): Acc => ({ facturado: 0, presupuesto: 0, ccv: 0, xibi: 0, estrategicas: 0 });
-const emptyYear = (): Acc[] => Array.from({ length: 12 }, emptyMonth);
-
-function combineUnits(perUnit: Map<string, Acc[]>, ids: string[]): Acc[] {
-  const result = emptyYear();
-  ids.forEach((id) => {
-    const arr = perUnit.get(id);
-    if (!arr) return;
-    arr.forEach((m, i) => {
-      result[i].facturado += m.facturado;
-      result[i].presupuesto += m.presupuesto;
-      result[i].ccv += m.ccv;
-      result[i].xibi += m.xibi;
-      result[i].estrategicas += m.estrategicas;
-    });
-  });
-  return result;
-}
+type Acc = { meta: number; facturado: number };
+const emptyAcc = (): Acc => ({ meta: 0, facturado: 0 });
+const pctOf = (a: Acc) => (a.meta > 0 ? (a.facturado / a.meta) * 100 : 0);
 
 export default function CoordinadorPanel() {
   const { role, profile } = useAuth();
   const canView = role === "coordinador";
 
   const { filters, setFilters } = useSharedFilters();
-  const { anio, meses, unidades: selectedUnidades } = filters;
+  const { anio, meses, unidades: selectedUnidades = [] } = filters;
 
-  const dateRanges = useMemo(() => getDateRangesForMonths(anio, meses), [anio, meses]);
-
-  const handleApplyFilters = (f: FilterState) => {
-    setFilters({
-      anio: f.anio,
-      meses: f.meses,
-      unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
-    });
-  };
-
-  // Keyboard navigation shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeElement = document.activeElement;
-      if (
-        activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "SELECT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.getAttribute("contenteditable") === "true")
-      ) {
-        return;
-      }
-
-      const today = new Date();
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        if (meses === "all") {
-          setFilters({ ...filters, meses: [12] });
-        } else {
-          const currentMes = meses[0] ?? today.getMonth() + 1;
-          if (currentMes > 1) {
-            setFilters({ ...filters, meses: [currentMes - 1] });
-          } else {
-            setFilters({ ...filters, meses: [12], anio: anio - 1 });
-          }
-        }
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        if (meses === "all") {
-          setFilters({ ...filters, meses: [1] });
-        } else {
-          const currentMes = meses[0] ?? today.getMonth() + 1;
-          if (currentMes < 12) {
-            setFilters({ ...filters, meses: [currentMes + 1] });
-          } else {
-            setFilters({ ...filters, meses: [1], anio: anio + 1 });
-          }
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [filters, anio, meses, setFilters]);
-
+  const { data: sucursalesData } = useSucursales();
   const { data: unidades } = useUnidades();
 
-  const { data: yearData, isLoading } = useQuery({
-    queryKey: ["coordinador-year", anio, profile?.sucursal_id],
+  const handleApplyFilters = useCallback(
+    (f: FilterState) => {
+      setFilters({
+        anio: f.anio,
+        meses: f.meses,
+        unidades: f.unidades ?? (f.unidad ? [f.unidad] : []),
+      });
+    },
+    [setFilters],
+  );
+
+  const { data: resumenAnual, isLoading } = useQuery({
+    queryKey: ["coordinador-year", anio, profile?.id],
     enabled: canView,
     queryFn: () => getCoordinadorYearAction({ anio }),
   });
 
-  const { data: cobranzasData } = useQuery({
-    queryKey: ["coordinador-cobranzas", profile?.sucursal_id],
-    enabled: canView,
-    queryFn: () => getCoordinadorCobranzasAction(),
-  });
+  const allowedMonths = useMemo(() => getAllowedMonths(anio, meses), [anio, meses]);
 
-  const { data: asesorScoreData } = useQuery({
-    queryKey: [
-      "coordinador-scorecard",
-      anio,
-      JSON.stringify(meses),
-      profile?.sucursal_id,
-      selectedUnidades,
-    ],
-    enabled: canView,
-    queryFn: () =>
-      getCoordinadorScorecardAction({
-        anio,
-        meses,
-        ranges: dateRanges,
-        unidades: selectedUnidades,
-      }),
-  });
+  // Sucursales del coordinador (bridge o primaria) — para ranking/tabla.
+  const misSucursalesIds = useMemo(() => {
+    if (profile?.sucursales_ids?.length) return profile.sucursales_ids;
+    if (profile?.sucursal_id) return [profile.sucursal_id];
+    return [];
+  }, [profile]);
 
-  const monthlyData = useMemo(() => {
-    const perUnit = new Map<string, Acc[]>();
-    const ensure = (id: string) => {
-      if (!perUnit.has(id)) perUnit.set(id, emptyYear());
-      return perUnit.get(id)!;
+  const misSucursales = useMemo(() => {
+    if (!sucursalesData) return [];
+    if (misSucursalesIds.length === 0) return sucursalesData;
+    return sucursalesData.filter((s) => misSucursalesIds.includes(s.id));
+  }, [sucursalesData, misSucursalesIds]);
+
+  // Totales del gauge — respeta mes + chips de unidad.
+  const metrics = useMemo(() => {
+    if (!resumenAnual) return null;
+    const rows = resumenAnual.presupuestos.filter(
+      (r) =>
+        allowedMonths.includes(r.mes) &&
+        (selectedUnidades.length === 0 ||
+          (r.unidadNegocioId && selectedUnidades.includes(r.unidadNegocioId))),
+    );
+    return { presupuestos: rows };
+  }, [resumenAnual, allowedMonths, selectedUnidades]);
+
+  // Cross sucursal×unidad — sin filtrar por chip de unidad (donut/meta-vs-venta
+  // muestran todas, atenuando las no seleccionadas).
+  const crossRaw = useMemo(() => {
+    if (!resumenAnual) return null;
+    return {
+      presupuestos: resumenAnual.presupuestos.filter((r) => allowedMonths.includes(r.mes)),
+    };
+  }, [resumenAnual, allowedMonths]);
+
+  const cross = useMemo(() => {
+    if (!crossRaw || !unidades) return null;
+
+    const branchAcc = new Map<string, Acc>();
+    const unitAcc = new Map<string, Acc>();
+
+    const bump = (map: Map<string, Acc>, key: string, field: keyof Acc, value: number) => {
+      const entry = map.get(key) ?? emptyAcc();
+      entry[field] += value;
+      map.set(key, entry);
     };
 
-    (yearData?.presupuestos ?? []).forEach((r) => {
+    crossRaw.presupuestos.forEach((r) => {
       if (!r.unidadNegocioId) return;
-      const m = r.mes - 1;
-      if (m < 0 || m > 11) return;
-      const acc = ensure(r.unidadNegocioId)[m];
-      const ccv = Number(r.ventasCcv ?? 0);
-      const xibi = Number(r.ventasXibi ?? 0);
-      const estrategicas = Number(r.ventasEstrategicas ?? 0);
-      acc.presupuesto += Number(r.monto ?? 0);
-      acc.ccv += ccv;
-      acc.xibi += xibi;
-      acc.estrategicas += estrategicas;
-      acc.facturado += ccv + xibi + estrategicas;
+      const meta = Number(r.meta ?? 0);
+      const facturado = Number(r.facturado ?? 0);
+      bump(unitAcc, r.unidadNegocioId, "meta", meta);
+      bump(unitAcc, r.unidadNegocioId, "facturado", facturado);
+      if (
+        r.sucursalId &&
+        (selectedUnidades.length === 0 || selectedUnidades.includes(r.unidadNegocioId))
+      ) {
+        bump(branchAcc, r.sucursalId, "meta", meta);
+        bump(branchAcc, r.sucursalId, "facturado", facturado);
+      }
     });
 
-    return perUnit;
-  }, [yearData]);
-
-  const unitIdsByLabel = useMemo(() => {
-    const map = new Map<string, string[]>();
-    (unidades ?? []).forEach((u) => {
-      const { label } = unidadLabelInfo(u.nombre);
-      map.set(label, [...(map.get(label) ?? []), u.id]);
-    });
-    return map;
-  }, [unidades]);
-
-  const allUnitIds = useMemo(() => (unidades ?? []).map((u) => u.id), [unidades]);
-  const effectiveUnitIds = selectedUnidades.length > 0 ? selectedUnidades : allUnitIds;
-
-  const monthsInScope = useMemo(() => {
-    if (meses !== "all") {
-      return meses.map((m) => m - 1);
-    }
-    const cap = getAllMonthsCap(anio);
-    return Array.from({ length: cap }, (_, i) => i);
-  }, [meses, anio]);
-
-  const currentPeriodCompania = useMemo(() => {
-    let ccv = 0,
-      xibi = 0,
-      estrategicas = 0;
-    effectiveUnitIds.forEach((id) => {
-      const arr = monthlyData.get(id);
-      if (!arr) return;
-      monthsInScope.forEach((m) => {
-        ccv += arr[m].ccv;
-        xibi += arr[m].xibi;
-        estrategicas += arr[m].estrategicas;
-      });
-    });
-    return [
-      { label: "CCV", facturado: ccv },
-      { label: "Xibi", facturado: xibi },
-      { label: "Ventas Estratégicas", facturado: estrategicas },
-    ].filter((r) => r.facturado > 0);
-  }, [effectiveUnitIds, monthlyData, monthsInScope]);
-
-  const currentPeriodByUnit = useMemo(() => {
-    return (unidades ?? [])
-      .filter((u) => effectiveUnitIds.includes(u.id))
-      .map((u) => {
-        const arr = monthlyData.get(u.id) ?? emptyYear();
-        const facturado = monthsInScope.reduce((a, m) => a + arr[m].facturado, 0);
-        const presupuesto = monthsInScope.reduce((a, m) => a + arr[m].presupuesto, 0);
-        const cumplimiento = presupuesto > 0 ? (facturado / presupuesto) * 100 : 0;
-        return { label: unidadLabelInfo(u.nombre).label, facturado, cumplimiento };
+    const branchRows: BranchSummaryRow[] = misSucursales
+      .map((s) => {
+        const a = branchAcc.get(s.id) ?? emptyAcc();
+        return { id: s.id, label: s.nombre, meta: a.meta, facturado: a.facturado, pct: pctOf(a) };
       })
-      .filter((r) => r.facturado > 0)
-      .sort((a, b) => b.facturado - a.facturado);
-  }, [unidades, effectiveUnitIds, monthlyData, monthsInScope]);
+      .filter((r) => r.meta > 0 || r.facturado > 0)
+      .sort((a, b) => b.pct - a.pct);
 
-  // Meses abreviados (Ene, Feb, ...) para todo el año transcurrido — mismo
-  // criterio que en servicios/repuestos/equipos/alquiler/lubfiltros, en vez
-  // del placeholder fijo "primeros 6 meses" que dejaba fuera meses ya
-  // cargados y no coincidía con el resto de los cálculos de la página.
-  const h1Labels = useMemo(() => {
-    const cap = getAllMonthsCap(anio);
-    return Array.from({ length: cap }, (_, i) => MESES[i].slice(0, 3));
-  }, [anio]);
-  const scopedGlobal = useMemo(
-    () => combineUnits(monthlyData, effectiveUnitIds),
-    [monthlyData, effectiveUnitIds],
-  );
-
-  const currentPeriodTotals = useMemo(() => {
-    const facturado = monthsInScope.reduce((a, m) => a + scopedGlobal[m].facturado, 0);
-    const presupuesto = monthsInScope.reduce((a, m) => a + scopedGlobal[m].presupuesto, 0);
-    const cumplimiento = presupuesto > 0 ? (facturado / presupuesto) * 100 : 0;
-    return { facturado, presupuesto, cumplimiento };
-  }, [scopedGlobal, monthsInScope]);
-
-  const companyTrend = useMemo(
-    () =>
-      h1Labels.map((mesLabel, i) => ({
-        mes: mesLabel,
-        ccv: scopedGlobal[i].ccv,
-        xibi: scopedGlobal[i].xibi,
-        estrategicas: scopedGlobal[i].estrategicas,
-      })),
-    [scopedGlobal, h1Labels],
-  );
-
-  const globalTrend: MonthlyRow[] = useMemo(
-    () =>
-      h1Labels.map((mesLabel, i) => ({
-        mes: mesLabel,
-        presupuesto: scopedGlobal[i].presupuesto,
-        venta: scopedGlobal[i].facturado,
-      })),
-    [scopedGlobal, h1Labels],
-  );
-
-  const trendForLabel = (label: string): MonthlyRow[] => {
-    const ids = unitIdsByLabel.get(label) ?? [];
-    const combined = combineUnits(monthlyData, ids);
-    return h1Labels.map((mesLabel, i) => ({
-      mes: mesLabel,
-      presupuesto: combined[i].presupuesto,
-      venta: combined[i].facturado,
-    }));
-  };
-  const repuestosTrend = trendForLabel("Repuestos");
-  const serviciosTrend = trendForLabel("Servicios");
-  const lubFiltrosTrend = trendForLabel("Lub / Filtros");
-
-  const equiposAlquilerTrend: EquiposAlquilerRow[] = useMemo(() => {
-    const equiposIds = unitIdsByLabel.get("Equipos") ?? [];
-    const alquilerIds = unitIdsByLabel.get("Alquiler") ?? [];
-    const equipos = combineUnits(monthlyData, equiposIds);
-    const alquiler = combineUnits(monthlyData, alquilerIds);
-    return h1Labels.map((mesLabel, i) => ({
-      mes: mesLabel,
-      equiposVenta: equipos[i].facturado,
-      alquilerVenta: alquiler[i].facturado,
-      presupuestoTotal: equipos[i].presupuesto + alquiler[i].presupuesto,
-    }));
-  }, [monthlyData, unitIdsByLabel, h1Labels]);
-
-  const receivablesRows: ReceivableRow[] = useMemo(() => {
-    const map = new Map<string, ReceivableRow>();
-    (cobranzasData ?? []).forEach((r) => {
-      if (!r.unidadNegocioId) return;
-      const unidad = unidades?.find((u) => u.id === r.unidadNegocioId);
-      const unidadLabel = unidad ? unidadLabelInfo(unidad.nombre).label : "Sin unidad";
-      const key = `${r.cliente}-${r.unidadNegocioId}`;
-      const entry = map.get(key) ?? {
-        cliente: r.cliente,
-        unidadId: r.unidadNegocioId,
-        unidadLabel,
-        total: 0,
-      };
-      entry.total += Number(r.saldo ?? 0);
-      map.set(key, entry);
-    });
-    return Array.from(map.values());
-  }, [cobranzasData, unidades]);
-
-  const receivablesUnitOptions = useMemo(
-    () => (unidades ?? []).map((u) => ({ value: u.id, label: unidadLabelInfo(u.nombre).label })),
-    [unidades],
-  );
-
-  const asesorComparativo = useMemo(() => {
-    if (!asesorScoreData) return [];
-
-    const aliases = new Map<string, string>();
-    asesorScoreData.asesores.forEach((r) => {
-      const normName = normalizarNombre(r.asesor ?? "");
-      const code = String(r.codigoAsesor ?? "").trim();
-      if (normName && code) aliases.set(normName, code);
-    });
-
-    const cotByAsesor = new Map<string, number>();
-    asesorScoreData.cotizaciones.forEach((r) => {
-      const resolved = resolverAsesor({ codigo: r.asesorCodigo }, aliases);
-      const key = resolved.nombre;
-      cotByAsesor.set(key, (cotByAsesor.get(key) ?? 0) + (r.cantidad ?? 1));
-    });
-
-    const facCountByAsesor = new Map<string, number>();
-    const facMontoByAsesor = new Map<string, number>();
-    asesorScoreData.facturas.forEach((r) => {
-      const resolved = resolverAsesor({ nombre: r.asesor }, aliases);
-      const key = resolved.nombre;
-      facCountByAsesor.set(key, (facCountByAsesor.get(key) ?? 0) + (r.cantidad ?? 1));
-      facMontoByAsesor.set(key, (facMontoByAsesor.get(key) ?? 0) + Number(r.monto ?? 0));
-    });
-
-    const minByAsesor = new Map<string, { total: number; cerradas: number }>();
-    asesorScoreData.minutas.forEach((r) => {
-      const resolved = resolverAsesor({ nombre: r.responsable }, aliases);
-      const key = resolved.nombre;
-      const current = minByAsesor.get(key) ?? { total: 0, cerradas: 0 };
-      const qty = r.cantidad ?? 1;
-      current.total += qty;
-      if (r.estado === "cumplido") current.cerradas += qty;
-      minByAsesor.set(key, current);
-    });
-
-    const base = new Map<string, { cumplimiento: number; participacion: number; venta: number }>();
-    asesorScoreData.asesores.forEach((r) => {
-      const resolved = resolverAsesor({ codigo: r.codigoAsesor, nombre: r.asesor }, aliases);
-      const key = resolved.nombre;
-      const curr = base.get(key) ?? { cumplimiento: 0, participacion: 0, venta: 0 };
-      curr.cumplimiento = Math.max(curr.cumplimiento, Number(r.pctCumplimiento ?? 0));
-      curr.participacion = Math.max(curr.participacion, Number(r.pctParticipacion ?? 0));
-      curr.venta += Number(r.venta ?? 0);
-      base.set(key, curr);
-    });
-
-    const rows = Array.from(base.entries())
-      .filter(([asesor]) => asesor !== VENTAS_CASA.nombre)
-      .map(([asesor, v]) => {
-        const cot = cotByAsesor.get(asesor) ?? 0;
-        const fac = facCountByAsesor.get(asesor) ?? 0;
-        const conversion = cot > 0 ? (fac / cot) * 100 : 0;
-        const ticket = fac > 0 ? (facMontoByAsesor.get(asesor) ?? 0) / fac : 0;
-        const m = minByAsesor.get(asesor);
-        const disciplina = m && m.total > 0 ? (m.cerradas / m.total) * 100 : 100;
+    const unitRows = unidades
+      .map((u) => {
+        const a = unitAcc.get(u.id) ?? emptyAcc();
+        const info = unidadLabelInfo(u.nombre);
         return {
-          asesor,
-          cumplimiento: Math.min(100, Math.max(0, v.cumplimiento)),
-          participacion: Math.min(100, Math.max(0, v.participacion)),
-          conversion: Math.min(100, Math.max(0, conversion)),
-          ticket,
-          disciplina: Math.min(100, Math.max(0, disciplina)),
-          venta: v.venta,
+          id: u.id,
+          label: info.label,
+          order: info.order,
+          meta: a.meta,
+          facturado: a.facturado,
+          pct: pctOf(a),
         };
-      });
+      })
+      .filter((r) => r.meta > 0 || r.facturado > 0)
+      .sort((a, b) => a.order - b.order);
 
-    const maxTicket = rows.reduce((max, r) => Math.max(max, r.ticket), 0);
-    return rows
-      .map((r) => ({
-        ...r,
-        ticketNorm: maxTicket > 0 ? Math.min(100, (r.ticket / maxTicket) * 100) : 0,
+    return { branchRows, unitRows };
+  }, [crossRaw, misSucursales, unidades, selectedUnidades]);
+
+  // Con una sola sucursal, el ranking/tabla por sucursal no aporta: se usa
+  // el desglose por unidad (misma UI que gerencia, otra dimensión).
+  const rankingRows = useMemo(() => {
+    if (!cross) return [];
+    if (cross.branchRows.length > 1) return cross.branchRows;
+    return [...cross.unitRows]
+      .map((u) => ({
+        id: u.id,
+        label: u.label,
+        meta: u.meta,
+        facturado: u.facturado,
+        pct: u.pct,
       }))
-      .sort((a, b) => b.venta - a.venta)
-      .slice(0, 3);
-  }, [asesorScoreData]);
+      .sort((a, b) => b.pct - a.pct);
+  }, [cross]);
 
-  const radarByMetric = useMemo(() => {
-    const metrics = ["Cumplimiento", "Conversión", "Ticket", "Disciplina", "Participación"];
-    return metrics.map((m) => {
-      const row: Record<string, string | number> = { metrica: m };
-      asesorComparativo.forEach((a) => {
-        row[a.asesor] =
-          m === "Cumplimiento"
-            ? a.cumplimiento
-            : m === "Conversión"
-              ? a.conversion
-              : m === "Ticket"
-                ? a.ticketNorm
-                : m === "Disciplina"
-                  ? a.disciplina
-                  : a.participacion;
-      });
-      return row;
-    });
-  }, [asesorComparativo]);
+  const rankingPorSucursal = (cross?.branchRows.length ?? 0) > 1;
 
-  const deferredCompanyTrend = useDeferredValue(companyTrend);
-  const deferredCurrentPeriodByUnit = useDeferredValue(currentPeriodByUnit);
-  const deferredGlobalTrend = useDeferredValue(globalTrend);
-  const deferredRepuestosTrend = useDeferredValue(repuestosTrend);
-  const deferredServiciosTrend = useDeferredValue(serviciosTrend);
-  const deferredLubFiltrosTrend = useDeferredValue(lubFiltrosTrend);
-  const deferredEquiposAlquilerTrend = useDeferredValue(equiposAlquilerTrend);
-  const deferredRadarByMetric = useDeferredValue(radarByMetric);
+  const highlights = useMemo(() => {
+    if (!cross) return null;
+    const ejePrincipal = rankingPorSucursal ? cross.branchRows : rankingRows;
+    const mejor = ejePrincipal[0] ?? null;
+    const bajo70 = ejePrincipal.filter((r) => r.pct < 70);
+    const unidadesPorPct = [...cross.unitRows].sort((a, b) => a.pct - b.pct);
+    return {
+      mejor,
+      mejorLabel: rankingPorSucursal ? "Mejor sucursal" : "Mejor unidad",
+      bajo70Count: bajo70.length,
+      bajo70Total: ejePrincipal.length,
+      bajo70Faltante: bajo70.reduce((acc, r) => acc + Math.max(0, r.meta - r.facturado), 0),
+      unidadMasBaja: unidadesPorPct[0] ?? null,
+      unidadMasAlta: unidadesPorPct[unidadesPorPct.length - 1] ?? null,
+    };
+  }, [cross, rankingRows, rankingPorSucursal]);
 
-  // ALL HOOKS MUST BE CALLED BEFORE THIS GUARD
+  const unitChartData: UnitChartRow[] = cross?.unitRows ?? [];
+  const unitDonutData =
+    cross?.unitRows.map((u) => ({ id: u.id, label: u.label, facturado: u.facturado })) ?? [];
+
+  const kpis = useMemo(() => {
+    const totalFacturado =
+      metrics?.presupuestos.reduce((a, r) => a + Number(r.facturado ?? 0), 0) ?? 0;
+    const totalPresupuesto =
+      metrics?.presupuestos.reduce((a, r) => a + Number(r.meta ?? 0), 0) ?? 0;
+    const cumplimiento = totalPresupuesto > 0 ? (totalFacturado / totalPresupuesto) * 100 : 0;
+    return { cumplimiento, totalFacturado, totalPresupuesto };
+  }, [metrics]);
+
+  const gaugeTitle = useMemo(() => {
+    if (selectedUnidades.length === 0) return "Cumplimiento General";
+    if (selectedUnidades.length === 1) {
+      const selected = unidades?.find((u) => u.id === selectedUnidades[0]);
+      return selected ? unidadLabelInfo(selected.nombre).label : "Cumplimiento General";
+    }
+    return "Cumplimiento unidades seleccionadas (consolidado)";
+  }, [selectedUnidades, unidades]);
+
+  const selectedUnitBreakdown = useMemo(() => {
+    if (!cross || selectedUnidades.length < 2) return null;
+    return cross.unitRows.filter((u) => selectedUnidades.includes(u.id));
+  }, [cross, selectedUnidades]);
+
+  const sucursalNombre =
+    misSucursales.length === 1
+      ? misSucursales[0].nombre
+      : misSucursales.length > 1
+        ? `${misSucursales.length} sucursales`
+        : null;
+
   if (!canView) {
     return (
       <div className="card-elevated p-8 max-w-xl text-center flex flex-col gap-2">
         <Shield className="size-10 mx-auto text-muted-foreground" />
         <h2 className="font-display text-xl font-semibold">Acceso restringido</h2>
         <p className="text-sm text-muted-foreground">
-          Esta vista está disponible únicamente para el perfil Coordinador.
+          Sólo el perfil Coordinador puede ver esta vista.
         </p>
       </div>
     );
   }
 
-  if (isLoading && !yearData) {
+  if (isLoading && !resumenAnual) {
     return (
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Panel Financiero — Coordinador</h1>
-          <p className="text-sm text-muted-foreground mt-1">Consolidado de toda tu sucursal</p>
-        </div>
+        <PageHeader
+          eyebrow="Analytics / Sucursal"
+          title="Dashboard comercial"
+          description={sucursalNombre ?? undefined}
+        />
         <PageSkeleton
           kpis={0}
-          blocks={[
-            { cols: 3, height: 260 },
-            { cols: 2 },
-            { cols: 2 },
-            { cols: 2 },
-            { cols: 1, height: 400 },
-            { cols: 1, height: 320 },
-          ]}
+          blocks={[{ cols: 3, height: 260 }, { cols: 2 }, { cols: 1, height: 420 }]}
         />
       </div>
     );
@@ -485,11 +243,15 @@ export default function CoordinadorPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Panel Financiero — Coordinador</h1>
-        <p className="text-sm text-muted-foreground mt-1">Consolidado de toda tu sucursal</p>
-      </div>
-
+      <PageHeader
+        eyebrow="Analytics / Sucursal"
+        title="Dashboard comercial"
+        description={
+          sucursalNombre
+            ? `Información de ${sucursalNombre}`
+            : "Cumplimiento de tu sucursal"
+        }
+      />
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         unitOptions={unidades?.map((u) => ({
@@ -502,169 +264,160 @@ export default function CoordinadorPanel() {
         showAllMonths
       />
 
-      <div
-        role="region"
-        aria-label="Atajos de teclado rápidos del panel"
-        className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground/80 font-mono bg-card rounded-lg border border-border/40 select-none no-print"
-      >
-        <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-          <span className="bg-foreground/5 text-foreground font-semibold px-1.5 py-0.5 rounded text-[10px] tracking-wider">
-            SHORTCUTS
-          </span>
-          <span className="flex items-center gap-1.5" aria-keyshortcuts="ArrowLeft ArrowRight">
-            Navegar Meses:{" "}
-            <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-              ←
-            </kbd>{" "}
-            /{" "}
-            <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-              →
-            </kbd>
-          </span>
-        </div>
-        <Link
-          href="/evaluacion"
-          className="hidden sm:inline-flex items-center gap-1.5 text-primary hover:underline"
-        >
-          <FileBarChart className="h-3.5 w-3.5" />
-          Ver Evaluación de Desempeño
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-1">
+      {/* Hero: mismo layout que gerencia nacional */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_0.75fr_1.25fr] section-enter section-enter-1">
         <ComplianceGauge
-          pct={currentPeriodTotals.cumplimiento}
-          facturado={currentPeriodTotals.facturado}
-          presupuesto={currentPeriodTotals.presupuesto}
+          pct={kpis.cumplimiento}
+          facturado={kpis.totalFacturado}
+          presupuesto={kpis.totalPresupuesto}
+          title={gaugeTitle}
         />
-        <UnitDonut data={currentPeriodCompania} title="Ventas por Compañía" />
-        <CompanyTrendChart data={deferredCompanyTrend} />
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 section-enter section-enter-2">
-        <UnitAmountBars data={deferredCurrentPeriodByUnit} />
-        <GlobalMonthlyCombo
-          data={deferredGlobalTrend}
-          highlightMonths={getHighlightMonthLabels(meses)}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px] section-enter section-enter-3">
-        <RepuestosAreaChart data={deferredRepuestosTrend} />
-        <ServiciosBarWithMarkers data={deferredServiciosTrend} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px] section-enter section-enter-1">
-        <LubFiltrosComboLines data={deferredLubFiltrosTrend} />
-        <EquiposAlquilerStacked data={deferredEquiposAlquilerTrend} />
-      </div>
-
-      <div className="[content-visibility:auto] [contain-intrinsic-size:auto_400px]">
-        <ReceivablesTable rows={receivablesRows} unitOptions={receivablesUnitOptions} />
-      </div>
-
-      <div className="card-elevated p-5">
-        <div className="mb-4">
-          <h3 className="font-display font-semibold">Scorecard Comparativo de Asesores</h3>
-          <p className="text-xs text-muted-foreground">
-            Top asesores por venta con comparación de 5 ejes (escala normalizada 0-100)
-          </p>
-        </div>
-        {asesorComparativo.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Users />
-              </EmptyMedia>
-              <EmptyTitle>Sin datos suficientes</EmptyTitle>
-              <EmptyDescription>
-                Hace falta venta registrada de al menos un asesor en este período para armar el
-                comparativo.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 section-enter section-enter-2">
-            <div className="h-72 lg:col-span-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={deferredRadarByMetric}>
-                  <PolarGrid stroke="var(--color-border)" />
-                  <PolarAngleAxis
-                    dataKey="metrica"
-                    tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-                  />
-                  <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-                  {asesorComparativo.map((a, idx) => (
-                    <Radar
-                      key={a.asesor}
-                      name={a.asesor}
-                      dataKey={a.asesor}
-                      stroke={
-                        idx === 0
-                          ? "var(--color-primary)"
-                          : idx === 1
-                            ? "var(--color-chart-calm-2)"
-                            : "var(--color-chart-calm-4)"
-                      }
-                      fill={
-                        idx === 0
-                          ? "var(--color-primary)"
-                          : idx === 1
-                            ? "var(--color-chart-calm-2)"
-                            : "var(--color-chart-calm-4)"
-                      }
-                      fillOpacity={0.12}
-                      strokeWidth={2}
-                    />
-                  ))}
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-col gap-3">
-              {asesorComparativo.map((a, idx) => (
-                <div key={a.asesor} className="card-elevated p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className={cn(
-                          "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                          idx === 0
-                            ? "bg-success/15 text-success"
-                            : idx === 1
-                              ? "bg-muted text-muted-foreground"
-                              : "bg-warning/15 text-warning",
-                        )}
-                      >
-                        {idx + 1}
-                      </span>
-                      <p className="font-medium text-sm truncate">{a.asesor}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <p className="text-muted-foreground">Venta</p>
-                      <p className="font-semibold tabular-nums">
-                        {a.venta.toLocaleString("es-VE")}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Conversión</p>
-                      <p className="font-semibold tabular-nums">{a.conversion.toFixed(1)}%</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Cumplimiento</p>
-                      <p className="font-semibold tabular-nums">{a.cumplimiento.toFixed(1)}%</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Disciplina</p>
-                      <p className="font-semibold tabular-nums">{a.disciplina.toFixed(1)}%</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        <div className="flex flex-col gap-2 flex-1">
+          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
+            <Trophy className="size-4 text-success shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
+                {highlights?.mejorLabel ?? "Mejor unidad"}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display font-bold text-xl tabular-nums text-success">
+                  {highlights?.mejor ? pct(highlights.mejor.pct) : "—"}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {highlights?.mejor
+                    ? `${money(highlights.mejor.facturado)} · ${highlights.mejor.label}`
+                    : ""}
+                </span>
+              </div>
             </div>
           </div>
-        )}
+
+          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
+            <AlertTriangle
+              className={`size-4 shrink-0 ${
+                highlights && highlights.bajo70Count > 0 ? "text-danger" : "text-success"
+              }`}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
+                Bajo 70%
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span
+                  className={`font-display font-bold text-xl tabular-nums ${
+                    highlights && highlights.bajo70Count > 0 ? "text-danger" : "text-success"
+                  }`}
+                >
+                  {highlights ? `${highlights.bajo70Count}/${highlights.bajo70Total}` : "—"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {highlights && highlights.bajo70Count > 0
+                    ? `${money(highlights.bajo70Faltante)} faltante`
+                    : "Todas OK"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
+            <TrendingDown className="size-4 text-danger shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
+                Unidad más baja
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display font-bold text-xl tabular-nums text-danger">
+                  {highlights?.unidadMasBaja ? pct(highlights.unidadMasBaja.pct) : "—"}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {highlights?.unidadMasBaja
+                    ? `${money(Math.max(0, highlights.unidadMasBaja.meta - highlights.unidadMasBaja.facturado))} faltó · ${highlights.unidadMasBaja.label}`
+                    : ""}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
+            <TrendingUp
+              className={`size-4 shrink-0 ${
+                statusFromPct(highlights?.unidadMasAlta?.pct ?? 0) === "danger"
+                  ? "text-warning"
+                  : "text-success"
+              }`}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
+                Unidad más alta
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span
+                  className={`font-display font-bold text-xl tabular-nums ${
+                    statusFromPct(highlights?.unidadMasAlta?.pct ?? 0) === "danger"
+                      ? "text-warning"
+                      : "text-success"
+                  }`}
+                >
+                  {highlights?.unidadMasAlta ? pct(highlights.unidadMasAlta.pct) : "—"}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {highlights?.unidadMasAlta
+                    ? `${money(highlights.unidadMasAlta.facturado)} · ${highlights.unidadMasAlta.label}`
+                    : ""}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <UnitDonut data={unitDonutData} selectedIds={selectedUnidades} />
+      </div>
+
+      {selectedUnitBreakdown && selectedUnitBreakdown.length > 0 && (
+        <div className="flex flex-col gap-3 section-enter section-enter-2">
+          <div>
+            <h3 className="font-display font-semibold text-sm">Desglose por unidad seleccionada</h3>
+            <p className="text-xs text-muted-foreground">
+              Cada unidad se muestra por separado — el consolidado está arriba
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {selectedUnitBreakdown.map((u) => {
+              const status = statusFromPct(u.pct);
+              return (
+                <KpiCard
+                  key={u.id}
+                  label={u.label}
+                  value={pct(u.pct)}
+                  hint={`${money(u.facturado)} de ${money(u.meta)}`}
+                  accent={status}
+                  progress={Math.min(100, u.pct)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 section-enter section-enter-2">
+        <UnitMetaVsVenta data={unitChartData} selectedIds={selectedUnidades} />
+        <BranchRanking
+          rows={rankingRows}
+          title={rankingPorSucursal ? "Cumplimiento por sucursal" : "Cumplimiento por unidad"}
+        />
+      </div>
+
+      <div className="section-enter section-enter-3 [content-visibility:auto] [contain-intrinsic-size:auto_420px]">
+        <BranchSummaryTable
+          rows={rankingRows}
+          title={rankingPorSucursal ? "Resumen por sucursal" : "Resumen por unidad"}
+          emptyDescription={
+            rankingPorSucursal
+              ? "No hay facturación registrada por sucursal en el período seleccionado."
+              : "No hay facturación registrada por unidad en el período seleccionado."
+          }
+        />
       </div>
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}

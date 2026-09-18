@@ -44,13 +44,22 @@ function inCond(col: SQLWrapper, values: string[]) {
 
 export async function getCoordinadorYearAction(data: { anio: number }) {
   return withAuth(async ({ tx, role, profile }) => {
-    const sucursalId = role === "coordinador" ? profile.sucursalId : null;
+    // Scope a las sucursales del coordinador (bridge o sucursal primaria).
+    const sucursalIds =
+      role === "coordinador"
+        ? profile.sucursalesIds?.length
+          ? profile.sucursalesIds
+          : profile.sucursalId
+            ? [profile.sucursalId]
+            : []
+        : [];
 
     const rows = await tx
       .select({
-        monto: sum(presupuestos.monto),
         mes: presupuestos.mes,
+        sucursalId: presupuestos.sucursalId,
         unidadNegocioId: presupuestos.unidadNegocioId,
+        meta: sum(presupuestos.monto),
         ventasCcv: sum(presupuestos.ventasCcv),
         ventasXibi: sum(presupuestos.ventasXibi),
         ventasEstrategicas: sum(presupuestos.ventasEstrategicas),
@@ -59,28 +68,38 @@ export async function getCoordinadorYearAction(data: { anio: number }) {
       .where(
         and(
           eq(presupuestos.anio, data.anio),
-          sucursalId ? eq(presupuestos.sucursalId, sucursalId) : undefined,
+          sucursalIds.length > 0 ? inArray(presupuestos.sucursalId, sucursalIds) : undefined,
         ),
       )
-      .groupBy(presupuestos.mes, presupuestos.unidadNegocioId);
+      .groupBy(presupuestos.mes, presupuestos.sucursalId, presupuestos.unidadNegocioId);
 
     const ajustes = await cargarAjustesManuales(tx, data.anio);
 
     return {
       presupuestos: rows.map((r) => {
-        const base = { mes: r.mes, sucursalId, unidadNegocioId: r.unidadNegocioId };
+        const base = {
+          mes: r.mes,
+          sucursalId: r.sucursalId,
+          unidadNegocioId: r.unidadNegocioId,
+        };
+        const ventasCcv =
+          Number(r.ventasCcv ?? 0) +
+          sumaAjusteGrupo(ajustes, { ...base, columna: "ccv" }) +
+          sumaAjusteGrupo(ajustes, { ...base, columna: "total" });
+        const ventasXibi =
+          Number(r.ventasXibi ?? 0) + sumaAjusteGrupo(ajustes, { ...base, columna: "xibi" });
+        const ventasEstrategicas =
+          Number(r.ventasEstrategicas ?? 0) +
+          sumaAjusteGrupo(ajustes, { ...base, columna: "estrategico" });
         return {
-          ...r,
-          monto: Number(r.monto ?? 0),
-          ventasCcv:
-            Number(r.ventasCcv ?? 0) +
-            sumaAjusteGrupo(ajustes, { ...base, columna: "ccv" }) +
-            sumaAjusteGrupo(ajustes, { ...base, columna: "total" }),
-          ventasXibi:
-            Number(r.ventasXibi ?? 0) + sumaAjusteGrupo(ajustes, { ...base, columna: "xibi" }),
-          ventasEstrategicas:
-            Number(r.ventasEstrategicas ?? 0) +
-            sumaAjusteGrupo(ajustes, { ...base, columna: "estrategico" }),
+          mes: r.mes,
+          sucursalId: r.sucursalId,
+          unidadNegocioId: r.unidadNegocioId,
+          meta: Number(r.meta ?? 0),
+          facturado: ventasCcv + ventasXibi + ventasEstrategicas,
+          ventasCcv,
+          ventasXibi,
+          ventasEstrategicas,
         };
       }),
     };
