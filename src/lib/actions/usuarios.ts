@@ -154,10 +154,36 @@ export async function setProfileSucursalAction(data: {
       );
     }
 
+    const [previo] = await tx
+      .select({ sucursalId: profiles.sucursalId })
+      .from(profiles)
+      .where(eq(profiles.id, parsed.userId));
+
     await tx
       .update(profiles)
       .set({ sucursalId: parsed.sucursalId, updatedAt: new Date() })
       .where(eq(profiles.id, parsed.userId));
+
+    // can_read_row() para 'coordinador' consulta profile_sucursales, no
+    // profiles.sucursal_id: sin esta sincronizacion un coordinador reasignado
+    // ve todo en 0. Solo se reemplaza la sucursal primaria anterior; las
+    // extras agregadas por el toggle (toggleProfileSucursalAction) se respetan.
+    if (previo?.sucursalId && previo.sucursalId !== parsed.sucursalId) {
+      await tx
+        .delete(profileSucursales)
+        .where(
+          and(
+            eq(profileSucursales.profileId, parsed.userId),
+            eq(profileSucursales.sucursalId, previo.sucursalId),
+          ),
+        );
+    }
+    if (parsed.sucursalId) {
+      await tx
+        .insert(profileSucursales)
+        .values({ profileId: parsed.userId, sucursalId: parsed.sucursalId })
+        .onConflictDoNothing();
+    }
 
     return { success: true };
   });
