@@ -77,8 +77,7 @@ bun run test:watch             # Vitest en modo watch
 bun run test:excel              # ejecuta src/tests/excel.test.ts con bun (script standalone contra el .xlsx real)
 bun run test:e2e               # Playwright (arranca `next dev` automáticamente vía webServer)
 bunx tsc --noEmit             # type-check completo
-bun run alter-schema            # aplica ALTERs ad-hoc de FK (scripts/alter-schema.ts)
-bun run load-excel               # alter-schema + carga completa desde "CCV Rendimiento.xlsx" (scripts/run-full-load.ts, llama a src/db/load-excel.ts)
+bun run load-excel               # carga completa desde "CCV Rendimiento.xlsx" (scripts/run-full-load.ts, llama a src/db/load-excel.ts) -- schema via drizzle-kit, no scripts/alter-schema.ts (eliminado, ponytail-audit 2026-09-18)
 ```
 
 Para correr un único test de Vitest: `bun run test -- <patrón o ruta de archivo>` (p. ej. `bun run test -- src/lib/analytics/pareto.test.ts`).
@@ -123,7 +122,7 @@ Dos clientes Drizzle en **`src/db/index.ts`**, no mezclar:
 ### Carga de datos (Excel → Postgres)
 
 - `src/db/load-excel.ts` (`loadExcelToPostgres`) reemplaza (delete + insert) el contenido de las tablas objetivo a partir de un Excel local, usando `dbAdmin` (BYPASSRLS). También siembra `users`/`profiles`/`user_roles` a partir de la hoja "Usuarios" del Excel (contraseña hasheada con argon2; si la hoja no trae contraseña se genera una temporal).
-- `scripts/run-full-load.ts` + `scripts/alter-schema.ts` son los entrypoints CLI (`bun run load-excel`).
+- `scripts/run-full-load.ts` es el entrypoint CLI (`bun run load-excel`).
 - Automatizado por `.github/workflows/weekly-excel-load.yml`: cron `0 9 * * 5` (viernes 5 AM Caracas, UTC-4), más `workflow_dispatch` manual. Usa los secrets `DATABASE_URL`/`DATABASE_ADMIN_URL` del repo (apuntando al Postgres de producción).
 - **Neteo de repuestos cotizado vs. Lub/Filtros**: la lógica de negocio para restar del monto bruto de repuestos cotizado el monto ya cotizado en Lub/Filtros (evitar doble conteo) — ver `getCotizacionesPrincipales()`/`getFacturasPrincipales()` en `src/lib/excel-parser.ts`.
 - **Pareto multi-fuente** (`/pareto`): calcula el 80/20 de forma independiente sobre cotizaciones, facturas y ventas perdidas, sin cruzar identidad de cliente entre tablas. Lógica en `src/lib/analytics/pareto.ts` (`computeParetoSummary`), testeable fuera de React.

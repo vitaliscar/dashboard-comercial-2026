@@ -16,10 +16,8 @@
     "test:excel": "bun run src/tests/excel.test.ts",
     "test:e2e": "playwright test",
     "test:load": "npx tsx scripts/load-test.ts",
-    "test:smoke": "npx tsx scripts/smoke-test.ts",
-    "alter-schema": "bun scripts/alter-schema.ts",
     "load-excel": "bun load-excel:full",
-    "load-excel:full": "bun alter-schema && bun scripts/run-full-load.ts \"CCV Rendimiento.xlsx\""
+    "load-excel:full": "bun scripts/run-full-load.ts \"CCV Rendimiento.xlsx\""
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

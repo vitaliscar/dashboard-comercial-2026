@@ -21,7 +21,7 @@
 - [ ] Ejecutar `git pull origin main` en servidor VPS.
 - [ ] Ejecutar `bun run build` y verificar compilar exitosa sin advertencias.
 - [ ] Reiniciar proceso con PM2 / Docker en modo reload sin caída de servicio.
-- [ ] Correr script de verificación rápida: `bun run scripts/smoke-test.ts`.
+- [ ] Verificar manualmente que /resumen y /carga cargan sin errores en producción.
 
 ---
 
