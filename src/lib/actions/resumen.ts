@@ -126,6 +126,11 @@ export async function getResumenDataAction(data: {
           ),
         )
         .groupBy(cotizaciones.unidadNegocioId, sql`extract(month from ${cotizaciones.fecha})`),
+      // Excluye "Consorcio de Cogestion Venequip" como cliente -- mismo
+      // motivo que en Top Clientes de Servicios (venta interna, no un
+      // cliente real). No se toca cotCond (usado tambien para los totales
+      // agregados). Confirmado 2026-09-18: aparecia tambien en Cotizados y
+      // Facturados de Lubricantes/Filtros ademas de Servicios.
       tx
         .select({
           unidadNegocioId: cotizaciones.unidadNegocioId,
@@ -134,7 +139,7 @@ export async function getResumenDataAction(data: {
           montoTotal: sum(cotizaciones.monto),
         })
         .from(cotizaciones)
-        .where(cotCond)
+        .where(and(cotCond, sql`${cotizaciones.cliente} NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'`))
         .groupBy(cotizaciones.unidadNegocioId, cotizaciones.sucursalId, cotizaciones.cliente),
       tx
         .select({
@@ -145,6 +150,7 @@ export async function getResumenDataAction(data: {
         .from(facturas)
         .where(facCond)
         .groupBy(facturas.unidadNegocioId),
+      // Misma exclusion que arriba, para Top Clientes Facturados.
       tx
         .select({
           unidadNegocioId: facturas.unidadNegocioId,
@@ -153,7 +159,7 @@ export async function getResumenDataAction(data: {
           montoTotal: sum(facturas.monto),
         })
         .from(facturas)
-        .where(facCond)
+        .where(and(facCond, sql`${facturas.cliente} NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'`))
         .groupBy(facturas.unidadNegocioId, facturas.sucursalId, facturas.cliente),
       tx
         .select({
@@ -203,12 +209,8 @@ export async function getResumenDataAction(data: {
         .from(servicios)
         .where(servCond)
         .groupBy(servicios.unidadNegocioId),
-      // Top Clientes de Servicios: `facturas` solo trae el lado Xibi/"Otra
-      // Empresa" (getFacturasPrincipales excluye a propósito el resto para no
-      // duplicar el ingreso, ver comentario en excel-parser.ts línea ~1524) --
-      // el detalle de cliente del lado CCV vive acá, en `servicios` (AS400).
-      // Sin este query, Top Clientes de Servicios quedaba casi vacío aunque el
-      // monto total (que sí combina ambas fuentes) fuera correcto.
+      // Top Clientes de Servicios: facturas solo trae el lado Xibi/Otra
+      // Empresa -- el detalle CCV vive en servicios (AS400).
       //
       // Excluye "Consorcio de Cogestión Venequip" como cliente: es venta
       // interna (la compañía facturándose servicios a sí misma), ya

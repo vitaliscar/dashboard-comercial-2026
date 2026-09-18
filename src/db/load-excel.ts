@@ -171,6 +171,10 @@ const normalizeName = (s: string): string =>
  * Action de upload manual — ver src/lib/actions/carga.ts, que lo parsea en
  * un worker thread aparte para no bloquear el proceso que sirve requests).
  */
+// Sentinel para forzar ROLLBACK de la transacción en dry-run — no es un
+// error real, se filtra en el catch de abajo antes de reportarlo.
+const DRY_RUN_ROLLBACK = Symbol("DRY_RUN_ROLLBACK");
+
 // Las 24 hojas que ExcelParser.leerHoja() pide en algun punto del parseo
 // (ver llamadas a leerHoja("...") en src/lib/excel-parser.ts). Si el Sheet
 // origen ya no trae la mayoria de estos nombres exactos, es senal de que fue
@@ -205,6 +209,7 @@ const MAX_HOJAS_FALTANTES_TOLERADAS = 3;
 
 export async function loadExcelToPostgres(
   excelSource: string | Buffer | ExcelParser,
+  dryRun = false,
 ): Promise<LoadResult> {
   const result: LoadResult = {
     success: false,
@@ -808,8 +813,17 @@ export async function loadExcelToPostgres(
           console.warn(`   - "${texto}" (${filas} fila${filas === 1 ? "" : "s"})`),
         );
       }
+
+      if (dryRun) {
+        console.log("🧪 dry-run: parseo e inserts OK, hago ROLLBACK (nada se persiste)");
+        throw DRY_RUN_ROLLBACK;
+      }
     });
   } catch (error) {
+    if (error === DRY_RUN_ROLLBACK) {
+      result.success = true;
+      return result;
+    }
     const message = error instanceof Error ? error.message : String(error);
     result.errors.push(message);
     console.error("❌ Error en carga:", message);
