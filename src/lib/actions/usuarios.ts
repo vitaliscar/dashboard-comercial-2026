@@ -14,11 +14,15 @@ import {
 import { withAuth } from "@/lib/actions/with-auth";
 import { hashPassword } from "@/lib/auth/password";
 import { validatePasswordStrength } from "@/lib/auth/password-policy";
+import { canCreateDeleteUsers, isFullAccessRole } from "@/lib/permissions";
 
 export type AppRole = (typeof appRole.enumValues)[number];
 
 const appRoleSchema = z.enum(
-  ["gerencia", "gerente_comercial", "coordinador", "asesor"] as [AppRole, ...AppRole[]],
+  ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"] as [
+    AppRole,
+    ...AppRole[],
+  ],
 );
 const uuidSchema = z.string().uuid();
 const nullableUuidSchema = uuidSchema.nullable();
@@ -80,8 +84,8 @@ const deleteUserSchema = z.object({
 
 export async function getUsuariosDataAction() {
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede acceder");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede acceder");
     }
 
     const [allProfiles, allRoles, allProfileUnidades, allProfileSucursales, allUsers] =
@@ -106,8 +110,8 @@ export async function getUsuariosDataAction() {
 export async function setUserRoleAction(data: { userId: string; newRole: AppRole }) {
   const parsed = setUserRoleSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar roles");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar roles");
     }
 
     await tx.delete(userRoles).where(eq(userRoles.userId, parsed.userId));
@@ -126,8 +130,8 @@ export async function setProfileSucursalAction(data: {
 }) {
   const parsed = setProfileSucursalSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar sucursales");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar sucursales");
     }
 
     await tx
@@ -145,8 +149,8 @@ export async function setProfileUnidadAction(data: {
 }) {
   const parsed = setProfileUnidadSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar unidades");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar unidades");
     }
 
     await tx
@@ -161,8 +165,8 @@ export async function setProfileUnidadAction(data: {
 export async function setProfileAdminAction(data: { userId: string; isAdmin: boolean }) {
   const parsed = setProfileAdminSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar permisos de admin");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar permisos de admin");
     }
 
     await tx
@@ -181,8 +185,8 @@ export async function toggleProfileUnidadAction(data: {
 }) {
   const parsed = toggleProfileUnidadSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar unidades asignadas");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar unidades asignadas");
     }
 
     if (parsed.checked) {
@@ -215,8 +219,8 @@ export async function toggleProfileSucursalAction(data: {
 }) {
   const parsed = toggleProfileSucursalSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar sucursales asignadas");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede modificar sucursales asignadas");
     }
 
     if (parsed.checked) {
@@ -249,8 +253,8 @@ export async function createUserAction(data: {
 }) {
   const parsed = createUserSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede crear usuarios");
+    if (!canCreateDeleteUsers(role)) {
+      throw new Error("Unauthorized: Solo Administrador puede crear usuarios");
     }
 
     const cleanEmail = parsed.email.toLowerCase();
@@ -295,8 +299,8 @@ export async function createUserAction(data: {
 export async function resetPasswordAction(data: { userId: string; newPassword: string }) {
   const parsed = resetPasswordSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede restablecer contraseñas");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede restablecer contraseñas");
     }
 
     const strengthError = validatePasswordStrength(parsed.newPassword);
@@ -318,8 +322,8 @@ export async function resetPasswordAction(data: { userId: string; newPassword: s
 export async function setUserActiveAction(data: { userId: string; isActive: boolean }) {
   const parsed = setUserActiveSchema.parse(data);
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede activar/desactivar usuarios");
+    if (!isFullAccessRole(role)) {
+      throw new Error("Unauthorized: Solo Gerencia Nacional o Administrador puede activar/desactivar usuarios");
     }
 
     await tx
@@ -339,8 +343,8 @@ export async function setUserActiveAction(data: { userId: string; isActive: bool
 export async function deleteUserAction(data: { userId: string }) {
   const parsed = deleteUserSchema.parse(data);
   return withAuth(async ({ tx, role, userId: currentUserId }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede eliminar usuarios");
+    if (!canCreateDeleteUsers(role)) {
+      throw new Error("Unauthorized: Solo Administrador puede eliminar usuarios");
     }
     if (parsed.userId === currentUserId) {
       throw new Error("No puedes eliminar tu propio usuario");

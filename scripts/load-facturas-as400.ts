@@ -63,8 +63,8 @@ async function main() {
   console.log(`→ ${filasLubFiltros.length} filas de LubricantesFiltros (para neteo)`);
 
   const parser = new ExcelParser("", {
-    sheetNames: ["Facturacion", "LubricantesFiltros"],
-    sheets: { Facturacion: filas, LubricantesFiltros: filasLubFiltros },
+    sheetNames: ["Facturacion", "Lubricantes/Filtros"],
+    sheets: { Facturacion: filas, "Lubricantes/Filtros": filasLubFiltros },
   });
 
   const facturasRaw = parser.getFacturasPrincipales();

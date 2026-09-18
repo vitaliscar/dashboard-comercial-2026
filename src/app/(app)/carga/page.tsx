@@ -17,6 +17,7 @@ import {
   ItemSeparator,
 } from "@/components/ui/item";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export default function CargaPage() {
   const { role } = useAuth();
@@ -59,7 +60,7 @@ export default function CargaPage() {
     }
   };
 
-  if (role !== "gerencia") {
+  if (!isFullAccessRole(role)) {
     return (
       <div className="card-elevated p-8 max-w-xl text-center flex flex-col gap-2">
         <Shield className="size-10 mx-auto text-muted-foreground" />

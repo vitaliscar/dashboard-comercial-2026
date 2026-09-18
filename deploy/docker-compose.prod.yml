@@ -27,6 +27,18 @@ services:
       resources:
         limits:
           memory: 2g
+    networks:
+      - internal
+
+# Subnet propio: 172.19.0.0/16 es LAN de sucursales (p.ej. Caracas
+# 172.19.6.0/24). Si Docker lo reclama, las respuestas HTTP a esas IPs
+# nunca salen por el gateway y el cliente ve "tardó demasiado en responder".
+networks:
+  internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   postgres_data:

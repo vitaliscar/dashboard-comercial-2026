@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/empty";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export default function Equipos() {
   const { role } = useAuth();
@@ -232,7 +233,7 @@ export default function Equipos() {
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={
-          role === "gerencia"
+          isFullAccessRole(role)
             ? sucursales?.map((s) => ({ value: s.id, label: s.nombre }))
             : undefined
         }

@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import type { MonthFilter } from "@/lib/date-range";
+import { isFullAccessRole } from "@/lib/permissions";
 import {
   computeEmbudoEstatus,
   computeLeadsResumen,
@@ -185,7 +186,7 @@ export async function getClientesPotencialesDetalleAction(data: {
 }): Promise<LeadDetalle[]> {
   assertNotProduction();
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") return [];
+    if (!isFullAccessRole(role)) return [];
 
     const rows = await tx
       .select({

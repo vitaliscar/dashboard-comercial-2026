@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export default function Alquiler() {
   const { role } = useAuth();
@@ -168,7 +169,7 @@ export default function Alquiler() {
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={
-          role === "gerencia"
+          isFullAccessRole(role)
             ? sucursales?.map((s) => ({ value: s.id, label: s.nombre }))
             : undefined
         }

@@ -61,6 +61,8 @@ export function diasEntre(fecha: string | Date, ref: Date = new Date()): number 
 
 export function roleLabel(r?: string | null): string {
   switch (r) {
+    case "administrador":
+      return "Administrador";
     case "gerencia":
       return "Gerencia Nacional";
     case "gerente_comercial":
@@ -70,7 +72,7 @@ export function roleLabel(r?: string | null): string {
     case "asesor":
       return "Asesor";
     default:
-      return "Sin rol";
+      return "";
   }
 }
 

@@ -26,6 +26,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { ArrowLeft, AlertTriangle, Plus, Trash2, Lock } from "lucide-react";
+import { isFullAccessRole } from "@/lib/permissions";
 
 type Compromiso = {
   key: string;
@@ -56,7 +57,7 @@ export default function NuevaMinutaPage() {
   const qc = useQueryClient();
   const { role } = useAuth();
 
-  const canCreate = role === "gerencia" || role === "gerente_comercial" || role === "coordinador";
+  const canCreate = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "@/styles.css";
 import { Providers } from "@/app/providers";
+import { getCurrentSession } from "@/lib/actions/auth";
+import { toUserProfile, type InitialAuth } from "@/lib/auth/client-session";
 
 export const metadata: Metadata = {
   title: "CCV Dashboard Comercial",
@@ -25,11 +27,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Resolver sesión en el servidor para hidratar AuthProvider sin flash
+  // ("Usuario sin rol" / "Acceso restringido") en refresh / hard refresh.
+  const session = await getCurrentSession();
+  const initialAuth: InitialAuth | null = session
+    ? {
+        user: session.user,
+        profile: toUserProfile(session.profile),
+        role: session.role,
+      }
+    : null;
+
   return (
     <html lang="es" className="dark" style={{ colorScheme: "light" }} suppressHydrationWarning>
       <body>
-        <Providers>{children}</Providers>
+        <Providers initialAuth={initialAuth}>{children}</Providers>
       </body>
     </html>
   );

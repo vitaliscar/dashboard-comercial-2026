@@ -76,7 +76,10 @@ export function AuthForm() {
     sessionStorage.removeItem("login_attempts");
     sessionStorage.removeItem("login_lock_until");
     toast.success("Sesión iniciada");
-    router.push("/resumen");
+    // refresh() invalida el cache RSC del App Router (páginas prefetch del
+    // usuario anterior); replace evita volver al /auth con "atrás".
+    router.replace("/resumen");
+    router.refresh();
   };
 
   return (

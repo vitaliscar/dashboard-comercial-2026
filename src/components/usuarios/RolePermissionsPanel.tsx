@@ -8,7 +8,7 @@ import { roleLabel } from "@/lib/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { AppRole } from "@/hooks/use-auth";
 
-const ROLES: AppRole[] = ["gerencia", "gerente_comercial", "coordinador", "asesor"];
+const ROLES: AppRole[] = ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"];
 
 const MODULE_LABELS: Record<ModuleKey, string> = {
   resumen: "Resumen",
@@ -101,7 +101,7 @@ export function RolePermissionsPanel() {
               <tr key={m} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
                 <td className="px-4 py-2 font-medium">{MODULE_LABELS[m]}</td>
                 {ROLES.map((r) =>
-                  r === "gerencia" ? (
+                  r === "administrador" || r === "gerencia" ? (
                     <td
                       key={r}
                       className="px-4 py-2 text-center text-xs text-muted-foreground"

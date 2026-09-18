@@ -79,6 +79,7 @@ import { toast } from "sonner";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { isFullAccessRole } from "@/lib/permissions";
 
 interface MinutaComentario {
   id: string;
@@ -142,8 +143,8 @@ export default function MinutasPage() {
   const [editing, setEditing] = useState<MinutaItem | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  const canCreate = role === "gerencia" || role === "gerente_comercial" || role === "coordinador";
-  const canDelete = role === "gerencia";
+  const canCreate = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
+  const canDelete = isFullAccessRole(role);
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();

@@ -39,6 +39,7 @@ import { useMemo } from "react";
 import { TrendingUp, Droplets } from "lucide-react";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export default function LubFiltrosPage() {
   const { role } = useAuth();
@@ -259,7 +260,7 @@ export default function LubFiltrosPage() {
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={
-          role === "gerencia"
+          isFullAccessRole(role)
             ? sucursales?.map((s) => ({ value: s.id, label: s.nombre }))
             : undefined
         }

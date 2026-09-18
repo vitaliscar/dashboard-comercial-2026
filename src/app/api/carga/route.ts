@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/lib/actions/auth";
 import { loadExcelToPostgres } from "@/db/load-excel";
 import { ExcelParser } from "@/lib/excel-parser";
 import { parseExcelInWorker } from "@/lib/parse-excel-in-worker";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 /**
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (session.role !== "gerencia") {
+  if (!isFullAccessRole(session.role)) {
     return NextResponse.json(
       { error: "Solo Gerencia Nacional puede cargar datos desde Excel." },
       { status: 403 },

@@ -15,6 +15,7 @@ import {
 import { withAuth } from "@/lib/actions/with-auth";
 import type { MonthlyPoint } from "@/lib/performance-score";
 import { aplicarAjustesAPresupuestos, cargarAjustesManuales } from "@/lib/ajustes-manuales-helper";
+import { isFullAccessRole } from "@/lib/permissions";
 
 /**
  * Roster de asesores activos (32) confirmado por el usuario 2026-09-04 --
@@ -346,7 +347,7 @@ export type GestionAsesorFila = {
  */
 export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia" && role !== "gerente_comercial" && role !== "coordinador") {
+    if (!isFullAccessRole(role) && role !== "gerente_comercial" && role !== "coordinador") {
       throw new Error("Este análisis no está disponible para tu rol");
     }
 
@@ -463,16 +464,12 @@ export async function getGestionAsesoresAction(filtros: ReporteFiltros) {
 }
 
 /**
- * Análisis narrativo generado por IA (Gemini) a partir de los mismos datos
- * que ya se muestran en pantalla -- pedido del usuario 2026-09-04: que el
- * texto no suene a plantilla ("la sucursal X tuvo Y% de cumplimiento..."
- * repetido siempre igual), sino que la IA redacte distinto cada vez que se
- * pide (ej. al exportar), mientras la pantalla se queda con la primera
- * redacción a modo de consulta -- por eso esto es una acción aparte que el
- * cliente llama explícitamente, no algo embebido en getReporteCumplimientoAction.
+ * Análisis narrativo generado por IA (Anthropic Claude) a partir de los mismos
+ * datos que ya se muestran en pantalla -- pedido del usuario 2026-09-04: que el
+ * texto no suene a plantilla, sino que la IA redacte distinto cada vez.
+ * Reemplaza la integración con Gemini (2026-09-17) por mayor disponibilidad.
  *
- * Sin SDK nuevo: la API REST de Gemini es una sola llamada fetch, no amerita
- * una dependencia (@google/generative-ai) para esto.
+ * Sin SDK: la API Messages de Anthropic es una sola llamada fetch.
  */
 export async function generarAnalisisNarrativoAction(resumen: {
   tipo: "sucursal" | "asesor";
@@ -485,8 +482,8 @@ export async function generarAnalisisNarrativoAction(resumen: {
   hallazgos: Hallazgo[];
 }): Promise<string> {
   return withAuth(async () => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada en el servidor.");
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error("ANTHROPIC_API_KEY no está configurada en el servidor.");
 
     const MESES_NOMBRE = [
       "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -505,34 +502,36 @@ Datos del período (${periodo} ${resumen.anio}):
 ${resumen.ranking ? `- Ranking por sucursal (facturado vs meta):\n${resumen.ranking.map((r) => `  ${r.label}: ${r.pct.toFixed(1)}% ($${r.facturado.toLocaleString("es-VE", { maximumFractionDigits: 0 })} de $${r.meta.toLocaleString("es-VE", { maximumFractionDigits: 0 })})`).join("\n")}` : ""}
 - Hallazgos automáticos: ${resumen.hallazgos.map((h) => h.texto).join(" ")}
 
-Redacta un análisis narrativo de 3 a 5 párrafos cortos, en español, tono profesional directo (no genérico ni de plantilla). Interpreta los números -- no los repitas tal cual, explica qué significan para el negocio, qué riesgos u oportunidades sugieren, y qué debería priorizar gerencia. Varía el fraseo y el orden de ideas respecto a análisis anteriores que hayas podido generar para datos parecidos. No uses viñetas ni encabezados, solo prosa. No inventes cifras que no te di.`;
+Redacta un análisis narrativo de 3 a 5 párrafos cortos, en español, tono profesional directo (no genérico ni de plantilla). Interpreta los números -- no los repitas tal cual, explica qué significan para el negocio, qué riesgos u oportunidades sugieren, y qué debería priorizar gerencia. Varía el fraseo y el orden de ideas. No uses viñetas ni encabezados, solo prosa. No inventes cifras que no te di.`;
 
-    const respuesta = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          // thinkingBudget: 0 -- sin esto, gemini-3.6-flash gasta varios
-          // segundos "pensando" antes de escribir un texto corto que no
-          // necesita razonamiento profundo (confirmado 2026-09-04: el
-          // análisis narrativo tardaba demasiado en aparecer).
-          generationConfig: { temperature: 0.9, thinkingConfig: { thinkingBudget: 128 } },
-        }),
+    const respuesta = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
       },
-    );
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 1024,
+        temperature: 1,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
 
     if (!respuesta.ok) {
       const cuerpo = await respuesta.text().catch(() => "");
-      throw new Error(`Gemini API error ${respuesta.status}: ${cuerpo.slice(0, 300)}`);
+      throw new Error(`Anthropic API error ${respuesta.status}: ${cuerpo.slice(0, 300)}`);
     }
 
     const json = (await respuesta.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      content?: { type: string; text?: string }[];
     };
-    const texto = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-    if (!texto.trim()) throw new Error("Gemini no devolvió texto.");
+    const texto = json.content
+      ?.filter((b) => b.type === "text")
+      .map((b) => b.text ?? "")
+      .join("") ?? "";
+    if (!texto.trim()) throw new Error("Anthropic no devolvió texto.");
     return texto.trim();
   });
 }

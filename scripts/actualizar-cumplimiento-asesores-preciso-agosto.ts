@@ -1,4 +1,11 @@
 /**
+* ESTÁNDAR OFICIAL desde agosto 2026 en adelante (decisión 2026-09-11): esta metodología
+ * de prorrateo es la fuente de verdad única para Postgres Y para el Sheet a partir de
+ * agosto. Nombre de archivo dice "agosto" mas soporta MES=<n> para cualquier mes --
+ * usarlo cada mes, no solo agosto. El Sheet sigue usando su propio hack de offset
+ * (columna L+39 filas, +hacks hardcoded no documentados) -- pendiente de migrar el
+ * Sheet a este mismo algoritmo; mientras tanto, para meses futuros, correr este script
+ * y tratar su resultado como autoritativo si diverge del Sheet.
  * Cálculo preciso de venta por asesor (CCV) en cumplimiento_asesores,
  * metodología exacta confirmada por automatizacion contra su Sheet
  * (reconcilia a diff=$0,00 en los 5 bloques):

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { chromium } from "playwright";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { getCurrentSession } from "@/lib/actions/auth";
+import { canDownloadData } from "@/lib/permissions";
 
 /**
  * Genera el reporte (PDF o HTML standalone) renderizando la MISMA página
@@ -12,11 +13,16 @@ import { getCurrentSession } from "@/lib/actions/auth";
  * unidad(es)) como query params -- ver EvaluacionPage, que hidrata su estado
  * inicial desde la URL para que esto reproduzca exactamente lo que el
  * usuario tenía elegido en pantalla.
+ *
+ * Solo Gerencia Nacional puede descargar.
  */
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canDownloadData(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const cookieStore = await cookies();

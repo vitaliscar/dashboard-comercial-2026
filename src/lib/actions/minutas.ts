@@ -18,6 +18,7 @@ import {
 import { withAuth } from "@/lib/actions/with-auth";
 import type { AppRole } from "@/lib/actions/auth";
 import { CLIENTES_SIN_ASESOR } from "@/lib/excel-parser";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export type MinutaEstado = "pendiente" | "en_proceso" | "cumplido";
 
@@ -90,7 +91,7 @@ export async function getDestinatariosDisponiblesAction() {
   return withAuth(async ({ tx, role, profile }) => {
     if (!role || role === "asesor") return [];
 
-    if (role === "gerencia") {
+    if (isFullAccessRole(role)) {
       const rows = await tx
         .select({
           id: profiles.id,
@@ -257,7 +258,7 @@ export async function createMinutaAction(data: {
       throw new Error("No autorizado para crear minutas");
     }
 
-    if (role !== "gerencia") {
+    if (!isFullAccessRole(role)) {
       const targetRole = DESTINATARIO_ROLE_PERMITIDO[role];
       if (!targetRole) throw new Error("No autorizado para crear minutas");
 

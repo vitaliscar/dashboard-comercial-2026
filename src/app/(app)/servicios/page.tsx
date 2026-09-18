@@ -33,6 +33,7 @@ import { TalleresMonthlyChart } from "@/components/servicios/TalleresMonthlyChar
 import { CsaTrendChart } from "@/components/servicios/CsaTrendChart";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export default function ServiciosPage() {
   const { role, profile } = useAuth();
@@ -41,7 +42,7 @@ export default function ServiciosPage() {
   const sucursalSel = filters.sucursales[0] ?? "all";
 
   const isCoordinador = role === "coordinador";
-  const isGerencia = role === "gerencia";
+  const isGerencia = isFullAccessRole(role);
 
   const sucursal = isCoordinador && profile?.sucursal_id ? profile.sucursal_id : sucursalSel;
 
@@ -319,7 +320,7 @@ export default function ServiciosPage() {
   }, [cobranzasData, sucursalMap]);
 
   // Guard de rol DESPUÉS de todos los hooks de React
-  if (role !== "gerencia" && role !== "gerente_comercial" && role !== "coordinador") {
+  if (!isFullAccessRole(role) && role !== "gerente_comercial" && role !== "coordinador") {
     return null;
   }
 

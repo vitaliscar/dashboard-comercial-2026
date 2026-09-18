@@ -42,6 +42,7 @@ import {
   EmptyMedia,
 } from "@/components/ui/empty";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export default function EmbudoPage() {
   const { role } = useAuth();
@@ -207,7 +208,7 @@ export default function EmbudoPage() {
         onApplyFilters={handleApplyFilters}
         unitOptions={unidades?.map((u) => ({ value: u.id, label: u.nombre }))}
         sucursalOptions={sucursalOptions}
-        sucursalMulti={role === "gerencia"}
+        sucursalMulti={isFullAccessRole(role)}
         defaultMes={meses}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}

@@ -65,6 +65,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { isFullAccessRole } from "@/lib/permissions";
 
 type Severity = "alta" | "media" | "baja";
 type AlertType =
@@ -297,7 +298,7 @@ export default function AlertasPage() {
         onApplyFilters={handleApplyFilters}
         unitOptions={unitOptions}
         sucursalOptions={sucursalOptions}
-        sucursalMulti={role === "gerencia"}
+        sucursalMulti={isFullAccessRole(role)}
         defaultMes={meses}
         defaultAnio={anio}
         defaultUnits={selectedUnidades}

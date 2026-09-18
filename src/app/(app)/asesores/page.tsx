@@ -68,6 +68,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { getAsesoresRawDataAction, getAsesoresDrilldownAction } from "@/lib/actions/asesores";
+import { isFullAccessRole } from "@/lib/permissions";
 
 const MESES = [
   "Enero",
@@ -103,7 +104,7 @@ export default function AsesoresPage() {
   const [paretoTipo, setParetoTipo] = useState<"venta" | "cotizado">("venta");
   const [selectedAdvisor, setSelectedAdvisor] = useState<AgrupacionAsesor | null>(null);
 
-  const canView = role === "gerencia" || role === "gerente_comercial" || role === "coordinador";
+  const canView = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -297,7 +298,7 @@ export default function AsesoresPage() {
         defaultMes={meses}
         defaultUnits={selectedUnidades}
         sucursalOptions={sucursalOptions}
-        sucursalMulti={role === "gerencia"}
+        sucursalMulti={isFullAccessRole(role)}
         unitOptions={unitOptions}
         showAllMonths={true}
       />

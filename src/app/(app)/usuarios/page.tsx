@@ -16,6 +16,7 @@ import {
   deleteUserAction,
 } from "@/lib/actions/usuarios";
 import { roleLabel } from "@/lib/format";
+import { canCreateDeleteUsers, isFullAccessRole } from "@/lib/permissions";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import {
@@ -63,9 +64,16 @@ import { RolePermissionsPanel } from "@/components/usuarios/RolePermissionsPanel
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const ROLES: AppRole[] = ["gerencia", "gerente_comercial", "coordinador", "asesor"];
+const ROLES: AppRole[] = [
+  "administrador",
+  "gerencia",
+  "gerente_comercial",
+  "coordinador",
+  "asesor",
+];
 
 const ROLE_COLORS: Record<AppRole, string> = {
+  administrador: "bg-destructive/10 text-destructive border-destructive/20",
   gerencia: "bg-primary/10 text-primary border-primary/20",
   gerente_comercial: "bg-accent/10 text-accent border-accent/20",
   coordinador: "bg-warning/10 text-warning border-warning/20",
@@ -233,6 +241,7 @@ function EditUserDialog({
   assignedSucursalIds,
   sucursales,
   unidades,
+  canDelete,
   onClose,
   onSaved,
 }: {
@@ -244,6 +253,7 @@ function EditUserDialog({
   assignedSucursalIds: string[];
   sucursales: { id: string; nombre: string }[];
   unidades: { id: string; nombre: string }[];
+  canDelete: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -520,14 +530,16 @@ function EditUserDialog({
                 <Power className="size-3.5" />
                 {isActive ? "Desactivar" : "Activar"}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 ml-auto"
-                onClick={() => setDeleteConfirmOpen(true)}
-              >
-                <Trash2 className="size-3.5" /> Eliminar
-              </Button>
+              {canDelete ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 ml-auto"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                >
+                  <Trash2 className="size-3.5" /> Eliminar
+                </Button>
+              ) : null}
             </div>
           </div>
         </DialogContent>
@@ -775,7 +787,8 @@ function CreateUserDialog({
 
 export default function UsuariosPage() {
   const { role } = useAuth();
-  const canView = role === "gerencia";
+  const canView = isFullAccessRole(role);
+  const canMutateUsers = canCreateDeleteUsers(role);
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -819,7 +832,7 @@ export default function UsuariosPage() {
         <Shield className="size-10 mx-auto text-muted-foreground" />
         <h2 className="font-display text-xl font-semibold">Acceso restringido</h2>
         <p className="text-sm text-muted-foreground">
-          Sólo el perfil Gerencia Nacional puede administrar usuarios y roles.
+          Sólo Gerencia Nacional o Administrador pueden administrar usuarios y roles.
         </p>
       </div>
     );
@@ -885,12 +898,16 @@ export default function UsuariosPage() {
           </p>
         </div>
         <div className="flex gap-2 self-start sm:self-auto">
-          <Button variant="outline" onClick={() => setPermisosOpen((v) => !v)} className="gap-2">
-            <Shield className="size-4" /> Permisos por rol
-          </Button>
-          <Button onClick={() => setCreateOpen(true)} className="gap-2">
-            <Plus className="size-4" /> Nuevo usuario
-          </Button>
+          {canMutateUsers ? (
+            <Button variant="outline" onClick={() => setPermisosOpen((v) => !v)} className="gap-2">
+              <Shield className="size-4" /> Permisos por rol
+            </Button>
+          ) : null}
+          {canMutateUsers ? (
+            <Button onClick={() => setCreateOpen(true)} className="gap-2">
+              <Plus className="size-4" /> Nuevo usuario
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -911,9 +928,9 @@ export default function UsuariosPage() {
         <div className="card-elevated p-4 rounded-xl flex flex-col gap-1">
           <p className="text-xs text-muted-foreground font-medium">Gerentes</p>
           <p className="text-2xl font-bold font-display text-accent">
-            {(roleCount.gerencia ?? 0) + (roleCount.gerente_comercial ?? 0)}
+            {(roleCount.administrador ?? 0) + (roleCount.gerencia ?? 0) + (roleCount.gerente_comercial ?? 0)}
           </p>
-          <p className="text-[11px] text-muted-foreground">nacional + comercial</p>
+          <p className="text-[11px] text-muted-foreground">admin + nacional + comercial</p>
         </div>
         <div className="card-elevated p-4 rounded-xl flex flex-col gap-1">
           <p className="text-xs text-muted-foreground font-medium">Asesores</p>
@@ -975,6 +992,7 @@ export default function UsuariosPage() {
         assignedSucursalIds={selectedSucursalIds}
         sucursales={sucursales ?? []}
         unidades={unidades ?? []}
+        canDelete={canMutateUsers}
         onClose={() => setSelectedId(null)}
         onSaved={() => {}}
       />

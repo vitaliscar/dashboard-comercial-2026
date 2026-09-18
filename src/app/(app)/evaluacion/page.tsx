@@ -20,6 +20,8 @@ import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { money, pct, statusFromPct90, MESES } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { canDownloadData, isFullAccessRole } from "@/lib/permissions";
+import type { AppRole } from "@/lib/actions/auth";
 
 const anioActual = new Date().getFullYear();
 
@@ -31,14 +33,14 @@ const anioActual = new Date().getFullYear();
  * - coordinador: sucursal fija a la suya, unidad y mes libres.
  * - asesor: siempre su propia información -- solo elige mes y/o unidad.
  */
-function permisosFiltro(role: string | null) {
+function permisosFiltro(role: AppRole | null) {
   return {
-    puedeElegirSucursal: role === "gerencia" || role === "gerente_comercial",
+    puedeElegirSucursal: isFullAccessRole(role) || role === "gerente_comercial",
     puedeElegirUnidad: role !== "gerente_comercial",
     esAsesor: role === "asesor",
     // Análisis de gestión (cotizado/facturado/perdido) por asesor -- nunca
     // visible para el propio asesor, pedido explícito del usuario 2026-09-03.
-    puedeVerGestionAsesores: role === "gerencia" || role === "gerente_comercial" || role === "coordinador",
+    puedeVerGestionAsesores: isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador",
   };
 }
 
@@ -126,6 +128,7 @@ function MarcaBarCard({ titulo, filas: filasCrudas }: { titulo: string; filas: {
 export default function EvaluacionPage() {
   const { role, profile } = useAuth();
   const permisos = permisosFiltro(role);
+  const puedeDescargar = canDownloadData(role);
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -235,24 +238,26 @@ export default function EvaluacionPage() {
         title="Reporte de cumplimiento"
         description={`Año ${anioActual} — elige mes(es), sucursal(es) y unidad(es) según tu alcance.`}
         action={
-          <div className="flex gap-2 print:hidden">
-            <button
-              onClick={() => descargarReporte("html")}
-              disabled={descargando}
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium disabled:opacity-60"
-            >
-              {descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              HTML
-            </button>
-            <button
-              onClick={() => descargarReporte("pdf")}
-              disabled={descargando}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-            >
-              {descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              PDF
-            </button>
-          </div>
+          puedeDescargar ? (
+            <div className="flex gap-2 print:hidden">
+              <button
+                onClick={() => descargarReporte("html")}
+                disabled={descargando}
+                className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium disabled:opacity-60"
+              >
+                {descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                HTML
+              </button>
+              <button
+                onClick={() => descargarReporte("pdf")}
+                disabled={descargando}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+              >
+                {descargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                PDF
+              </button>
+            </div>
+          ) : undefined
         }
       />
 

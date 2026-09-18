@@ -8,8 +8,14 @@ import {
   STORAGE_KEY,
 } from "@/lib/shared-filters";
 import { SharedFiltersCtx } from "@/hooks/shared-filters-context";
+import { useAuth } from "@/hooks/use-auth";
 
-export function SharedFiltersProvider({ children }: { children: ReactNode }) {
+/**
+ * Estado de filtros + hidratación desde localStorage.
+ * Se remonta por `key={sessionUserId}` en el wrapper para no heredar
+ * filtros del usuario anterior al cambiar de sesión (sin hard refresh).
+ */
+function SharedFiltersInner({ children }: { children: ReactNode }) {
   // Estado inicial determinístico (sin "mes actual") — debe coincidir entre
   // SSR y la primera pintada del cliente. Ver defaultFilters().
   const [filters, setFiltersState] = useState<SharedFilters>(() => defaultFilters());
@@ -39,4 +45,13 @@ export function SharedFiltersProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ filters, setFilters }), [filters, setFilters]);
 
   return <SharedFiltersCtx.Provider value={value}>{children}</SharedFiltersCtx.Provider>;
+}
+
+export function SharedFiltersProvider({ children }: { children: ReactNode }) {
+  const { session, loading } = useAuth();
+  // Remount al cambiar de usuario (o logout): el estado en memoria de React
+  // sobrevivía al clearSharedFilters() de localStorage y filtraba datos ajenos.
+  // Mientras auth carga, un solo key evita montar→desmontar→montar en el boot.
+  const scopeKey = loading ? "boot" : (session?.id ?? "anon");
+  return <SharedFiltersInner key={scopeKey}>{children}</SharedFiltersInner>;
 }

@@ -46,8 +46,8 @@ type Totales = { [claveSucursal: string]: number };
 function sumarReclasificadas(rows: RawRowData[]): Totales {
   const filasLub = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR, ANIO, MES);
   const parser = new ExcelParser("", {
-    sheetNames: ["Facturacion", "LubricantesFiltros"],
-    sheets: { Facturacion: rows, LubricantesFiltros: filasLub },
+    sheetNames: ["Facturacion", "Lubricantes/Filtros"],
+    sheets: { Facturacion: rows, "Lubricantes/Filtros": filasLub },
   });
   const facturas = parser.getFacturasPrincipales();
   const totales: Totales = {};

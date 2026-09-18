@@ -54,8 +54,11 @@ function sumarPorSucursalUnidad(
   filasLubFiltros: RawRowData[] = [],
 ): Totales {
   const parser = new ExcelParser("", {
-    sheetNames: ["Facturacion", "LubricantesFiltros"],
-    sheets: { Facturacion: rows, LubricantesFiltros: filasLubFiltros },
+    // El nombre debe ser el mismo que espera leerHoja() dentro del parser
+    // ("Lubricantes/Filtros", con barra) -- si no calza, el mapa de lubricante
+    // devuelve {} y el neteo de lubricante resta cero sin avisar.
+    sheetNames: ["Facturacion", "Lubricantes/Filtros"],
+    sheets: { Facturacion: rows, "Lubricantes/Filtros": filasLubFiltros },
   });
   const facturas = parser.getFacturasPrincipales();
   const totales: Totales = {};
@@ -82,21 +85,23 @@ async function main() {
   const filasLubFiltros = leerFilasLubricanteVentasrepuesto(DOWNLOADS_DIR, ANIO, MES);
   console.log(`→ ${filasLubFiltros.length} filas de LubricantesFiltros (para neteo)`);
 
+  // Xibi también necesita el neteo: su lubricante (FMO Piar) viene dentro del
+  // bruto de Repuestos-Xibi igual que el de Consorcio. El parser separa por
+  // compañía, así que pasar el set completo de filas a ambos no cruza montos.
   const totalesCcv = sumarPorSucursalUnidad(rowsCcv, UNIDADES, filasLubFiltros);
-  const totalesXibi = sumarPorSucursalUnidad(rowsXibi, UNIDADES);
+  const totalesXibi = sumarPorSucursalUnidad(rowsXibi, UNIDADES, filasLubFiltros);
   const totalesEstrategicas = sumarPorSucursalUnidad(rowsOtra, UNIDADES);
 
   // Servicios CCV no sale de Oportunidades Detallado (se excluye ahí para no
   // contar doble contra el BC de Repuestos) -- sale de ventasgeneral, igual
   // que getServiciosNuevo(). Xibi Servicios no tiene archivo fuente (0).
   try {
-    // Fijar el mes en el patrón: "más reciente" sin esto agarra el archivo de
-    // ventasgeneral del mes en curso una vez que rueda el calendario, dejando
-    // en 0 todo lo que no aparece ahí (confirmado 2026-09-08 con FMO Piar
-    // Servicios: pasó de $19.514,36 a $0 al aparecer el archivo de septiembre).
+    // Fijar el mes en el patron: mas reciente sin esto agarra el archivo del
+    // mes en curso una vez que rueda el calendario, dejando en 0 lo que no
+    // aparece ahi (confirmado 2026-09-08, FMO Piar Servicios 19514.36 -> 0).
     const archivoServ = localizarArchivoMasReciente(
       DOWNLOADS_DIR,
-      new RegExp(`^ventasgeneral-32-SERVICIO-${ANIO}-${MES}-.*\\.xls$`, "i"),
+      new RegExp(`^ventasgeneral-32-SERVICIO-${ANIO}-${MES}-.*\.xls$`, "i"),
     );
     console.log(`→ Leyendo ${archivoServ}`);
     const filasServ = leerArchivoCrudo(archivoServ, 6);

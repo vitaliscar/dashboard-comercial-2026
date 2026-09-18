@@ -25,6 +25,7 @@ import { TrendingUp, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
+import { isFullAccessRole } from "@/lib/permissions";
 
 export default function RepuestosPage() {
   const { role } = useAuth();
@@ -239,7 +240,7 @@ export default function RepuestosPage() {
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={
-          role === "gerencia"
+          isFullAccessRole(role)
             ? sucursales?.map((s) => ({ value: s.id, label: s.nombre }))
             : undefined
         }
@@ -325,7 +326,7 @@ export default function RepuestosPage() {
         </header>
         <ReceivablesTable
           rows={receivablesRows}
-          sucursalOptions={role === "gerencia" ? sucursalOptions : undefined}
+          sucursalOptions={isFullAccessRole(role) ? sucursalOptions : undefined}
         />
       </section>
 

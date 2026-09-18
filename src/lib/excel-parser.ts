@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as XLSX from "xlsx";
 import * as path from "path";
+import { DICCIONARIO_SUCURSAL_XIBI } from "@/lib/as400-sucursales";
 
 /**
  * Parser para leer y procesar datos del archivo Excel CCV Rendimiento.xlsx
@@ -201,15 +202,21 @@ const ROLES_USUARIO_CANONICAS: { [key: string]: string } = {
 
 const ROLES_USUARIO_VALIDOS = new Set(Object.values(ROLES_USUARIO_CANONICAS));
 
-export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+export type AppRole =
+  | "administrador"
+  | "gerencia"
+  | "gerente_comercial"
+  | "coordinador"
+  | "asesor";
 
 /**
  * Mapea la etiqueta de rol de la hoja Usuarios (8 valores) al enum app_role
- * (4 valores) del esquema real, más la unidad_negocio implícita para los
- * roles "GC *".
+ * del esquema real, más la unidad_negocio implícita para los roles "GC *".
  */
 export function mapRolToAppRole(rolLabel: string): { role: AppRole; unidadNegocio: string | null } {
   switch (rolLabel) {
+    case "Administrador":
+      return { role: "administrador", unidadNegocio: null };
     case "Gerencia":
       return { role: "gerencia", unidadNegocio: null };
     case "Coordinador de Operaciones":
@@ -835,7 +842,7 @@ export class ExcelParser {
   }
 
   /**
-   * Hoja: Lubricantes/Filtros
+   * Hoja: LubricantesFiltros
    */
   getLubricantesFiltos(meses: number[], anio: number): any[] {
     const datos = this.leerHoja("Lubricantes/Filtros");
@@ -1479,33 +1486,56 @@ export class ExcelParser {
   }
 
   /**
-   * Lubricante vendido por sucursal (Consorcio), para netear el bruto de
+   * Compañía que factura la fila, normalizada a un grupo. Consorcio y Xibi
+   * facturan lubricante por separado (cada una en su propia partición del
+   * reporte `ventasrepuesto`), así que el neteo tiene que cruzar bruto de
+   * Repuestos contra lubricante DE LA MISMA compañía. "Otra Empresa" no entra:
+   * su lubricante no aparece en `ventasrepuesto` y sus filas de Repuestos ya
+   * quedan fuera por esRepuestoBR().
+   */
+  private grupoCompania(valor: unknown): "consorcio" | "xibi" | null {
+    const compania = (valor ?? "").toString().trim().toUpperCase();
+    if (compania.includes("XIBI")) return "xibi";
+    if (compania.includes("CONSORCIO")) return "consorcio";
+    return null;
+  }
+
+  /**
+   * Lubricante vendido por compañía+sucursal, para netear el bruto de
    * Repuestos igual que lo hace el cuadro real: SUMIFS('Lubricantes/Filtros'
-   * !$AJ:$AJ; mes; sucursal; compañía="CONSORCIO COGESTION VENEQUIP") — un
-   * total agregado por sucursal+mes, NO por Nro.Factura(s) individual (el
-   * método anterior). Confirmado 2026-09-02: neteando por factura
+   * !$AJ:$AJ; mes; sucursal; compañía) — un total agregado por
+   * compañía+sucursal+mes, NO por Nro.Factura(s) individual (el método
+   * anterior). Confirmado 2026-09-02: neteando por factura
    * dejaba sin restar el lubricante de facturas sin Nro.Factura(s) coincidente,
    * inflando Repuestos hasta 11% en varias sucursales; con este método
    * agregado, Lub/Filtros ya cuadraba exacto en 5 de 6 sucursales contra el
    * cuadro fresco — el gap de Repuestos viene de este mismo lubricante sin
    * restar.
    */
-  private getLubMontoPorSucursal(): { [claveSucursalMes: string]: number } {
+  private getLubMontoPorCompaniaSucursal(): { [claveCompaniaSucursalMes: string]: number } {
     const datos = this.leerHoja("Lubricantes/Filtros");
-    const map: { [claveSucursalMes: string]: number } = {};
+    const map: { [claveCompaniaSucursalMes: string]: number } = {};
     datos.forEach((row) => {
-      const compania = (row["Compañía"] ?? row["Compañia"] ?? "").toString().trim().toUpperCase();
-      if (compania !== "CONSORCIO COGESTION VENEQUIP") return;
-      const sucursal = this.normalizarSucursal(row["Sucursal"]);
+      const grupo = this.grupoCompania(row["Compañía"] ?? row["Compañia"]);
+      if (!grupo) return;
+      // Bajo Xibi, "Sucursal" es siempre "Xibi B.V" (no una sucursal real) — la
+      // real sale del diccionario Cód. Cliente→sucursal, el mismo que aplica
+      // resolverSucursalOportunidadesDetallado() del otro lado del neteo. Sin
+      // esto la clave de Xibi nunca calza con la del bruto de Repuestos.
+      const codCliente = parseInt((row["Cód. Cliente"] ?? "").toString().trim(), 10).toString();
+      const sucursal =
+        grupo === "xibi"
+          ? this.normalizarSucursal(DICCIONARIO_SUCURSAL_XIBI[codCliente] ?? "")
+          : this.normalizarSucursal(row["Sucursal"]);
       if (!sucursal) return;
-      // Clave por sucursal+mes+año: "LubricantesFiltros" puede traer varios
+      // Clave por sucursal+mes+año: "Lubricantes/Filtros" puede traer varios
       // meses a la vez (el Excel manual acumula todo el histórico en una sola
       // hoja) — sin esto se restaría el lubricante de TODOS los meses contra
       // el bruto de un solo mes de Repuestos.
       const mes = parseInt(String(row["Mes"] ?? ""), 10);
       const anio = parseInt(String(row["Año"] ?? ""), 10);
       if (!mes || !anio) return;
-      const clave = `${sucursal}|${anio}-${mes}`;
+      const clave = `${grupo}|${sucursal}|${anio}-${mes}`;
       map[clave] = (map[clave] || 0) + this.parseNumber(row["P.V.P. Total $ Extendido"]);
     });
     return map;
@@ -1539,14 +1569,25 @@ export class ExcelParser {
    * Fecha: el cuadro real agrupa por "Mes Cierre" (MONTH de "Fecha de
    * Cierre"), no por "Fecha Documento" — confirmado con el usuario 2026-09-01.
    *
-   * Neteo de lubricante: agregado por sucursal+mes (getLubMontoPorSucursal),
-   * igual que el cuadro real — no por Nro.Factura(s) individual. Cambiado
+   * Neteo de lubricante: agregado por compañía+sucursal+mes
+   * (getLubMontoPorCompaniaSucursal), igual que el cuadro real — no por
+   * Nro.Factura(s) individual. Cambiado
    * 2026-09-02: neteando por factura se perdía el lubricante de facturas sin
    * Nro.Factura(s) coincidente, inflando Repuestos hasta 11% en varias
    * sucursales. Verificado: Lub/Filtros ya cuadraba exacto en 5/6 sucursales
    * contra el cuadro fresco antes de este cambio, confirmando que el gap
    * estaba en el lado de Repuestos (el lubricante sin restar), no en el
    * cálculo de Lub/Filtros en sí.
+   *
+   * La compañía entró en la clave el 2026-09-17: antes solo se neteaba
+   * Consorcio, porque el mapa de lubricante estaba keyed por sucursal sola y
+   * restarlo también en filas de Xibi con la misma sucursal descontaba el
+   * lubricante de Consorcio de un bruto que no lo contenía (Puerto Ordaz Xibi
+   * daba -195K en vez de $888). Con compañía en la clave, cada bruto se netea
+   * contra su propio lubricante y el caso de Xibi queda bien resuelto: el
+   * lubricante Xibi de FMO Piar ($7.402,33 en septiembre) sí estaba dentro del
+   * bruto de Repuestos-Xibi y se contaba doble. Con esto el cuadro de
+   * cumplimiento por unidad coincide al céntimo con el Sheet.
    *
    * Ventas estratégicas de lubricante: 72 filas verificadas en el Excel real
    * vienen como Repuestos en el CRM (cualquier compañía) pero se reclasifican
@@ -1572,7 +1613,7 @@ export class ExcelParser {
     // es sucursal canónica (ver SUCURSAL_CANONICA) para que resuelva FK.
     const datos = this.leerHoja("Facturacion");
 
-    const lubPorSucursalMes = this.getLubMontoPorSucursal();
+    const lubPorCompaniaSucursalMes = this.getLubMontoPorCompaniaSucursal();
 
     // Solo Repuestos (Consorcio/Xibi) usa el bruto detallado (BR) con neteo de
     // lubricante. Equipos/Alquiler y Servicios de "Otra Empresa" miden
@@ -1592,14 +1633,6 @@ export class ExcelParser {
       this.normalizarUnidadNegocio(row["Tipo de Negocio"]) === UNIDAD_REPUESTOS &&
       (row["Compañia"] || "").toString().trim() !== "Otra Empresa" &&
       !esVentaEstrategicaLubricante(row);
-
-    // getLubMontoPorSucursal() solo trae lubricante de Consorcio (único que
-    // aparece en el archivo ventasrepuesto de AS400) — restarlo también de
-    // filas de Xibi con la misma sucursal+mes resta dos veces por el mismo
-    // dinero y da montos negativos absurdos. Confirmado 2026-09-02 con
-    // Puerto Ordaz Xibi dando -195K en vez de $888 verdadero.
-    const esConsorcio = (row: RawRowData): boolean =>
-      (row["Compañia"] || "").toString().trim().toLowerCase().includes("consorcio");
 
     // El cuadro real agrupa por "Mes Cierre" (columna CG de 'Oportunidades
     // Detallado'), que resulta ser el mes de Fecha Documento (fecha de
@@ -1625,21 +1658,24 @@ export class ExcelParser {
       return this.excelDateToISO(row["Fecha de Cierre"]);
     };
 
-    // Bruto de repuestos (BR) por sucursal+mes, para distribuir la resta de
-    // lubricante proporcionalmente — igual que el cuadro real, que netea un
-    // total agregado por sucursal+mes (SUMIFS de 'Lubricantes/Filtros'), no
-    // por Nro.Factura(s) individual. Confirmado 2026-09-02: el neteo por
-    // factura dejaba lubricante sin restar cuando no había Nro.Factura(s)
-    // coincidente, inflando Repuestos hasta 11% en varias sucursales.
-    const repBrutoPorSucursalMes: { [claveSucursalMes: string]: number } = {};
+    // Bruto de repuestos (BR) por compañía+sucursal+mes, para distribuir la
+    // resta de lubricante proporcionalmente — igual que el cuadro real, que
+    // netea un total agregado por sucursal+mes (SUMIFS de
+    // 'Lubricantes/Filtros'), no por Nro.Factura(s) individual. Confirmado
+    // 2026-09-02: el neteo por factura dejaba lubricante sin restar cuando no
+    // había Nro.Factura(s) coincidente, inflando Repuestos hasta 11% en varias
+    // sucursales.
+    const repBrutoPorCompaniaSucursalMes: { [claveCompaniaSucursalMes: string]: number } = {};
     datos.forEach((row) => {
-      if (!esRepuestoBR(row) || !esConsorcio(row)) return;
+      if (!esRepuestoBR(row)) return;
+      const grupo = this.grupoCompania(row["Compañia"]);
+      if (!grupo) return;
       const ma = mesAnioCierre(row);
       if (!ma) return;
       const sucursal = this.normalizarSucursal(row["Sucursal"]);
-      const clave = `${sucursal}|${ma.anio}-${ma.mes}`;
-      repBrutoPorSucursalMes[clave] =
-        (repBrutoPorSucursalMes[clave] || 0) +
+      const clave = `${grupo}|${sucursal}|${ma.anio}-${ma.mes}`;
+      repBrutoPorCompaniaSucursalMes[clave] =
+        (repBrutoPorCompaniaSucursalMes[clave] || 0) +
         this.parseNumber(row["Monto Efectivo Ventas detallado (Tasa Neg.)"]);
     });
 
@@ -1681,11 +1717,12 @@ export class ExcelParser {
         const brutoRow = this.parseNumber(row["Monto Efectivo Ventas detallado (Tasa Neg.)"]);
         monto = brutoRow;
         const ma = mesAnioCierre(row);
-        if (ma && esConsorcio(row)) {
+        const grupo = this.grupoCompania(row["Compañia"]);
+        if (ma && grupo) {
           const sucursalRow = this.normalizarSucursal(row["Sucursal"]);
-          const clave = `${sucursalRow}|${ma.anio}-${ma.mes}`;
-          const lub = lubPorSucursalMes[clave] || 0;
-          const brutoSucursalMes = repBrutoPorSucursalMes[clave] || 0;
+          const clave = `${grupo}|${sucursalRow}|${ma.anio}-${ma.mes}`;
+          const lub = lubPorCompaniaSucursalMes[clave] || 0;
+          const brutoSucursalMes = repBrutoPorCompaniaSucursalMes[clave] || 0;
           if (lub > 0 && brutoSucursalMes > 0) {
             // Resta proporcional al peso de la fila dentro del bruto de la
             // sucursal+mes — mismo total que resta el cuadro real (-J43).
@@ -1915,15 +1952,27 @@ export class ExcelParser {
 
   /**
    * Hoja: Cuentas por Cobrar → cobranzas (esquema nuevo).
+   * También acepta el export "CXC AL …" (corte semanal) pre-parseado bajo el
+   * mismo nombre de hoja: columnas `Total DO` / `UNIDAD DE NEGOCIO` en lugar
+   * de `TOTAL $` / `Unidad de Negocio`, y sin `Dias Vencidos` (se deriva de
+   * Fecha Vencimiento vs. la fecha de corte del reporte).
    * Agrupa filas por combinación (Sucursal Venta + Cliente/Nombre Cliente + Factura),
-   * sumando "Total DO" de todas las líneas de Giro de esa factura.
+   * sumando el monto DO de todas las líneas de Giro de esa factura.
    * La hoja no trae un saldo parcial separado del monto total, así que
    * saldo = monto (se asume la factura completa está pendiente).
    */
-  getCobranzasNuevo(): CobranzaNueva[] {
+  getCobranzasNuevo(opts?: { corteFecha?: string | null }): CobranzaNueva[] {
     const datos = this.leerHoja("Cuentas por Cobrar");
+    const corte = this.resolverCorteCobranzas(opts?.corteFecha);
 
-    const datosFiltrados = datos.filter((row) => !this.debeExcluir(row["Sucursal Venta"] || ""));
+    const datosFiltrados = datos.filter((row) => {
+      if (this.debeExcluir(row["Sucursal Venta"] || "")) return false;
+      // Fila de total del reporte ("Total Cartera") — no es una factura.
+      const cliente = this.normalizarTexto(row["Cliente"] ?? row["Nombre Cliente"]);
+      if (!cliente) return false;
+      if (/^total\b/i.test(cliente)) return false;
+      return true;
+    });
 
     const grupos = new Map<
       string,
@@ -1946,23 +1995,39 @@ export class ExcelParser {
       const facturaNumero = this.normalizarTexto(row["Factura"]);
       const key = `${sucursal}|${clienteCod}|${clienteNom}|${facturaNumero}`;
 
-      const montoDO = this.parseAccountingNumber(row["TOTAL $"]);
+      // Preferir TOTAL $ (Excel legado) y caer a Total DO (export CXC semanal).
+      // Nunca sumar Total BO — el dashboard trabaja en dólares.
+      const montoDO = this.parseAccountingNumber(row["TOTAL $"] ?? row["Total DO"]);
+
+      const fechaVencimiento = this.excelDateToISO(row["Fecha Vencimiento"]);
+      const diasExplicitos = this.parseAccountingInt(
+        row["Dias Vencidos"] ?? row["DIAS VENCIDO"] ?? row["Días Vencidos"],
+      );
+      const diasVencidos =
+        diasExplicitos > 0
+          ? diasExplicitos
+          : this.diasVencidosDesdeFecha(fechaVencimiento, corte);
 
       if (!grupos.has(key)) {
         grupos.set(key, {
           cliente: clienteNom,
           facturaNumero,
           fechaEmision: this.excelDateToISO(row["Fecha Emisión"]),
-          fechaVencimiento: this.excelDateToISO(row["Fecha Vencimiento"]),
+          fechaVencimiento,
           monto: 0,
-          diasVencidos: this.parseAccountingInt(row["Dias Vencidos"] ?? row["DIAS VENCIDO"]),
+          diasVencidos,
           sucursal,
-          unidadNegocio: this.normalizarUnidadNegocio(row["Unidad de Negocio"]),
+          unidadNegocio: this.normalizarUnidadNegocio(
+            row["Unidad de Negocio"] ?? row["UNIDAD DE NEGOCIO"],
+          ),
         });
       }
 
       const item = grupos.get(key)!;
       item.monto += montoDO;
+      // Si varios giros de la misma factura traen distintos días, quedarse
+      // con el máximo (el más vencido).
+      if (diasVencidos > item.diasVencidos) item.diasVencidos = diasVencidos;
     }
 
     return Array.from(grupos.values()).map((g) => ({
@@ -1976,6 +2041,22 @@ export class ExcelParser {
       sucursal: g.sucursal,
       unidadNegocio: g.unidadNegocio,
     }));
+  }
+
+  /** Fecha de corte del reporte de cartera (YYYY-MM-DD). Default: hoy UTC. */
+  private resolverCorteCobranzas(corteFecha?: string | null): string {
+    if (corteFecha && /^\d{4}-\d{2}-\d{2}$/.test(corteFecha)) return corteFecha;
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  /** Días de atraso vs. la fecha de corte; 0 si aún no vence. */
+  private diasVencidosDesdeFecha(fechaVencimiento: string | null, corteFecha: string): number {
+    if (!fechaVencimiento) return 0;
+    const venc = Date.parse(`${fechaVencimiento}T00:00:00Z`);
+    const corte = Date.parse(`${corteFecha}T00:00:00Z`);
+    if (Number.isNaN(venc) || Number.isNaN(corte)) return 0;
+    const dias = Math.floor((corte - venc) / 86_400_000);
+    return dias > 0 ? dias : 0;
   }
 
   /**

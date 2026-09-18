@@ -4,13 +4,14 @@ import { eq, sql } from "drizzle-orm";
 import { presupuestos } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import { cargarAjustesManuales, sumaAjuste } from "@/lib/ajustes-manuales-helper";
+import { isFullAccessRole } from "@/lib/permissions";
 
 /** Reemplaza rpc_resumen_mensual — reshape directo de `presupuestos` (meta=monto,
  * facturado=ventas_ccv+ventas_xibi+ventas_estrategicas), filtrado por mes/sucursal/unidad
  * en memoria del lado del cliente (igual que antes). */
 export async function getResumenMensualAction(data: { anio: number }) {
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia" && role !== "gerente_comercial") {
+    if (!isFullAccessRole(role) && role !== "gerente_comercial") {
       throw new Error("Unauthorized: Insufficient permissions for gerencia-nacional");
     }
 

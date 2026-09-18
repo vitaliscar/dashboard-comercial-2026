@@ -33,6 +33,7 @@ export default async function DashboardPage() {
   const { role, profile } = session;
 
   switch (role) {
+    case "administrador":
     case "gerencia":
       redirect("/gerencia-nacional");
       break;

@@ -1,28 +1,22 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { loginAction, logoutAction, meAction, type AppRole } from "@/lib/actions/auth";
 import { clearSharedFilters } from "@/lib/shared-filters";
 import { getRoleModuleAccessAction } from "@/lib/actions/permisos";
-import { setModuleAccessOverride } from "@/lib/permissions";
+import { clearModuleAccessOverride, setModuleAccessOverride } from "@/lib/permissions";
+import {
+  toUserProfile,
+  type ClientUserProfile,
+  type ClientSessionUser,
+  type InitialAuth,
+} from "@/lib/auth/client-session";
 
-export type { AppRole };
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  nombre_completo: string | null;
-  sucursal_id: string | null;
-  unidad_negocio_id: string | null;
-  is_admin: boolean;
-  unidades_negocio_ids?: string[];
-  sucursales_ids?: string[];
-}
-
-interface SessionUser {
-  id: string;
-  email: string;
-}
+export type { AppRole, InitialAuth };
+export type UserProfile = ClientUserProfile;
+export type SessionUser = ClientSessionUser;
+export { toUserProfile };
 
 interface AuthContextValue {
   session: SessionUser | null;
@@ -37,50 +31,71 @@ interface AuthContextValue {
 
 const AuthCtx = createContext<AuthContextValue | undefined>(undefined);
 
-function toUserProfile(profile: {
-  id: string;
-  email: string;
-  nombreCompleto: string | null;
-  sucursalId: string | null;
-  unidadNegocioId: string | null;
-  isAdmin: boolean;
-  unidadesNegocioIds: string[];
-  sucursalesIds: string[];
-}): UserProfile {
-  return {
-    id: profile.id,
-    email: profile.email,
-    nombre_completo: profile.nombreCompleto,
-    sucursal_id: profile.sucursalId,
-    unidad_negocio_id: profile.unidadNegocioId,
-    is_admin: profile.isAdmin,
-    unidades_negocio_ids: profile.unidadesNegocioIds,
-    sucursales_ids: profile.sucursalesIds,
-  };
+/** Limpia estado de cliente que no debe cruzar de un usuario a otro. */
+function resetClientAuthArtifacts(queryClient: ReturnType<typeof useQueryClient>) {
+  clearSharedFilters();
+  clearModuleAccessOverride();
+  queryClient.clear();
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<SessionUser | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [loading, setLoading] = useState(true);
+/**
+ * @param initialAuth
+ * - `undefined` (omitido): hay que resolver sesión en cliente → loading inicial.
+ * - `null`: el servidor ya confirmó que no hay sesión.
+ * - objeto: hidratar de inmediato (sin flash de "sin rol" / acceso restringido).
+ */
+export function AuthProvider({
+  children,
+  initialAuth,
+}: {
+  children: ReactNode;
+  initialAuth?: InitialAuth | null;
+}) {
+  const queryClient = useQueryClient();
+  const serverResolved = initialAuth !== undefined;
+  const [session, setSession] = useState<SessionUser | null>(() => initialAuth?.user ?? null);
+  const [profile, setProfile] = useState<UserProfile | null>(() => initialAuth?.profile ?? null);
+  const [role, setRole] = useState<AppRole | null>(() => initialAuth?.role ?? null);
+  const [loading, setLoading] = useState(() => !serverResolved);
 
-  const loadFromMe = async () => {
-    const me = await meAction();
+  const applyMe = async (me: Awaited<ReturnType<typeof meAction>>) => {
     if (me) {
       setSession(me.user);
       setProfile(toUserProfile(me.profile));
       setRole(me.role);
-      getRoleModuleAccessAction().then(setModuleAccessOverride).catch(() => {});
+      try {
+        setModuleAccessOverride(await getRoleModuleAccessAction());
+      } catch {
+        clearModuleAccessOverride();
+      }
     } else {
       setSession(null);
       setProfile(null);
       setRole(null);
+      clearModuleAccessOverride();
     }
   };
 
+  const loadFromMe = async () => {
+    await applyMe(await meAction());
+  };
+
   useEffect(() => {
-    loadFromMe().finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await meAction();
+        if (cancelled) return;
+        await applyMe(me);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Solo al montar: la hidratación inicial viene de props del servidor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value: AuthContextValue = {
@@ -94,14 +109,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result.error || !result.user || !result.profile) {
         return { error: new Error(result.error ?? "No se pudo iniciar sesión.") };
       }
+      resetClientAuthArtifacts(queryClient);
       setSession(result.user);
       setProfile(toUserProfile(result.profile));
       setRole(result.role);
-      getRoleModuleAccessAction().then(setModuleAccessOverride).catch(() => {});
+      try {
+        setModuleAccessOverride(await getRoleModuleAccessAction());
+      } catch {
+        clearModuleAccessOverride();
+      }
       return { error: null };
     },
     signOut: async () => {
-      clearSharedFilters();
+      resetClientAuthArtifacts(queryClient);
       await logoutAction();
       setSession(null);
       setProfile(null);

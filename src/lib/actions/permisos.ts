@@ -4,12 +4,12 @@ import { eq, and } from "drizzle-orm";
 import { roleModuleAccess } from "@/db/schema";
 import { withAuth } from "@/lib/actions/with-auth";
 import type { AppRole } from "@/lib/actions/auth";
-import type { ModuleKey } from "@/lib/permissions";
+import { canCreateDeleteUsers, isFullAccessRole, type ModuleKey } from "@/lib/permissions";
 
 export async function getRoleModuleAccessAction() {
   return withAuth(async ({ tx, role }) => {
-    // CN-019: gerencia ve la matriz completa; resto solo su propio rol.
-    if (role === "gerencia") {
+    // Administrador/gerencia ven la matriz completa; resto solo su propio rol.
+    if (isFullAccessRole(role)) {
       return tx.select().from(roleModuleAccess);
     }
     if (!role) return [];
@@ -23,8 +23,8 @@ export async function setRoleModuleAccessAction(data: {
   canView: boolean;
 }) {
   return withAuth(async ({ tx, role }) => {
-    if (role !== "gerencia") {
-      throw new Error("Unauthorized: Solo Gerencia Nacional puede modificar permisos");
+    if (!canCreateDeleteUsers(role)) {
+      throw new Error("Unauthorized: Solo Administrador puede modificar permisos");
     }
 
     const [existing] = await tx

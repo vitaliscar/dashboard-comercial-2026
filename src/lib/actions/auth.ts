@@ -17,7 +17,13 @@ import { verifyPassword } from "@/lib/auth/password";
 import { sessionExpiryDate, isSessionExpired, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { logAuthFailure } from "@/lib/logger";
 
-export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+export type AppRole =
+  | "administrador"
+  | "gerencia"
+  | "gerente_comercial"
+  | "coordinador"
+  | "asesor";
+
 
 const isProd = process.env.NODE_ENV === "production";
 // La cookie de sesion solo debe ser Secure si realmente se sirve por HTTPS.
@@ -88,11 +94,14 @@ async function loadAuthPayload(userId: string) {
         : [];
 
   let role: AppRole | null = null;
-  if (profile.isAdmin) {
+  const roleNames = roles.map((r) => r.role as AppRole);
+  // administrador gana sobre is_admin→gerencia (aperez y superusuarios).
+  if (roleNames.includes("administrador")) {
+    role = "administrador";
+  } else if (profile.isAdmin) {
     role = "gerencia";
   } else {
     const priority: AppRole[] = ["gerencia", "gerente_comercial", "coordinador", "asesor"];
-    const roleNames = roles.map((r) => r.role);
     role = priority.find((rr) => roleNames.includes(rr)) ?? null;
   }
 

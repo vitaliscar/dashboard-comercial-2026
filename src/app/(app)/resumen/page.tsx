@@ -93,7 +93,7 @@ const mapDbUnidadToUi = (dbNombre: string): UnidadNegocio => {
 };
 
 export default function ResumenPage() {
-  const { role, profile } = useAuth();
+  const { role, profile, loading: authLoading } = useAuth();
   const { filters: sharedFilters, setFilters: setSharedFilters } = useSharedFilters();
   const hideSucursalFilter = role === "coordinador" || role === "asesor";
   const today = new Date();
@@ -391,9 +391,6 @@ export default function ResumenPage() {
           });
         }
       });
-      // Servicios: `facturas` solo trae el lado Xibi/"Otra Empresa" (ver
-      // excel-parser.ts), el detalle de cliente CCV vive en `servicios` (AS400)
-      // -- sin esto, Top Clientes de Servicios quedaba casi vacío.
       if (cat === "Servicios") {
         const filteredServClientes = (rawData.serviciosClientes || []).filter((s) => {
           const dbName = s.unidadNegocioId ? unitMap.get(s.unidadNegocioId) : "";
@@ -665,6 +662,10 @@ export default function ResumenPage() {
     isSucLoading || isUnLoading || (isDataLoading && !!unidades && !!sucursales);
   const hasError = isSucError || isUnError || isDataError;
   const firstError = sucError || unError || dataError;
+
+  if (authLoading) {
+    return <ResumenSkeleton />;
+  }
 
   if (!role) {
     return (

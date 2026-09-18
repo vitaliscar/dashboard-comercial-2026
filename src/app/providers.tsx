@@ -2,12 +2,19 @@
 
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, type InitialAuth } from "@/hooks/use-auth";
 import { SharedFiltersProvider } from "@/hooks/shared-filters-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  initialAuth,
+}: {
+  children: ReactNode;
+  /** Sesión ya resuelta en el Server Component raíz — evita flash en refresh. */
+  initialAuth?: InitialAuth | null;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -24,7 +31,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+      <AuthProvider initialAuth={initialAuth}>
         <SharedFiltersProvider>
           {/* Sin ThemeProvider: el tema es fijo (`class="dark"` en layout.tsx).
               next-themes inyectaba un <script> —warning de React en cliente— y

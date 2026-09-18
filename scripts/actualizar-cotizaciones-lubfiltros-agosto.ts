@@ -40,6 +40,7 @@ const CODIGO_SUCURSAL: Record<string, string> = {
   "07": "Maracaibo",
   "08": "Punto Fijo",
   "13": "Maturín",
+  "23": "FMO Piar",
   "46": "Machine Shop",
 };
 
