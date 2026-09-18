@@ -1,3 +1,4 @@
+import { isFullAccessRole } from "@/lib/permissions";
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -96,7 +97,7 @@ export default function AsesoresPage() {
   const [activeTab, setActiveTab] = useState<"ranking">("ranking");
   const [selectedAdvisor, setSelectedAdvisor] = useState<AgrupacionAsesor | null>(null);
 
-  const canView = role === "gerencia" || role === "gerente_comercial" || role === "coordinador" || role === "asesor";
+  const canView = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador" || role === "asesor";
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -269,7 +270,7 @@ export default function AsesoresPage() {
         defaultMes={meses}
         defaultUnits={selectedUnidades}
         sucursalOptions={sucursalOptions}
-        sucursalMulti={role === "gerencia"}
+        sucursalMulti={isFullAccessRole(role)}
         unitOptions={unitOptions}
         showAllMonths={true}
       />

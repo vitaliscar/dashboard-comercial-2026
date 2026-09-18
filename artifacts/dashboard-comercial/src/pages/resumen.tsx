@@ -91,7 +91,7 @@ const mapDbUnidadToUi = (dbNombre: string): UnidadNegocio => {
 };
 
 export default function ResumenPage() {
-  const { role, profile } = useAuth();
+  const { role, profile, loading: authLoading } = useAuth();
   const { filters: sharedFilters, setFilters: setSharedFilters } = useSharedFilters();
   const hideSucursalFilter = role === "coordinador" || role === "asesor";
   const today = new Date();
@@ -698,6 +698,10 @@ export default function ResumenPage() {
         filters.meses,
       )
     : null;
+
+  if (authLoading) {
+    return <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Cargando sesión…</div>;
+  }
 
   if (!role) {
     return (

@@ -1,3 +1,4 @@
+import { isFullAccessRole } from "./auth";
 import { Router, type Request, type Response } from "express";
 import { currentSession, withScopedTransaction, type SessionPayload } from "./auth";
 
@@ -52,7 +53,7 @@ async function recipient(tx: Queryable, id: string) {
 }
 function allowedRecipient(session: SessionPayload, candidates: Record<string, any>[]) {
   const { branches, units } = scopes(session);
-  if (session.role === "gerencia") return candidates.find((row) => ["gerente_comercial", "coordinador", "asesor"].includes(row.role)) ?? null;
+  if (isFullAccessRole(session.role)) return candidates.find((row) => ["gerente_comercial", "coordinador", "asesor"].includes(row.role)) ?? null;
   if (session.role === "coordinador") return candidates.find((row) => row.role === "asesor" && branches.includes(row.sucursalId)) ?? null;
   if (session.role === "gerente_comercial") return candidates.find((row) => row.role === "coordinador" && units.includes(row.unidadNegocioId)) ?? null;
   return null;
@@ -88,10 +89,10 @@ router.get("/minutas/destinatarios", async (req, res) => {
   try {
     const rows = await withScopedTransaction(session, async (tx) => {
       const { branches, units } = scopes(session);
-      const condition = session.role === "gerencia" ? `ur.role IN ('gerente_comercial','coordinador','asesor')`
+      const condition = isFullAccessRole(session.role) ? `ur.role IN ('gerente_comercial','coordinador','asesor')`
         : session.role === "coordinador" ? `ur.role = 'asesor' AND p.sucursal_id = ANY($1::uuid[])`
         : `ur.role = 'coordinador' AND p.unidad_negocio_id = ANY($1::uuid[])`;
-      const values = session.role === "gerencia" ? [] : [session.role === "coordinador" ? branches : units];
+      const values = isFullAccessRole(session.role) ? [] : [session.role === "coordinador" ? branches : units];
       return (await tx.query(`SELECT DISTINCT p.id, p.nombre_completo AS "nombreCompleto", ur.role,
         p.sucursal_id AS "sucursalId", p.unidad_negocio_id AS "unidadNegocioId"
         FROM profiles p INNER JOIN user_roles ur ON ur.user_id = p.id WHERE ${condition} ORDER BY p.nombre_completo`, values)).rows;
@@ -209,7 +210,7 @@ router.patch("/minutas/:id", async (req, res) => {
 router.delete("/minutas/:id", async (req, res) => {
   const session = await sessionOr401(req, res); if (!session) return;
   const id = uuid(req.params.id); if (!id) { res.status(400).json({ message: "La minuta no es válida." }); return; }
-  if (session.role !== "gerencia") { res.status(403).json({ message: "Solo gerencia puede eliminar minutas." }); return; }
+  if (!isFullAccessRole(session.role)) { res.status(403).json({ message: "Solo gerencia puede eliminar minutas." }); return; }
   try { await withScopedTransaction(session, async (tx) => { if (!await accessibleMinuta(tx, session, id)) throw new Error("FORBIDDEN"); await tx.query("DELETE FROM minutas WHERE id = $1::uuid", [id]); }); res.status(204).send(); }
   catch (error) { if ((error as Error).message === "FORBIDDEN") res.status(403).json({ message: "La minuta está fuera de tu alcance." }); else { req.log?.error?.(error); res.status(500).json({ message: "No se pudo eliminar la minuta." }); } }
 });

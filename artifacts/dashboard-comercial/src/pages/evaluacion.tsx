@@ -1,3 +1,4 @@
+import { isFullAccessRole } from "@/lib/permissions";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { KpiCard } from "@/components/kpi-card";
@@ -41,7 +42,7 @@ export default function EvaluacionPage() {
   const sucursalFija = role === "coordinador";
   const unidadFija = role === "gerente_comercial";
   const esAsesor = role === "asesor";
-  const puedeVerGestionAsesores = role === "gerencia" || role === "gerente_comercial" || role === "coordinador";
+  const puedeVerGestionAsesores = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
 
   const filtros: ReporteFiltros = { anio, meses, sucursalIds: esAsesor ? [] : sucursalIds, unidadNegocioIds };
 

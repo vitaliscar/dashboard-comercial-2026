@@ -28,6 +28,7 @@ import { getHealthCheckQueryKey, useHealthCheck } from "@workspace/api-client-re
 import type { UnidadKey } from "./lib/unidad-http";
 import { useAuth } from "./hooks/use-auth";
 import { AuthForm } from "./components/auth-form";
+import { ProtectedShell } from "./components/protected-shell";
 import { getAlertas } from "./lib/alertas-http";
 
 // Code-splitting por ruta: cada rol solo descarga las páginas a las que
@@ -37,6 +38,7 @@ import { getAlertas } from "./lib/alertas-http";
 const ResumenPage = lazy(() => import("./pages/resumen"));
 const UnidadLivePage = lazy(() => import("./pages/unidad-live"));
 const CobranzasPage = lazy(() => import("./pages/cobranzas"));
+const PresupuestosPage = lazy(() => import("./pages/presupuestos"));
 const AsesoresPage = lazy(() => import("./pages/asesores"));
 const MinutasPage = lazy(() => import("./pages/minutas"));
 const NuevaMinutaPage = lazy(() => import("./pages/minutas/nueva"));
@@ -64,7 +66,7 @@ export type Module = {
   description: string;
 };
 
-export type DemoRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+export type DemoRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 const modules: Module[] = [
   { path: "/resumen", label: "Resumen", group: "Visión general", icon: BarChart3, description: "Pulso comercial consolidado" },
@@ -75,6 +77,7 @@ const modules: Module[] = [
   { path: "/asesores", label: "Asesores", group: "Gestión comercial", icon: UserCheck, description: "Rendimiento de la fuerza de ventas" },
   { path: "/minutas", label: "Minutas", group: "Gestión comercial", icon: FileText, description: "Compromisos y seguimiento" },
   { path: "/cobranzas", label: "Cobranzas", group: "Finanzas", icon: Receipt, description: "Cartera, mora y recuperación" },
+  { path: "/presupuestos", label: "Presupuestos", group: "Finanzas", icon: Target, description: "Propuestas y escenarios de ventas" },
   { path: "/servicios", label: "Servicios", group: "Unidades de negocio", icon: Wrench, description: "Talleres y servicios estratégicos" },
   { path: "/repuestos", label: "Repuestos", group: "Unidades de negocio", icon: Package, description: "Ventas, meta e inventario" },
   { path: "/lubfiltros", label: "Lub / Filtros", group: "Unidades de negocio", icon: Filter, description: "Desempeño por marca y sucursal" },
@@ -86,6 +89,7 @@ const modules: Module[] = [
 ];
 
 const DEMO_ROLE_LABELS: Record<DemoRole, string> = {
+  administrador: "Administrador",
   gerencia: "Gerencia",
   gerente_comercial: "Gerente comercial",
   coordinador: "Coordinador",
@@ -93,6 +97,7 @@ const DEMO_ROLE_LABELS: Record<DemoRole, string> = {
 };
 
 const DEMO_ROLE_ACCESS: Record<DemoRole, string[]> = {
+  administrador: modules.map((module) => module.path),
   gerencia: modules.map((module) => module.path),
   gerente_comercial: [
     "/resumen",
@@ -127,6 +132,7 @@ const DEMO_ROLE_ACCESS: Record<DemoRole, string[]> = {
 };
 
 const DEMO_DASHBOARD_PATHS: Record<DemoRole, string> = {
+  administrador: "/gerencia-nacional",
   gerencia: "/gerencia-nacional",
   gerente_comercial: "/dashboard",
   coordinador: "/coordinador",
@@ -152,7 +158,7 @@ function canAccessDemoModule(role: DemoRole, path: string) {
 }
 
 function roleInitials(role: DemoRole) {
-  return { gerencia: "GN", gerente_comercial: "GC", coordinador: "CO", asesor: "AS" }[role];
+  return { administrador: "AD", gerencia: "GN", gerente_comercial: "GC", coordinador: "CO", asesor: "AS" }[role];
 }
 
 function AccessDenied({ role }: { role: DemoRole }) {
@@ -190,7 +196,7 @@ function RoleDashboardRoute({ path, role }: { path: string; role: DemoRole }) {
   if (path === "/coordinador" && role === "coordinador") return <CoordinadorPage />;
   if (path === "/asesor" && role === "asesor") return <AsesorPanelPage />;
   if (path === "/sucursal" && role === "coordinador") return <SucursalPage />;
-  if (path === "/gerencia-nacional" && role === "gerencia") return <GerenciaNacionalPage />;
+  if (path === "/gerencia-nacional" && (role === "gerencia" || role === "administrador")) return <GerenciaNacionalPage />;
   return <AccessDenied role={role} />;
 }
 
@@ -275,6 +281,7 @@ function DashboardApp() {
   }
   const role = authRole;
   return (
+    <ProtectedShell>
     <div className="ccv-shell min-h-screen bg-background text-foreground">
       {menuOpen && <button type="button" className="fixed inset-0 z-30 bg-black/70 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
       <aside className={`fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-sidebar-border bg-sidebar transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
@@ -370,13 +377,14 @@ function DashboardApp() {
             <Route path="/evaluacion/asesor"><EvaluacionAsesorPage /></Route>
             <Route path="/evaluacion/sucursal"><EvaluacionSucursalPage /></Route>
             <Route path="/evaluacion/unidad"><EvaluacionUnidadPage /></Route>
-              {modules.filter((item) => item.path !== "/dashboard").map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenPage /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute unitKey={LIVE_UNIT_KEYS[item.path]!} /> : item.path === "/alertas" ? <AuthenticatedModuleRoute><AlertasPage /></AuthenticatedModuleRoute> : item.path === "/cliente-360" ? <AuthenticatedModuleRoute><Cliente360Page /></AuthenticatedModuleRoute> : item.path === "/embudo" ? <AuthenticatedModuleRoute><EmbudoPage /></AuthenticatedModuleRoute> : item.path === "/cobranzas" ? <AuthenticatedModuleRoute><CobranzasPage /></AuthenticatedModuleRoute> : item.path === "/asesores" ? <AuthenticatedModuleRoute><AsesoresPage /></AuthenticatedModuleRoute> : item.path === "/minutas" ? <AuthenticatedModuleRoute><MinutasPage /></AuthenticatedModuleRoute> : item.path === "/usuarios" ? <AuthenticatedModuleRoute><UsuariosPage /></AuthenticatedModuleRoute> : item.path === "/ajustes-manuales" ? <AuthenticatedModuleRoute><AjustesPage /></AuthenticatedModuleRoute> : item.path === "/carga" ? <AuthenticatedModuleRoute><CargaPage /></AuthenticatedModuleRoute> : <AccessDenied role={role} />}</Route>)}
+              {modules.filter((item) => item.path !== "/dashboard").map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenPage /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute unitKey={LIVE_UNIT_KEYS[item.path]!} /> : item.path === "/alertas" ? <AuthenticatedModuleRoute><AlertasPage /></AuthenticatedModuleRoute> : item.path === "/cliente-360" ? <AuthenticatedModuleRoute><Cliente360Page /></AuthenticatedModuleRoute> : item.path === "/embudo" ? <AuthenticatedModuleRoute><EmbudoPage /></AuthenticatedModuleRoute> : item.path === "/cobranzas" ? <AuthenticatedModuleRoute><CobranzasPage /></AuthenticatedModuleRoute> : item.path === "/presupuestos" ? <AuthenticatedModuleRoute><PresupuestosPage /></AuthenticatedModuleRoute> : item.path === "/asesores" ? <AuthenticatedModuleRoute><AsesoresPage /></AuthenticatedModuleRoute> : item.path === "/minutas" ? <AuthenticatedModuleRoute><MinutasPage /></AuthenticatedModuleRoute> : item.path === "/usuarios" ? <AuthenticatedModuleRoute><UsuariosPage /></AuthenticatedModuleRoute> : item.path === "/ajustes-manuales" ? <AuthenticatedModuleRoute><AjustesPage /></AuthenticatedModuleRoute> : item.path === "/carga" ? <AuthenticatedModuleRoute><CargaPage /></AuthenticatedModuleRoute> : <AccessDenied role={role} />}</Route>)}
             <Route><DashboardPage /></Route>
           </Switch>
           </Suspense>
         </div>
       </main>
     </div>
+    </ProtectedShell>
   );
 }
 

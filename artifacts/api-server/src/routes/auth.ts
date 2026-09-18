@@ -10,7 +10,11 @@ const LOCK_MS = 15 * 60 * 1000;
 const SESSION_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+
+export function isFullAccessRole(role: string | null | undefined): boolean {
+  return role === "administrador" || role === "gerencia";
+}
 export type QueryResult = { rows: any[] };
 export type Queryable = {
   query: (text: string, values?: unknown[]) => Promise<QueryResult>;
@@ -83,9 +87,12 @@ export async function loadPayload(pool: Queryable, userId: string) {
 
   const rolePriority: AppRole[] = ["gerencia", "gerente_comercial", "coordinador", "asesor"];
   const assignedRoles = rolesResult.rows.map((row) => row.role as AppRole);
-  const role = profile.is_admin
-    ? "gerencia"
-    : rolePriority.find((candidate) => assignedRoles.includes(candidate)) ?? null;
+  // administrador gana sobre is_admin→gerencia.
+  const role = assignedRoles.includes("administrador")
+    ? "administrador"
+    : profile.is_admin
+      ? "gerencia"
+      : rolePriority.find((candidate) => assignedRoles.includes(candidate)) ?? null;
   const unidadesNegocioIds = unitsResult.rows.length
     ? unitsResult.rows.map((row) => row.unidad_negocio_id)
     : profile.unidad_negocio_id

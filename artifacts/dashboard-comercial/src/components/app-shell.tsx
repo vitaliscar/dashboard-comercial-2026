@@ -36,7 +36,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { canAccessModule, type ModuleKey } from "@/lib/permissions";
+import { canAccessModule, canDownloadData, isFullAccessRole, type ModuleKey } from "@/lib/permissions";
 import { StatusPill } from "@/components/status-pill";
 import { CommandPalette } from "@/components/command-palette";
 import { Kbd } from "@/components/ui/kbd";
@@ -252,7 +252,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const assignedUnitIds = profile?.unidades_negocio_ids ?? [];
   const visibleUnitNav = UNIT_NAV.filter((item) => {
     if (!canAccessModule(role, item.module)) return false;
-    if (role === "gerencia") return true;
+    if (isFullAccessRole(role)) return true;
     if (role === "coordinador") return true;
     if (role === "gerente_comercial") {
       const nombre = UNIT_ROUTE_MAP[item.to as keyof typeof UNIT_ROUTE_MAP];
@@ -289,7 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   ].filter((group) => group.items.length > 0);
 
   const canUploadExcel = canAccessModule(role, "carga");
-  const canExportPdf = role === "gerencia" || role === "gerente_comercial";
+  const canExportPdf = canDownloadData(role);
 
   const handleSignOut = async () => {
     await signOut();

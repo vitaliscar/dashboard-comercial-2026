@@ -1,12 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { hash } from "@node-rs/argon2";
-import type { SessionPayload } from "./auth";
+import { isFullAccessRole, type SessionPayload } from "./auth";
 
 type Queryable = { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, any>[] }> };
 type SessionLoader = (req: Request) => Promise<SessionPayload | null>;
 type Transaction = <T>(session: SessionPayload, fn: (tx: Queryable) => Promise<T>) => Promise<T>;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ROLES = new Set(["gerencia", "gerente_comercial", "coordinador", "asesor"]);
+const ROLES = new Set(["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"]);
 
 function id(value: unknown) { return typeof value === "string" && UUID.test(value) ? value : null; }
 function optionalId(value: unknown) { return value == null || value === "" ? null : id(value); }
@@ -16,15 +16,40 @@ function string(value: unknown, max = 255) {
 
 export default function administracionRouter(currentSession: SessionLoader, withScopedTransaction: Transaction) {
   const router = Router();
-  async function gerencia(req: Request, res: Response, admin = false) {
+
+  /** Listar/editar usuarios: administrador o gerencia. */
+  async function fullAccess(req: Request, res: Response) {
     const session = await currentSession(req);
     if (!session) { res.status(401).json({ message: "Sesión no válida." }); return null; }
-    if (session.role !== "gerencia" || (admin && !session.profile.isAdmin)) {
-      res.status(403).json({ message: admin ? "Solo Gerencia administradora puede administrar ajustes manuales." : "Solo Gerencia puede administrar usuarios y carga." });
+    if (!isFullAccessRole(session.role)) {
+      res.status(403).json({ message: "Solo Gerencia Nacional o Administrador puede administrar usuarios." });
       return null;
     }
     return session;
   }
+
+  /** Crear/eliminar usuarios: solo administrador. */
+  async function adminOnly(req: Request, res: Response) {
+    const session = await currentSession(req);
+    if (!session) { res.status(401).json({ message: "Sesión no válida." }); return null; }
+    if (session.role !== "administrador") {
+      res.status(403).json({ message: "Solo Administrador puede crear o eliminar usuarios." });
+      return null;
+    }
+    return session;
+  }
+
+  /** Ajustes manuales: administrador, o gerencia con is_admin. */
+  async function ajustesAccess(req: Request, res: Response) {
+    const session = await currentSession(req);
+    if (!session) { res.status(401).json({ message: "Sesión no válida." }); return null; }
+    if (session.role === "administrador" || (session.role === "gerencia" && session.profile.isAdmin)) {
+      return session;
+    }
+    res.status(403).json({ message: "Solo Gerencia administradora puede administrar ajustes manuales." });
+    return null;
+  }
+
   async function run<T>(res: Response, session: SessionPayload, fn: (tx: Queryable) => Promise<T>) {
     try { return await withScopedTransaction(session, fn); }
     catch (error) { res.status(500).json({ message: "No se pudo completar la operación." }); reqLog(res, error); return undefined; }
@@ -32,7 +57,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
   function reqLog(res: Response, error: unknown) { res.req?.log?.error?.({ error }, "administracion failed"); }
 
   router.get("/usuarios", async (req, res) => {
-    const session = await gerencia(req, res); if (!session) return;
+    const session = await fullAccess(req, res); if (!session) return;
     const result = await run(res, session, async (tx) => {
       const [profiles, roles, profileUnidades, profileSucursales, users] = await Promise.all([
         tx.query(`SELECT id, email, nombre_completo AS "nombreCompleto", sucursal_id AS "sucursalId", unidad_negocio_id AS "unidadNegocioId", is_admin AS "isAdmin", created_at AS "createdAt" FROM profiles ORDER BY nombre_completo`),
@@ -46,11 +71,16 @@ export default function administracionRouter(currentSession: SessionLoader, with
   });
 
   router.post("/usuarios", async (req, res) => {
-    const session = await gerencia(req, res); if (!session) return;
+    const session = await adminOnly(req, res); if (!session) return;
     const email = string(req.body?.email)?.toLowerCase(), password = req.body?.password;
     const nombre = string(req.body?.nombreCompleto), role = req.body?.role;
     const sucursalId = optionalId(req.body?.sucursalId), unidadId = optionalId(req.body?.unidadNegocioId);
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password !== "string" || password.length < 8 || password.length > 128 || !nombre || !ROLES.has(role) || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId)) { res.status(400).json({ message: "Los datos del usuario no son válidos." }); return; }
+    // Solo administrador puede asignar el rol administrador.
+    if (role === "administrador" && session.role !== "administrador") {
+      res.status(403).json({ message: "Solo Administrador puede asignar el rol administrador." });
+      return;
+    }
     try {
       const result = await withScopedTransaction(session, async (tx) => {
         if ((await tx.query("SELECT id FROM users WHERE email = $1 LIMIT 1", [email])).rows[0]) throw new Error("DUPLICATE");
@@ -65,11 +95,15 @@ export default function administracionRouter(currentSession: SessionLoader, with
   });
 
   router.patch("/usuarios/:id", async (req, res) => {
-    const session = await gerencia(req, res); const userId = id(req.params.id); if (!session) return;
+    const session = await fullAccess(req, res); const userId = id(req.params.id); if (!session) return;
     if (!userId) { res.status(400).json({ message: "Usuario no válido." }); return; }
     const role = req.body?.role, isAdmin = req.body?.isAdmin, isActive = req.body?.isActive;
     const sucursalId = optionalId(req.body?.sucursalId), unidadId = optionalId(req.body?.unidadNegocioId);
     if ((role !== undefined && !ROLES.has(role)) || (isAdmin !== undefined && typeof isAdmin !== "boolean") || (isActive !== undefined && typeof isActive !== "boolean") || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId)) { res.status(400).json({ message: "Actualización no válida." }); return; }
+    if (role === "administrador" && session.role !== "administrador") {
+      res.status(403).json({ message: "Solo Administrador puede asignar el rol administrador." });
+      return;
+    }
     const result = await run(res, session, async (tx) => {
       if (role !== undefined) { await tx.query("DELETE FROM user_roles WHERE user_id = $1::uuid", [userId]); await tx.query("INSERT INTO user_roles (user_id, role) VALUES ($1::uuid, $2::app_role)", [userId, role]); }
       if (isActive !== undefined) { await tx.query("UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2::uuid", [isActive, userId]); if (!isActive) await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]); }
@@ -79,31 +113,31 @@ export default function administracionRouter(currentSession: SessionLoader, with
   });
 
   router.post("/usuarios/:id/password", async (req, res) => {
-    const session = await gerencia(req, res); const userId = id(req.params.id), password = req.body?.newPassword;
+    const session = await fullAccess(req, res); const userId = id(req.params.id), password = req.body?.newPassword;
     if (!session) return; if (!userId || typeof password !== "string" || password.length < 8 || password.length > 128) { res.status(400).json({ message: "La contraseña debe tener entre 8 y 128 caracteres." }); return; }
     const result = await run(res, session, async (tx) => { await tx.query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2::uuid", [await hash(password), userId]); await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]); return { success: true }; }); if (result) res.json(result);
   });
 
   router.delete("/usuarios/:id", async (req, res) => {
-    const session = await gerencia(req, res); const userId = id(req.params.id); if (!session) return;
+    const session = await adminOnly(req, res); const userId = id(req.params.id); if (!session) return;
     if (!userId || userId === session.user.id) { res.status(400).json({ message: "No puedes eliminar este usuario." }); return; }
     const result = await run(res, session, async (tx) => { await tx.query("DELETE FROM users WHERE id = $1::uuid", [userId]); return { success: true }; }); if (result) res.json(result);
   });
 
   router.get("/ajustes-manuales", async (req, res) => {
-    const session = await gerencia(req, res, true); if (!session) return; const anio = Number(req.query.anio);
+    const session = await ajustesAccess(req, res); if (!session) return; const anio = Number(req.query.anio);
     if (!Number.isInteger(anio) || anio < 2000 || anio > 2200) { res.status(400).json({ message: "El año no es válido." }); return; }
     const rows = await run(res, session, async (tx) => (await tx.query(`SELECT a.id, a.anio, a.mes, a.columna, a.monto, a.motivo, a.created_at AS "createdAt", a.sucursal_id AS "sucursalId", a.unidad_negocio_id AS "unidadNegocioId", COALESCE(s.nombre, 'Todas') AS sucursal, COALESCE(u.nombre, 'Todas') AS unidad, COALESCE(p.nombre_completo, '—') AS "creadoPor" FROM ajustes_manuales a LEFT JOIN sucursales s ON s.id = a.sucursal_id LEFT JOIN unidades_negocio u ON u.id = a.unidad_negocio_id LEFT JOIN profiles p ON p.id = a.creado_por WHERE a.anio = $1 ORDER BY a.created_at DESC`, [anio])).rows); if (rows) res.json(rows);
   });
   router.post("/ajustes-manuales", async (req, res) => {
-    const session = await gerencia(req, res, true); if (!session) return; const anio = Number(req.body?.anio), mes = Number(req.body?.mes), monto = Number(req.body?.monto), motivo = string(req.body?.motivo, 2000), sucursalId = optionalId(req.body?.sucursalId), unidadId = optionalId(req.body?.unidadNegocioId);
+    const session = await ajustesAccess(req, res); if (!session) return; const anio = Number(req.body?.anio), mes = Number(req.body?.mes), monto = Number(req.body?.monto), motivo = string(req.body?.motivo, 2000), sucursalId = optionalId(req.body?.sucursalId), unidadId = optionalId(req.body?.unidadNegocioId);
     const columnasValidas = ["ccv", "xibi", "estrategico", "total"];
     const columna = columnasValidas.includes(req.body?.columna) ? req.body.columna : "total";
     if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12 || !Number.isFinite(monto) || !motivo || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId)) { res.status(400).json({ message: "Los datos del ajuste no son válidos." }); return; }
     const row = await run(res, session, async (tx) => (await tx.query("INSERT INTO ajustes_manuales (anio, mes, sucursal_id, unidad_negocio_id, columna, monto, motivo, creado_por) VALUES ($1, $2, $3::uuid, $4::uuid, $5, $6, $7, $8::uuid) RETURNING id", [anio, mes, sucursalId, unidadId, columna, monto, motivo, session.user.id])).rows[0]); if (row) res.status(201).json(row);
   });
   router.delete("/ajustes-manuales/:id", async (req, res) => {
-    const session = await gerencia(req, res, true); const adjustmentId = id(req.params.id); if (!session) return; if (!adjustmentId) { res.status(400).json({ message: "Ajuste no válido." }); return; }
+    const session = await ajustesAccess(req, res); const adjustmentId = id(req.params.id); if (!session) return; if (!adjustmentId) { res.status(400).json({ message: "Ajuste no válido." }); return; }
     const result = await run(res, session, async (tx) => { await tx.query("DELETE FROM ajustes_manuales WHERE id = $1::uuid", [adjustmentId]); return { success: true }; }); if (result) res.json(result);
   });
   return router;

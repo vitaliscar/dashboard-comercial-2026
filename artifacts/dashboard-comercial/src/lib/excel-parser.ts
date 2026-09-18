@@ -147,6 +147,7 @@ export function parseFechaDDMMYYYY(valor: unknown): string | null {
 }
 
 const ROLES_USUARIO_CANONICAS: { [key: string]: string } = {
+  administrador: "Administrador",
   gerencia: "Gerencia",
   asesor: "Asesor",
   "coordinador de operaciones": "Coordinador de Operaciones",
@@ -161,7 +162,7 @@ const ROLES_USUARIO_CANONICAS: { [key: string]: string } = {
 
 const ROLES_USUARIO_VALIDOS = new Set(Object.values(ROLES_USUARIO_CANONICAS));
 
-export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+export type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 /**
  * Mapea la etiqueta de rol de la hoja Usuarios (8 valores) al enum app_role
@@ -169,6 +170,10 @@ export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor
  * roles "GC *".
  */
 export function mapRolToAppRole(rolLabel: string): { role: AppRole; unidadNegocio: string | null } {
+  const n = rolLabel.trim().toLowerCase();
+  if (n.includes("admin")) {
+      return { role: "administrador", unidadNegocio: null };
+  }
   switch (rolLabel) {
     case "Gerencia":
       return { role: "gerencia", unidadNegocio: null };

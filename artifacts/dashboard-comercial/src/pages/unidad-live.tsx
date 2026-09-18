@@ -1,3 +1,4 @@
+import { isFullAccessRole } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Boxes, Building2, Search, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -236,7 +237,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
   const { anio, meses } = filters;
   const { data: sucursales } = useSucursales();
   const [search, setSearch] = useState("");
-  const branch = role === "gerencia" ? filters.sucursales[0] : undefined;
+  const branch = isFullAccessRole(role) ? filters.sucursales[0] : undefined;
   const copy = UNIT_COPY[unitKey];
 
   const { data, isLoading, error } = useQuery({
@@ -312,7 +313,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
       <PageHeader eyebrow="Unidad de Negocio" title={copy.title} description={copy.description} />
       <FilterHeader
         onApplyFilters={handleApplyFilters}
-        sucursalOptions={role === "gerencia" ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
+        sucursalOptions={isFullAccessRole(role) ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
         defaultMes={meses}
         defaultAnio={anio}
         showAllMonths

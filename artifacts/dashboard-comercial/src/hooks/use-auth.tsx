@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { clearSharedFilters } from "@/lib/shared-filters";
 
-export type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+export type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 export interface UserProfile {
   id: string;

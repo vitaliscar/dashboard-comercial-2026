@@ -16,6 +16,7 @@ import {
 // Valores reales de producción (ver docs/SCHEMA.md "Drift conocido") — NO los
 // de supabase/migrations/*.sql, que están desincronizados.
 export const appRole = pgEnum("app_role", [
+  "administrador",
   "gerencia",
   "gerente_comercial",
   "coordinador",
