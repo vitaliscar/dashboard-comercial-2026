@@ -85,7 +85,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
       const result = await withScopedTransaction(session, async (tx) => {
         if ((await tx.query("SELECT id FROM users WHERE email = $1 LIMIT 1", [email])).rows[0]) throw new Error("DUPLICATE");
         const passwordHash = await hash(password);
-        const user = (await tx.query("INSERT INTO users (email, password_hash, is_active) VALUES ($1, $2, true) RETURNING id", [email, passwordHash])).rows[0];
+        const user = (await tx.query("INSERT INTO users (email, password_hash, is_active, must_change_password) VALUES ($1, $2, true, true) RETURNING id", [email, passwordHash])).rows[0];
         await tx.query("INSERT INTO profiles (id, email, nombre_completo, sucursal_id, unidad_negocio_id) VALUES ($1::uuid, $2, $3, $4::uuid, $5::uuid)", [user.id, email, nombre, sucursalId, unidadId]);
         await tx.query("INSERT INTO user_roles (user_id, role) VALUES ($1::uuid, $2::app_role)", [user.id, role]);
         if (sucursalId) await tx.query("INSERT INTO profile_sucursales (profile_id, sucursal_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING", [user.id, sucursalId]);
@@ -115,7 +115,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
   router.post("/usuarios/:id/password", async (req, res) => {
     const session = await fullAccess(req, res); const userId = id(req.params.id), password = req.body?.newPassword;
     if (!session) return; if (!userId || typeof password !== "string" || password.length < 8 || password.length > 128) { res.status(400).json({ message: "La contraseña debe tener entre 8 y 128 caracteres." }); return; }
-    const result = await run(res, session, async (tx) => { await tx.query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2::uuid", [await hash(password), userId]); await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]); return { success: true }; }); if (result) res.json(result);
+    const result = await run(res, session, async (tx) => { await tx.query("UPDATE users SET password_hash = $1, must_change_password = true, updated_at = now() WHERE id = $2::uuid", [await hash(password), userId]); await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]); return { success: true }; }); if (result) res.json(result);
   });
 
   router.delete("/usuarios/:id", async (req, res) => {

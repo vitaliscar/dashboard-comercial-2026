@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { canPickSucursalFilter } from "@/lib/permissions";
 
 const FILTER_LABEL_CLASS =
   "text-[10px] font-mono font-bold text-muted-foreground tracking-[0.12em] uppercase whitespace-nowrap";
@@ -56,6 +57,8 @@ interface FilterHeaderProps {
   defaultMes?: number[] | "all";
   defaultAnio: number;
   defaultSucursal?: string;
+  /** Hidrata el multi-select de sucursales desde shared filters. */
+  defaultSucursales?: string[];
   defaultUnit?: string;
   defaultUnits?: string[];
   showAllMonths?: boolean;
@@ -70,6 +73,7 @@ export function FilterHeader({
   defaultMes,
   defaultAnio,
   defaultSucursal,
+  defaultSucursales,
   defaultUnit,
   defaultUnits,
 }: FilterHeaderProps) {
@@ -81,7 +85,7 @@ export function FilterHeader({
   const [selectedMonths, setSelectedMonths] = useState<number[] | "all">(defaultMes ?? "all");
   const [anio, setAnio] = useState(defaultAnio);
   const [sucursal, setSucursal] = useState(defaultSucursal ?? "all");
-  const [selectedSucursales, setSelectedSucursales] = useState<string[]>([]);
+  const [selectedSucursales, setSelectedSucursales] = useState<string[]>(defaultSucursales ?? []);
   const [selectedUnits, setSelectedUnits] = useState<string[]>(defaultUnits ?? []);
 
   useEffect(() => {
@@ -94,6 +98,9 @@ export function FilterHeader({
     setSucursal(defaultSucursal ?? "all");
   }, [defaultSucursal]);
   useEffect(() => {
+    if (defaultSucursales !== undefined) setSelectedSucursales(defaultSucursales);
+  }, [defaultSucursales]);
+  useEffect(() => {
     if (defaultUnits) {
       setSelectedUnits(defaultUnits);
       return;
@@ -101,8 +108,12 @@ export function FilterHeader({
     setSelectedUnits(defaultUnit ? [defaultUnit] : []);
   }, [defaultUnit, defaultUnits]);
 
-  const resolvedSucursalOptions: FilterOption[] =
-    sucursalOptions ?? sucursales?.map((s) => ({ value: s, label: s })) ?? [];
+  // Coordinador/asesor: nunca mostrar selector de sucursal aunque el padre
+  // pase opciones (RLS ya fija su alcance).
+  const canPickSucursal = canPickSucursalFilter(role);
+  const resolvedSucursalOptions: FilterOption[] = canPickSucursal
+    ? (sucursalOptions ?? sucursales?.map((s) => ({ value: s, label: s })) ?? [])
+    : [];
 
   const allowedUnitIds = useMemo(() => {
     if (role === "gerente_comercial" && profile) {

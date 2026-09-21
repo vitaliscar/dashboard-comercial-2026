@@ -146,6 +146,7 @@ export interface UserContext {
 
 /**
  * Checks if a user with the given role can filter data by sucursal (branch)
+ * in the UI. Coordinador y asesor quedan fijos a su sucursal (RLS); no eligen.
  */
 export function canFilterSucursal(context: UserContext): boolean {
   if (!context.role) return false;
@@ -157,12 +158,16 @@ export function canFilterSucursal(context: UserContext): boolean {
     case "gerente_comercial":
       return true;
     case "coordinador":
-      return true;
     case "asesor":
       return false;
     default:
       return false;
   }
+}
+
+/** Atajo por rol: ¿puede elegir sucursal en FilterHeader / chips? */
+export function canPickSucursalFilter(role: AppRole | null | undefined): boolean {
+  return isFullAccessRole(role) || role === "gerente_comercial";
 }
 
 /**

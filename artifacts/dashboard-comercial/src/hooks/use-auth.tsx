@@ -34,6 +34,7 @@ interface AuthPayload {
     sucursalesIds: string[];
   };
   role: AppRole | null;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextValue {
@@ -42,6 +43,8 @@ interface AuthContextValue {
   profile: UserProfile | null;
   role: AppRole | null;
   loading: boolean;
+  mustChangePassword: boolean;
+  clearMustChangePassword: () => void;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -89,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SessionUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadFromMe = async () => {
@@ -98,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(me.user);
         setProfile(toUserProfile(me.profile));
         setRole(me.role);
+        setMustChangePassword(Boolean(me.mustChangePassword));
         return;
       }
     } catch {
@@ -107,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setProfile(null);
       setRole(null);
+      setMustChangePassword(false);
     }
   };
 
@@ -120,6 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     role,
     loading,
+    mustChangePassword,
+    clearMustChangePassword: () => setMustChangePassword(false),
     signIn: async (email: string, password: string) => {
       try {
         const response = await requestAuth("/login", {
@@ -134,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(result.user);
         setProfile(toUserProfile(result.profile));
         setRole(result.role);
+        setMustChangePassword(Boolean(result.mustChangePassword));
         return { error: null };
       } catch {
         return { error: new Error("No se pudo conectar con el servidor de autenticación.") };
@@ -145,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setProfile(null);
       setRole(null);
+      setMustChangePassword(false);
     },
     refresh: async () => {
       await loadFromMe();

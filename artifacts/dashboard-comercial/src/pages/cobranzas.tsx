@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Building2,
   Layers,
+  Shield,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
 import {
@@ -46,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { SkeletonBox } from "@/components/ui/skeleton-box";
 import { useAuth } from "@/hooks/use-auth";
+import { canAccessModule, canPickSucursalFilter } from "@/lib/permissions";
 
 const BUCKET_ORDER = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+90 días"] as const;
 const BUCKET_BAR_CLASS: Record<string, string> = {
@@ -73,10 +75,12 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 
 export default function CobranzasPage() {
   const [q, setQ] = useState("");
-  const { session } = useAuth();
+  const { session, role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const selectedUnidades = filters.unidades;
   const selectedSucursales = filters.sucursales;
+  const canPickSucursal = canPickSucursalFilter(role);
+  const canView = canAccessModule(role, "cobranzas");
 
   const { data: unidades } = useUnidades();
   const unitOptions = useMemo(() => {
@@ -86,9 +90,9 @@ export default function CobranzasPage() {
 
   const { data: sucursalesData } = useSucursales();
   const sucursalOptions = useMemo(() => {
-    if (!sucursalesData) return [];
+    if (!canPickSucursal || !sucursalesData) return [];
     return sucursalesData.map((s) => ({ value: s.id, label: s.nombre }));
-  }, [sucursalesData]);
+  }, [sucursalesData, canPickSucursal]);
 
   const handleSelectAllUnits = () => setFilters({ unidades: [] });
   const handleUnitSelectionChange = (unitIds: string[]) => setFilters({ unidades: unitIds });
@@ -100,13 +104,13 @@ export default function CobranzasPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["cobranzas", selectedUnidades, selectedSucursales],
     queryFn: () => getCobranzas({ selectedUnidades, selectedSucursales }),
-    enabled: Boolean(session),
+    enabled: Boolean(session) && canView,
   });
 
   const { data: compData, isLoading: compLoading } = useQuery({
     queryKey: ["cobranzas-comparison", selectedUnidades, selectedSucursales],
     queryFn: () => getCobranzasComparison({ selectedUnidades, selectedSucursales }),
-    enabled: Boolean(session),
+    enabled: Boolean(session) && canView,
   });
 
   const enriched = useMemo(() => {
@@ -168,6 +172,18 @@ export default function CobranzasPage() {
     ...selectedSucursales.map((id) => sucursalOptions.find((o) => o.value === id)?.label ?? id),
     ...selectedUnidades.map((id) => unitOptions.find((o) => o.value === id)?.label ?? id),
   ].join(", ");
+
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-card border border-border rounded-lg p-8 text-center shadow-sm">
+        <Shield className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-lg font-bold text-foreground">Acceso Restringido</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-[280px]">
+          No tienes permisos suficientes para visualizar cobranzas.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading && !data) {
     return (
@@ -241,7 +257,7 @@ export default function CobranzasPage() {
         </div>
       )}
 
-      {sucursalOptions.length > 1 && (
+      {canPickSucursal && sucursalOptions.length > 1 && (
         <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
           <span className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
             Filtrar por sucursal:

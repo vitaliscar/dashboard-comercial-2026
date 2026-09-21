@@ -14,6 +14,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Loader2, ShieldAlert } from "lucide-react";
+import { FirstLoginPasswordDialog } from "@/components/first-login-password-dialog";
 
 /** Inactividad máxima antes de preguntar si mantener la sesión. */
 const IDLE_MS = 8 * 60 * 1000;
@@ -22,7 +23,7 @@ const GRACE_MS = 30 * 1000;
 
 export function ProtectedShell({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
-  const { session, loading, signOut } = useAuth();
+  const { session, loading, signOut, mustChangePassword, clearMustChangePassword } = useAuth();
 
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -212,6 +213,11 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
+
+      <FirstLoginPasswordDialog
+        open={mustChangePassword}
+        onResolved={clearMustChangePassword}
+      />
 
       <AlertDialog
         open={isWarningOpen}
