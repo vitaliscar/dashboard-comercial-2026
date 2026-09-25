@@ -28,6 +28,7 @@ import {
   getHighlightMonthLabels,
 } from "@/lib/date-range";
 import { MESES } from "@/lib/format";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 function ResumenSkeleton() {
   return (
@@ -738,6 +739,7 @@ export default function ResumenPage() {
         defaultSucursal={filters.sucursal}
         defaultUnits={sharedFilters.unidades}
       />
+      <PresupuestoStrip />
 
       {/* Keyboard Shortcuts Info Bar */}
       <div

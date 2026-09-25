@@ -46,6 +46,7 @@ import {
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { isFullAccessRole } from "@/lib/permissions";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 export default function Equipos() {
   const { role } = useAuth();
@@ -242,6 +243,7 @@ export default function Equipos() {
         defaultAnio={anio}
         showAllMonths
       />
+      <PresupuestoStrip />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard

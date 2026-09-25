@@ -24,6 +24,7 @@ import { PageHeader } from "@/components/page-header";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { isFullAccessRole } from "@/lib/permissions";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 export default function Alquiler() {
   const { role } = useAuth();
@@ -178,6 +179,7 @@ export default function Alquiler() {
         defaultAnio={anio}
         showAllMonths
       />
+      <PresupuestoStrip />
 
       <KpiCard
         label="Ventas Consolidadas"

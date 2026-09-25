@@ -22,6 +22,7 @@ import { useMemo, useCallback } from "react";
 import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { getCoordinadorYearAction } from "@/lib/actions/coordinador";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 type Acc = { meta: number; facturado: number };
 const emptyAcc = (): Acc => ({ meta: 0, facturado: 0 });
@@ -263,6 +264,7 @@ export default function CoordinadorPanel() {
         defaultUnits={selectedUnidades}
         showAllMonths
       />
+      <PresupuestoStrip />
 
       {/* Hero: mismo layout que gerencia nacional */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_0.75fr_1.25fr] section-enter section-enter-1">

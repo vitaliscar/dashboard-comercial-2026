@@ -26,6 +26,7 @@ import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { isFullAccessRole } from "@/lib/permissions";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 export default function RepuestosPage() {
   const { role } = useAuth();
@@ -250,6 +251,7 @@ export default function RepuestosPage() {
         defaultAnio={anio}
         showAllMonths
       />
+      <PresupuestoStrip />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard

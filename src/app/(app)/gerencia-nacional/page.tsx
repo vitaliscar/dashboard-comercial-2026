@@ -23,6 +23,7 @@ import { getAllowedMonths } from "@/lib/date-range";
 import { useMemo, useCallback } from "react";
 import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 type Acc = { meta: number; facturado: number };
 const emptyAcc = (): Acc => ({ meta: 0, facturado: 0 });
@@ -240,6 +241,7 @@ export default function GerenciaNacionalPage() {
         defaultUnits={selectedUnidades}
         showAllMonths
       />
+      <PresupuestoStrip />
 
       {/* Hero: gauge general + highlights compactos + composición de venta */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_0.75fr_1.25fr] section-enter section-enter-1">

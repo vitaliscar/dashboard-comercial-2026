@@ -40,6 +40,7 @@ import { TrendingUp, Droplets } from "lucide-react";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { isFullAccessRole } from "@/lib/permissions";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 export default function LubFiltrosPage() {
   const { role } = useAuth();
@@ -270,6 +271,7 @@ export default function LubFiltrosPage() {
         defaultAnio={anio}
         showAllMonths
       />
+      <PresupuestoStrip />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard

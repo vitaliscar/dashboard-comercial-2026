@@ -34,6 +34,7 @@ import { CsaTrendChart } from "@/components/servicios/CsaTrendChart";
 import { ClientesPotencialesSection } from "@/components/mercadeo/ClientesPotencialesSection";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { isFullAccessRole } from "@/lib/permissions";
+import { PresupuestoStrip } from "@/components/presupuesto-strip";
 
 export default function ServiciosPage() {
   const { role, profile } = useAuth();
@@ -360,6 +361,7 @@ export default function ServiciosPage() {
         defaultAnio={anio}
         showAllMonths
       />
+      <PresupuestoStrip />
 
       {/* KPI Cards — 4 totales sin solaparse: consolidado = talleres + CSA + internas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
