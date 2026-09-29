@@ -267,7 +267,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
     return rows;
   }, [anio, data?.presupuestosYtd]);
   const companies = useMemo(() => {
-    const totals = [
+    const totals: [string, number][] = [
       ["Consorcio Venequip", selectedBudgets.reduce((sum, row) => sum + num(row.ventasCcv), 0)],
       ["Xibi", selectedBudgets.reduce((sum, row) => sum + num(row.ventasXibi), 0)],
       ["Estratégicas", selectedBudgets.reduce((sum, row) => sum + num(row.ventasEstrategicas), 0)],

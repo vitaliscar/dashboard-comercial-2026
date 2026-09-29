@@ -8,6 +8,9 @@ import { KpiCards } from "@/components/resumen/KpiCards";
 import { CotizacionesSection } from "@/components/resumen/CotizacionesSection";
 import { FacturadoSection } from "@/components/resumen/FacturadoSection";
 import { VentasPerdidasSection } from "@/components/resumen/VentasPerdidasSection";
+import { CotizacionesSectionLegacy } from "@/components/resumen/CotizacionesSectionLegacy";
+import { FacturadoSectionLegacy } from "@/components/resumen/FacturadoSectionLegacy";
+import { VentasPerdidasSectionLegacy } from "@/components/resumen/VentasPerdidasSectionLegacy";
 import { ResumenData, UnidadNegocio, TopCliente } from "@/lib/resumen-types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -809,11 +812,8 @@ export default function ResumenPage() {
 
       <KpiCards
         cotizado={resumenData.kpis.cotizado}
-        cotizadoMensual={resumenData.kpis.cotizadoMensual}
         metaMes={resumenData.kpis.metaMes}
-        metaMensual={resumenData.kpis.metaMensual}
         facturado={resumenData.kpis.facturado}
-        facturadoMensual={resumenData.kpis.facturadoMensual}
         facturadoVsCotizadoPorcentaje={resumenData.kpis.facturadoVsCotizadoPorcentaje}
         cumplimientoMetaPorcentaje={resumenData.kpis.cumplimientoMetaPorcentaje}
         facturadoProjection={
@@ -824,7 +824,6 @@ export default function ResumenPage() {
         margenTotal={resumenData.kpis.margenTotal}
         margenPorcentaje={resumenData.kpis.margenPorcentaje}
         ventasPerdidas={resumenData.kpis.ventasPerdidas}
-        ventasPerdidasMensual={resumenData.kpis.ventasPerdidasMensual}
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
       />
 
@@ -874,23 +873,22 @@ export default function ResumenPage() {
       ) : (
         <>
           {/* Vista consolidada por tipo de métrica (Gerencia Nacional con
-              "Todas las unidades", y coordinador/asesor). */}
-           <CotizacionesSection
+              "Todas las unidades", y coordinador/asesor) — mismo layout que
+              main: tarjetas de unidad en una sola fila + tablas en 2 columnas
+              debajo, NO el layout de 3 columnas de la vista por unidad. */}
+          <CotizacionesSectionLegacy
             datos={resumenData.cotizaciones}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
-             preserveEmptyUnits
           />
 
-           <FacturadoSection
+          <FacturadoSectionLegacy
             datos={resumenData.facturado}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
-             preserveEmptyUnits
           />
 
-           <VentasPerdidasSection
+          <VentasPerdidasSectionLegacy
             datos={resumenData.ventasPerdidas}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
-             preserveEmptyUnits
           />
         </>
       )}

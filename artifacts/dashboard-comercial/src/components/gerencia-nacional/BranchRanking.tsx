@@ -109,13 +109,20 @@ export const BranchRanking = memo(function BranchRanking({ rows }: { rows: Branc
               name="Cumplimiento"
               radius={[0, 4, 4, 0]}
               barSize={24}
-              label={{
-                dataKey: "labelText",
-                position: "right",
-                fontSize: 9,
-                fontWeight: 700,
-                fill: "var(--color-foreground)",
-              }}
+              label={
+                ((props: { x: number; y: number; width: number; height: number; index: number }) => (
+                  <text
+                    x={props.x + props.width + 4}
+                    y={props.y + props.height / 2}
+                    dy={3}
+                    fontSize={9}
+                    fontWeight={700}
+                    fill="var(--color-foreground)"
+                  >
+                    {chartData[props.index]?.labelText ?? ""}
+                  </text>
+                )) as never
+              }
               {...chartAnimation}
             >
               {chartData.map((row) => (

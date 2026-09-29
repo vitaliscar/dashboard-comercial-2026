@@ -12,6 +12,7 @@ import cliente360Router from "./cliente-360";
 import embudoRouter from "./embudo";
 import panelesRouter from "./paneles";
 import evaluacionRouter from "./evaluacion";
+import presupuestosRouter from "./presupuestos";
 import { currentSession, withScopedTransaction } from "./auth";
 
 const router: IRouter = Router();
@@ -29,5 +30,6 @@ router.use(cliente360Router);
 router.use(embudoRouter);
 router.use(panelesRouter);
 router.use(evaluacionRouter);
+router.use(presupuestosRouter(currentSession, withScopedTransaction));
 
 export default router;

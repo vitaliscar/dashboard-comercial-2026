@@ -52,7 +52,7 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
     <Card className="ring-0 card-elevated">
       <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="font-display font-semibold">Meta vs. venta por unidad</CardTitle>
-        <SegmentedToggle
+        <SegmentedToggle<"abs" | "pct">
           value={mode}
           onChange={setMode}
           options={[

@@ -55,6 +55,7 @@ const EvaluacionUnidadPage = lazy(() => import("./pages/evaluacion-unidad"));
 const AjustesPage = lazy(() => import("./pages/administracion").then((m) => ({ default: m.AjustesPage })));
 const CargaPage = lazy(() => import("./pages/administracion").then((m) => ({ default: m.CargaPage })));
 const UsuariosPage = lazy(() => import("./pages/administracion").then((m) => ({ default: m.UsuariosPage })));
+const PresupuestosPage = lazy(() => import("./pages/presupuestos"));
 
 export type Module = {
   path: string;
@@ -75,6 +76,7 @@ const modules: Module[] = [
   { path: "/asesores", label: "Asesores", group: "Gestión comercial", icon: UserCheck, description: "Rendimiento de la fuerza de ventas" },
   { path: "/minutas", label: "Minutas", group: "Gestión comercial", icon: FileText, description: "Compromisos y seguimiento" },
   { path: "/cobranzas", label: "Cobranzas", group: "Finanzas", icon: Receipt, description: "Cartera, mora y recuperación" },
+  { path: "/presupuestos", label: "Presupuestos", group: "Finanzas", icon: Target, description: "Propuestas y escenarios de ventas" },
   { path: "/servicios", label: "Servicios", group: "Unidades de negocio", icon: Wrench, description: "Talleres y servicios estratégicos" },
   { path: "/repuestos", label: "Repuestos", group: "Unidades de negocio", icon: Package, description: "Ventas, meta e inventario" },
   { path: "/lubfiltros", label: "Lub / Filtros", group: "Unidades de negocio", icon: Filter, description: "Desempeño por marca y sucursal" },
@@ -370,7 +372,7 @@ function DashboardApp() {
             <Route path="/evaluacion/asesor"><EvaluacionAsesorPage /></Route>
             <Route path="/evaluacion/sucursal"><EvaluacionSucursalPage /></Route>
             <Route path="/evaluacion/unidad"><EvaluacionUnidadPage /></Route>
-              {modules.filter((item) => item.path !== "/dashboard").map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenPage /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute unitKey={LIVE_UNIT_KEYS[item.path]!} /> : item.path === "/alertas" ? <AuthenticatedModuleRoute><AlertasPage /></AuthenticatedModuleRoute> : item.path === "/cliente-360" ? <AuthenticatedModuleRoute><Cliente360Page /></AuthenticatedModuleRoute> : item.path === "/embudo" ? <AuthenticatedModuleRoute><EmbudoPage /></AuthenticatedModuleRoute> : item.path === "/cobranzas" ? <AuthenticatedModuleRoute><CobranzasPage /></AuthenticatedModuleRoute> : item.path === "/asesores" ? <AuthenticatedModuleRoute><AsesoresPage /></AuthenticatedModuleRoute> : item.path === "/minutas" ? <AuthenticatedModuleRoute><MinutasPage /></AuthenticatedModuleRoute> : item.path === "/usuarios" ? <AuthenticatedModuleRoute><UsuariosPage /></AuthenticatedModuleRoute> : item.path === "/ajustes-manuales" ? <AuthenticatedModuleRoute><AjustesPage /></AuthenticatedModuleRoute> : item.path === "/carga" ? <AuthenticatedModuleRoute><CargaPage /></AuthenticatedModuleRoute> : <AccessDenied role={role} />}</Route>)}
+              {modules.filter((item) => item.path !== "/dashboard").map((item) => <Route key={item.path} path={item.path}>{item.path === "/resumen" ? <ResumenPage /> : LIVE_UNIT_KEYS[item.path] ? <UnitRoute unitKey={LIVE_UNIT_KEYS[item.path]!} /> : item.path === "/alertas" ? <AuthenticatedModuleRoute><AlertasPage /></AuthenticatedModuleRoute> : item.path === "/cliente-360" ? <AuthenticatedModuleRoute><Cliente360Page /></AuthenticatedModuleRoute> : item.path === "/embudo" ? <AuthenticatedModuleRoute><EmbudoPage /></AuthenticatedModuleRoute> : item.path === "/cobranzas" ? <AuthenticatedModuleRoute><CobranzasPage /></AuthenticatedModuleRoute> : item.path === "/asesores" ? <AuthenticatedModuleRoute><AsesoresPage /></AuthenticatedModuleRoute> : item.path === "/minutas" ? <AuthenticatedModuleRoute><MinutasPage /></AuthenticatedModuleRoute> : item.path === "/usuarios" ? <AuthenticatedModuleRoute><UsuariosPage /></AuthenticatedModuleRoute> : item.path === "/presupuestos" ? <AuthenticatedModuleRoute><PresupuestosPage /></AuthenticatedModuleRoute> : item.path === "/ajustes-manuales" ? <AuthenticatedModuleRoute><AjustesPage /></AuthenticatedModuleRoute> : item.path === "/carga" ? <AuthenticatedModuleRoute><CargaPage /></AuthenticatedModuleRoute> : <AccessDenied role={role} />}</Route>)}
             <Route><DashboardPage /></Route>
           </Switch>
           </Suspense>
