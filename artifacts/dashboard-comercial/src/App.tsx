@@ -284,7 +284,7 @@ function DashboardApp() {
     <ProtectedShell>
     <div className="ccv-shell min-h-screen bg-background text-foreground">
       {menuOpen && <button type="button" className="fixed inset-0 z-30 bg-black/70 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
-      <aside className={`fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-sidebar-border bg-sidebar transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
           <img src={`${import.meta.env.BASE_URL}Logo_CCV.png`} alt="CCV" className="size-10 rounded-xl object-contain" />
            <div className="min-w-0 flex-1"><p className="font-display text-sm font-bold tracking-wide">CENTRO COMERCIAL</p><p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/55">Decisiones 2026</p></div>
@@ -309,7 +309,7 @@ function DashboardApp() {
                   })
                 }
                 aria-expanded={!isCollapsed}
-                className="mb-2 flex w-full items-center justify-between px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
+                className="ccv-nav-group mb-2 flex w-full items-center justify-between px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
               >
                 {group}
                 <ChevronDown size={12} className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
@@ -320,7 +320,7 @@ function DashboardApp() {
                   const itemHref = item.path === "/dashboard" ? DEMO_DASHBOARD_PATHS[role] : item.path;
                   const active = location === item.path || location === itemHref || (location === "/" && item.path === "/resumen");
                   return (
-                    <Link key={item.path} href={itemHref} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
+                    <Link key={item.path} href={itemHref} onClick={() => setMenuOpen(false)} aria-current={active ? "page" : undefined} className={`ccv-nav-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
                       <Icon size={17} /><span className="flex-1">{item.label}</span>{active && <span className="size-1.5 rounded-full bg-current" />}
                     </Link>
                   );
@@ -330,20 +330,24 @@ function DashboardApp() {
             );
           })}
         </nav>
-         <div className="border-t border-sidebar-border p-4">
-            <div className="rounded-xl bg-sidebar-accent p-3">
-              <p className="text-xs font-semibold">Sesión autenticada</p>
-              <p className="mt-1 text-[11px] text-sidebar-foreground/55">Usuario: {authProfile?.nombre_completo ?? authSession?.email}</p>
-              <button type="button" onClick={() => signOut()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border px-3 py-2 text-xs font-medium text-sidebar-foreground/80 transition hover:border-primary/40 hover:text-sidebar-foreground">
-                <LogOut size={14} />
-                Cerrar sesión
-              </button>
+         <div className="border-t border-sidebar-border p-3">
+          <div className="ccv-user-card flex items-center gap-3 rounded-xl border border-sidebar-border/70 p-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent font-display text-sm font-bold text-sidebar-foreground">
+              {(authProfile?.nombre_completo ?? authSession?.email ?? "U").charAt(0).toUpperCase() || "U"}
             </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-sidebar-foreground">{authProfile?.nombre_completo ?? authSession?.email}</p>
+              <p className="mt-0.5 text-[10px] text-sidebar-foreground/65">{DEMO_ROLE_LABELS[role]}</p>
+            </div>
+            <button type="button" onClick={() => signOut()} aria-label="Cerrar sesión" title="Cerrar sesión" className="ccv-signout flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 transition hover:bg-sidebar-accent hover:text-sidebar-foreground">
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 
-      <main className="min-h-screen lg:pl-[272px]">
-        <header className="sticky top-0 z-20 flex h-20 items-center gap-4 border-b border-border bg-background/88 px-4 backdrop-blur-xl sm:px-6">
+      <main className="ccv-main min-h-screen lg:pl-[248px]">
+        <header className="ccv-topbar sticky top-0 z-20 flex h-[72px] items-center gap-4 border-b border-border bg-background/90 px-4 backdrop-blur-xl sm:px-6">
            <button type="button" aria-label="Abrir navegación" className="flex size-11 items-center justify-center rounded-xl border border-border lg:hidden" onClick={() => setMenuOpen(true)}><Menu size={19} /></button>
           <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">{current.group}</p><h1 className="truncate font-display text-lg font-semibold">{currentLabel}</h1></div>
            <button type="button" aria-label="Abrir buscador de módulos" onClick={() => setPaletteOpen(true)} className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 sm:flex"><Search size={16} />Buscar <kbd className="ml-2 text-[10px] text-muted-foreground">⌘K</kbd></button>
@@ -352,10 +356,7 @@ function DashboardApp() {
            <span title={apiHealth.isSuccess ? "API conectada" : "API no disponible"} className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-2 text-[10px] font-semibold sm:flex ${apiHealth.isSuccess ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-400" : apiHealth.isError ? "border-rose-400/20 bg-rose-400/10 text-rose-400" : "border-border bg-card text-muted-foreground"}`}><span className={`size-1.5 rounded-full ${apiHealth.isSuccess ? "bg-emerald-400" : apiHealth.isError ? "bg-rose-400" : "bg-muted-foreground"}`} />{apiHealth.isSuccess ? "API online" : apiHealth.isError ? "API offline" : "Conectando API"}</span>
            <div title={`Sesión de ${DEMO_ROLE_LABELS[role]}`} className="flex size-10 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">{roleInitials(role)}</div>
         </header>
-        <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-             <div><div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary"><span className="size-1.5 rounded-full bg-primary" />DATOS REALES</div><p className="text-sm text-muted-foreground">Centro de decisiones comerciales</p><h2 className="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Buenos días, {authProfile?.nombre_completo ?? DEMO_ROLE_LABELS[role]}</h2></div>
-          </div>
+        <div className="ccv-content mx-auto max-w-[1600px] p-4 sm:p-7">
          {paletteOpen && <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12vh]" role="dialog" aria-modal="true" aria-label="Buscar módulos" onClick={() => setPaletteOpen(false)}><div className="ccv-command-panel w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center gap-2 border-b border-border pb-3"><Search size={17} className="text-primary" /><input autoFocus aria-label="Buscar módulo" placeholder="Buscar módulo..." className="w-full bg-transparent text-sm outline-none" value={query} onChange={(event) => setQuery(event.target.value)} /><button type="button" aria-label="Cerrar buscador" onClick={() => { setPaletteOpen(false); setQuery(""); }}><X size={16} /></button></div><div className="mt-3 max-h-72 overflow-y-auto">{(query ? visibleModules : accessibleModules).map((item) => <Link key={item.path} href={item.path} onClick={() => { setPaletteOpen(false); setQuery(""); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-primary/10"><item.icon size={16} className="text-primary" /><span>{item.label}</span><span className="ml-auto text-xs text-muted-foreground">{item.group}</span></Link>)}{query && visibleModules.length === 0 && <p className="p-4 text-sm text-muted-foreground">Sin módulos encontrados.</p>}</div></div></div>}
           <Suspense
             fallback={

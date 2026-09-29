@@ -406,7 +406,7 @@ export default function ResumenPage() {
     // 3. Facturado by category — fuente de verdad es CumplimientoBase (presupuestos):
     // Ventas_CCV + Ventas_Xibi + Ventas_Estrategicas por U/N y mes. `facturas` (transaccional)
     // solo se usa para el detalle de top clientes, que no tiene esa segmentación en origen.
-    // Para Servicios: usa tabla `servicios` directamente, sin agrupar por cliente.
+    // Para Servicios: facturas solo trae Xibi/Otra Empresa; el detalle CCV vive en `servicios`.
     // Margen estimado = monto facturado × porcentaje comercial de la unidad
     const margenPorcentajePorUnidad: Record<string, number> = {
       Repuestos: 28,
@@ -435,6 +435,26 @@ export default function ResumenPage() {
           });
         }
       });
+      if (cat === "Servicios") {
+        const filteredServClientes = (rawData.serviciosClientes || []).filter((s) => {
+          const dbName = s.unidadNegocioId ? unitMap.get(s.unidadNegocioId) : "";
+          return dbName && mapDbUnidadToUi(dbName) === cat;
+        });
+        filteredServClientes.forEach((s) => {
+          const key = `${s.cliente}|${s.sucursalId || ""}`;
+          const existing = facClientMap.get(key);
+          const m = Number(s.montoTotal || 0);
+          if (existing) {
+            existing.monto += m;
+          } else {
+            facClientMap.set(key, {
+              cliente: s.cliente,
+              sucursal: s.sucursalId ? sucMap.get(s.sucursalId) || "" : "",
+              monto: m,
+            });
+          }
+        });
+      }
       const topClientes = Array.from(facClientMap.values())
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
@@ -813,11 +833,8 @@ export default function ResumenPage() {
 
       <KpiCards
         cotizado={resumenData.kpis.cotizado}
-        cotizadoMensual={resumenData.kpis.cotizadoMensual}
         metaMes={resumenData.kpis.metaMes}
-        metaMensual={resumenData.kpis.metaMensual}
         facturado={resumenData.kpis.facturado}
-        facturadoMensual={resumenData.kpis.facturadoMensual}
         facturadoVsCotizadoPorcentaje={resumenData.kpis.facturadoVsCotizadoPorcentaje}
         cumplimientoMetaPorcentaje={resumenData.kpis.cumplimientoMetaPorcentaje}
         facturadoProjection={
@@ -828,7 +845,6 @@ export default function ResumenPage() {
         margenTotal={resumenData.kpis.margenTotal}
         margenPorcentaje={resumenData.kpis.margenPorcentaje}
         ventasPerdidas={resumenData.kpis.ventasPerdidas}
-        ventasPerdidasMensual={resumenData.kpis.ventasPerdidasMensual}
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
       />
 

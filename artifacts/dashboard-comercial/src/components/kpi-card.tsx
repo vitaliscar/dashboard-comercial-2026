@@ -139,7 +139,8 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "relative p-5 overflow-hidden",
+        "ccv-kpi-card relative p-5 overflow-hidden",
+        featured && "ccv-kpi-featured",
         flush
           ? "hover:bg-foreground/[0.02] transition-colors duration-200"
           : cn(

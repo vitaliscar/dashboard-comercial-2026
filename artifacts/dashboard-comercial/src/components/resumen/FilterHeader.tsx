@@ -192,9 +192,9 @@ export function FilterHeader({
         : `${selectedMonths.length} meses`;
 
   return (
-    <div className="sticky top-14 z-10 mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40">
+    <div className="ccv-filter-shell sticky top-[72px] z-10 mb-5 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40">
       {/* ── Row 1: Filter bar ───────────────────────────────────────── */}
-      <div className="bg-card border border-border rounded-md px-3 py-2.5 flex items-center gap-4 flex-wrap">
+      <div className="ccv-filter-bar bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-4 flex-wrap">
         {/* Meses */}
         <Field orientation="horizontal" className="w-auto gap-2">
           <FieldLabel className={FILTER_LABEL_CLASS}>Meses</FieldLabel>
@@ -336,7 +336,7 @@ export function FilterHeader({
           p.ej. Repuestos, Servicios o Lub/Filtros) no hay nada entre qué
           navegar, así que el filtro no aporta — solo se muestra con 2+. */}
       {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
-        <div className="bg-card border border-t-0 border-border rounded-b-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
+        <div className="ccv-unit-bar bg-card border border-t-0 border-border rounded-b-xl px-4 py-3 flex items-center gap-4 flex-wrap">
           <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
           <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto">
             <Button

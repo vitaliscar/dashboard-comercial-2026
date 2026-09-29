@@ -227,20 +227,17 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
         </div>
       </div>
       {keyName === "lubfiltros" ? (
-        <div className="rounded-xl border bg-card card-elevated overflow-hidden">
+        <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card card-elevated">
           <div className="p-4">
             <SectionTitle title="Inventario por sucursal" description="Valor en inventario. Los montos en cero no se listan." />
-            <div className="mt-3 space-y-2">
-              {inventory.filter(([, amount]) => amount > 0).map(([name, amount]) => (
-                <div key={name} className="flex items-center justify-between text-sm">
-                  <span>{name}</span>
-                  <span className="font-mono tabular-nums">{money(amount)}</span>
-                </div>
-              ))}
-            </div>
           </div>
           <div className="[&_[data-slot=table-container]]:max-h-[24rem] [&_[data-slot=table-container]]:overflow-y-auto">
-            <Table className="text-sm">
+            <Table className="table-fixed text-sm">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col />
+                <col className="w-36" />
+              </colgroup>
               <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0 sticky top-0 z-10">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="px-4 py-2 text-left text-xs font-medium text-primary-foreground">Tipo</TableHead>
@@ -267,6 +264,30 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
               </TableBody>
             </Table>
           </div>
+          <Table className="mt-auto table-fixed border-t text-sm">
+            <colgroup>
+              <col className="w-[34%]" />
+              <col />
+              <col className="w-36" />
+            </colgroup>
+            <TableBody>
+              {(
+                [
+                  ["Lubricantes", inventory.find(([name]) => name === "Lubricantes")?.[1] ?? 0],
+                  ["Filtros", inventory.find(([name]) => name === "Filtros")?.[1] ?? 0],
+                  ["Total", inventory.reduce((sum, [, amount]) => sum + amount, 0)],
+                ] as const
+              ).map(([name, amount]) => (
+                <TableRow key={name} className="hover:bg-transparent">
+                  <TableCell className="px-4 py-2 font-medium">{name}</TableCell>
+                  <TableCell className="px-4 py-2" />
+                  <TableCell className={`px-4 py-2 text-right font-mono tabular-nums ${name === "Total" ? "font-semibold" : ""}`}>
+                    {money(amount)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : brandPerformance.length > 0 ? (
         <SucursalPerformanceChart data={brandPerformance} title="Cumplimiento por marca" />
