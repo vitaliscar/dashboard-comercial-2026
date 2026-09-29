@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,21 @@ export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [attempts, setAttempts] = useState(0);
-  const [lockUntil, setLockUntil] = useState<number | null>(null);
+  // Leer el estado de bloqueo existente al montar (no limpiarlo) — antes se
+  // reseteaba incondicionalmente aquí, así que cerrar y reabrir la pestaña
+  // hacía que el contador visual mintiera sobre cuántos intentos quedaban.
+  // El límite real (5 intentos/15 min, por email+IP) vive server-side en
+  // artifacts/api-server/src/routes/auth.ts y sigue aplicando aunque este
+  // contador local se pierda; esto solo corrige que el aviso visible sea fiel.
+  const [attempts, setAttempts] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    return Number(sessionStorage.getItem("login_attempts") ?? 0);
+  });
+  const [lockUntil, setLockUntil] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const stored = sessionStorage.getItem("login_lock_until");
+    return stored ? Number(stored) : null;
+  });
   const [showPassword, setShowPassword] = useState(false);
 
   const resetAttempts = () => {
@@ -29,10 +42,6 @@ export function AuthForm() {
       sessionStorage.removeItem("login_lock_until");
     }
   };
-
-  useEffect(() => {
-    resetAttempts();
-  }, []);
 
   const isLocked = lockUntil !== null && lockUntil > Date.now();
   const minutesRemaining = isLocked ? Math.ceil((lockUntil - Date.now()) / 60000) : 0;

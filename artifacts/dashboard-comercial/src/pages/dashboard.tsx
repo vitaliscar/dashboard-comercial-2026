@@ -27,11 +27,11 @@ function getDashboardRoute(
     case "asesor":
       return "/asesor";
     case "gerente_comercial": {
-      if (assignedUnitIds.length !== 1) return "/gerencia-nacional";
+      if (assignedUnitIds.length !== 1) return "/resumen";
       const assignedUnit = units?.find((unit) => unit.id === assignedUnitIds[0]);
       return assignedUnit
-        ? ROUTE_BY_UNIT_LABEL[unidadLabelInfo(assignedUnit.nombre).label] ?? "/gerencia-nacional"
-        : "/gerencia-nacional";
+        ? ROUTE_BY_UNIT_LABEL[unidadLabelInfo(assignedUnit.nombre).label] ?? "/resumen"
+        : "/resumen";
     }
     default:
       return null;

@@ -558,6 +558,10 @@
 .ccv-command-panel {
   animation: ccv-fade-in-up 180ms var(--ease-out) both;
 }
+.ccv-kpi-grid > .ccv-kpi-card {
+  min-height: 128px;
+  padding: 0.9rem 1.1rem;
+}
 .ccv-local-chart { position: relative; min-height: 230px; padding: 1rem 0 1.5rem; }
 .ccv-local-chart svg { display: block; width: 100%; height: 190px; border-bottom: 1px solid var(--border); }
 .ccv-chart-legend { display: flex; gap: 1rem; margin-top: .75rem; color: var(--muted-foreground); font-size: .7rem; }
