@@ -36,52 +36,73 @@ export function KpiCards({
       : cumplimientoMetaPorcentaje < 90
         ? "warning"
         : "success";
-
-  const cumplimientoLabelClassName =
-    cumplimientoTone === "danger"
-      ? "text-danger"
-      : cumplimientoTone === "warning"
-        ? "text-warning"
-        : "text-success";
+  const diferenciaMeta = metaMes - facturado;
+  const insightLabel =
+    diferenciaMeta > 0
+      ? `Restan ${money(diferenciaMeta)} para alcanzar la meta.`
+      : `Meta superada por ${money(Math.abs(diferenciaMeta))}.`;
+  const statusLabel =
+    cumplimientoMetaPorcentaje >= 100
+      ? "Meta superada"
+      : cumplimientoTone === "success"
+        ? "Cerca de la meta"
+        : cumplimientoTone === "warning"
+          ? "En seguimiento"
+          : "Requiere atención";
 
   return (
-    <div className="ccv-kpi-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5">
-      <KpiCard
-        label="Total Cotizado"
-        value={money(cotizado)}
-        icon={ClipboardList}
-        accent="primary"
-        tooltip="Suma total de cotizaciones creadas en el período seleccionado para todas las unidades de negocio activas."
-      />
-      <KpiCard
-        label="Meta del Mes"
-        value={money(metaMes)}
-        icon={Goal}
-        accent="ochre"
-        tooltip="Presupuesto total planificado para el período actual, consolidando todas las sucursales y líneas de negocio."
-      />
+    <div className="ccv-kpi-overview">
       <KpiCard
         featured
-        label="Total Facturado"
+        className="ccv-kpi-hero"
+        label="Facturado del período"
         value={money(facturado)}
         icon={TrendingUp}
         accent="success"
         subvalue={`${cumplimientoMetaPorcentaje.toFixed(1)}%`}
+        subvalueLabel="de la meta"
         subvalueAlign="inline"
-        subvalueClassName={cumplimientoLabelClassName}
+        subvalueClassName="ccv-kpi-hero-percent"
         projection={facturadoProjection}
-        tooltip="Monto facturado en base al módulo de presupuestos consolidando Ventas CCV, Xibi y Estratégicas del mes."
+        tooltip="Monto facturado en el período seleccionado, consolidando Ventas CCV, Xibi y Estratégicas."
       />
-      <KpiCard
-        label="Ventas Perdidas"
-        value={money(ventasPerdidas)}
-        icon={XOctagon}
-        accent="danger"
-        subvalue={`${ventasPerdidasPorcentaje.toFixed(1)}%`}
-        subvalueAlign="inline"
-        subvalueClassName="text-danger"
-        tooltip="Monto total cotizado que fue cerrado como oportunidad perdida o rechazada por el cliente durante este período."
-      />
+
+      <section className="ccv-kpi-insights" aria-label="Indicadores comerciales del período">
+        <div className="ccv-kpi-insights-heading">
+          <div>
+            <p>DESEMPEÑO COMERCIAL</p>
+            <h2>Este período</h2>
+          </div>
+          <span className={`ccv-kpi-status ccv-kpi-status-${cumplimientoTone}`}>
+            <span aria-hidden="true" />
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="ccv-kpi-metrics">
+          <div className="ccv-kpi-metric">
+            <span><Goal aria-hidden="true" /> Meta del período</span>
+            <strong>{money(metaMes)}</strong>
+          </div>
+          <div className="ccv-kpi-metric">
+            <span><ClipboardList aria-hidden="true" /> Total cotizado</span>
+            <strong>{money(cotizado)}</strong>
+          </div>
+          <div className="ccv-kpi-metric ccv-kpi-metric-lost">
+            <span><XOctagon aria-hidden="true" /> Ventas perdidas</span>
+            <strong>{money(ventasPerdidas)}</strong>
+            <small>{ventasPerdidasPorcentaje.toFixed(1)}% de lo cotizado</small>
+          </div>
+        </div>
+
+        <div className="ccv-kpi-insight-note">
+          <TrendingUp aria-hidden="true" />
+          <span>
+            {insightLabel} Facturado representa {facturadoVsCotizadoPorcentaje.toFixed(1)}% del
+            monto cotizado en el mismo período.
+          </span>
+        </div>
+      </section>
     </div>
   );
 }
