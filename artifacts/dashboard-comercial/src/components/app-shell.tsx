@@ -379,16 +379,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                       className={cn(
                         "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm tracking-wide",
                         "transition-[background-color,color] duration-150 ease-out",
+                        "border-l-2",
                         active
-                          ? "bg-primary text-primary-foreground font-semibold shadow-sm"
-                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                          ? "border-primary bg-sidebar-accent text-sidebar-foreground font-semibold"
+                          : "border-transparent text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                         collapsed && "lg:justify-center",
                       )}
                     >
                       <n.icon
                         className={cn(
                           "size-4 shrink-0",
-                          active ? "text-primary-foreground" : "text-sidebar-accent-foreground/50",
+                          active ? "text-primary" : "text-sidebar-accent-foreground/55",
                         )}
                       />
                       <span className={cn("whitespace-nowrap", collapsed && "lg:hidden")}>
@@ -450,11 +451,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* ── Main content ──────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Header */}
-        <header className="no-print sticky top-0 z-20 h-14 bg-sidebar border-b border-sidebar-border flex items-center gap-2 sm:gap-4 px-4 sm:px-6">
+        <header className="no-print sticky top-0 z-20 h-14 bg-card/95 backdrop-blur-md border-b border-border flex items-center gap-2 sm:gap-4 px-4 sm:px-6">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden text-sidebar-foreground"
+            className="lg:hidden text-foreground"
             onClick={() => setOpen(true)}
             aria-label="Toggle menu"
           >

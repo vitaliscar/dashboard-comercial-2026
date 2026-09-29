@@ -320,8 +320,8 @@ function DashboardApp() {
                   const itemHref = item.path === "/dashboard" ? DEMO_DASHBOARD_PATHS[role] : item.path;
                   const active = location === item.path || location === itemHref || (location === "/" && item.path === "/resumen");
                   return (
-                    <Link key={item.path} href={itemHref} onClick={() => setMenuOpen(false)} aria-current={active ? "page" : undefined} className={`ccv-nav-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
-                      <Icon size={17} /><span className="flex-1">{item.label}</span>{active && <span className="size-1.5 rounded-full bg-current" />}
+                    <Link key={item.path} href={itemHref} onClick={() => setMenuOpen(false)} aria-current={active ? "page" : undefined} className="ccv-nav-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition">
+                      <Icon size={17} /><span className="flex-1">{item.label}</span>
                     </Link>
                   );
                 })}
