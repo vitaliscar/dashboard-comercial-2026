@@ -6,6 +6,8 @@ interface KpiCardsProps {
   cotizado: number;
   metaMes: number;
   facturado: number;
+  facturadoMensual?: number[];
+  anio: number;
   facturadoVsCotizadoPorcentaje: number;
   cumplimientoMetaPorcentaje: number;
   margenTotal: number;
@@ -22,6 +24,8 @@ export function KpiCards({
   cotizado,
   metaMes,
   facturado,
+  facturadoMensual,
+  anio,
   facturadoVsCotizadoPorcentaje,
   cumplimientoMetaPorcentaje,
   margenTotal,
@@ -49,6 +53,26 @@ export function KpiCards({
         : cumplimientoTone === "warning"
           ? "En seguimiento"
           : "Requiere atención";
+  const lastMonthWithSales =
+    facturadoMensual?.reduce((last, value, index) => (value !== 0 ? index : last), -1) ?? -1;
+  const facturadoTrend = facturadoMensual?.slice(0, lastMonthWithSales + 1);
+  const meses = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+  const facturadoTrendDescription = facturadoTrend?.length
+    ? `Facturación mensual de ${meses.slice(0, facturadoTrend.length).map((mes, index) => `${mes}: ${money(facturadoTrend[index])}`).join(", ")}.`
+    : undefined;
 
   return (
     <div className="ccv-kpi-overview">
@@ -57,6 +81,10 @@ export function KpiCards({
         className="ccv-kpi-hero"
         label="Facturado del período"
         value={money(facturado)}
+        sparklineData={facturadoTrend}
+        sparklineHeight={76}
+        sparklineLabel={`Evolución mensual de facturación en ${anio}`}
+        sparklineDescription={facturadoTrendDescription}
         icon={TrendingUp}
         accent="success"
         subvalue={`${cumplimientoMetaPorcentaje.toFixed(1)}%`}
