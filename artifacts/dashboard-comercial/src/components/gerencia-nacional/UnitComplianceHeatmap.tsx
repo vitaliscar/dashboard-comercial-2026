@@ -69,7 +69,7 @@ function CellValue({
       aria-label={`${label}: ${pct(progress, 1)}, ${money(value.facturado)} facturado de ${money(value.meta)} de meta`}
       title={`${label}: ${money(value.facturado)} de ${money(value.meta)}`}
     >
-      {pct(progress, 0)}
+      {pct(progress, 1)}
     </span>
   );
 }
@@ -107,7 +107,7 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
           </span>
           <div>
             <h2 id="unit-compliance-title" className="font-display text-sm font-semibold">
-              Cumplimiento por unidad de negocio
+              Matriz de cumplimiento: sucursal por unidad
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Facturado frente a meta por sucursal · valores del período seleccionado
