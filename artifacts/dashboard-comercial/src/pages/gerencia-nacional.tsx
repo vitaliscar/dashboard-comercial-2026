@@ -19,6 +19,10 @@ import {
   BranchSummaryTable,
   type BranchSummaryRow,
 } from "@/components/gerencia-nacional/BranchSummaryTable";
+import {
+  UnitComplianceHeatmap,
+  type BranchUnitMetric,
+} from "@/components/gerencia-nacional/UnitComplianceHeatmap";
 import { getAllowedMonths } from "@/lib/date-range";
 import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -108,6 +112,7 @@ export default function GerenciaNacionalPage() {
 
     const branchAcc = new Map<string, Acc>();
     const unitAcc = new Map<string, Acc>();
+    const branchUnitAcc = new Map<string, Map<string, Acc>>();
 
     const bump = (map: Map<string, Acc>, key: string, field: keyof Acc, value: number) => {
       const entry = map.get(key) ?? emptyAcc();
@@ -122,6 +127,12 @@ export default function GerenciaNacionalPage() {
         Number(r.ventasCcv ?? 0) + Number(r.ventasXibi ?? 0) + Number(r.ventasEstrategicas ?? 0);
       bump(unitAcc, r.unidadNegocioId, "meta", meta);
       bump(unitAcc, r.unidadNegocioId, "facturado", facturado);
+      const branchUnits = branchUnitAcc.get(r.sucursalId) ?? new Map<string, Acc>();
+      const branchUnit = branchUnits.get(r.unidadNegocioId) ?? emptyAcc();
+      branchUnit.meta += meta;
+      branchUnit.facturado += facturado;
+      branchUnits.set(r.unidadNegocioId, branchUnit);
+      branchUnitAcc.set(r.sucursalId, branchUnits);
       if (selectedUnidades.length === 0 || selectedUnidades.includes(r.unidadNegocioId)) {
         bump(branchAcc, r.sucursalId, "meta", meta);
         bump(branchAcc, r.sucursalId, "facturado", facturado);
@@ -152,7 +163,16 @@ export default function GerenciaNacionalPage() {
       .filter((r) => r.meta > 0 || r.facturado > 0)
       .sort((a, b) => a.order - b.order);
 
-    return { branchRows, unitRows };
+    const branchUnitRows: BranchUnitMetric[] = Array.from(branchUnitAcc.entries()).flatMap(
+      ([sucursalId, unitsByBranch]) =>
+        Array.from(unitsByBranch.entries()).map(([unidadNegocioId, values]) => ({
+          sucursalId,
+          unidadNegocioId,
+          ...values,
+        })),
+    );
+
+    return { branchRows, unitRows, branchUnitRows };
   }, [crossRaw, sucursalesData, unidades, selectedUnidades]);
 
   const highlights = useMemo(() => {
@@ -384,6 +404,13 @@ export default function GerenciaNacionalPage() {
       <div className="section-enter section-enter-3 [content-visibility:auto] [contain-intrinsic-size:auto_420px]">
         <BranchSummaryTable rows={cross?.branchRows ?? []} />
       </div>
+
+      <UnitComplianceHeatmap
+        branches={cross?.branchRows ?? []}
+        units={cross?.unitRows ?? []}
+        values={cross?.branchUnitRows ?? []}
+        selectedUnitIds={selectedUnidades}
+      />
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>
