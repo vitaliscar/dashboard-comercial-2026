@@ -838,6 +838,8 @@ export default function ResumenPage() {
         cotizado={resumenData.kpis.cotizado}
         metaMes={resumenData.kpis.metaMes}
         facturado={resumenData.kpis.facturado}
+        facturadoMensual={resumenData.kpis.facturadoMensual}
+        anio={filters.anio}
         facturadoVsCotizadoPorcentaje={resumenData.kpis.facturadoVsCotizadoPorcentaje}
         cumplimientoMetaPorcentaje={resumenData.kpis.cumplimientoMetaPorcentaje}
         facturadoProjection={

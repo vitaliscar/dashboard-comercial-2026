@@ -7,6 +7,7 @@ export interface SparklineProps {
   data: number[];
   tone?: "success" | "warning" | "danger" | "primary" | "muted";
   height?: number;
+  showLastValue?: boolean;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ export const Sparkline = memo(function Sparkline({
   data,
   tone = "primary",
   height = 32,
+  showLastValue = true,
   className,
 }: SparklineProps) {
   if (data.length < 2) {
@@ -54,30 +56,32 @@ export const Sparkline = memo(function Sparkline({
           >
             {/* Solo el último punto: en 28-32px de alto no cabe una etiqueta
                 por punto sin superponerse — ver docstring de este componente. */}
-            <LabelList
-              dataKey="valor"
-              position="top"
-              fontSize={8}
-              fontWeight={700}
-              fill={TONE_VAR[tone]}
-              content={
-                ((props: { x?: number; y?: number; index?: number; value?: number }) => {
-                  if (props.index !== chartData.length - 1) return null;
-                  return (
-                    <text
-                      x={props.x}
-                      y={(props.y ?? 0) - 4}
-                      textAnchor="end"
-                      fontSize={8}
-                      fontWeight={700}
-                      fill={TONE_VAR[tone]}
-                    >
-                      {money(props.value ?? 0)}
-                    </text>
-                  );
-                }) as never
-              }
-            />
+            {showLastValue && (
+              <LabelList
+                dataKey="valor"
+                position="top"
+                fontSize={8}
+                fontWeight={700}
+                fill={TONE_VAR[tone]}
+                content={
+                  ((props: { x?: number; y?: number; index?: number; value?: number }) => {
+                    if (props.index !== chartData.length - 1) return null;
+                    return (
+                      <text
+                        x={props.x}
+                        y={(props.y ?? 0) - 4}
+                        textAnchor="end"
+                        fontSize={8}
+                        fontWeight={700}
+                        fill={TONE_VAR[tone]}
+                      >
+                        {money(props.value ?? 0)}
+                      </text>
+                    );
+                  }) as never
+                }
+              />
+            )}
           </Line>
         </LineChart>
       </ResponsiveContainer>

@@ -20,6 +20,9 @@ export interface KpiCardProps {
   progress?: number;
   progressVariant?: "linear" | "gauge";
   sparklineData?: number[];
+  sparklineHeight?: number;
+  sparklineLabel?: string;
+  sparklineDescription?: string;
   className?: string;
   valueClassName?: string;
   subvalueClassName?: string;
@@ -125,6 +128,9 @@ export function KpiCard({
   progress,
   progressVariant = "linear",
   sparklineData,
+  sparklineHeight = 28,
+  sparklineLabel,
+  sparklineDescription,
   className,
   valueClassName,
   subvalueClassName,
@@ -222,8 +228,25 @@ export function KpiCard({
         )}
       </div>
 
+      {/* Sparkline */}
+      {sparklineData && sparklineData.length >= 2 && (
+        <div
+          className="ccv-kpi-sparkline"
+          role={sparklineLabel ? "group" : undefined}
+          aria-label={sparklineLabel}
+        >
+          <Sparkline
+            data={sparklineData}
+            tone={sparklineTone}
+            height={sparklineHeight}
+            showLastValue={!sparklineLabel}
+          />
+          {sparklineDescription && <span className="sr-only">{sparklineDescription}</span>}
+        </div>
+      )}
+
       {projection && (
-        <div className="flex items-baseline justify-between gap-2 mb-2">
+        <div className="ccv-kpi-projection flex items-baseline justify-between gap-2 mb-2">
           <span className="text-[10px] font-display font-semibold text-muted-foreground">
             {projection.label ?? "Proy. cierre mes"}
           </span>
@@ -240,11 +263,6 @@ export function KpiCard({
             {projection.value}
           </span>
         </div>
-      )}
-
-      {/* Sparkline */}
-      {sparklineData && sparklineData.length >= 2 && (
-        <Sparkline data={sparklineData} tone={sparklineTone} height={28} className="mb-2" />
       )}
 
       {/* Subvalue below */}
