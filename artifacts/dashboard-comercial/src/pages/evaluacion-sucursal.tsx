@@ -1,3 +1,4 @@
+import { isFullAccessRole } from "@/lib/permissions";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -11,7 +12,7 @@ import { money, pct } from "@/lib/format";
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 export default function EvaluacionSucursalPage() {
   const { role, profile } = useAuth(); const { data: branches } = useSucursales(); const anio = new Date().getFullYear();
-  const [selected, setSelected] = useState(""); const canView = role === "coordinador" || role === "gerente_comercial" || role === "gerencia";
+  const [selected, setSelected] = useState(""); const canView = role === "coordinador" || role === "gerente_comercial" || isFullAccessRole(role);
   const branchId = role === "coordinador" ? profile?.sucursal_id ?? undefined : selected || undefined;
   const query = useQuery({ queryKey: ["evaluacion-sucursal", anio, branchId], queryFn: () => getEvaluacionSucursal(anio, branchId), enabled: canView && !!branchId });
   if (!canView) return <p className="p-8 text-center text-muted-foreground">Esta evaluación no está disponible para el rol asesor.</p>;

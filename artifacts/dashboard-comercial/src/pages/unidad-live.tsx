@@ -1,3 +1,4 @@
+import { isFullAccessRole } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Boxes, Building2, Search, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -18,6 +19,7 @@ import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo"
 import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const UNIT_COPY: Record<UnidadKey, { title: string; description: string }> = {
   repuestos: {
@@ -88,7 +90,24 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
       const amount = num(row.disponible ?? row.monto);
       totals.set(name, (totals.get(name) ?? 0) + amount);
     });
-    return [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    return [...totals.entries()]
+      .filter(([, amount]) => amount > 0)
+      .sort((a, b) => b[1] - a[1]);
+  }, [data.inventario]);
+
+  const inventarioPorSucursal = useMemo(() => {
+    const map = new Map<string, { tipo: string; sucursal: string; monto: number }>();
+    (data.inventario ?? []).forEach((row) => {
+      const tipo = label(row.tipo);
+      const sucursal = label(row.sucursal);
+      if (!row.sucursal) return;
+      const monto = num(row.monto);
+      const key = `${tipo}|${sucursal}`;
+      const existing = map.get(key);
+      if (existing) existing.monto += monto;
+      else map.set(key, { tipo, sucursal, monto });
+    });
+    return [...map.values()].filter((row) => row.monto > 0).sort((a, b) => b.monto - a.monto);
   }, [data.inventario]);
 
   const serviceTotals = useMemo(() => {
@@ -208,20 +227,67 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
         </div>
       </div>
       {keyName === "lubfiltros" ? (
-        <div className="rounded-xl border bg-card p-4 card-elevated">
-          <SectionTitle title="Inventario por tipo" description="Snapshot de inventario clasificado en Lubricantes y Filtros." />
-          <div className="mt-4 space-y-3">
-            {inventory.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay inventario disponible.</p>
-            ) : (
-              inventory.map(([name, amount]) => (
-                <div key={name} className="flex items-center justify-between border-b pb-2 text-sm last:border-0">
-                  <span>{name}</span>
-                  <span className="font-mono tabular-nums">{money(amount)}</span>
-                </div>
-              ))
-            )}
+        <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card card-elevated">
+          <div className="p-4">
+            <SectionTitle title="Inventario por sucursal" description="Valor en inventario. Los montos en cero no se listan." />
           </div>
+          <div className="[&_[data-slot=table-container]]:max-h-[24rem] [&_[data-slot=table-container]]:overflow-y-auto">
+            <Table className="table-fixed text-sm">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col />
+                <col className="w-36" />
+              </colgroup>
+              <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0 sticky top-0 z-10">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 py-2 text-left text-xs font-medium text-primary-foreground">Tipo</TableHead>
+                  <TableHead className="px-4 py-2 text-left text-xs font-medium text-primary-foreground">Sucursal</TableHead>
+                  <TableHead className="px-4 py-2 text-right text-xs font-medium text-primary-foreground">Monto</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inventarioPorSucursal.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="px-4 py-6 text-sm text-muted-foreground">
+                      No hay inventario disponible.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  inventarioPorSucursal.map((row) => (
+                    <TableRow key={`${row.tipo}|${row.sucursal}`}>
+                      <TableCell className="px-4 py-2.5 font-medium">{row.tipo}</TableCell>
+                      <TableCell className="px-4 py-2.5">{row.sucursal}</TableCell>
+                      <TableCell className="px-4 py-2.5 text-right font-mono tabular-nums">{money(row.monto)}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <Table className="mt-auto table-fixed border-t text-sm">
+            <colgroup>
+              <col className="w-[34%]" />
+              <col />
+              <col className="w-36" />
+            </colgroup>
+            <TableBody>
+              {(
+                [
+                  ["Lubricantes", inventory.find(([name]) => name === "Lubricantes")?.[1] ?? 0],
+                  ["Filtros", inventory.find(([name]) => name === "Filtros")?.[1] ?? 0],
+                  ["Total", inventory.reduce((sum, [, amount]) => sum + amount, 0)],
+                ] as const
+              ).map(([name, amount]) => (
+                <TableRow key={name} className="hover:bg-transparent">
+                  <TableCell className="px-4 py-2 font-medium">{name}</TableCell>
+                  <TableCell className="px-4 py-2" />
+                  <TableCell className={`px-4 py-2 text-right font-mono tabular-nums ${name === "Total" ? "font-semibold" : ""}`}>
+                    {money(amount)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : brandPerformance.length > 0 ? (
         <SucursalPerformanceChart data={brandPerformance} title="Cumplimiento por marca" />
@@ -236,7 +302,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
   const { anio, meses } = filters;
   const { data: sucursales } = useSucursales();
   const [search, setSearch] = useState("");
-  const branch = role === "gerencia" ? filters.sucursales[0] : undefined;
+  const branch = isFullAccessRole(role) ? filters.sucursales[0] : undefined;
   const copy = UNIT_COPY[unitKey];
 
   const { data, isLoading, error } = useQuery({
@@ -312,7 +378,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
       <PageHeader eyebrow="Unidad de Negocio" title={copy.title} description={copy.description} />
       <FilterHeader
         onApplyFilters={handleApplyFilters}
-        sucursalOptions={role === "gerencia" ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
+        sucursalOptions={isFullAccessRole(role) ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
         defaultMes={meses}
         defaultAnio={anio}
         showAllMonths

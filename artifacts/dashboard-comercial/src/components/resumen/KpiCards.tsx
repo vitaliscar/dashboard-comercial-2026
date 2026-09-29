@@ -45,7 +45,7 @@ export function KpiCards({
         : "text-success";
 
   return (
-    <div className="ccv-kpi-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+    <div className="ccv-kpi-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5">
       <KpiCard
         label="Total Cotizado"
         value={money(cotizado)}

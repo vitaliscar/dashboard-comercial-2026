@@ -77,6 +77,7 @@ export interface ResumenApiData {
   ventasPerdidasClientes: ClienteRow[];
   ventasPerdidasRazones: RazonRow[];
   servicios: UnidadRow[];
+  serviciosClientes: ClienteRow[];
   presupuestos: PresupuestoRow[];
   presupuestosMensual: PresupuestoMensualRow[];
   cumplimientoAsesor: CumplimientoRow[];
@@ -115,6 +116,7 @@ export async function getResumenData(params: GetResumenParams): Promise<ResumenA
     ventasPerdidasClientes: asList<ClienteRow>(payload.ventasPerdidasClientes),
     ventasPerdidasRazones: asList<RazonRow>(payload.ventasPerdidasRazones),
     servicios: asList<UnidadRow>(payload.servicios),
+    serviciosClientes: asList<ClienteRow>(payload.serviciosClientes),
     presupuestos: asList<PresupuestoRow>(payload.presupuestos),
     presupuestosMensual: asList<PresupuestoMensualRow>(payload.presupuestosMensual),
     cumplimientoAsesor: asList<CumplimientoRow>(payload.cumplimientoAsesor),

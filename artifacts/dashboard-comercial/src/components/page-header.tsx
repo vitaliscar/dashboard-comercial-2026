@@ -12,7 +12,7 @@ interface PageHeaderProps {
 export function PageHeader({ eyebrow, title, description, action, className }: PageHeaderProps) {
   return (
     <div
-      className={cn("flex flex-wrap justify-between items-end gap-4 card-elevated p-5", className)}
+      className={cn("ccv-page-header flex flex-wrap justify-between items-end gap-3 border-b border-border/70 pb-5", className)}
     >
       <div className="min-w-0">
         <p className="text-[9px] font-mono font-bold tracking-[0.18em] text-primary uppercase mb-1.5">

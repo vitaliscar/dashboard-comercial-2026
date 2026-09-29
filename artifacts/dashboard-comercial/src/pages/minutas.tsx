@@ -1,3 +1,4 @@
+import { canPickSucursalFilter, isFullAccessRole } from "@/lib/permissions";
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -143,8 +144,8 @@ export default function MinutasPage() {
   const [editing, setEditing] = useState<MinutaItem | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  const canCreate = role === "gerencia" || role === "gerente_comercial" || role === "coordinador";
-  const canDelete = role === "gerencia";
+  const canCreate = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
+  const canDelete = isFullAccessRole(role);
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
@@ -420,7 +421,7 @@ export default function MinutasPage() {
         </KpiFilterButton>
       </div>
 
-      {role !== "asesor" && sucursales && sucursales.length > 1 && (
+      {canPickSucursalFilter(role) && sucursales && sucursales.length > 1 && (
         <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-3 flex-wrap">
           <Label className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
             Filtrar por sucursal:

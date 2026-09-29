@@ -226,6 +226,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
       ventasPerdidasClientes,
       ventasPerdidasRazones,
       servicios,
+      serviciosClientes,
       presupuestos,
       presupuestosMensual,
       cumplimientoAsesor,
@@ -278,6 +279,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
                 f.cliente,
                 COALESCE(SUM(f.monto), 0) AS "montoTotal"
          FROM facturas f WHERE ${facWhere}
+           AND f.cliente NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'
          GROUP BY f.unidad_negocio_id, f.sucursal_id, f.cliente`,
         params,
       ),
@@ -313,6 +315,16 @@ router.get("/resumen", async (req: Request, res: Response) => {
                 COUNT(s.id)::int AS cantidad
          FROM servicios s WHERE ${servicesWhere}
          GROUP BY s.unidad_negocio_id`,
+        params,
+      ),
+      tx.query(
+        `SELECT s.unidad_negocio_id AS "unidadNegocioId",
+                s.sucursal_id AS "sucursalId",
+                s.cliente,
+                COALESCE(SUM(s.monto), 0) AS "montoTotal"
+         FROM servicios s WHERE ${servicesWhere}
+           AND s.cliente NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'
+         GROUP BY s.unidad_negocio_id, s.sucursal_id, s.cliente`,
         params,
       ),
       tx.query(
@@ -358,6 +370,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
       ventasPerdidasClientes: ventasPerdidasClientes.rows,
       ventasPerdidasRazones: ventasPerdidasRazones.rows,
       servicios: servicios.rows,
+      serviciosClientes: serviciosClientes.rows,
       presupuestos: aplicarAjustesAPresupuestos(
         presupuestos.rows as {
           mes: number;

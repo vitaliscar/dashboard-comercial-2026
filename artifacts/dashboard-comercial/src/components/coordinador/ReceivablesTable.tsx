@@ -32,6 +32,8 @@ import {
   PaginationPrevious,
   PaginationNext,
 } from "@/components/ui/pagination";
+import { useAuth } from "@/hooks/use-auth";
+import { canPickSucursalFilter } from "@/lib/permissions";
 
 const PAGE_SIZE = 15;
 
@@ -56,6 +58,9 @@ export const ReceivablesTable = memo(function ReceivablesTable({
   unitOptions = [],
   sucursalOptions = [],
 }: Props) {
+  const { role } = useAuth();
+  const canPickSucursal = canPickSucursalFilter(role);
+  const visibleSucursalOptions = canPickSucursal ? sucursalOptions : [];
   const [unidadFiltro, setUnidadFiltro] = useState("all");
   const [sucursalFiltro, setSucursalFiltro] = useState("all");
   const [page, setPage] = useState(1);
@@ -95,9 +100,12 @@ export const ReceivablesTable = memo(function ReceivablesTable({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {sucursalOptions.length > 0 && (
+          {visibleSucursalOptions.length > 0 && (
             <Select
-              items={[{ value: "all", label: "Todas las sucursales" }, ...sucursalOptions]}
+              items={[{
+                value: "all",
+                label: "Todas las sucursales",
+              }, ...visibleSucursalOptions]}
               value={sucursalFiltro}
               onValueChange={(v) => setSucursalFiltro(v ?? "all")}
             >
@@ -109,7 +117,7 @@ export const ReceivablesTable = memo(function ReceivablesTable({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las sucursales</SelectItem>
-                {sucursalOptions.map((opt) => (
+                {visibleSucursalOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>

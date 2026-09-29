@@ -1,3 +1,4 @@
+import { canPickSucursalFilter, isFullAccessRole } from "@/lib/permissions";
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -96,15 +97,16 @@ export default function AsesoresPage() {
   const [activeTab, setActiveTab] = useState<"ranking">("ranking");
   const [selectedAdvisor, setSelectedAdvisor] = useState<AgrupacionAsesor | null>(null);
 
-  const canView = role === "gerencia" || role === "gerente_comercial" || role === "coordinador" || role === "asesor";
+  const canView = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
+  const canPickSucursal = canPickSucursalFilter(role);
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
 
   const sucursalOptions = useMemo(() => {
-    if (!sucursales) return [];
+    if (!canPickSucursal || !sucursales) return [];
     return sucursales.map((s) => ({ value: s.id, label: s.nombre }));
-  }, [sucursales]);
+  }, [sucursales, canPickSucursal]);
 
   const unitOptions = useMemo(() => {
     if (!unidades) return [];
@@ -268,8 +270,8 @@ export default function AsesoresPage() {
         defaultAnio={anio}
         defaultMes={meses}
         defaultUnits={selectedUnidades}
-        sucursalOptions={sucursalOptions}
-        sucursalMulti={role === "gerencia"}
+        sucursalOptions={canPickSucursal ? sucursalOptions : undefined}
+        sucursalMulti={canPickSucursal}
         unitOptions={unitOptions}
         showAllMonths={true}
       />

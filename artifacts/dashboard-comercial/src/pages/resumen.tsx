@@ -94,7 +94,7 @@ const mapDbUnidadToUi = (dbNombre: string): UnidadNegocio => {
 };
 
 export default function ResumenPage() {
-  const { role, profile } = useAuth();
+  const { role, profile, loading: authLoading } = useAuth();
   const { filters: sharedFilters, setFilters: setSharedFilters } = useSharedFilters();
   const hideSucursalFilter = role === "coordinador" || role === "asesor";
   const today = new Date();
@@ -409,7 +409,7 @@ export default function ResumenPage() {
     // 3. Facturado by category — fuente de verdad es CumplimientoBase (presupuestos):
     // Ventas_CCV + Ventas_Xibi + Ventas_Estrategicas por U/N y mes. `facturas` (transaccional)
     // solo se usa para el detalle de top clientes, que no tiene esa segmentación en origen.
-    // Para Servicios: usa tabla `servicios` directamente, sin agrupar por cliente.
+    // Para Servicios: facturas solo trae Xibi/Otra Empresa; el detalle CCV vive en `servicios`.
     // Margen estimado = monto facturado × porcentaje comercial de la unidad
     const margenPorcentajePorUnidad: Record<string, number> = {
       Repuestos: 28,
@@ -438,6 +438,26 @@ export default function ResumenPage() {
           });
         }
       });
+      if (cat === "Servicios") {
+        const filteredServClientes = (rawData.serviciosClientes || []).filter((s) => {
+          const dbName = s.unidadNegocioId ? unitMap.get(s.unidadNegocioId) : "";
+          return dbName && mapDbUnidadToUi(dbName) === cat;
+        });
+        filteredServClientes.forEach((s) => {
+          const key = `${s.cliente}|${s.sucursalId || ""}`;
+          const existing = facClientMap.get(key);
+          const m = Number(s.montoTotal || 0);
+          if (existing) {
+            existing.monto += m;
+          } else {
+            facClientMap.set(key, {
+              cliente: s.cliente,
+              sucursal: s.sucursalId ? sucMap.get(s.sucursalId) || "" : "",
+              monto: m,
+            });
+          }
+        });
+      }
       const topClientes = Array.from(facClientMap.values())
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
@@ -701,6 +721,10 @@ export default function ResumenPage() {
         filters.meses,
       )
     : null;
+
+  if (authLoading) {
+    return <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Cargando sesión…</div>;
+  }
 
   if (!role) {
     return (

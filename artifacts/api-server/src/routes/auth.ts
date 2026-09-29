@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { verify } from "@node-rs/argon2";
+import { hash, verify } from "@node-rs/argon2";
 import { clearSessionCookie, setSessionCookie } from "../lib/session-cookie";
 
 const router = Router();
@@ -10,7 +10,11 @@ const LOCK_MS = 15 * 60 * 1000;
 const SESSION_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type AppRole = "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+
+export function isFullAccessRole(role: string | null | undefined): boolean {
+  return role === "administrador" || role === "gerencia";
+}
 export type QueryResult = { rows: any[] };
 export type Queryable = {
   query: (text: string, values?: unknown[]) => Promise<QueryResult>;
@@ -83,9 +87,12 @@ export async function loadPayload(pool: Queryable, userId: string) {
 
   const rolePriority: AppRole[] = ["gerencia", "gerente_comercial", "coordinador", "asesor"];
   const assignedRoles = rolesResult.rows.map((row) => row.role as AppRole);
-  const role = profile.is_admin
-    ? "gerencia"
-    : rolePriority.find((candidate) => assignedRoles.includes(candidate)) ?? null;
+  // administrador gana sobre is_admin→gerencia.
+  const role = assignedRoles.includes("administrador")
+    ? "administrador"
+    : profile.is_admin
+      ? "gerencia"
+      : rolePriority.find((candidate) => assignedRoles.includes(candidate)) ?? null;
   const unidadesNegocioIds = unitsResult.rows.length
     ? unitsResult.rows.map((row) => row.unidad_negocio_id)
     : profile.unidad_negocio_id
@@ -96,6 +103,18 @@ export async function loadPayload(pool: Queryable, userId: string) {
     : profile.sucursal_id
       ? [profile.sucursal_id]
       : [];
+
+  let mustChangePassword = false;
+  try {
+    const flag = await pool.query(
+      `SELECT must_change_password FROM users WHERE id = $1 LIMIT 1`,
+      [userId],
+    );
+    mustChangePassword = Boolean(flag.rows[0]?.must_change_password);
+  } catch {
+    // Columna aún no migrada en algún entorno.
+    mustChangePassword = false;
+  }
 
   return {
     user: { id: userId, email: profile.email },
@@ -110,6 +129,7 @@ export async function loadPayload(pool: Queryable, userId: string) {
       sucursalesIds,
     },
     role,
+    mustChangePassword,
   };
 }
 
@@ -253,6 +273,64 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
   } finally {
     clearSessionCookie(res);
     res.json({ success: true });
+  }
+});
+
+/** El usuario mantiene la clave temporal y no vuelve a ver el aviso. */
+router.post("/auth/keep-password", async (req: Request, res: Response) => {
+  try {
+    const session = await currentSession(req);
+    if (!session) {
+      res.status(401).json({ message: "Sesión no válida." });
+      return;
+    }
+    const pool = await getAdminPool();
+    if (!pool) {
+      res.status(503).json({ message: "Servicio no disponible." });
+      return;
+    }
+    await pool.query(
+      `UPDATE users SET must_change_password = false, updated_at = now() WHERE id = $1`,
+      [session.user.id],
+    );
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ message: "No se pudo actualizar la contraseña." });
+  }
+});
+
+/** El usuario define una clave nueva en el primer ingreso. */
+router.post("/auth/change-password", async (req: Request, res: Response) => {
+  try {
+    const session = await currentSession(req);
+    if (!session) {
+      res.status(401).json({ message: "Sesión no válida." });
+      return;
+    }
+    const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+    const confirmPassword =
+      typeof req.body?.confirmPassword === "string" ? req.body.confirmPassword : "";
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ message: "Las contraseñas no coinciden." });
+      return;
+    }
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      res.status(400).json({ message: "La contraseña debe tener entre 8 y 128 caracteres." });
+      return;
+    }
+    const pool = await getAdminPool();
+    if (!pool) {
+      res.status(503).json({ message: "Servicio no disponible." });
+      return;
+    }
+    const passwordHash = await hash(newPassword);
+    await pool.query(
+      `UPDATE users SET password_hash = $1, must_change_password = false, updated_at = now() WHERE id = $2`,
+      [passwordHash, session.user.id],
+    );
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ message: "No se pudo cambiar la contraseña." });
   }
 });
 

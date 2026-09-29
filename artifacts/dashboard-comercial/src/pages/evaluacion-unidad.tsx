@@ -1,3 +1,4 @@
+import { isFullAccessRole } from "@/lib/permissions";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -11,7 +12,7 @@ import { money, pct } from "@/lib/format";
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 export default function EvaluacionUnidadPage() {
   const { role } = useAuth(); const { data: units } = useUnidades(); const anio = new Date().getFullYear(); const [unitId, setUnitId] = useState("");
-  const canView = role === "coordinador" || role === "gerente_comercial" || role === "gerencia";
+  const canView = role === "coordinador" || role === "gerente_comercial" || isFullAccessRole(role);
   const query = useQuery({ queryKey: ["evaluacion-unidad", anio, unitId], queryFn: () => getEvaluacionUnidad(anio, unitId), enabled: canView && !!unitId });
   if (!canView) return <p className="p-8 text-center text-muted-foreground">Esta evaluación no está disponible para el rol asesor.</p>;
   const data = query.data; const chart = data?.puntos.map((point) => ({ mes: MONTHS[point.mes - 1] ?? `M${point.mes}`, cumplimiento: point.presupuesto ? Math.round((point.venta / point.presupuesto) * 1000) / 10 : null })) ?? [];

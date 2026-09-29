@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { canPickSucursalFilter } from "@/lib/permissions";
 
 const FILTER_LABEL_CLASS =
   "text-[10px] font-mono font-bold text-muted-foreground tracking-[0.12em] uppercase whitespace-nowrap";
@@ -56,6 +57,8 @@ interface FilterHeaderProps {
   defaultMes?: number[] | "all";
   defaultAnio: number;
   defaultSucursal?: string;
+  /** Hidrata el multi-select de sucursales desde shared filters. */
+  defaultSucursales?: string[];
   defaultUnit?: string;
   defaultUnits?: string[];
   showAllMonths?: boolean;
@@ -70,6 +73,7 @@ export function FilterHeader({
   defaultMes,
   defaultAnio,
   defaultSucursal,
+  defaultSucursales,
   defaultUnit,
   defaultUnits,
 }: FilterHeaderProps) {
@@ -81,7 +85,7 @@ export function FilterHeader({
   const [selectedMonths, setSelectedMonths] = useState<number[] | "all">(defaultMes ?? "all");
   const [anio, setAnio] = useState(defaultAnio);
   const [sucursal, setSucursal] = useState(defaultSucursal ?? "all");
-  const [selectedSucursales, setSelectedSucursales] = useState<string[]>([]);
+  const [selectedSucursales, setSelectedSucursales] = useState<string[]>(defaultSucursales ?? []);
   const [selectedUnits, setSelectedUnits] = useState<string[]>(defaultUnits ?? []);
 
   useEffect(() => {
@@ -94,6 +98,9 @@ export function FilterHeader({
     setSucursal(defaultSucursal ?? "all");
   }, [defaultSucursal]);
   useEffect(() => {
+    if (defaultSucursales !== undefined) setSelectedSucursales(defaultSucursales);
+  }, [defaultSucursales]);
+  useEffect(() => {
     if (defaultUnits) {
       setSelectedUnits(defaultUnits);
       return;
@@ -101,8 +108,12 @@ export function FilterHeader({
     setSelectedUnits(defaultUnit ? [defaultUnit] : []);
   }, [defaultUnit, defaultUnits]);
 
-  const resolvedSucursalOptions: FilterOption[] =
-    sucursalOptions ?? sucursales?.map((s) => ({ value: s, label: s })) ?? [];
+  // Coordinador/asesor: nunca mostrar selector de sucursal aunque el padre
+  // pase opciones (RLS ya fija su alcance).
+  const canPickSucursal = canPickSucursalFilter(role);
+  const resolvedSucursalOptions: FilterOption[] = canPickSucursal
+    ? (sucursalOptions ?? sucursales?.map((s) => ({ value: s, label: s })) ?? [])
+    : [];
 
   const allowedUnitIds = useMemo(() => {
     if (role === "gerente_comercial" && profile) {
@@ -181,9 +192,9 @@ export function FilterHeader({
         : `${selectedMonths.length} meses`;
 
   return (
-    <div className="sticky top-14 z-10 mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40">
+    <div className="ccv-filter-shell sticky top-[72px] z-10 mb-5 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40">
       {/* ── Row 1: Filter bar ───────────────────────────────────────── */}
-      <div className="bg-card border border-border rounded-md px-3 py-2.5 flex items-center gap-4 flex-wrap">
+      <div className="ccv-filter-bar bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-4 flex-wrap">
         {/* Meses */}
         <Field orientation="horizontal" className="w-auto gap-2">
           <FieldLabel className={FILTER_LABEL_CLASS}>Meses</FieldLabel>
@@ -325,7 +336,7 @@ export function FilterHeader({
           p.ej. Repuestos, Servicios o Lub/Filtros) no hay nada entre qué
           navegar, así que el filtro no aporta — solo se muestra con 2+. */}
       {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
-        <div className="bg-card border border-t-0 border-border rounded-b-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
+        <div className="ccv-unit-bar bg-card border border-t-0 border-border rounded-b-xl px-4 py-3 flex items-center gap-4 flex-wrap">
           <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
           <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto">
             <Button
