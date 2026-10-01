@@ -24,9 +24,8 @@ export default function EvaluacionAsesorPage() {
       <KpiCard label="Score de desempeño" value={String(data.score.score)} accent={data.score.banda} hint="Cumplimiento 50%, tendencia 30% y ticket 20%; sin referencia de pares, el ticket usa valor neutral." />
       <KpiCard label="Cumplimiento" value={pct(data.score.cumplimiento, 1)} />
       <KpiCard label="Tendencia" value={pct(data.score.tendencia, 0)} />
-      <KpiCard label="Vs. pares de sucursal" value={data.percentilVsPares == null ? "Sin referencia" : `Percentil ${data.percentilVsPares}`} hint="El asesor solo consulta sus propios datos; no se muestran métricas de pares." />
+      <KpiCard label="Ticket promedio propio" value={money(data.ticketPropio)} hint="Componente de ticket del score de desempeño." />
     </div>
     <section className="rounded-lg border bg-card p-5"><h3 className="mb-4 font-semibold">Evolución mensual de cumplimiento</h3><ResponsiveContainer width="100%" height={280}><LineChart data={chart}><XAxis dataKey="mes" /><YAxis /><Tooltip formatter={(value) => value == null ? "Sin datos" : `${value}%`} /><Line type="monotone" dataKey="cumplimiento" stroke="hsl(var(--primary))" strokeWidth={2} connectNulls /></LineChart></ResponsiveContainer></section>
-    <div className="grid gap-4 md:grid-cols-2"><KpiCard label="Ticket promedio propio" value={money(data.ticketPropio)} /><KpiCard label="Ticket promedio del grupo" value={data.ticketPromedioGrupo == null ? "—" : money(data.ticketPromedioGrupo)} hint="No disponible dentro del alcance de datos del asesor." /></div>
   </div>;
 }
