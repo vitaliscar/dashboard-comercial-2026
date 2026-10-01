@@ -66,6 +66,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
       const code = error instanceof Error ? error.message : "";
       const known: Record<string, { status: number; message: string }> = {
         SCOPE_REQUIRED: { status: 400, message: "Asigna al menos una unidad para Gerencia Comercial o una sucursal para Coordinación y Asesoría." },
+        ADJUSTMENT_SCOPE_INVALID: { status: 400, message: "La sucursal o unidad seleccionada no existe, está inactiva o no está disponible." },
         USER_NOT_FOUND: { status: 404, message: "No se encontró el usuario." },
         ADMIN_TARGET: { status: 403, message: "Gerencia Nacional no puede modificar una cuenta Administrador." },
       };
@@ -190,7 +191,17 @@ export default function administracionRouter(currentSession: SessionLoader, with
     const columnasValidas = ["ccv", "xibi", "estrategico", "total"];
     const columna = columnasValidas.includes(req.body?.columna) ? req.body.columna : "total";
     if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12 || !Number.isFinite(monto) || !motivo || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId)) { res.status(400).json({ message: "Los datos del ajuste no son válidos." }); return; }
-    const row = await run(res, session, async (tx) => (await tx.query("INSERT INTO ajustes_manuales (anio, mes, sucursal_id, unidad_negocio_id, columna, monto, motivo, creado_por) VALUES ($1, $2, $3::uuid, $4::uuid, $5, $6, $7, $8::uuid) RETURNING id", [anio, mes, sucursalId, unidadId, columna, monto, motivo, session.user.id])).rows[0]); if (row) res.status(201).json(row);
+    const row = await run(res, session, async (tx) => {
+      if (sucursalId) {
+        const branch = await tx.query("SELECT id FROM sucursales WHERE id = $1::uuid AND activa = true AND visible_general = true", [sucursalId]);
+        if (!branch.rows.length) throw new Error("ADJUSTMENT_SCOPE_INVALID");
+      }
+      if (unidadId) {
+        const unit = await tx.query("SELECT id FROM unidades_negocio WHERE id = $1::uuid AND activa = true", [unidadId]);
+        if (!unit.rows.length) throw new Error("ADJUSTMENT_SCOPE_INVALID");
+      }
+      return (await tx.query("INSERT INTO ajustes_manuales (anio, mes, sucursal_id, unidad_negocio_id, columna, monto, motivo, creado_por) VALUES ($1, $2, $3::uuid, $4::uuid, $5, $6, $7, $8::uuid) RETURNING id", [anio, mes, sucursalId, unidadId, columna, monto, motivo, session.user.id])).rows[0];
+    }); if (row) res.status(201).json(row);
   });
   router.delete("/ajustes-manuales/:id", async (req, res) => {
     const session = await ajustesAccess(req, res); const adjustmentId = id(req.params.id); if (!session) return; if (!adjustmentId) { res.status(400).json({ message: "Ajuste no válido." }); return; }
