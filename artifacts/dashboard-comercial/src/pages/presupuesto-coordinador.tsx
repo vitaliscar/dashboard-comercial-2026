@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
+import { QueryErrorNotice } from "@/components/query-error-notice";
 import { money } from "@/lib/format";
 
 type AdvisorAllocation = {
@@ -225,6 +226,17 @@ export default function PresupuestoCoordinadorPage() {
     }));
   };
 
+  const discardChanges = () => {
+    const next: Record<string, number> = {};
+    (data?.rows ?? []).forEach((row) =>
+      row.asesores.forEach((advisor) => {
+        next[keyOf(row, advisor.advisorId)] = advisor.participacion;
+      }),
+    );
+    setDraft(next);
+    setDirty(false);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -296,12 +308,11 @@ export default function PresupuestoCoordinadorPage() {
             </p>
           )}
           {query.error && (
-            <p
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
-            >
-              {query.error.message}
-            </p>
+            <QueryErrorNotice
+              error={query.error}
+              onRetry={() => void query.refetch()}
+              fallback="No se pudo cargar el roster y las metas dentro de tus sucursales."
+            />
           )}
           {!query.isLoading && !query.error && !data?.rows.length && (
             <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -328,10 +339,10 @@ export default function PresupuestoCoordinadorPage() {
 
               {currentRow.requiereAsignacionAsesores ? (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  No hay asesores vinculados a esta combinación. Confirma que
-                  tengan la unidad asignada en su perfil o ventas históricas
-                  de esa unidad en la sucursal. No incluimos asesores en
-                  unidades donde falta esa evidencia.
+                  No encontramos asesores activos de esta sucursal para esta
+                  unidad. Confirma que el perfil tenga la sucursal asignada y
+                  que exista una meta aprobada para esta combinación. No se
+                  guardará una distribución incompleta.
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-lg border">
@@ -446,20 +457,29 @@ export default function PresupuestoCoordinadorPage() {
                   y, en último caso, reparte en partes iguales. Puedes
                   ajustarla.
                 </p>
-                <Button
-                  onClick={() => save.mutate()}
-                  disabled={
-                    !dirty ||
-                    !allSharesValid ||
-                    save.isPending ||
-                    !data?.rows.length
-                  }
-                >
-                  {save.isPending
-                    ? "Guardando…"
-                    : "Guardar distribuciones de tus sucursales"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {dirty && (
+                    <Button type="button" variant="outline" onClick={discardChanges} disabled={save.isPending}>
+                      Descartar cambios
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => save.mutate()}
+                    disabled={
+                      !dirty ||
+                      !allSharesValid ||
+                      save.isPending ||
+                      !data?.rows.length
+                    }
+                  >
+                    {save.isPending
+                      ? "Guardando…"
+                      : "Guardar distribuciones"}
+                  </Button>
+                </div>
               </div>
+              {dirty && <p className="text-xs font-medium text-warning" role="status">Cambios sin guardar. Se guardarán todas las unidades y meses de tus sucursales.</p>}
+              {save.isSuccess && !dirty && <p className="text-xs font-medium text-success" role="status">Distribución guardada para todas tus sucursales.</p>}
               {!allSharesValid && data?.rows.length ? (
                 <p role="alert" className="text-sm text-destructive">
                   Revisa todos los meses y unidades: cada distribución debe
