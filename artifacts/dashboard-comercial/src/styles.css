@@ -298,6 +298,69 @@
   }
 }
 
+/* Resumen comercial: una lectura editorial de facturación, con contexto y serie mensual. */
+.ccv-revenue-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(290px, 0.8fr);
+  overflow: hidden;
+  border: 1px solid #d9d7cd;
+  border-radius: 8px;
+  background: #fffef9;
+  box-shadow: 0 2px 8px rgba(28, 39, 31, 0.035);
+}
+
+.ccv-revenue-main { min-width: 0; padding: clamp(1.2rem, 2.1vw, 2rem); }
+.ccv-revenue-heading,
+.ccv-revenue-value-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.ccv-revenue-eyebrow { margin: 0 0 .5rem; color: #9b581b; font: 600 .59rem/1.2 var(--font-mono); letter-spacing: .13em; }
+.ccv-revenue-heading h2 { margin: 0; color: #1b2922; font: 500 clamp(1.2rem, 1.7vw, 1.65rem)/1.1 var(--font-display); letter-spacing: -.025em; }
+.ccv-revenue-status { display: inline-flex; align-items: center; gap: .45rem; flex: 0 0 auto; padding: .4rem .6rem; border: 1px solid #ead9c7; border-radius: 99px; color: #8a5527; background: #faf2e8; font-size: .67rem; font-weight: 700; }
+.ccv-revenue-status > span { width: 6px; height: 6px; border-radius: 50%; background: #b36e2d; }
+.ccv-revenue-status.is-reached { border-color: #c9decf; color: #23553d; background: #edf5ee; }
+.ccv-revenue-status.is-reached > span { background: #2b754d; }
+.ccv-revenue-value-row { justify-content: flex-start; flex-wrap: wrap; margin-top: 1.35rem; }
+.ccv-revenue-value-row > strong { color: #17362b; font: 500 clamp(2.1rem, 4.2vw, 3.6rem)/.95 var(--font-display); letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+.ccv-revenue-attainment { display: inline-flex; align-items: baseline; gap: .35rem; padding: .42rem .58rem; border-radius: 4px; color: #1d503b; background: #edf3e8; font: 700 .82rem/1 var(--font-mono); }
+.ccv-revenue-attainment small { color: #68766a; font: 600 .62rem/1 var(--font-sans); }
+.ccv-revenue-chart { width: 100%; height: 224px; margin-top: .9rem; }
+.ccv-revenue-chart-key { display: flex; gap: 1.25rem; color: #758076; font-size: .65rem; }
+.ccv-revenue-chart-key span { display: inline-flex; align-items: center; gap: .4rem; }
+.ccv-revenue-chart-key i { display: inline-block; width: 15px; height: 2px; background: #a65e25; }
+.ccv-revenue-chart-key span:last-child i { height: 0; border-top: 1px dashed #7b8b7d; background: transparent; }
+.ccv-revenue-aside { display: flex; flex-direction: column; justify-content: space-between; gap: 1.1rem; padding: clamp(1.2rem, 2vw, 1.7rem); border-left: 1px solid #e8e6dc; background: #f8f7f1; }
+.ccv-revenue-target > div:first-child { display: flex; align-items: center; gap: .45rem; color: #68766a; font-size: .68rem; font-weight: 700; }
+.ccv-revenue-target > div:first-child svg { width: 14px; height: 14px; color: #a65e25; }
+.ccv-revenue-target > strong { display: block; margin-top: .8rem; color: #1b2922; font: 500 clamp(1.45rem, 2vw, 2rem)/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.ccv-revenue-target > p { margin: .42rem 0 .75rem; color: #70776d; font-size: .7rem; }
+.ccv-revenue-progress { height: 5px; overflow: hidden; border-radius: 9px; background: #e4e2d8; }
+.ccv-revenue-progress > span { display: block; height: 100%; border-radius: inherit; background: #26764c; }
+.ccv-revenue-projection { display: flex; justify-content: space-between; gap: .5rem; margin-top: .8rem; color: #70776d; font-size: .67rem; }
+.ccv-revenue-projection b { color: #1d503b; font: 700 .7rem var(--font-mono); }
+.ccv-revenue-projection.tone-warning b { color: #9b681f; }
+.ccv-revenue-projection.tone-danger b { color: #b44435; }
+.ccv-revenue-secondary { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; padding-top: 1rem; border-top: 1px solid #e1dfd5; }
+.ccv-revenue-secondary > div { display: flex; flex-direction: column; align-items: flex-start; gap: .32rem; min-width: 0; }
+.ccv-revenue-secondary span { display: inline-flex; align-items: center; gap: .3rem; color: #70776d; font-size: .62rem; }
+.ccv-revenue-secondary span svg,
+.ccv-revenue-secondary small svg { width: 12px; height: 12px; }
+.ccv-revenue-secondary strong { color: #26352c; font: 600 clamp(.82rem, 1.1vw, 1rem) var(--font-mono); font-variant-numeric: tabular-nums; }
+.ccv-revenue-secondary small { display: inline-flex; align-items: center; gap: .25rem; color: #7b8179; font-size: .57rem; line-height: 1.35; }
+.ccv-revenue-lost strong { color: #a74739; }
+.ccv-revenue-lost small svg { color: #a74739; }
+.ccv-revenue-note { display: flex; align-items: flex-start; gap: .5rem; padding-top: .8rem; border-top: 1px solid #e1dfd5; color: #737c72; font-size: .61rem; line-height: 1.45; }
+.ccv-revenue-note svg { width: 14px; height: 14px; flex: 0 0 auto; color: #a65e25; }
+
+@media (max-width: 900px) {
+  .ccv-revenue-panel { grid-template-columns: minmax(0, 1fr) minmax(250px, .8fr); }
+  .ccv-revenue-chart { height: 190px; }
+}
+@media (max-width: 680px) {
+  .ccv-revenue-panel { grid-template-columns: 1fr; }
+  .ccv-revenue-aside { border-top: 1px solid #e8e6dc; border-left: 0; }
+  .ccv-revenue-chart { height: 200px; }
+  .ccv-revenue-value-row { margin-top: 1rem; }
+}
+
 @media not all and (hover: hover) and (pointer: fine) {
   .card-elevated-2-hover:hover,
   .card-elevated-hover:hover {
