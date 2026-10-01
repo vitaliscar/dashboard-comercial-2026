@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -412,6 +412,11 @@ function modulePage(path: string, role: DemoRole) {
 function DashboardApp() {
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isMobileNav, setIsMobileNav] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const closeMenuRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const wasMenuOpen = useRef(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // "Administración" (Usuarios/Ajustes-manuales/Carga) es el grupo menos
   // usado — colapsado por defecto reduce los 16 módulos planos que gerencia
@@ -457,7 +462,24 @@ function DashboardApp() {
   );
   // Sin sesión real, `authRole` es null; el gate de abajo impide que este
   // valor llegue a renderizarse, pero el hook debe ejecutarse siempre.
-  const unitIds = authProfile?.unidades_negocio_ids ?? [];
+  const unitIds = authProfile?.unidades_negocio_ids?.length
+    ? authProfile.unidades_negocio_ids
+    : authProfile?.unidad_negocio_id
+      ? [authProfile.unidad_negocio_id]
+      : [];
+  const roleContextLabel =
+    authRole === "gerente_comercial"
+      ? units
+          ?.filter((unit) => unitIds.includes(unit.id))
+          .map((unit) => unidadLabelInfo(unit.nombre).label)
+          .join(" · ") || "Unidades asignadas"
+      : authRole === "gerencia"
+        ? "Gerencia nacional"
+        : authRole === "coordinador"
+          ? "Sucursal asignada"
+          : authRole === "asesor"
+            ? "Mi cartera"
+            : "Acceso global";
   const accessibleModules = useMemo(
     () =>
       authRole
@@ -500,6 +522,25 @@ function DashboardApp() {
     return () => window.removeEventListener("keydown", handleKeyboard);
   }, []);
 
+  useEffect(() => {
+    if (menuOpen) closeMenuRef.current?.focus();
+    else if (wasMenuOpen.current && menuTriggerRef.current?.getClientRects().length) {
+      menuTriggerRef.current.focus();
+    }
+    wasMenuOpen.current = menuOpen;
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1023px)");
+    const updateViewport = () => {
+      setIsMobileNav(media.matches);
+      if (!media.matches) setMenuOpen(false);
+    };
+    updateViewport();
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
@@ -514,6 +555,7 @@ function DashboardApp() {
   return (
     <ProtectedShell>
       <div className="ccv-shell min-h-screen bg-background text-foreground">
+        <a className="ccv-skip-link" href="#main-content">Ir al contenido</a>
         {menuOpen && (
           <button
             type="button"
@@ -523,6 +565,31 @@ function DashboardApp() {
           />
         )}
         <aside
+          ref={sidebarRef}
+          id="primary-navigation"
+          aria-label="Navegación principal"
+          role={menuOpen ? "dialog" : undefined}
+          aria-modal={menuOpen ? "true" : undefined}
+          aria-hidden={isMobileNav && !menuOpen}
+          inert={isMobileNav && !menuOpen}
+          onKeyDown={(event) => {
+            if (!menuOpen || event.key !== "Tab") return;
+            const focusable = Array.from(
+              sidebarRef.current?.querySelectorAll<HTMLElement>(
+                'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+              ) ?? [],
+            ).filter((element) => element.getClientRects().length > 0);
+            if (!focusable?.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }}
           className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
         >
           <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
@@ -540,9 +607,10 @@ function DashboardApp() {
               </p>
             </div>
             <button
+              ref={closeMenuRef}
               type="button"
               aria-label="Cerrar navegación"
-              className="text-sidebar-foreground/60 lg:hidden"
+              className="flex size-11 items-center justify-center text-sidebar-foreground/60 lg:hidden"
               onClick={() => setMenuOpen(false)}
             >
               <X size={19} />
@@ -554,31 +622,35 @@ function DashboardApp() {
                 (item) => item.group === group,
               );
               if (groupModules.length === 0) return null;
+              const canCollapseGroup = groupModules.length > 1;
               const isActiveGroup = groupModules.some(
                 (item) => location === item.path,
               );
-              const isCollapsed = collapsedGroups.has(group) && !isActiveGroup;
+              const isCollapsed =
+                canCollapseGroup && collapsedGroups.has(group) && !isActiveGroup;
               return (
                 <div key={group} className="mb-5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCollapsedGroups((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(group)) next.delete(group);
-                        else next.add(group);
-                        return next;
-                      })
-                    }
-                    aria-expanded={!isCollapsed}
-                    className="ccv-nav-group mb-2 flex w-full items-center justify-between px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
-                  >
-                    {group}
-                    <ChevronDown
-                      size={12}
-                      className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
-                    />
-                  </button>
+                  {canCollapseGroup && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCollapsedGroups((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(group)) next.delete(group);
+                          else next.add(group);
+                          return next;
+                        })
+                      }
+                      aria-expanded={!isCollapsed}
+                      className="ccv-nav-group mb-2 flex w-full items-center justify-between px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
+                    >
+                      {group}
+                      <ChevronDown
+                        size={12}
+                        className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                      />
+                    </button>
+                  )}
                   <div className={`space-y-1 ${isCollapsed ? "hidden" : ""}`}>
                     {groupModules.map((item) => {
                       const Icon = item.icon;
@@ -639,11 +711,14 @@ function DashboardApp() {
           </div>
         </aside>
 
-        <main className="ccv-main min-h-screen lg:pl-[248px]">
+        <main id="main-content" tabIndex={-1} className="ccv-main min-h-screen lg:pl-[248px]">
           <header className="ccv-topbar sticky top-0 z-20 flex h-[72px] items-center gap-4 border-b border-border bg-background/90 px-4 backdrop-blur-xl sm:px-6">
             <button
+              ref={menuTriggerRef}
               type="button"
               aria-label="Abrir navegación"
+              aria-expanded={menuOpen}
+              aria-controls="primary-navigation"
               className="flex size-11 items-center justify-center rounded-xl border border-border lg:hidden"
               onClick={() => setMenuOpen(true)}
             >
@@ -651,12 +726,15 @@ function DashboardApp() {
             </button>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">
-                Centro Comercial · 2026
+                {current.group}
               </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {current.group} / {currentLabel}
+              <p className="ccv-current-title truncate text-sm font-semibold text-foreground sm:text-base">
+                {currentLabel}
               </p>
             </div>
+            <span className="ccv-role-context hidden md:inline-flex">
+              {roleContextLabel}
+            </span>
             <button
               type="button"
               aria-label="Abrir buscador de módulos"
@@ -665,7 +743,7 @@ function DashboardApp() {
             >
               <Search size={16} />
               Buscar{" "}
-              <kbd className="ml-2 text-[10px] text-muted-foreground">⌘K</kbd>
+              <kbd className="ml-2 text-[10px] text-muted-foreground">Ctrl K</kbd>
             </button>
             <button
               type="button"

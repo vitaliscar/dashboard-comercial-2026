@@ -33,16 +33,6 @@ export function AuthForm() {
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  const resetAttempts = () => {
-    setAttempts(0);
-    setLockUntil(null);
-    setErrorMessage(null);
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("login_attempts");
-      sessionStorage.removeItem("login_lock_until");
-    }
-  };
-
   const isLocked = lockUntil !== null && lockUntil > Date.now();
   const minutesRemaining = isLocked ? Math.ceil((lockUntil - Date.now()) / 60000) : 0;
 
@@ -51,7 +41,6 @@ export function AuthForm() {
     if (isLocked) {
       const msg = `Demasiados intentos fallidos. Intenta de nuevo en ${minutesRemaining} minutos.`;
       setErrorMessage(msg);
-      toast.error(msg);
       return;
     }
 
@@ -72,11 +61,9 @@ export function AuthForm() {
         const msg =
           "Acceso temporalmente bloqueado por 15 minutos debido a demasiados intentos fallidos.";
         setErrorMessage(msg);
-        toast.error(msg);
       } else {
         const msg = error.message + ` (Intento ${newAttempts}/5)`;
         setErrorMessage(msg);
-        toast.error(msg);
       }
       return;
     }
@@ -85,7 +72,9 @@ export function AuthForm() {
     sessionStorage.removeItem("login_attempts");
     sessionStorage.removeItem("login_lock_until");
     toast.success("Sesión iniciada");
-    setLocation("/resumen");
+    // The dashboard entry selects the correct home for the authenticated role
+    // and assigned units; sending every role to /resumen can bypass that path.
+    setLocation("/");
   };
 
   return (
@@ -112,9 +101,9 @@ export function AuthForm() {
           </div>
           <div className="ccv-login-orbit relative mt-16 flex min-h-[340px] w-full flex-col justify-between overflow-hidden p-8" aria-hidden="true">
             <div className="relative z-10 max-w-lg">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#e2f0c5]">Sala comercial · 2026</span>
-              <p className="mt-5 font-display text-5xl leading-[0.98] text-white">Una operación.<br />Muchas decisiones.<br /><em className="font-normal text-[#d7b27b]">Un mismo criterio.</em></p>
-              <p className="mt-5 max-w-sm text-sm leading-6 text-white/65">Ventas, presupuesto y ejecución en el contexto de cada equipo.</p>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#e2f0c5]">CCV / Inteligencia comercial</span>
+              <p className="mt-5 font-display text-5xl leading-[0.98] text-white">Del plan<br />a la <em className="font-normal text-[#d7b27b]">ejecución.</em></p>
+              <p className="mt-5 max-w-sm text-sm leading-6 text-white/65">Metas, ventas y seguimiento comercial en un solo espacio de trabajo.</p>
             </div>
             <div className="ccv-login-route relative z-10 mt-10 flex items-center gap-0">
               <span>Plan</span><i aria-hidden="true" /><span>Gestión</span><i aria-hidden="true" /><span>Resultado</span>
@@ -133,7 +122,7 @@ export function AuthForm() {
 
       {/* ── Right panel: login form ──────────────────────────────────── */}
       <div className="ccv-login-form flex items-center justify-center p-6 sm:p-10 bg-background">
-        <div className="w-full max-w-[390px] flex flex-col gap-8">
+        <div className="ccv-login-card w-full max-w-[390px] flex flex-col gap-8">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3">
             <img src="/Logo_CCV.png" alt="CCV" className="size-9 object-contain" />
@@ -145,13 +134,13 @@ export function AuthForm() {
 
           <div className="space-y-2">
             <p className="text-[10px] tracking-[0.18em] font-mono text-primary font-bold uppercase">
-              ACCESO INTERNO · CCV
+              ESPACIO DE TRABAJO · CCV
             </p>
             <h2 className="font-display text-4xl font-medium tracking-tight text-foreground">
-              Entra al tablero.
+              Iniciar sesión
             </h2>
             <p className="text-sm text-muted-foreground">
-              Información comercial según tu rol y alcance.
+              Accede a la información disponible para tu equipo.
             </p>
           </div>
 
@@ -195,7 +184,7 @@ export function AuthForm() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-1 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
@@ -206,7 +195,6 @@ export function AuthForm() {
             {errorMessage && (
               <div
                 role="alert"
-                aria-live="assertive"
                 className="text-xs font-semibold text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3"
               >
                 {errorMessage}
@@ -221,18 +209,6 @@ export function AuthForm() {
               {loading && <Loader2 className="animate-spin mr-2 size-4" />}
               {isLocked ? `Bloqueado por ${minutesRemaining} min` : "Continuar"}
             </Button>
-
-            {(isLocked || attempts > 0) && (
-              <div className="text-center pt-1">
-                <button
-                  type="button"
-                  onClick={resetAttempts}
-                  className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
-                >
-                  Reiniciar conteo de intentos fallidos
-                </button>
-              </div>
-            )}
           </form>
 
           <p className="ccv-login-footnote text-[11px] text-muted-foreground leading-relaxed">
