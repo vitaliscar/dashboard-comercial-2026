@@ -38,10 +38,7 @@ function ResumenSkeleton() {
           {[140, 120, 200].map((w) => (
             <div key={w} className="flex flex-col gap-2">
               <SkeletonBox className="h-3 w-10" />
-              <SkeletonBox
-                className="h-9"
-                style={{ width: w } as CSSProperties}
-              />
+              <SkeletonBox className="h-9" style={{ width: w } as CSSProperties} />
             </div>
           ))}
           <SkeletonBox className="h-9 w-28 sm:self-end" />
@@ -97,8 +94,7 @@ const mapDbUnidadToUi = (dbNombre: string): UnidadNegocio => {
 
 export default function ResumenPage() {
   const { role, profile, loading: authLoading } = useAuth();
-  const { filters: sharedFilters, setFilters: setSharedFilters } =
-    useSharedFilters();
+  const { filters: sharedFilters, setFilters: setSharedFilters } = useSharedFilters();
   const hideSucursalFilter = role === "coordinador" || role === "asesor";
   const currentMonth = new Date().getMonth() + 1;
 
@@ -132,9 +128,7 @@ export default function ResumenPage() {
   const filters: FilterState = useMemo(() => {
     let sucursalName: string | undefined = undefined;
     if (sharedFilters.sucursales.length > 0 && sucursales) {
-      sucursalName = sucursales.find(
-        (s) => s.id === sharedFilters.sucursales[0],
-      )?.nombre;
+      sucursalName = sucursales.find((s) => s.id === sharedFilters.sucursales[0])?.nombre;
     }
     return {
       anio: sharedFilters.anio,
@@ -162,9 +156,7 @@ export default function ResumenPage() {
 
     if (!canFilterSucursal(context)) {
       if (profile?.sucursal_id) {
-        const name = sucursales.find(
-          (s) => s.id === profile.sucursal_id,
-        )?.nombre;
+        const name = sucursales.find((s) => s.id === profile.sucursal_id)?.nombre;
         return name ? [name] : [];
       }
       return [];
@@ -175,9 +167,7 @@ export default function ResumenPage() {
       return sucursales.map((s) => s.nombre);
     }
 
-    return sucursales
-      .filter((s) => allowedIds.includes(s.id))
-      .map((s) => s.nombre);
+    return sucursales.filter((s) => allowedIds.includes(s.id)).map((s) => s.nombre);
   }, [sucursales, role, profile]);
 
   // Set coordinator's sucursal as default and locked
@@ -242,13 +232,9 @@ export default function ResumenPage() {
     ];
     // Gerencia con una unidad seleccionada → mismo alcance de datos que ve un
     // gerente_comercial de esa unidad (allí llega ya scopeado, vía RLS).
-    const categories: UnidadNegocio[] = selectedUnidadUi
-      ? [selectedUnidadUi]
-      : allCategories;
+    const categories: UnidadNegocio[] = selectedUnidadUi ? [selectedUnidadUi] : allCategories;
 
-    const matchesSelectedUnit = (
-      unidadNegocioId: string | null | undefined,
-    ): boolean => {
+    const matchesSelectedUnit = (unidadNegocioId: string | null | undefined): boolean => {
       if (!selectedUnidadUi) return true;
       const dbName = unidadNegocioId ? unitMap.get(unidadNegocioId) : "";
       return !!dbName && mapDbUnidadToUi(dbName) === selectedUnidadUi;
@@ -261,11 +247,7 @@ export default function ResumenPage() {
     let totalPerdido = 0;
     const monthCap = getAllMonthsCap(filters.anio);
     const monthlyTotals = (
-      rows: Array<{
-        mes: number;
-        unidadNegocioId: string | null;
-        value: number;
-      }>,
+      rows: Array<{ mes: number; unidadNegocioId: string | null; value: number }>,
     ) => {
       const totals = Array.from({ length: monthCap }, () => 0);
       rows.forEach((row) => {
@@ -295,9 +277,7 @@ export default function ResumenPage() {
         if (!matchesSelectedUnit(p.unidadNegocioId)) return;
         totalMetaMes += Number(p.monto || 0);
         totalFacturado +=
-          Number(p.ventasCcv || 0) +
-          Number(p.ventasXibi || 0) +
-          Number(p.ventasEstrategicas || 0);
+          Number(p.ventasCcv || 0) + Number(p.ventasXibi || 0) + Number(p.ventasEstrategicas || 0);
       });
     }
     rawData.ventasPerdidas.forEach((vp) => {
@@ -307,10 +287,8 @@ export default function ResumenPage() {
 
     const facturadoVsCotizadoPorcentaje =
       totalCotizado > 0 ? (totalFacturado / totalCotizado) * 100 : 0;
-    const cumplimientoMetaPorcentaje =
-      totalMetaMes > 0 ? (totalFacturado / totalMetaMes) * 100 : 0;
-    const lostPercentage =
-      totalCotizado > 0 ? (totalPerdido / totalCotizado) * 100 : 0;
+    const cumplimientoMetaPorcentaje = totalMetaMes > 0 ? (totalFacturado / totalMetaMes) * 100 : 0;
+    const lostPercentage = totalCotizado > 0 ? (totalPerdido / totalCotizado) * 100 : 0;
 
     const cotizadoMensual = monthlyTotals(
       rawData.cotizacionesMensual.map((row) => ({
@@ -334,8 +312,7 @@ export default function ResumenPage() {
       meta: Number(row.presupuesto || 0),
       facturado: Number(row.venta || 0),
     }));
-    const monthlyBudgetRows =
-      role === "asesor" ? asesorMensual : presupuestoMensual;
+    const monthlyBudgetRows = role === "asesor" ? asesorMensual : presupuestoMensual;
     const metaMensual = monthlyTotals(
       monthlyBudgetRows.map((row) => ({ ...row, value: row.meta })),
     );
@@ -356,19 +333,12 @@ export default function ResumenPage() {
         const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
         return dbName && mapDbUnidadToUi(dbName) === cat;
       });
-      const monto = filtered.reduce(
-        (sum, c) => sum + Number(c.montoTotal || 0),
-        0,
-      );
+      const monto = filtered.reduce((sum, c) => sum + Number(c.montoTotal || 0), 0);
 
-      const filteredClientes = (rawData.cotizacionesClientes || []).filter(
-        (c) => {
-          const dbName = c.unidadNegocioId
-            ? unitMap.get(c.unidadNegocioId)
-            : "";
-          return dbName && mapDbUnidadToUi(dbName) === cat;
-        },
-      );
+      const filteredClientes = (rawData.cotizacionesClientes || []).filter((c) => {
+        const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
       const clientMap = new Map<string, TopCliente>();
       filteredClientes.forEach((c) => {
         const key = `${c.cliente}|${c.sucursalId || ""}`;
@@ -395,27 +365,19 @@ export default function ResumenPage() {
       if (prevMonthRanges.length > 0) {
         montoMesAnterior = (rawData.cotizacionesPrevMonth || [])
           .filter((c) => {
-            const dbName = c.unidadNegocioId
-              ? unitMap.get(c.unidadNegocioId)
-              : "";
+            const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
             return dbName && mapDbUnidadToUi(dbName) === cat;
           })
           .reduce((sum, c) => sum + Number(c.montoTotal || 0), 0);
         variacionMesAnterior =
-          montoMesAnterior > 0
-            ? ((monto - montoMesAnterior) / montoMesAnterior) * 100
-            : null;
+          montoMesAnterior > 0 ? ((monto - montoMesAnterior) / montoMesAnterior) * 100 : null;
       }
 
       // Serie mensual (ene..mes actual) para la línea de tiempo de la tarjeta.
-      const filteredMensual = (rawData.cotizacionesMensual || []).filter(
-        (c) => {
-          const dbName = c.unidadNegocioId
-            ? unitMap.get(c.unidadNegocioId)
-            : "";
-          return dbName && mapDbUnidadToUi(dbName) === cat;
-        },
-      );
+      const filteredMensual = (rawData.cotizacionesMensual || []).filter((c) => {
+        const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
       const montosMensuales = Array.from({ length: monthCap }, (_, i) => {
         const mesNum = i + 1;
         const montoMes = filteredMensual
@@ -435,13 +397,9 @@ export default function ResumenPage() {
       };
     });
 
-    const sumCotizaciones = cotizacionesMetricas.reduce(
-      (sum, m) => sum + m.monto,
-      0,
-    );
+    const sumCotizaciones = cotizacionesMetricas.reduce((sum, m) => sum + m.monto, 0);
     cotizacionesMetricas.forEach((m) => {
-      m.porcentaje =
-        sumCotizaciones > 0 ? (m.monto / sumCotizaciones) * 100 : 0;
+      m.porcentaje = sumCotizaciones > 0 ? (m.monto / sumCotizaciones) * 100 : 0;
       m.topClientes.forEach((tc) => {
         tc.porcentaje = m.monto > 0 ? (tc.monto / m.monto) * 100 : 0;
       });
@@ -460,14 +418,10 @@ export default function ResumenPage() {
       Alquiler: 45,
     };
     const facturadoMetricas = categories.map((cat) => {
-      const filteredFacClientes = (rawData.facturasClientes || []).filter(
-        (f) => {
-          const dbName = f.unidadNegocioId
-            ? unitMap.get(f.unidadNegocioId)
-            : "";
-          return dbName && mapDbUnidadToUi(dbName) === cat;
-        },
-      );
+      const filteredFacClientes = (rawData.facturasClientes || []).filter((f) => {
+        const dbName = f.unidadNegocioId ? unitMap.get(f.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
       const facClientMap = new Map<string, TopCliente>();
       filteredFacClientes.forEach((f) => {
         const key = `${f.cliente}|${f.sucursalId || ""}`;
@@ -484,14 +438,10 @@ export default function ResumenPage() {
         }
       });
       if (cat === "Servicios") {
-        const filteredServClientes = (rawData.serviciosClientes || []).filter(
-          (s) => {
-            const dbName = s.unidadNegocioId
-              ? unitMap.get(s.unidadNegocioId)
-              : "";
-            return dbName && mapDbUnidadToUi(dbName) === cat;
-          },
-        );
+        const filteredServClientes = (rawData.serviciosClientes || []).filter((s) => {
+          const dbName = s.unidadNegocioId ? unitMap.get(s.unidadNegocioId) : "";
+          return dbName && mapDbUnidadToUi(dbName) === cat;
+        });
         filteredServClientes.forEach((s) => {
           const key = `${s.cliente}|${s.sucursalId || ""}`;
           const existing = facClientMap.get(key);
@@ -520,36 +470,23 @@ export default function ResumenPage() {
         // cumplimiento_asesores no distingue Ventas_CCV/Xibi/Estratégicas — solo presupuesto y
         // venta totales por U/N para este asesor.
         const filteredCa = rawData.cumplimientoAsesor.filter((c) => {
-          const dbName = c.unidadNegocioId
-            ? unitMap.get(c.unidadNegocioId)
-            : "";
+          const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
           return dbName && mapDbUnidadToUi(dbName) === cat;
         });
-        presupuesto = filteredCa.reduce(
-          (sum, c) => sum + Number(c.presupuesto || 0),
-          0,
-        );
+        presupuesto = filteredCa.reduce((sum, c) => sum + Number(c.presupuesto || 0), 0);
         monto = filteredCa.reduce((sum, c) => sum + Number(c.venta || 0), 0);
       } else {
         // Maturín/Machine Shop se cargan sólo en meses con movimiento real (ver
         // excel-parser.ts debeExcluirCumplimiento) — cualquier fila que llega aquí
         // ya es válida, así que no se filtran por sucursal.
         const filteredPre = rawData.presupuestos.filter((p) => {
-          const dbName = p.unidadNegocioId
-            ? unitMap.get(p.unidadNegocioId)
-            : "";
+          const dbName = p.unidadNegocioId ? unitMap.get(p.unidadNegocioId) : "";
           return dbName && mapDbUnidadToUi(dbName) === cat;
         });
         presupuesto = filteredPre.reduce((sum, p) => sum + Number(p.monto), 0);
 
-        ventasCCV = filteredPre.reduce(
-          (sum, p) => sum + Number(p.ventasCcv || 0),
-          0,
-        );
-        ventasXibi = filteredPre.reduce(
-          (sum, p) => sum + Number(p.ventasXibi || 0),
-          0,
-        );
+        ventasCCV = filteredPre.reduce((sum, p) => sum + Number(p.ventasCcv || 0), 0);
+        ventasXibi = filteredPre.reduce((sum, p) => sum + Number(p.ventasXibi || 0), 0);
         ventasEstrategicas = filteredPre.reduce(
           (sum, p) => sum + Number(p.ventasEstrategicas || 0),
           0,
@@ -569,9 +506,7 @@ export default function ResumenPage() {
         cumplimiento,
         margenEstimado: margenPorcentaje,
         margenMonto,
-        tiposCliente: ["TODAS", "CCV", "XIB", "EST"] as (
-          "TODAS" | "CCV" | "XIB" | "EST"
-        )[],
+        tiposCliente: ["TODAS", "CCV", "XIB", "EST"] as ("TODAS" | "CCV" | "XIB" | "EST")[],
         presupuestoTotal: presupuesto,
         ventasCCV,
         ventasXibi,
@@ -587,34 +522,21 @@ export default function ResumenPage() {
       });
     });
 
-    const margenTotal = facturadoMetricas.reduce(
-      (sum, m) => sum + (m.margenMonto || 0),
-      0,
-    );
-    const margenPorcentaje =
-      totalFacturado > 0 ? (margenTotal / totalFacturado) * 100 : 0;
+    const margenTotal = facturadoMetricas.reduce((sum, m) => sum + (m.margenMonto || 0), 0);
+    const margenPorcentaje = totalFacturado > 0 ? (margenTotal / totalFacturado) * 100 : 0;
 
     // 4. Ventas Perdidas by category
     const ventasPerdidasMetricas = categories.map((cat) => {
       const filtered = rawData.ventasPerdidas.filter((vp) => {
-        const dbName = vp.unidadNegocioId
-          ? unitMap.get(vp.unidadNegocioId)
-          : "";
+        const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
         return dbName && mapDbUnidadToUi(dbName) === cat;
       });
-      const monto = filtered.reduce(
-        (sum, vp) => sum + Number(vp.montoTotal || 0),
-        0,
-      );
+      const monto = filtered.reduce((sum, vp) => sum + Number(vp.montoTotal || 0), 0);
 
-      const filteredClientes = (rawData.ventasPerdidasClientes || []).filter(
-        (vp) => {
-          const dbName = vp.unidadNegocioId
-            ? unitMap.get(vp.unidadNegocioId)
-            : "";
-          return dbName && mapDbUnidadToUi(dbName) === cat;
-        },
-      );
+      const filteredClientes = (rawData.ventasPerdidasClientes || []).filter((vp) => {
+        const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
       const vpClientMap = new Map<string, TopCliente>();
       filteredClientes.forEach((vp) => {
         const key = `${vp.cliente}|${vp.sucursalId || ""}`;
@@ -634,18 +556,11 @@ export default function ResumenPage() {
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
 
-      const filteredRazones = (rawData.ventasPerdidasRazones || []).filter(
-        (vp) => {
-          const dbName = vp.unidadNegocioId
-            ? unitMap.get(vp.unidadNegocioId)
-            : "";
-          return dbName && mapDbUnidadToUi(dbName) === cat;
-        },
-      );
-      const razonMap = new Map<
-        string,
-        { razon: string; monto: number; cantidad: number }
-      >();
+      const filteredRazones = (rawData.ventasPerdidasRazones || []).filter((vp) => {
+        const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
+        return dbName && mapDbUnidadToUi(dbName) === cat;
+      });
+      const razonMap = new Map<string, { razon: string; monto: number; cantidad: number }>();
       filteredRazones.forEach((vp) => {
         const existing = razonMap.get(vp.razon);
         const m = Number(vp.montoTotal || 0);
@@ -672,16 +587,12 @@ export default function ResumenPage() {
       if (prevMonthRanges.length > 0) {
         montoMesAnterior = (rawData.ventasPerdidasPrevMonth || [])
           .filter((vp) => {
-            const dbName = vp.unidadNegocioId
-              ? unitMap.get(vp.unidadNegocioId)
-              : "";
+            const dbName = vp.unidadNegocioId ? unitMap.get(vp.unidadNegocioId) : "";
             return dbName && mapDbUnidadToUi(dbName) === cat;
           })
           .reduce((sum, vp) => sum + Number(vp.montoTotal || 0), 0);
         variacionMesAnterior =
-          montoMesAnterior > 0
-            ? ((monto - montoMesAnterior) / montoMesAnterior) * 100
-            : null;
+          montoMesAnterior > 0 ? ((monto - montoMesAnterior) / montoMesAnterior) * 100 : null;
       }
 
       return {
@@ -695,10 +606,7 @@ export default function ResumenPage() {
       };
     });
 
-    const sumPerdidas = ventasPerdidasMetricas.reduce(
-      (sum, m) => sum + m.monto,
-      0,
-    );
+    const sumPerdidas = ventasPerdidasMetricas.reduce((sum, m) => sum + m.monto, 0);
     ventasPerdidasMetricas.forEach((m) => {
       m.porcentaje = sumPerdidas > 0 ? (m.monto / sumPerdidas) * 100 : 0;
       m.topClientes.forEach((tc) => {
@@ -731,30 +639,19 @@ export default function ResumenPage() {
       facturado: facturadoMetricas,
       ventasPerdidas: ventasPerdidasMetricas,
     };
-  }, [
-    rawData,
-    unidades,
-    sucursales,
-    filters,
-    role,
-    prevMonthRanges,
-    selectedUnidadUi,
-  ]);
+  }, [rawData, unidades, sucursales, filters, role, prevMonthRanges, selectedUnidadUi]);
 
   const handleApplyFilters = useCallback(
     (newFilters: FilterState) => {
       let sucursalId: string | undefined = undefined;
       if (newFilters.sucursal && sucursales) {
-        sucursalId = sucursales.find(
-          (s) => s.nombre === newFilters.sucursal,
-        )?.id;
+        sucursalId = sucursales.find((s) => s.nombre === newFilters.sucursal)?.id;
       }
       setSharedFilters({
         anio: newFilters.anio,
         meses: newFilters.meses,
         sucursales: sucursalId ? [sucursalId] : [],
-        unidades:
-          newFilters.unidades ?? (newFilters.unidad ? [newFilters.unidad] : []),
+        unidades: newFilters.unidades ?? (newFilters.unidad ? [newFilters.unidad] : []),
       });
     },
     [sucursales, setSharedFilters],
@@ -812,9 +709,7 @@ export default function ResumenPage() {
   }, [sharedFilters, setSharedFilters, currentMonth]);
 
   const isDataLoadingCombined =
-    isSucLoading ||
-    isUnLoading ||
-    (isDataLoading && !!unidades && !!sucursales);
+    isSucLoading || isUnLoading || (isDataLoading && !!unidades && !!sucursales);
   const hasError = isSucError || isUnError || isDataError;
   const firstError = sucError || unError || dataError;
   const facturadoProjection = resumenData
@@ -827,27 +722,20 @@ export default function ResumenPage() {
     : null;
 
   if (authLoading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
-        Cargando sesión…
-      </div>
-    );
+    return <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Cargando sesión…</div>;
   }
 
   if (!role) {
     return (
       <div className="card-elevated p-8 max-w-xl mx-auto my-12 text-center flex flex-col items-center gap-4">
         <Shield className="size-10 text-muted-foreground" />
-        <h2 className="font-display text-xl font-bold">
-          Usuario sin rol asignado
-        </h2>
+        <h2 className="font-display text-xl font-bold">Usuario sin rol asignado</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Tu cuenta de usuario está activa pero no tiene un rol asignado en la
-          base de datos (Gerencia, Gerente Comercial, Coordinador o Asesor).
+          Tu cuenta de usuario está activa pero no tiene un rol asignado en la base de datos
+          (Gerencia, Gerente Comercial, Coordinador o Asesor).
         </p>
         <p className="text-xs text-muted-foreground">
-          Por favor, contacta al administrador del sistema para asignar tu
-          perfil.
+          Por favor, contacta al administrador del sistema para asignar tu perfil.
         </p>
       </div>
     );
@@ -857,9 +745,7 @@ export default function ResumenPage() {
     return (
       <div className="card-elevated p-8 max-w-xl mx-auto my-12 text-center flex flex-col items-center gap-4">
         <AlertCircle className="size-10 text-destructive" />
-        <h2 className="font-display text-xl font-bold">
-          Error al cargar datos
-        </h2>
+        <h2 className="font-display text-xl font-bold">Error al cargar datos</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           {firstError instanceof Error
             ? firstError.message
@@ -919,16 +805,11 @@ export default function ResumenPage() {
         metaMensual={resumenData.kpis.metaMensual}
         periodoLabel={`${filters.meses === "all" ? "año completo" : filters.meses.map((m) => MESES[m - 1]).join(", ")} ${filters.anio}`}
         anio={filters.anio}
-        facturadoVsCotizadoPorcentaje={
-          resumenData.kpis.facturadoVsCotizadoPorcentaje
-        }
+        facturadoVsCotizadoPorcentaje={resumenData.kpis.facturadoVsCotizadoPorcentaje}
         cumplimientoMetaPorcentaje={resumenData.kpis.cumplimientoMetaPorcentaje}
         facturadoProjection={
           facturadoProjection
-            ? {
-                value: money(facturadoProjection.projectedSales),
-                tone: facturadoProjection.tone,
-              }
+            ? { value: money(facturadoProjection.projectedSales), tone: facturadoProjection.tone }
             : undefined
         }
         ventasPerdidas={resumenData.kpis.ventasPerdidas}
@@ -963,20 +844,20 @@ export default function ResumenPage() {
         <details className="ccv-summary-details">
           <summary>Ver desglose por unidad, sucursal y cliente</summary>
           <div className="ccv-summary-detail-content">
-            <CotizacionesSectionLegacy
-              datos={resumenData.cotizaciones}
-              hideSucursalColumn={role === "coordinador" || role === "asesor"}
-            />
+          <CotizacionesSectionLegacy
+            datos={resumenData.cotizaciones}
+            hideSucursalColumn={role === "coordinador" || role === "asesor"}
+          />
 
-            <FacturadoSectionLegacy
-              datos={resumenData.facturado}
-              hideSucursalColumn={role === "coordinador" || role === "asesor"}
-            />
+          <FacturadoSectionLegacy
+            datos={resumenData.facturado}
+            hideSucursalColumn={role === "coordinador" || role === "asesor"}
+          />
 
-            <VentasPerdidasSectionLegacy
-              datos={resumenData.ventasPerdidas}
-              hideSucursalColumn={role === "coordinador" || role === "asesor"}
-            />
+          <VentasPerdidasSectionLegacy
+            datos={resumenData.ventasPerdidas}
+            hideSucursalColumn={role === "coordinador" || role === "asesor"}
+          />
           </div>
         </details>
       )}
