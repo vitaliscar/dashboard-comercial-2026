@@ -21,23 +21,18 @@ const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "O
 /**
  * Página unificada de Evaluación de Desempeño -- port de ccv-main (Next.js)
  * src/app/(app)/evaluacion/page.tsx a este stack (Vite + wouter + React
- * Query). Mismo gating por rol que el original: gerencia/admin libre;
- * gerente_comercial fija unidad propia; coordinador fija sucursal propia;
- * asesor siempre ve solo su propio dato (mes/unidad libres).
+ * Query). Gerencia/admin filtra globalmente; gerente_comercial y coordinador
+ * reciben todas sus asignaciones autorizadas desde la API; asesor solo ve su dato.
  */
 export default function EvaluacionPage() {
-  const { role, profile } = useAuth();
+  const { role } = useAuth();
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
   const anio = new Date().getFullYear();
 
   const [meses, setMeses] = useState<number[]>([new Date().getMonth() + 1]);
-  const [sucursalIds, setSucursalIds] = useState<string[]>(
-    role === "coordinador" && profile?.sucursal_id ? [profile.sucursal_id] : [],
-  );
-  const [unidadNegocioIds, setUnidadNegocioIds] = useState<string[]>(
-    role === "gerente_comercial" && profile?.unidad_negocio_id ? [profile.unidad_negocio_id] : [],
-  );
+  const [sucursalIds, setSucursalIds] = useState<string[]>([]);
+  const [unidadNegocioIds, setUnidadNegocioIds] = useState<string[]>([]);
 
   const sucursalFija = role === "coordinador";
   const unidadFija = role === "gerente_comercial";
@@ -109,7 +104,7 @@ export default function EvaluacionPage() {
           <div>
             <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Sucursal(es)</p>
             {sucursalFija ? (
-              <p className="text-sm text-muted-foreground">Fijada a tu sucursal asignada.</p>
+              <p className="text-sm text-muted-foreground">Limitada a tus sucursales asignadas.</p>
             ) : (
               <div className="flex max-w-md flex-wrap gap-1.5">
                 {sucursales?.map((s) => (
@@ -130,7 +125,7 @@ export default function EvaluacionPage() {
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Unidad(es) de negocio</p>
           {unidadFija ? (
-            <p className="text-sm text-muted-foreground">Fijada a tu unidad asignada.</p>
+            <p className="text-sm text-muted-foreground">Limitada a tus unidades asignadas.</p>
           ) : (
             <div className="flex max-w-md flex-wrap gap-1.5">
               {unidades?.map((u) => (

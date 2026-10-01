@@ -114,7 +114,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Administración y Datos",
     items: [
-      { to: "/carga", label: "Cargar Excel", icon: FileUp, module: "carga" },
+      { to: "/carga", label: "Fuentes de datos", icon: FileUp, module: "carga" },
       { to: "/usuarios", label: "Usuarios", icon: UserCog, module: "usuarios" },
       {
         to: "/ajustes-manuales",
@@ -236,11 +236,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
-  const getSucursalLabel = () => {
-    if (!sucursales) return "...";
+  const getScopeLabel = () => {
+    if (role === "gerente_comercial") {
+      if (!unidades) return "…";
+      const unitIds = profile?.unidades_negocio_ids?.length
+        ? profile.unidades_negocio_ids
+        : profile?.unidad_negocio_id ? [profile.unidad_negocio_id] : [];
+      const names = unidades.filter((unit) => unitIds.includes(unit.id)).map((unit) => unit.nombre);
+      return names.join(" · ") || "Sin unidad asignada";
+    }
+    if (!sucursales) return "…";
     if (role === "coordinador" || role === "asesor") {
-      const userSuc = sucursales.find((s) => s.id === profile?.sucursal_id);
-      return userSuc?.nombre ?? "Propia";
+      const branchIds = profile?.sucursales_ids?.length
+        ? profile.sucursales_ids
+        : profile?.sucursal_id ? [profile.sucursal_id] : [];
+      const names = sucursales.filter((branch) => branchIds.includes(branch.id)).map((branch) => branch.nombre);
+      return names.join(" · ") || "Sin sucursal asignada";
     }
     const selectedIds = filters?.sucursales ?? [];
     if (selectedIds.length === 0) return "Todas";
@@ -248,6 +259,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (selectedNames.length === 0) return "Todas";
     return selectedNames.join(", ");
   };
+  const scopeLabel = role === "gerente_comercial" ? "Unidad" : "Sucursales";
 
   const assignedUnitIds = profile?.unidades_negocio_ids ?? [];
   const visibleUnitNav = UNIT_NAV.filter((item) => {
@@ -297,7 +309,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="ccv-shell min-h-screen flex bg-background">
       {/* ── Sidebar: 220px, colapsable a 56px en desktop ────────────────── */}
       <aside
         ref={sidebarRef}
@@ -308,6 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           width: collapsed ? "var(--sidebar-collapsed-width)" : "var(--sidebar-expanded-width)",
         }}
         className={cn(
+          "ccv-sidebar",
           "no-print fixed lg:sticky top-0 z-40 h-screen flex flex-col overflow-hidden",
           "bg-sidebar border-r border-sidebar-border",
           "transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
@@ -325,8 +338,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <img src="/Logo_CCV.png" alt="CCV" className="size-8 object-contain shrink-0" />
-          <div className={cn("min-w-0", collapsed && "lg:hidden")}>
-            <div className="font-display font-bold text-sidebar-foreground text-sm leading-tight">CCV</div>
+            <div className={cn("min-w-0", collapsed && "lg:hidden")}>
+            <div className="font-display font-bold text-sidebar-foreground text-sm leading-tight">Centro Comercial</div>
+            <div className="text-[9px] tracking-[0.2em] text-sidebar-foreground/45 font-mono uppercase">Decisiones 2026</div>
             <div className="text-[9px] tracking-widest text-primary font-display font-bold uppercase">
               {roleLabel(role)}
             </div>
@@ -361,6 +375,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div key={group.title} className={cn("px-2", i > 0 && "mt-3")}>
               <p
                 className={cn(
+                  "ccv-nav-group",
                   "px-2 pb-1 text-[10px] font-display font-bold uppercase tracking-wider text-sidebar-foreground/40",
                   collapsed && "lg:hidden",
                 )}
@@ -376,20 +391,21 @@ export function AppShell({ children }: { children: ReactNode }) {
                       href={n.to}
                       onClick={() => setOpen(false)}
                       title={n.label}
+                      aria-current={active ? "page" : undefined}
                       className={cn(
+                        "ccv-nav-link",
                         "flex items-center gap-3 px-2 py-2 rounded-md font-display text-sm tracking-wide",
                         "transition-[background-color,color] duration-150 ease-out",
-                        "border-l-2",
                         active
-                          ? "border-primary bg-sidebar-accent text-sidebar-foreground font-semibold"
-                          : "border-transparent text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                          ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                         collapsed && "lg:justify-center",
                       )}
                     >
                       <n.icon
                         className={cn(
                           "size-4 shrink-0",
-                          active ? "text-primary" : "text-sidebar-accent-foreground/55",
+                          active ? "text-primary-foreground" : "text-sidebar-accent-foreground/50",
                         )}
                       />
                       <span className={cn("whitespace-nowrap", collapsed && "lg:hidden")}>
@@ -419,7 +435,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
 
           <div
-            className={cn("flex items-center gap-3 px-2 py-2", collapsed && "lg:justify-center")}
+            className={cn("ccv-user-card flex items-center gap-3 px-2 py-2", collapsed && "lg:justify-center")}
           >
             <div
               title={collapsed ? (profile?.nombre_completo ?? "Usuario") : undefined}
@@ -451,7 +467,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* ── Main content ──────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Header */}
-        <header className="no-print sticky top-0 z-20 h-14 bg-card/95 backdrop-blur-md border-b border-border flex items-center gap-2 sm:gap-4 px-4 sm:px-6">
+        <header className="ccv-topbar no-print sticky top-0 z-20 h-14 bg-sidebar border-b border-sidebar-border flex items-center gap-2 sm:gap-4 px-4 sm:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -506,7 +522,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               >
                 <Upload className="size-4" />
-                <span className="hidden sm:inline">Cargar Excel</span>
+                <span className="hidden sm:inline">Fuentes de datos</span>
               </Link>
             )}
 
@@ -532,15 +548,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             {/* Sucursal badge */}
             <div
-              className="flex items-center gap-1.5 text-xs font-semibold text-foreground bg-accent/40 border border-border px-2 sm:px-2.5 py-1 rounded-md max-w-30 sm:max-w-50 truncate"
-              title={`Sucursal: ${getSucursalLabel()}`}
+              className="ccv-context-chip flex items-center gap-1.5 text-xs font-semibold text-foreground bg-accent/40 border border-border px-2 sm:px-2.5 py-1 rounded-md max-w-30 sm:max-w-50 truncate"
+              title={`${scopeLabel}: ${getScopeLabel()}`}
             >
               <Building2 className="size-3.5 text-primary shrink-0 sm:hidden" />
               <span className="hidden sm:inline text-muted-foreground font-display font-bold text-[10px] uppercase tracking-wider">
-                Sucursal:
+                {scopeLabel}:
               </span>
               <span className="font-display font-black text-[11px] uppercase tracking-wide truncate">
-                {getSucursalLabel()}
+                {getScopeLabel()}
               </span>
             </div>
 
@@ -559,7 +575,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main id="print-area" className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main id="print-area" className="ccv-content flex-1 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

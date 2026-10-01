@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { clearSharedFilters } from "@/lib/shared-filters";
 
 export type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
@@ -89,16 +90,25 @@ async function readAuthPayload(response: Response): Promise<AuthPayload | null> 
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const activeUserId = useRef<string | null>(null);
   const [session, setSession] = useState<SessionUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const clearCacheOnIdentityChange = (nextUserId: string | null) => {
+    if (activeUserId.current === nextUserId) return;
+    queryClient.clear();
+    activeUserId.current = nextUserId;
+  };
+
   const loadFromMe = async () => {
     try {
       const me = await readAuthPayload(await requestAuth("/me"));
       if (me) {
+        clearCacheOnIdentityChange(me.user.id);
         setSession(me.user);
         setProfile(toUserProfile(me.profile));
         setRole(me.role);
@@ -109,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The demo shell remains usable while the API is unavailable.
     }
     {
+      clearCacheOnIdentityChange(null);
       setSession(null);
       setProfile(null);
       setRole(null);
@@ -139,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const body = (await response.clone().json().catch(() => null)) as { message?: string } | null;
           return { error: new Error(body?.message ?? "Correo o contraseña incorrectos.") };
         }
+        clearCacheOnIdentityChange(result.user.id);
         setSession(result.user);
         setProfile(toUserProfile(result.profile));
         setRole(result.role);
@@ -150,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     signOut: async () => {
       clearSharedFilters();
+      clearCacheOnIdentityChange(null);
       await requestAuth("/logout", { method: "POST" }).catch(() => {});
       setSession(null);
       setProfile(null);

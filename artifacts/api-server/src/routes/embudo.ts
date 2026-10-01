@@ -19,10 +19,11 @@ function filter(session: SessionPayload, alias: string, start: number, branchIds
 }
 router.get("/embudo", async (req: Request, res: Response): Promise<void> => {
   const session = await currentSession(req); if (!session) { res.status(401).json({ message: "Sesión no válida." }); return; } if (!session.role) { res.status(403).json({ message: "El usuario no tiene un rol comercial asignado." }); return; }
+  if (session.role === "asesor" || session.role === "coordinador") { res.status(403).json({ message: "El embudo no está disponible para este rol." }); return; }
   const year = Number(req.query.anio ?? new Date().getUTCFullYear()), unitIds = list(req.query.unidades), branchIds = list(req.query.sucursales), selectedMonths = months(req.query.meses);
   if (!Number.isInteger(year) || year < 2000 || year > 2200 || !unitIds || !branchIds || !selectedMonths) { res.status(400).json({ message: "Los filtros del embudo no son válidos." }); return; }
   const f = filter(session, "c", 3, branchIds, unitIds);
-  if (((session.role === "coordinador" || session.role === "asesor") && branchIds.some((id) => !f.b.includes(id))) || (session.role === "gerente_comercial" && unitIds.some((id) => !f.u.includes(id)))) { res.status(403).json({ message: "El filtro solicitado está fuera de tu alcance." }); return; }
+  if (session.role === "gerente_comercial" && unitIds.some((id) => !f.u.includes(id))) { res.status(403).json({ message: "El filtro solicitado está fuera de tu alcance." }); return; }
   try {
     const data = await withScopedTransaction(session, async (tx: Queryable) => {
       const p = filter(session, "p", 2, branchIds, unitIds, false), c = filter(session, "c", 3, branchIds, unitIds), r = filter(session, "r", 1, branchIds, unitIds, false);
@@ -38,15 +39,35 @@ router.get("/embudo", async (req: Request, res: Response): Promise<void> => {
         cargarAjustesManuales(tx, year),
       ]);
       const row = totals.rows[0] ?? {};
-      // Sin sucursalId por fila no se puede reasignar con precisión -- se
-      // suma cualquier ajuste cuya sucursal/unidad caiga dentro del filtro
-      // solicitado (branchIds/unitIds vacío = todas), igual que en Next.js.
+      // Ajustes manuales no tienen RLS; un filtro vacío debe heredar el alcance
+      // autenticado para que no entren sucursales/unidades de otros roles.
+      const adjustmentBranches = branchIds.length
+        ? branchIds
+        : session.role === "coordinador"
+          ? f.b
+          : [];
+      const adjustmentUnits = unitIds.length
+        ? unitIds
+        : session.role === "gerente_comercial"
+          ? f.u
+          : [];
+      const missingRoleScope =
+        (session.role === "coordinador" && adjustmentBranches.length === 0) ||
+        (session.role === "gerente_comercial" && adjustmentUnits.length === 0);
       const matchAjuste = (a: AjusteRow, mes: number) =>
+        !missingRoleScope &&
         a.mes === mes &&
-        (branchIds.length === 0 || a.sucursalId === null || branchIds.includes(a.sucursalId)) &&
-        (unitIds.length === 0 || a.unidadNegocioId === null || unitIds.includes(a.unidadNegocioId));
+        (a.sucursalId === null ||
+          (session.role !== "coordinador" && branchIds.length === 0) ||
+          adjustmentBranches.includes(a.sucursalId)) &&
+        (a.unidadNegocioId === null ||
+          (session.role !== "gerente_comercial" && unitIds.length === 0) ||
+          adjustmentUnits.includes(a.unidadNegocioId));
+      const monthsForAdjustments = selectedMonths.length
+        ? selectedMonths
+        : Array.from({ length: 12 }, (_, index) => index + 1);
       const ajusteTotal = ajustes
-        .filter((a) => selectedMonths.includes(a.mes) && matchAjuste(a, a.mes))
+        .filter((a) => monthsForAdjustments.includes(a.mes) && matchAjuste(a, a.mes))
         .reduce((sum, a) => sum + a.monto, 0);
       const budgetsConAjuste = budgets.rows.map((r) => {
         const extra = ajustes.filter((a) => matchAjuste(a, Number(r.mes))).reduce((sum, a) => sum + a.monto, 0);

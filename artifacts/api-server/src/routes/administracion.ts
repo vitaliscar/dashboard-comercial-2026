@@ -10,6 +10,16 @@ const ROLES = new Set(["administrador", "gerencia", "gerente_comercial", "coordi
 
 function id(value: unknown) { return typeof value === "string" && UUID.test(value) ? value : null; }
 function optionalId(value: unknown) { return value == null || value === "" ? null : id(value); }
+function idList(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > 100) return null;
+  const items = value.map(id);
+  if (items.some((item) => item === null) || new Set(items).size !== items.length) return null;
+  return items as string[];
+}
+function scopeRequired(role: string, unidadIds: string[], sucursalIds: string[]) {
+  return (role === "gerente_comercial" && unidadIds.length === 0) ||
+    ((role === "coordinador" || role === "asesor") && sucursalIds.length === 0);
+}
 function string(value: unknown, max = 255) {
   return typeof value === "string" && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null;
 }
@@ -52,7 +62,16 @@ export default function administracionRouter(currentSession: SessionLoader, with
 
   async function run<T>(res: Response, session: SessionPayload, fn: (tx: Queryable) => Promise<T>) {
     try { return await withScopedTransaction(session, fn); }
-    catch (error) { res.status(500).json({ message: "No se pudo completar la operación." }); reqLog(res, error); return undefined; }
+    catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      const known: Record<string, { status: number; message: string }> = {
+        SCOPE_REQUIRED: { status: 400, message: "Asigna al menos una unidad para Gerencia Comercial o una sucursal para Coordinación y Asesoría." },
+        USER_NOT_FOUND: { status: 404, message: "No se encontró el usuario." },
+        ADMIN_TARGET: { status: 403, message: "Gerencia Nacional no puede modificar una cuenta Administrador." },
+      };
+      if (known[code]) { res.status(known[code].status).json({ message: known[code].message }); return undefined; }
+      res.status(500).json({ message: "No se pudo completar la operación." }); reqLog(res, error); return undefined;
+    }
   }
   function reqLog(res: Response, error: unknown) { res.req?.log?.error?.({ error }, "administracion failed"); }
 
@@ -75,7 +94,9 @@ export default function administracionRouter(currentSession: SessionLoader, with
     const email = string(req.body?.email)?.toLowerCase(), password = req.body?.password;
     const nombre = string(req.body?.nombreCompleto), role = req.body?.role;
     const sucursalId = optionalId(req.body?.sucursalId), unidadId = optionalId(req.body?.unidadNegocioId);
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password !== "string" || password.length < 8 || password.length > 128 || !nombre || !ROLES.has(role) || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId)) { res.status(400).json({ message: "Los datos del usuario no son válidos." }); return; }
+    const sucursalIds = req.body?.sucursalIds === undefined ? (sucursalId ? [sucursalId] : []) : idList(req.body.sucursalIds);
+    const unidadIds = req.body?.unidadNegocioIds === undefined ? (unidadId ? [unidadId] : []) : idList(req.body.unidadNegocioIds);
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password !== "string" || password.length < 8 || password.length > 128 || !nombre || !ROLES.has(role) || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId) || !sucursalIds || !unidadIds || scopeRequired(role, unidadIds, sucursalIds)) { res.status(400).json({ message: "Completa una asignación válida: Gerencia Comercial requiere al menos una unidad; Coordinación y Asesoría requieren al menos una sucursal." }); return; }
     // Solo administrador puede asignar el rol administrador.
     if (role === "administrador" && session.role !== "administrador") {
       res.status(403).json({ message: "Solo Administrador puede asignar el rol administrador." });
@@ -86,9 +107,10 @@ export default function administracionRouter(currentSession: SessionLoader, with
         if ((await tx.query("SELECT id FROM users WHERE email = $1 LIMIT 1", [email])).rows[0]) throw new Error("DUPLICATE");
         const passwordHash = await hash(password);
         const user = (await tx.query("INSERT INTO users (email, password_hash, is_active, must_change_password) VALUES ($1, $2, true, true) RETURNING id", [email, passwordHash])).rows[0];
-        await tx.query("INSERT INTO profiles (id, email, nombre_completo, sucursal_id, unidad_negocio_id) VALUES ($1::uuid, $2, $3, $4::uuid, $5::uuid)", [user.id, email, nombre, sucursalId, unidadId]);
+        await tx.query("INSERT INTO profiles (id, email, nombre_completo, sucursal_id, unidad_negocio_id) VALUES ($1::uuid, $2, $3, $4::uuid, $5::uuid)", [user.id, email, nombre, sucursalIds[0] ?? null, unidadIds[0] ?? null]);
         await tx.query("INSERT INTO user_roles (user_id, role) VALUES ($1::uuid, $2::app_role)", [user.id, role]);
-        if (sucursalId) await tx.query("INSERT INTO profile_sucursales (profile_id, sucursal_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING", [user.id, sucursalId]);
+        for (const branchId of sucursalIds) await tx.query("INSERT INTO profile_sucursales (profile_id, sucursal_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING", [user.id, branchId]);
+        for (const unitId of unidadIds) await tx.query("INSERT INTO profile_unidades_negocio (profile_id, unidad_negocio_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING", [user.id, unitId]);
         return { success: true, userId: user.id };
       }); res.status(201).json(result);
     } catch (error) { res.status((error as Error).message === "DUPLICATE" ? 409 : 500).json({ message: (error as Error).message === "DUPLICATE" ? "Ya existe un usuario con ese correo." : "No se pudo crear el usuario." }); }
@@ -99,15 +121,42 @@ export default function administracionRouter(currentSession: SessionLoader, with
     if (!userId) { res.status(400).json({ message: "Usuario no válido." }); return; }
     const role = req.body?.role, isAdmin = req.body?.isAdmin, isActive = req.body?.isActive;
     const sucursalId = optionalId(req.body?.sucursalId), unidadId = optionalId(req.body?.unidadNegocioId);
-    if ((role !== undefined && !ROLES.has(role)) || (isAdmin !== undefined && typeof isAdmin !== "boolean") || (isActive !== undefined && typeof isActive !== "boolean") || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId)) { res.status(400).json({ message: "Actualización no válida." }); return; }
+    const sucursalIds = req.body?.sucursalIds === undefined ? undefined : idList(req.body.sucursalIds);
+    const unidadIds = req.body?.unidadNegocioIds === undefined ? undefined : idList(req.body.unidadNegocioIds);
+    if ((role !== undefined && !ROLES.has(role)) || (isAdmin !== undefined && typeof isAdmin !== "boolean") || (isActive !== undefined && typeof isActive !== "boolean") || (req.body?.sucursalId != null && !sucursalId) || (req.body?.unidadNegocioId != null && !unidadId) || (req.body?.sucursalIds !== undefined && !sucursalIds) || (req.body?.unidadNegocioIds !== undefined && !unidadIds)) { res.status(400).json({ message: "Actualización no válida." }); return; }
+    if (isAdmin !== undefined && session.role !== "administrador") { res.status(403).json({ message: "Solo Administrador puede cambiar el permiso de administración." }); return; }
+    if (isActive === false && userId === session.user.id) { res.status(400).json({ message: "No puedes desactivar tu propio usuario." }); return; }
     if (role === "administrador" && session.role !== "administrador") {
       res.status(403).json({ message: "Solo Administrador puede asignar el rol administrador." });
       return;
     }
     const result = await run(res, session, async (tx) => {
+      const current = await tx.query("SELECT role FROM user_roles WHERE user_id = $1::uuid ORDER BY CASE role WHEN 'administrador' THEN 0 WHEN 'gerencia' THEN 1 WHEN 'gerente_comercial' THEN 2 WHEN 'coordinador' THEN 3 ELSE 4 END LIMIT 5", [userId]);
+      if (!current.rows.length) throw new Error("USER_NOT_FOUND");
+      const hasAdminRole = current.rows.some((row) => row.role === "administrador");
+      const currentRole = String(current.rows[0].role);
+      const nextRole = role ?? currentRole;
+      const [currentUnits, currentBranches, legacyProfile] = await Promise.all([
+        tx.query("SELECT unidad_negocio_id AS id FROM profile_unidades_negocio WHERE profile_id = $1::uuid", [userId]),
+        tx.query("SELECT sucursal_id AS id FROM profile_sucursales WHERE profile_id = $1::uuid", [userId]),
+        tx.query("SELECT unidad_negocio_id AS \"unidadId\", sucursal_id AS \"sucursalId\" FROM profiles WHERE id = $1::uuid", [userId]),
+      ]);
+      const legacy = legacyProfile.rows[0] ?? {};
+      const resolvedUnits = unidadIds ?? (req.body?.unidadNegocioId !== undefined ? (unidadId ? [unidadId] : []) : currentUnits.rows.map((row) => String(row.id)).concat(currentUnits.rows.length ? [] : legacy.unidadId ? [String(legacy.unidadId)] : []));
+      const resolvedBranches = sucursalIds ?? (req.body?.sucursalId !== undefined ? (sucursalId ? [sucursalId] : []) : currentBranches.rows.map((row) => String(row.id)).concat(currentBranches.rows.length ? [] : legacy.sucursalId ? [String(legacy.sucursalId)] : []));
+      if (scopeRequired(nextRole, resolvedUnits, resolvedBranches)) throw new Error("SCOPE_REQUIRED");
+      if (session.role === "gerencia" && hasAdminRole) throw new Error("ADMIN_TARGET");
       if (role !== undefined) { await tx.query("DELETE FROM user_roles WHERE user_id = $1::uuid", [userId]); await tx.query("INSERT INTO user_roles (user_id, role) VALUES ($1::uuid, $2::app_role)", [userId, role]); }
       if (isActive !== undefined) { await tx.query("UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2::uuid", [isActive, userId]); if (!isActive) await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]); }
-      if (isAdmin !== undefined || req.body?.sucursalId !== undefined || req.body?.unidadNegocioId !== undefined) await tx.query("UPDATE profiles SET is_admin = COALESCE($1, is_admin), sucursal_id = CASE WHEN $2 THEN $3::uuid ELSE sucursal_id END, unidad_negocio_id = CASE WHEN $4 THEN $5::uuid ELSE unidad_negocio_id END, updated_at = now() WHERE id = $6::uuid", [isAdmin ?? null, req.body?.sucursalId !== undefined, sucursalId, req.body?.unidadNegocioId !== undefined, unidadId, userId]);
+      if (isAdmin !== undefined || sucursalIds !== undefined || unidadIds !== undefined || req.body?.sucursalId !== undefined || req.body?.unidadNegocioId !== undefined) await tx.query("UPDATE profiles SET is_admin = COALESCE($1, is_admin), sucursal_id = CASE WHEN $2 THEN $3::uuid ELSE sucursal_id END, unidad_negocio_id = CASE WHEN $4 THEN $5::uuid ELSE unidad_negocio_id END, updated_at = now() WHERE id = $6::uuid", [isAdmin ?? null, sucursalIds !== undefined || req.body?.sucursalId !== undefined, resolvedBranches[0] ?? null, unidadIds !== undefined || req.body?.unidadNegocioId !== undefined, resolvedUnits[0] ?? null, userId]);
+      if (sucursalIds !== undefined || req.body?.sucursalId !== undefined) {
+        await tx.query("DELETE FROM profile_sucursales WHERE profile_id = $1::uuid", [userId]);
+        for (const branchId of resolvedBranches) await tx.query("INSERT INTO profile_sucursales (profile_id, sucursal_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING", [userId, branchId]);
+      }
+      if (unidadIds !== undefined || req.body?.unidadNegocioId !== undefined) {
+        await tx.query("DELETE FROM profile_unidades_negocio WHERE profile_id = $1::uuid", [userId]);
+        for (const unitId of resolvedUnits) await tx.query("INSERT INTO profile_unidades_negocio (profile_id, unidad_negocio_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING", [userId, unitId]);
+      }
       return { success: true };
     }); if (result) res.json(result);
   });
@@ -115,7 +164,14 @@ export default function administracionRouter(currentSession: SessionLoader, with
   router.post("/usuarios/:id/password", async (req, res) => {
     const session = await fullAccess(req, res); const userId = id(req.params.id), password = req.body?.newPassword;
     if (!session) return; if (!userId || typeof password !== "string" || password.length < 8 || password.length > 128) { res.status(400).json({ message: "La contraseña debe tener entre 8 y 128 caracteres." }); return; }
-    const result = await run(res, session, async (tx) => { await tx.query("UPDATE users SET password_hash = $1, must_change_password = true, updated_at = now() WHERE id = $2::uuid", [await hash(password), userId]); await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]); return { success: true }; }); if (result) res.json(result);
+    const result = await run(res, session, async (tx) => {
+      const targetRoles = await tx.query("SELECT role FROM user_roles WHERE user_id = $1::uuid", [userId]);
+      if (!targetRoles.rows.length) throw new Error("USER_NOT_FOUND");
+      if (session.role === "gerencia" && targetRoles.rows.some((row) => row.role === "administrador")) throw new Error("ADMIN_TARGET");
+      await tx.query("UPDATE users SET password_hash = $1, must_change_password = true, updated_at = now() WHERE id = $2::uuid", [await hash(password), userId]);
+      await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]);
+      return { success: true };
+    }); if (result) res.json(result);
   });
 
   router.delete("/usuarios/:id", async (req, res) => {

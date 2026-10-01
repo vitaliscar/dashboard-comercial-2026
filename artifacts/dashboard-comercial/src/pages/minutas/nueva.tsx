@@ -1,8 +1,8 @@
-import { isFullAccessRole } from "@/lib/permissions";
+import { canCreateNotes } from "@/lib/permissions";
 "use client";
 
 import { useLocation } from "wouter";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
+import { QueryErrorNotice } from "@/components/query-error-notice";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { ArrowLeft, AlertTriangle, Plus, Trash2, Lock } from "lucide-react";
 
@@ -59,22 +60,24 @@ export default function NuevaMinutaPage() {
   const qc = useQueryClient();
   const { role } = useAuth();
 
-  const canCreate = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
+  const canCreate = canCreateNotes({ role });
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
 
-  const { data: destinatarios } = useQuery({
+  const destinatariosQuery = useQuery({
     queryKey: ["destinatarios-disponibles"],
     queryFn: getDestinatariosHttp,
     enabled: canCreate,
   });
+  const destinatarios = destinatariosQuery.data;
 
-  const { data: alertasDisponibles } = useQuery({
+  const alertasQuery = useQuery({
     queryKey: ["alertas-abiertas"],
     queryFn: getAlertasAbiertasHttp,
     enabled: canCreate,
   });
+  const alertasDisponibles = alertasQuery.data;
 
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [destinatarioId, setDestinatarioId] = useState("");
@@ -94,11 +97,12 @@ export default function NuevaMinutaPage() {
   });
   const [draft, setDraft] = useState<Omit<Compromiso, "key">>(draftVacio());
 
-  const { data: clientesDestinatario } = useQuery({
+  const clientesQuery = useQuery({
     queryKey: ["clientes-destinatario", destinatarioId],
     queryFn: () => getClientesDestinatarioHttp(destinatarioId),
     enabled: !!destinatarioId,
   });
+  const clientesDestinatario = clientesQuery.data;
 
   const alertaIdsUsadas = new Set(compromisos.map((c) => c.alertaId).filter(Boolean));
   const clientesDelDestinatario = useMemo(
@@ -204,10 +208,11 @@ export default function NuevaMinutaPage() {
   const severidadVariant = (s: "alta" | "media" | "baja") =>
     s === "alta" ? "destructive" : s === "media" ? "secondary" : "outline";
 
-  if (!canCreate) {
-    setLocation("/minutas");
-    return null;
-  }
+  useEffect(() => {
+    if (!canCreate) setLocation("/minutas");
+  }, [canCreate, setLocation]);
+
+  if (!canCreate) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -221,6 +226,9 @@ export default function NuevaMinutaPage() {
           </Button>
         }
       />
+
+      {destinatariosQuery.isError && <QueryErrorNotice error={destinatariosQuery.error} onRetry={() => void destinatariosQuery.refetch()} fallback="No se pudieron cargar los destinatarios." />}
+      {destinatariosQuery.isLoading && <p className="text-sm text-muted-foreground" role="status">Cargando destinatarios…</p>}
 
       <div className="card-elevated p-5 grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1 col-span-2">
@@ -262,6 +270,7 @@ export default function NuevaMinutaPage() {
         </p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
+          {alertasQuery.isError && <QueryErrorNotice error={alertasQuery.error} onRetry={() => void alertasQuery.refetch()} fallback="No se pudieron cargar las alertas abiertas." />}
           <div className="card-elevated p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">
@@ -311,6 +320,7 @@ export default function NuevaMinutaPage() {
                     </SelectContent>
                   </Select>
                 )}
+                {clientesQuery.isError && <QueryErrorNotice compact error={clientesQuery.error} onRetry={() => void clientesQuery.refetch()} fallback="No se pudieron cargar los clientes." />}
                 {!draft.bloqueado && clientesDestinatario?.length === 0 && (
                   <p className="text-[11px] text-muted-foreground">
                     No hay clientes con actividad registrada para este destinatario todavía.

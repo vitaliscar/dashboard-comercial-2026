@@ -49,7 +49,7 @@ const ROUTES: PaletteRoute[] = [
     icon: UserSearch,
   },
   { to: "/alertas", label: "Torre de Control · Alertas", module: "alertas", icon: BellRing },
-  { to: "/carga", label: "Cargar Excel", module: "carga", icon: Upload },
+  { to: "/carga", label: "Fuentes de datos", module: "carga", icon: Upload },
   { to: "/usuarios", label: "Usuarios", module: "usuarios", icon: Users },
   { to: "/servicios", label: "Servicios", module: "servicios", icon: Wrench },
   { to: "/lubfiltros", label: "Lub / Filtros", module: "lubfiltros", icon: Wrench },

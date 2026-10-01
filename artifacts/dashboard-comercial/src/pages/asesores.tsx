@@ -117,7 +117,7 @@ export default function AsesoresPage() {
 
   const filterKey = JSON.stringify({ anio, meses, selectedSucursales, selectedUnidades });
 
-  const { data: rawData, isLoading } = useQuery({
+  const { data: rawData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["asesores-raw-data", filterKey],
     enabled: canView && !!sucursales && !!unidades,
     queryFn: () =>
@@ -129,12 +129,14 @@ export default function AsesoresPage() {
       }),
   });
 
-  const { data: rawDrilldown, isLoading: isLoadingDrilldown } = useQuery({
-    queryKey: ["asesores-drilldown", selectedAdvisor?.codigo, selectedAdvisor?.nombre, anio],
+  const { data: rawDrilldown, isLoading: isLoadingDrilldown, isError: isDrilldownError, error: drilldownError, refetch: refetchDrilldown } = useQuery({
+    queryKey: ["asesores-drilldown", selectedAdvisor?.codigo, selectedAdvisor?.nombre, anio, selectedSucursales, selectedUnidades],
     enabled: !!selectedAdvisor && canView,
     queryFn: () =>
       getAsesoresDrilldown({
         anio,
+        selectedSucursales,
+        selectedUnidades,
       }),
   });
 
@@ -262,7 +264,7 @@ export default function AsesoresPage() {
       <PageHeader
         eyebrow="Vista Gerencial"
         title="Análisis de Asesores"
-        description="Rendimiento consolidado, metas asignadas, conversión y ranking comercial por asesor de ventas."
+        description="Metas, facturación y cotizaciones por asesor. El porcentaje facturado/cotizado compara montos agregados; no representa conversión de oportunidades."
       />
 
       <FilterHeader
@@ -284,6 +286,11 @@ export default function AsesoresPage() {
               <SkeletonBox className="h-7 w-36" />
             </div>
           ))}
+        </div>
+      ) : isError ? (
+        <div className="card-elevated flex flex-col items-start gap-3 p-6" role="alert">
+          <p className="text-sm text-destructive">{error instanceof Error ? error.message : "No se pudieron cargar los datos de asesores."}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>Reintentar</Button>
         </div>
       ) : kpis ? (
         <>
@@ -363,7 +370,7 @@ export default function AsesoresPage() {
                           Perdido
                         </TableHead>
                         <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
-                          Conversión
+                          Facturado / cotizado
                         </TableHead>
                         <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
                           Part.
@@ -454,6 +461,7 @@ export default function AsesoresPage() {
                                 <Button
                                   size="icon-sm"
                                   variant="ghost"
+                                  aria-label={`Ver detalle de ${item.nombre}`}
                                   onClick={() => setSelectedAdvisor(item)}
                                   className="h-7 w-7"
                                 >
@@ -496,6 +504,11 @@ export default function AsesoresPage() {
               {isLoadingDrilldown ? (
                 <div className="h-64 flex justify-center items-center text-muted-foreground text-xs">
                   Cargando tendencia y registros del asesor...
+                </div>
+              ) : isDrilldownError ? (
+                <div className="flex min-h-32 flex-col items-center justify-center gap-3 text-sm text-destructive" role="alert">
+                  <p>{drilldownError instanceof Error ? drilldownError.message : "No se pudo cargar el detalle del asesor."}</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void refetchDrilldown()}>Reintentar detalle</Button>
                 </div>
               ) : drilldownData ? (
                 <div className="flex flex-col gap-6 mt-4">

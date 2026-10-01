@@ -50,6 +50,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { canAccessModule, canPickSucursalFilter } from "@/lib/permissions";
 
 const BUCKET_ORDER = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+90 días"] as const;
+const PAGE_SIZE = 50;
 const BUCKET_BAR_CLASS: Record<string, string> = {
   Vigente: "bg-success",
   "1-30 días": "bg-muted-foreground",
@@ -74,7 +75,8 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 }
 
 export default function CobranzasPage() {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("cliente") ?? "");
+  const [page, setPage] = useState(0);
   const { session, role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
   const selectedUnidades = filters.unidades;
@@ -101,13 +103,13 @@ export default function CobranzasPage() {
   const handleSucursalSelectionChange = (sucursalIds: string[]) =>
     setFilters({ sucursales: sucursalIds });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["cobranzas", selectedUnidades, selectedSucursales],
     queryFn: () => getCobranzas({ selectedUnidades, selectedSucursales }),
     enabled: Boolean(session) && canView,
   });
 
-  const { data: compData, isLoading: compLoading } = useQuery({
+  const { data: compData, isLoading: compLoading, isError: compError, error: compErrorDetail, refetch: refetchComparison } = useQuery({
     queryKey: ["cobranzas-comparison", selectedUnidades, selectedSucursales],
     queryFn: () => getCobranzasComparison({ selectedUnidades, selectedSucursales }),
     enabled: Boolean(session) && canView,
@@ -134,8 +136,11 @@ export default function CobranzasPage() {
     return enriched.filter(
       (r) =>
         r.cliente.toLowerCase().includes(s) || (r.facturaNumero ?? "").toLowerCase().includes(s),
-    );
+    ).sort((a, b) => b.dias - a.dias || Number(b.saldo) - Number(a.saldo));
   }, [enriched, q]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visiblePage = Math.min(page, pageCount - 1);
+  const visibleRows = filtered.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
 
   const totals = useMemo(() => {
     const t = {
@@ -204,6 +209,18 @@ export default function CobranzasPage() {
             { cols: 1, height: 400 },
           ]}
         />
+      </div>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader eyebrow="Cartera" title="Cobranzas" description="Cuentas por cobrar, análisis de tendencia y riesgo" />
+        <div className="card-elevated flex max-w-2xl flex-col items-start gap-3 p-6" role="alert">
+          <p className="text-sm text-destructive">{error instanceof Error ? error.message : "No se pudieron cargar las cobranzas."}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>Reintentar</Button>
+        </div>
       </div>
     );
   }
@@ -353,6 +370,11 @@ export default function CobranzasPage() {
         <div className="card-elevated flex min-h-24 items-center gap-3 p-5">
           <SkeletonBox className="h-8 w-full" />
           <span className="sr-only">Cargando tendencia semanal…</span>
+        </div>
+      ) : compError ? (
+        <div className="card-elevated flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
+          <p className="text-sm text-destructive">{compErrorDetail instanceof Error ? compErrorDetail.message : "No se pudo cargar la comparación semanal."}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refetchComparison()}>Reintentar</Button>
         </div>
       ) : !compData?.tieneHistorico ? (
         <div className="card-elevated p-5 bg-primary/5 ring-1 ring-primary/15 flex items-start gap-3">
@@ -577,7 +599,7 @@ export default function CobranzasPage() {
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => { setQ(e.target.value); setPage(0); }}
               placeholder="Buscar cliente o factura…"
               className="pl-8 h-9"
             />
@@ -632,7 +654,7 @@ export default function CobranzasPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((r) => (
+                visibleRows.map((r) => (
                   <TableRow
                     key={r.id}
                     className="border-b border-border/50 last:border-0 hover:bg-muted/40"
@@ -656,6 +678,10 @@ export default function CobranzasPage() {
               )}
             </TableBody>
           </Table>
+        </div>
+        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
+          <span>{filtered.length === 0 ? "0 facturas" : `${visiblePage * PAGE_SIZE + 1}–${Math.min((visiblePage + 1) * PAGE_SIZE, filtered.length)} de ${filtered.length} facturas · vencidas primero`}</span>
+          <div className="flex gap-2"><Button size="sm" variant="outline" disabled={visiblePage === 0} onClick={() => setPage(visiblePage - 1)}>Anterior</Button><Button size="sm" variant="outline" disabled={visiblePage >= pageCount - 1} onClick={() => setPage(visiblePage + 1)}>Siguiente</Button></div>
         </div>
       </div>
     </div>

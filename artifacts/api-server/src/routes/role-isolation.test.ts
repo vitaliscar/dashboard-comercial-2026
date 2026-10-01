@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import app from "../app";
 import router from ".";
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type RoleKey = "gerencia" | "gc" | "coordinador" | "asesor";
 
 const DEMO_USERS: Record<RoleKey, string> = {
@@ -19,6 +19,8 @@ const KNOWN_API_ROUTES = [
   "POST /auth/login",
   "GET /auth/me",
   "POST /auth/logout",
+  "POST /auth/keep-password",
+  "POST /auth/change-password",
   "GET /catalogos",
   "GET /resumen",
   "GET /unidades/:unitKey",
@@ -28,6 +30,7 @@ const KNOWN_API_ROUTES = [
   "GET /minutas",
   "GET /minutas/destinatarios",
   "GET /minutas/clientes",
+  "GET /minutas/clientes-destinatario/:id",
   "GET /minutas/alertas-abiertas",
   "POST /minutas",
   "PATCH /minutas/:id",
@@ -38,6 +41,15 @@ const KNOWN_API_ROUTES = [
   "POST /alertas/:id/resolver",
   "GET /cliente-360",
   "GET /embudo",
+  "GET /presupuestos/historico",
+  "GET /presupuestos/versiones",
+  "POST /presupuestos/versiones",
+  "POST /presupuestos/sugerencia",
+  "POST /presupuestos/versiones/:id/generar",
+  "POST /presupuestos/versiones/:id/aprobar",
+  "POST /presupuestos/proyeccion-anual",
+  "GET /presupuestos/asesores",
+  "PUT /presupuestos/asesores",
   "GET /sucursal/metrics",
   "GET /sucursal/trend",
   "GET /coordinador/year",
@@ -46,6 +58,9 @@ const KNOWN_API_ROUTES = [
   "GET /asesor/metrics",
   "GET /asesor/trend",
   "GET /evaluacion/asesor",
+  "GET /evaluacion/gestion-asesores",
+  "GET /evaluacion/reporte",
+  "GET /evaluacion/analisis-narrativo",
   "GET /evaluacion/sucursal",
   "GET /evaluacion/unidad",
   "GET /usuarios",

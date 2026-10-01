@@ -1,137 +1,148 @@
 import { memo } from "react";
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { abbreviateSucursal, money, statusFromPct90 } from "@/lib/format";
+import { ArrowUpRight, Building2 } from "lucide-react";
+import { money, statusFromPct90 } from "@/lib/format";
 import type { BranchSummaryRow } from "./BranchSummaryTable";
 
-import { CHART_X_AXIS_VALUE_HIDDEN } from "@/components/ui/chart";
-import { useChartAnimation } from "@/hooks/use-chart-animation";
+const STATUS_CLASS = {
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-danger",
+} as const;
 
-export type BranchRow = BranchSummaryRow;
+const STATUS_BAR_CLASS = {
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-danger",
+} as const;
 
-const ACCENT_VAR: Record<ReturnType<typeof statusFromPct90>, string> = {
-  success: "var(--color-success)",
-  warning: "var(--color-warning)",
-  danger: "var(--color-danger)",
-};
+const STATUS_LABEL = {
+  success: "En meta",
+  warning: "En avance",
+  danger: "Requiere atención",
+} as const;
 
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <i className="h-2 w-2 rounded-full" style={{ background: color }} />
-      {label}
-    </span>
-  );
-}
-
-function getAxisConfig(maxPct: number) {
-  if (maxPct <= 110) {
-    return {
-      domain: [0, 110] as [number, number],
-      ticks: [0, 50, 100, 110],
-    };
-  }
-  const domainMax = Math.ceil(maxPct / 10) * 10;
-  const ticks = [];
-  for (let i = 0; i <= domainMax; i += 50) {
-    ticks.push(i);
-  }
-  if (ticks[ticks.length - 1] !== domainMax) {
-    ticks.push(domainMax);
-  }
-  return {
-    domain: [0, domainMax] as [number, number],
-    ticks,
-  };
-}
-
-export const BranchRanking = memo(function BranchRanking({ rows }: { rows: BranchRow[] }) {
-  const chartAnimation = useChartAnimation();
-  const chartData = rows.map((r) => ({
-    ...r,
-    shortLabel: abbreviateSucursal(r.label),
-    labelText: `${r.pct.toFixed(1)}%  ·  ${money(r.facturado)}`,
-  }));
-
-  const maxPct = Math.max(...rows.map((r) => r.pct), 0);
-  const { domain } = getAxisConfig(maxPct);
+export const BranchRanking = memo(function BranchRanking({
+  rows,
+  onSelect,
+}: {
+  rows: BranchSummaryRow[];
+  onSelect?: (sucursalId: string) => void;
+}) {
+  const ranked = [...rows].sort((a, b) => a.pct - b.pct);
+  const priorityRows = ranked.slice(0, 6);
+  const remainingRows = ranked.slice(6);
 
   return (
-    <div className="card-elevated section-enter flex h-full flex-col p-4">
-      <h3 className="font-display text-sm font-semibold">Cumplimiento por sucursal</h3>
-      <div className="mt-1 mb-3 flex flex-wrap justify-center gap-3 text-[10px] text-muted-foreground">
-        <LegendDot color={ACCENT_VAR.success} label="Meta (90%+)" />
-        <LegendDot color={ACCENT_VAR.warning} label="Aceptable (70-89%)" />
-        <LegendDot color={ACCENT_VAR.danger} label="Atención (<70%)" />
-      </div>
-      <div className="flex-1" style={{ minHeight: Math.max(260, chartData.length * 28) }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{ top: 5, right: 40, left: 0, bottom: 5 }}
-          >
-            <XAxis type="number" domain={domain} {...CHART_X_AXIS_VALUE_HIDDEN} />
-            <YAxis
-              type="category"
-              dataKey="shortLabel"
-              stroke="var(--color-muted-foreground)"
-              fontSize={10}
-              width={38}
-              tickLine={false}
-              axisLine={false}
-            />
-            <Tooltip
-              cursor={false}
-              formatter={
-                ((v: unknown, _: unknown, item: unknown) => {
-                  const payload = item as { payload?: { facturado: number } };
-                  const monto = money(payload?.payload?.facturado ?? 0);
-                  return `${Number(v).toFixed(1)}%  ·  ${monto}`;
-                }) as never
-              }
-              labelFormatter={
-                ((_: unknown, payload: unknown) => {
-                  const p = payload as Array<{ payload: { label: string } }>;
-                  return p?.[0]?.payload.label ?? "";
-                }) as never
-              }
-              contentStyle={{
-                background: "var(--color-card)",
-                border: "2px solid var(--color-foreground)",
-                borderRadius: 12,
-                fontSize: 12,
-              }}
-              labelStyle={{ color: "var(--color-foreground)" }}
-              itemStyle={{ color: "var(--color-foreground)" }}
-            />
-            <Bar
-              dataKey="pct"
-              name="Cumplimiento"
-              radius={[0, 4, 4, 0]}
-              barSize={24}
-              label={
-                ((props: { x: number; y: number; width: number; height: number; index: number }) => (
-                  <text
-                    x={props.x + props.width + 4}
-                    y={props.y + props.height / 2}
-                    dy={3}
-                    fontSize={9}
-                    fontWeight={700}
-                    fill="var(--color-foreground)"
-                  >
-                    {chartData[props.index]?.labelText ?? ""}
-                  </text>
-                )) as never
-              }
-              {...chartAnimation}
-            >
-              {chartData.map((row) => (
-                <Cell key={row.id} fill={ACCENT_VAR[statusFromPct90(row.pct)]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <section className="card-elevated overflow-hidden" aria-labelledby="branch-priority-title">
+      <header className="border-b border-border p-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-danger/10 text-danger">
+            <Building2 className="size-4" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 id="branch-priority-title" className="font-display text-sm font-semibold">
+              Sucursales con mayor brecha
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ordenadas desde el menor cumplimiento. Abre una para revisar su detalle.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {ranked.length === 0 ? (
+        <p className="p-5 text-sm text-muted-foreground">No hay sucursales con datos en este período.</p>
+      ) : (
+        <>
+          <ol className="divide-y divide-border">
+            {priorityRows.map((row, index) => {
+              const status = statusFromPct90(row.pct);
+              const gap = row.meta - row.facturado;
+              const content = (
+                <>
+                  <span className="w-7 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm font-semibold text-foreground">{row.label}</span>
+                      <span className={`shrink-0 font-mono text-sm font-semibold tabular-nums ${STATUS_CLASS[status]}`}>
+                        {row.pct.toFixed(1)}%
+                      </span>
+                    </span>
+                    <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                      <span
+                        className={`block h-full rounded-full ${STATUS_BAR_CLASS[status]}`}
+                        style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
+                      />
+                    </span>
+                    <span className="mt-1.5 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                      <span>{row.meta <= 0 ? "Sin meta" : STATUS_LABEL[status]} · facturado {money(row.facturado)} de {money(row.meta)}</span>
+                      <span className={gap > 0 ? "text-danger" : "text-success"}>
+                        {row.meta <= 0 ? "Meta sin asignar" : gap > 0 ? `Faltan ${money(gap)}` : `Sobre meta ${money(Math.abs(gap))}`}
+                      </span>
+                    </span>
+                  </span>
+                  {onSelect && <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                </>
+              );
+
+              return (
+                <li key={row.id}>
+                  {onSelect ? (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary"
+                      onClick={() => onSelect(row.id)}
+                      aria-label={`${row.label}: ${row.meta <= 0 ? "sin meta asignada" : `${row.pct.toFixed(1)}% de cumplimiento, faltan ${money(Math.max(0, gap))}`}. Abrir el resumen de esta sucursal.`}
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3 px-4 py-3">{content}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+
+          {remainingRows.length > 0 && (
+            <details className="border-t border-border">
+              <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-primary hover:bg-muted/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                Ver las otras {remainingRows.length} sucursales
+              </summary>
+              <ol start={priorityRows.length + 1} className="divide-y divide-border">
+                {remainingRows.map((row, index) => {
+                  const status = statusFromPct90(row.pct);
+                  const gap = row.meta - row.facturado;
+                  return (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        onClick={() => onSelect?.(row.id)}
+                        disabled={!onSelect}
+                        aria-label={`${row.label}: ${row.pct.toFixed(1)}% de cumplimiento. Abrir su resumen.`}
+                      >
+                        <span className="w-7 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                          {String(priorityRows.length + index + 1).padStart(2, "0")}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.label}</span>
+                        <span className={`font-mono text-sm font-semibold tabular-nums ${STATUS_CLASS[status]}`}>
+                          {row.pct.toFixed(1)}%
+                        </span>
+                        <span className="hidden text-xs text-muted-foreground sm:inline">
+                          {row.meta <= 0 ? "Sin meta" : gap > 0 ? `Faltan ${money(gap)}` : `Sobre meta ${money(Math.abs(gap))}`}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </details>
+          )}
+        </>
+      )}
+    </section>
   );
 });

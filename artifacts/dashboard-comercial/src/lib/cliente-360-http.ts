@@ -5,8 +5,9 @@ export type Cliente360Data = {
   ventasPerdidas: Array<{ cliente: string; monto: string | number }>;
   cobranzas: Array<{ cliente: string; saldo: string | number; fechaVencimiento: string }>;
 };
-export async function getCliente360(data: { fuente: Cliente360Fuente; anio: number; mes: number; unidades: string[]; sucursales: string[] }) {
-  const query = new URLSearchParams({ fuente: data.fuente, anio: String(data.anio), mes: String(data.mes) });
+export async function getCliente360(data: { fuente: Cliente360Fuente; anio: number; meses: number[]; unidades: string[]; sucursales: string[] }) {
+  const query = new URLSearchParams({ fuente: data.fuente, anio: String(data.anio) });
+  if (data.meses.length) query.set("meses", data.meses.join(","));
   if (data.unidades.length) query.set("unidades", data.unidades.join(","));
   if (data.sucursales.length) query.set("sucursales", data.sucursales.join(","));
   const response = await fetch(`/api/cliente-360?${query}`, { credentials: "include" });
