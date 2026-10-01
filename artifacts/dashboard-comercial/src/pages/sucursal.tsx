@@ -7,6 +7,7 @@ import { getSucursalMetrics, getSucursalTrend } from "@/lib/paneles-http";
 import { money, MESES, pct } from "@/lib/format";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 
 export default function SucursalPage() {
   const { role, profile } = useAuth();
@@ -23,6 +24,7 @@ export default function SucursalPage() {
     presupuesto: Number(trend.data?.presupuestos.find((row) => Number(row.mes) === i + 1)?.monto ?? 0),
   })), [trend.data]);
   if (role === "asesor") return <p className="card-elevated p-6">Tu panel personal está disponible en “Mi Panel”.</p>;
+  if (metrics.isError) return <div className="flex flex-col gap-6"><PageHeader eyebrow="Sucursal" title="Desempeño de sucursal" description="Facturación, presupuesto y oportunidades del alcance autorizado." /><div className="card-elevated flex max-w-2xl flex-col items-start gap-3 p-6" role="alert"><p className="text-sm text-destructive">{metrics.error.message}</p><Button type="button" variant="outline" size="sm" onClick={() => void metrics.refetch()}>Reintentar</Button></div></div>;
   return <div className="flex flex-col gap-6">
     <PageHeader eyebrow="Sucursal" title="Desempeño de sucursal" description="Facturación, presupuesto y oportunidades del alcance autorizado." />
     <div className="grid gap-4 md:grid-cols-3">
@@ -32,8 +34,7 @@ export default function SucursalPage() {
     </div>
     <section className="card-elevated h-80 p-5" data-testid="chart-sucursal-trend">
       <h2 className="mb-4 font-display font-semibold">Ventas vs. presupuesto</h2>
-      <ResponsiveContainer width="100%" height="90%"><ComposedChart data={chart}><XAxis dataKey="mes" /><YAxis /><Tooltip formatter={(value: number) => money(Number(value))} /><Legend /><Bar dataKey="presupuesto" fill="hsl(var(--muted-foreground))" /><Line dataKey="ventas" stroke="hsl(var(--primary))" strokeWidth={3} /></ComposedChart></ResponsiveContainer>
+      {trend.isError ? <p className="py-16 text-center text-sm text-destructive" role="alert">{trend.error.message}</p> : <ResponsiveContainer width="100%" height="90%"><ComposedChart data={chart}><XAxis dataKey="mes" /><YAxis /><Tooltip formatter={(value: number) => money(Number(value))} /><Legend /><Bar dataKey="presupuesto" fill="hsl(var(--muted-foreground))" /><Line dataKey="ventas" stroke="hsl(var(--primary))" strokeWidth={3} /></ComposedChart></ResponsiveContainer>}
     </section>
-    {metrics.isError && <p className="text-destructive" data-testid="status-sucursal-error">{metrics.error.message}</p>}
   </div>;
 }

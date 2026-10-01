@@ -673,12 +673,16 @@ export const detallesVentasRepuestos = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     marca: text("marca").notNull(),
     mes: integer("mes").notNull(),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
     ventasCcv: numeric("ventas_ccv", { precision: 14, scale: 2 }).notNull().default("0"),
     ventasXibi: numeric("ventas_xibi", { precision: 14, scale: 2 }).notNull().default("0"),
     montoTotal: numeric("monto_total", { precision: 14, scale: 2 }).notNull().default("0"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("detalles_ventas_repuestos_mes_idx").on(t.mes)],
+  (t) => [
+    index("detalles_ventas_repuestos_mes_idx").on(t.mes),
+    index("detalles_ventas_repuestos_sucursal_id_idx").on(t.sucursalId),
+  ],
 );
 
 // ── Mercadeo ────────────────────────────────────────────────────────────────

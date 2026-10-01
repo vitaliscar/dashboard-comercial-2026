@@ -1,6 +1,10 @@
 import { Router, type Request, type Response } from "express";
 import { currentSession, getPool, withScopedTransaction } from "./auth";
-import { aplicarAjustesAPresupuestos, cargarAjustesManuales, sumaAjuste } from "../lib/ajustes-manuales";
+import {
+  aplicarAjustesAPresupuestos,
+  cargarAjustesManuales,
+  sumaAjuste,
+} from "../lib/ajustes-manuales";
 
 const router = Router();
 const UUID_RE =
@@ -8,7 +12,9 @@ const UUID_RE =
 
 type SessionPayload = NonNullable<Awaited<ReturnType<typeof currentSession>>>;
 type QueryResult = { rows: Record<string, unknown>[] };
-type Queryable = { query: (text: string, values?: unknown[]) => Promise<QueryResult> };
+type Queryable = {
+  query: (text: string, values?: unknown[]) => Promise<QueryResult>;
+};
 
 function asUuid(value: unknown) {
   return typeof value === "string" && UUID_RE.test(value) ? value : null;
@@ -30,7 +36,10 @@ function parseMonths(value: unknown, year: number) {
   const values = Array.isArray(value) ? value : String(value).split(",");
   const months = values
     .map((month) => Number(month))
-    .filter((month) => Number.isInteger(month) && month >= 1 && month <= Math.max(cap, 12));
+    .filter(
+      (month) =>
+        Number.isInteger(month) && month >= 1 && month <= Math.max(cap, 12),
+    );
   return [...new Set(months)].sort((a, b) => a - b);
 }
 
@@ -40,13 +49,23 @@ function addScope(
   requestedBranch: string | null,
   requestedUnit: string | null,
 ) {
-  const branchIds = profile.sucursalesIds ?? (profile.sucursalId ? [profile.sucursalId] : []);
-  const unitIds = profile.unidadesNegocioIds ?? (profile.unidadNegocioId ? [profile.unidadNegocioId] : []);
-  const branchScope = role === "coordinador" || role === "asesor" ? branchIds : null;
-  const unitScope = role === "gerente_comercial" ? unitIds : null;
-  const branch = requestedBranch ?? (branchScope?.length === 1 ? branchScope[0] : null);
+  const branchIds =
+    profile.sucursalesIds ?? (profile.sucursalId ? [profile.sucursalId] : []);
+  const unitIds =
+    profile.unidadesNegocioIds ??
+    (profile.unidadNegocioId ? [profile.unidadNegocioId] : []);
+  const branchScope =
+    role === "coordinador" || role === "asesor" ? branchIds : null;
+  const unitScope =
+    role === "gerente_comercial" || role === "asesor" ? unitIds : null;
+  const branch =
+    requestedBranch ?? (branchScope?.length === 1 ? branchScope[0] : null);
 
-  if (requestedBranch && branchScope && !branchScope.includes(requestedBranch)) {
+  if (
+    requestedBranch &&
+    branchScope &&
+    !branchScope.includes(requestedBranch)
+  ) {
     return null;
   }
   if (requestedUnit && unitScope && !unitScope.includes(requestedUnit)) {
@@ -85,10 +104,13 @@ function whereFor(
       ];
 
   if (scope.branch) predicates.push(`${alias}.sucursal_id = $4::uuid`);
-  else if (scope.branchScope) predicates.push(`${alias}.sucursal_id = ANY($7::uuid[])`);
+  else if (scope.branchScope)
+    predicates.push(`${alias}.sucursal_id = ANY($7::uuid[])`);
   if (scope.unit) predicates.push(`${alias}.unidad_negocio_id = $5::uuid`);
-  else if (scope.unitScope) predicates.push(`${alias}.unidad_negocio_id = ANY($8::uuid[])`);
-  if (scope.advisor && includeAdvisor) predicates.push(`${alias}.asesor_id = $6::uuid`);
+  else if (scope.unitScope)
+    predicates.push(`${alias}.unidad_negocio_id = ANY($8::uuid[])`);
+  if (scope.advisor && includeAdvisor)
+    predicates.push(`${alias}.asesor_id = $6::uuid`);
   // queryParams comparte un arreglo para las diez consultas del resumen. Estos
   // predicados neutrales mantienen tipados y referenciados los parámetros
   // opcionales que una combinación de rol/filtro puede no usar.
@@ -122,13 +144,59 @@ function queryParams(
   ];
 }
 
+async function cargarCumplimientoAsesor(
+  tx: Queryable,
+  advisorWhere: string,
+  assignedWhere: string,
+  params: unknown[],
+) {
+  const allocationTable = await tx.query(
+    "SELECT to_regclass('public.presupuestos_asesores') IS NOT NULL AS disponible",
+  );
+  if (!allocationTable.rows[0]?.disponible) {
+    return tx.query(
+      `SELECT ca.mes, SUM(ca.presupuesto) AS presupuesto,
+              SUM(ca.venta) AS venta, ca.unidad_negocio_id AS "unidadNegocioId"
+       FROM cumplimiento_asesores ca WHERE ${advisorWhere}
+       GROUP BY ca.anio, ca.mes, ca.sucursal_id, ca.unidad_negocio_id, ca.asesor_id`,
+      params,
+    );
+  }
+  return tx.query(
+    `WITH cumplimiento AS (
+       SELECT ca.anio, ca.mes, ca.sucursal_id, ca.unidad_negocio_id, ca.asesor_id,
+              SUM(ca.presupuesto) AS presupuesto, SUM(ca.venta) AS venta
+       FROM cumplimiento_asesores ca WHERE ${advisorWhere}
+       GROUP BY ca.anio, ca.mes, ca.sucursal_id, ca.unidad_negocio_id, ca.asesor_id
+     ), asignado AS (
+       SELECT pa.anio, pa.mes, pa.sucursal_id, pa.unidad_negocio_id, pa.asesor_id,
+              SUM(pa.monto) AS presupuesto
+       FROM presupuestos_asesores pa WHERE ${assignedWhere}
+       GROUP BY pa.anio, pa.mes, pa.sucursal_id, pa.unidad_negocio_id, pa.asesor_id
+     )
+     SELECT COALESCE(cumplimiento.mes, asignado.mes) AS mes,
+            COALESCE(asignado.presupuesto, cumplimiento.presupuesto, 0) AS presupuesto,
+            COALESCE(cumplimiento.venta, 0) AS venta,
+            COALESCE(cumplimiento.unidad_negocio_id, asignado.unidad_negocio_id) AS "unidadNegocioId"
+     FROM cumplimiento FULL JOIN asignado
+       ON cumplimiento.anio = asignado.anio
+       AND cumplimiento.mes = asignado.mes
+       AND cumplimiento.sucursal_id = asignado.sucursal_id
+       AND cumplimiento.unidad_negocio_id = asignado.unidad_negocio_id
+       AND cumplimiento.asesor_id = asignado.asesor_id`,
+    params,
+  );
+}
+
 async function getCatalogs(pool: Queryable, session: SessionPayload) {
   const branchIds =
     session.role === "coordinador" || session.role === "asesor"
-      ? session.profile.sucursalesIds ?? []
+      ? (session.profile.sucursalesIds ?? [])
       : null;
   const unitIds =
-    session.role === "gerente_comercial" ? session.profile.unidadesNegocioIds ?? [] : null;
+    session.role === "gerente_comercial" || session.role === "asesor"
+      ? (session.profile.unidadesNegocioIds ?? [])
+      : null;
   const [branches, units] = await Promise.all([
     pool.query(
       `SELECT id, nombre, ciudad
@@ -157,7 +225,9 @@ router.get("/catalogos", async (req: Request, res: Response) => {
     return;
   }
   if (!session.role) {
-    res.status(403).json({ message: "El usuario no tiene un rol comercial asignado." });
+    res
+      .status(403)
+      .json({ message: "El usuario no tiene un rol comercial asignado." });
     return;
   }
   const pool = await getPool();
@@ -166,7 +236,9 @@ router.get("/catalogos", async (req: Request, res: Response) => {
     return;
   }
   try {
-    res.json(await withScopedTransaction(session, (tx) => getCatalogs(tx, session)));
+    res.json(
+      await withScopedTransaction(session, (tx) => getCatalogs(tx, session)),
+    );
   } catch {
     res.status(500).json({ message: "No se pudieron cargar los catálogos." });
   }
@@ -179,7 +251,9 @@ router.get("/resumen", async (req: Request, res: Response) => {
     return;
   }
   if (!session.role) {
-    res.status(403).json({ message: "El usuario no tiene un rol comercial asignado." });
+    res
+      .status(403)
+      .json({ message: "El usuario no tiene un rol comercial asignado." });
     return;
   }
 
@@ -191,9 +265,16 @@ router.get("/resumen", async (req: Request, res: Response) => {
   const months = parseMonths(req.query.meses, year);
   const requestedBranch = asUuid(req.query.sucursalId);
   const requestedUnit = asUuid(req.query.unidadNegocioId);
-  const scope = addScope(session.role, session.profile, requestedBranch, requestedUnit);
+  const scope = addScope(
+    session.role,
+    session.profile,
+    requestedBranch,
+    requestedUnit,
+  );
   if (!scope) {
-    res.status(403).json({ message: "El filtro solicitado está fuera de tu alcance." });
+    res
+      .status(403)
+      .json({ message: "El filtro solicitado está fuera de tu alcance." });
     return;
   }
 
@@ -216,127 +297,127 @@ router.get("/resumen", async (req: Request, res: Response) => {
   try {
     const result = await withScopedTransaction(session, async (tx) => {
       const [
-      cotizaciones,
-      cotizacionesMensual,
-      ventasPerdidasMensual,
-      cotizacionesClientes,
-      facturas,
-      facturasClientes,
-      ventasPerdidas,
-      ventasPerdidasClientes,
-      ventasPerdidasRazones,
-      servicios,
-      serviciosClientes,
-      presupuestos,
-      presupuestosMensual,
-      cumplimientoAsesor,
-      ajustes,
+        cotizaciones,
+        cotizacionesMensual,
+        ventasPerdidasMensual,
+        cotizacionesClientes,
+        facturas,
+        facturasClientes,
+        ventasPerdidas,
+        ventasPerdidasClientes,
+        ventasPerdidasRazones,
+        servicios,
+        serviciosClientes,
+        presupuestos,
+        presupuestosMensual,
+        cumplimientoAsesor,
+        ajustes,
       ] = await Promise.all([
-      tx.query(
-        `SELECT c.unidad_negocio_id AS "unidadNegocioId",
+        tx.query(
+          `SELECT c.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(c.monto), 0) AS "montoTotal",
                 COUNT(c.id)::int AS cantidad
          FROM cotizaciones c WHERE ${cotWhere}
          GROUP BY c.unidad_negocio_id`,
-        params,
-      ),
-      tx.query(
-        `SELECT c.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT c.unidad_negocio_id AS "unidadNegocioId",
                 EXTRACT(month FROM c.fecha)::int AS mes,
                 COALESCE(SUM(c.monto), 0) AS "montoTotal"
          FROM cotizaciones c WHERE ${cotMonthlyWhere}
          GROUP BY c.unidad_negocio_id, EXTRACT(month FROM c.fecha)`,
-        params,
-      ),
-      tx.query(
-        `SELECT v.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 EXTRACT(month FROM v.fecha)::int AS mes,
                 COALESCE(SUM(v.monto), 0) AS "montoTotal"
          FROM ventas_perdidas v WHERE ${lostMonthlyWhere}
          GROUP BY v.unidad_negocio_id, EXTRACT(month FROM v.fecha)`,
-        params,
-      ),
-      tx.query(
-        `SELECT c.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT c.unidad_negocio_id AS "unidadNegocioId",
                 c.sucursal_id AS "sucursalId",
                 c.cliente,
                 COALESCE(SUM(c.monto), 0) AS "montoTotal"
          FROM cotizaciones c WHERE ${cotWhere}
          GROUP BY c.unidad_negocio_id, c.sucursal_id, c.cliente`,
-        params,
-      ),
-      tx.query(
-        `SELECT f.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT f.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(f.monto), 0) AS "montoTotal",
                 COUNT(f.id)::int AS cantidad
          FROM facturas f WHERE ${facWhere}
          GROUP BY f.unidad_negocio_id`,
-        params,
-      ),
-      tx.query(
-        `SELECT f.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT f.unidad_negocio_id AS "unidadNegocioId",
                 f.sucursal_id AS "sucursalId",
                 f.cliente,
                 COALESCE(SUM(f.monto), 0) AS "montoTotal"
          FROM facturas f WHERE ${facWhere}
            AND f.cliente NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'
          GROUP BY f.unidad_negocio_id, f.sucursal_id, f.cliente`,
-        params,
-      ),
-      tx.query(
-        `SELECT v.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(v.monto), 0) AS "montoTotal",
                 COUNT(v.id)::int AS cantidad
          FROM ventas_perdidas v WHERE ${lostWhere}
          GROUP BY v.unidad_negocio_id`,
-        params,
-      ),
-      tx.query(
-        `SELECT v.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 v.sucursal_id AS "sucursalId",
                 v.cliente,
                 COALESCE(SUM(v.monto), 0) AS "montoTotal"
          FROM ventas_perdidas v WHERE ${lostWhere}
          GROUP BY v.unidad_negocio_id, v.sucursal_id, v.cliente`,
-        params,
-      ),
-      tx.query(
-        `SELECT v.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT v.unidad_negocio_id AS "unidadNegocioId",
                 v.razon,
                 COALESCE(SUM(v.monto), 0) AS "montoTotal",
                 COUNT(v.id)::int AS cantidad
          FROM ventas_perdidas v WHERE ${lostWhere}
          GROUP BY v.unidad_negocio_id, v.razon`,
-        params,
-      ),
-      tx.query(
-        `SELECT s.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT s.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(s.monto), 0) AS "montoTotal",
                 COUNT(s.id)::int AS cantidad
          FROM servicios s WHERE ${servicesWhere}
          GROUP BY s.unidad_negocio_id`,
-        params,
-      ),
-      tx.query(
-        `SELECT s.unidad_negocio_id AS "unidadNegocioId",
+          params,
+        ),
+        tx.query(
+          `SELECT s.unidad_negocio_id AS "unidadNegocioId",
                 s.sucursal_id AS "sucursalId",
                 s.cliente,
                 COALESCE(SUM(s.monto), 0) AS "montoTotal"
          FROM servicios s WHERE ${servicesWhere}
            AND s.cliente NOT ILIKE '%CONSORCIO%COGESTION%VENEQUIP%'
          GROUP BY s.unidad_negocio_id, s.sucursal_id, s.cliente`,
-        params,
-      ),
-      tx.query(
-        `SELECT p.id, p.anio, p.mes, p.sucursal_id AS "sucursalId",
+          params,
+        ),
+        tx.query(
+          `SELECT p.id, p.anio, p.mes, p.sucursal_id AS "sucursalId",
                 p.unidad_negocio_id AS "unidadNegocioId", p.monto,
                 p.ventas_ccv AS "ventasCcv", p.ventas_xibi AS "ventasXibi",
                 p.ventas_estrategicas AS "ventasEstrategicas"
          FROM presupuestos p WHERE ${budgetWhere}`,
-        params,
-      ),
-      tx.query(
-        `SELECT p.mes,
+          params,
+        ),
+        tx.query(
+          `SELECT p.mes,
                 p.unidad_negocio_id AS "unidadNegocioId",
                 COALESCE(SUM(p.monto), 0) AS monto,
                 COALESCE(SUM(p.ventas_ccv), 0) AS "ventasCcv",
@@ -344,70 +425,92 @@ router.get("/resumen", async (req: Request, res: Response) => {
                 COALESCE(SUM(p.ventas_estrategicas), 0) AS "ventasEstrategicas"
          FROM presupuestos p WHERE ${budgetMonthlyWhere}
          GROUP BY p.mes, p.unidad_negocio_id`,
-        params,
-      ),
-      session.role === "asesor"
-        ? tx.query(
-            `SELECT ca.mes, ca.presupuesto, ca.venta,
-                    ca.unidad_negocio_id AS "unidadNegocioId"
-             FROM cumplimiento_asesores ca WHERE ${advisorWhere}`,
-            params,
-          )
-        : Promise.resolve({ rows: [] }),
-      cargarAjustesManuales(tx, year),
-    ]);
+          params,
+        ),
+        session.role === "asesor"
+          ? cargarCumplimientoAsesor(
+              tx,
+              advisorWhere,
+              whereFor("pa", scope),
+              params,
+            )
+          : Promise.resolve({ rows: [] }),
+        cargarAjustesManuales(tx, year),
+      ]);
 
       return {
-      cotizaciones: cotizaciones.rows,
-      cotizacionesPrevMonth: [],
-      cotizacionesMensual: cotizacionesMensual.rows,
-      ventasPerdidasMensual: ventasPerdidasMensual.rows,
-      cotizacionesClientes: cotizacionesClientes.rows,
-      facturas: facturas.rows,
-      facturasClientes: facturasClientes.rows,
-      ventasPerdidas: ventasPerdidas.rows,
-      ventasPerdidasPrevMonth: [],
-      ventasPerdidasClientes: ventasPerdidasClientes.rows,
-      ventasPerdidasRazones: ventasPerdidasRazones.rows,
-      servicios: servicios.rows,
-      serviciosClientes: serviciosClientes.rows,
-      presupuestos: aplicarAjustesAPresupuestos(
-        presupuestos.rows as {
-          mes: number;
-          sucursalId: string | null;
-          unidadNegocioId: string | null;
-          ventasCcv: string | null;
-          ventasXibi: string | null;
-          ventasEstrategicas: string | null;
-        }[],
-        ajustes,
-      ),
-      presupuestosMensual: presupuestosMensual.rows.map((row) => {
-        const mes = Number(row.mes);
-        const unidadNegocioId = (row.unidadNegocioId as string | null) ?? null;
-        // Sin scope.branch la fila ya agrega TODAS las sucursales -- sumar
-        // el ajuste de cualquier sucursal que aplique a esa unidad+mes, no
-        // solo el de una (mismo patrón que coordinador.ts en Next.js).
-        const sucAjuste = (columna: "ccv" | "xibi" | "estrategico" | "total") =>
-          scope.branch
-            ? sumaAjuste(ajustes, { mes, sucursalId: scope.branch, unidadNegocioId, columna })
-            : ajustes
-                .filter((a) => a.mes === mes && a.columna === columna && (a.unidadNegocioId === null || a.unidadNegocioId === unidadNegocioId))
-                .reduce((sum, a) => sum + a.monto, 0);
-        return {
-          ...row,
-          ventasCcv: String(Number(row.ventasCcv ?? 0) + sucAjuste("ccv") + sucAjuste("total")),
-          ventasXibi: String(Number(row.ventasXibi ?? 0) + sucAjuste("xibi")),
-          ventasEstrategicas: String(Number(row.ventasEstrategicas ?? 0) + sucAjuste("estrategico")),
-        };
-      }),
-      cumplimientoAsesor: cumplimientoAsesor.rows,
+        cotizaciones: cotizaciones.rows,
+        cotizacionesPrevMonth: [],
+        cotizacionesMensual: cotizacionesMensual.rows,
+        ventasPerdidasMensual: ventasPerdidasMensual.rows,
+        cotizacionesClientes: cotizacionesClientes.rows,
+        facturas: facturas.rows,
+        facturasClientes: facturasClientes.rows,
+        ventasPerdidas: ventasPerdidas.rows,
+        ventasPerdidasPrevMonth: [],
+        ventasPerdidasClientes: ventasPerdidasClientes.rows,
+        ventasPerdidasRazones: ventasPerdidasRazones.rows,
+        servicios: servicios.rows,
+        serviciosClientes: serviciosClientes.rows,
+        presupuestos: aplicarAjustesAPresupuestos(
+          presupuestos.rows as {
+            mes: number;
+            sucursalId: string | null;
+            unidadNegocioId: string | null;
+            ventasCcv: string | null;
+            ventasXibi: string | null;
+            ventasEstrategicas: string | null;
+          }[],
+          ajustes,
+        ),
+        presupuestosMensual: presupuestosMensual.rows.map((row) => {
+          const mes = Number(row.mes);
+          const unidadNegocioId =
+            (row.unidadNegocioId as string | null) ?? null;
+          // Sin scope.branch la fila ya agrega TODAS las sucursales -- sumar
+          // el ajuste de cualquier sucursal que aplique a esa unidad+mes, no
+          // solo el de una (mismo patrón que coordinador.ts en Next.js).
+          const sucAjuste = (
+            columna: "ccv" | "xibi" | "estrategico" | "total",
+          ) =>
+            scope.branch
+              ? sumaAjuste(ajustes, {
+                  mes,
+                  sucursalId: scope.branch,
+                  unidadNegocioId,
+                  columna,
+                })
+              : ajustes
+                  .filter(
+                    (a) =>
+                      a.mes === mes &&
+                      a.columna === columna &&
+                      (a.unidadNegocioId === null ||
+                        a.unidadNegocioId === unidadNegocioId),
+                  )
+                  .reduce((sum, a) => sum + a.monto, 0);
+          return {
+            ...row,
+            ventasCcv: String(
+              Number(row.ventasCcv ?? 0) +
+                sucAjuste("ccv") +
+                sucAjuste("total"),
+            ),
+            ventasXibi: String(Number(row.ventasXibi ?? 0) + sucAjuste("xibi")),
+            ventasEstrategicas: String(
+              Number(row.ventasEstrategicas ?? 0) + sucAjuste("estrategico"),
+            ),
+          };
+        }),
+        cumplimientoAsesor: cumplimientoAsesor.rows,
       };
     });
     res.json(result);
   } catch (error) {
     req.log?.error?.({ error }, "resumen query failed");
-    res.status(500).json({ message: "No se pudo cargar el resumen comercial." });
+    res
+      .status(500)
+      .json({ message: "No se pudo cargar el resumen comercial." });
   }
 });
 

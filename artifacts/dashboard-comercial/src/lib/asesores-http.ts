@@ -37,14 +37,21 @@ export function getAsesoresRawData(params: {
   selectedSucursales: string[];
   selectedUnidades: string[];
 }) {
-  // The legacy action intentionally used only the first selected branch.
-  const search = filters({ anio: params.anio, sucursales: params.selectedSucursales.slice(0, 1), unidades: params.selectedUnidades });
+  const search = filters({ anio: params.anio, sucursales: params.selectedSucursales, unidades: params.selectedUnidades });
   search.set("meses", params.meses === "all" ? "all" : params.meses.join(","));
   return request<AsesoresRawData>(search);
 }
 
-export function getAsesoresDrilldown(params: { anio: number }) {
-  const search = filters({ anio: params.anio });
+export function getAsesoresDrilldown(params: {
+  anio: number;
+  selectedSucursales: string[];
+  selectedUnidades: string[];
+}) {
+  const search = filters({
+    anio: params.anio,
+    sucursales: params.selectedSucursales,
+    unidades: params.selectedUnidades,
+  });
   search.set("drilldown", "true");
   return request<AsesoresDrilldownData>(search);
 }

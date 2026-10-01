@@ -76,3 +76,46 @@ export function aplicarPremisas(fila: FilaBase, premisas: Premisa[]): number {
   const sugerido = fila.base * (1 + pct / 100) + fijo;
   return Math.max(0, Math.round(sugerido * 100) / 100);
 }
+
+/**
+ * Applies percentage assumptions per row and distributes each fixed adjustment
+ * once across the rows covered by its scope. A global fixed adjustment is an
+ * annual amount, not an amount repeated for every month/branch/business unit.
+ */
+export function aplicarPremisasConjunto<T extends FilaBase>(
+  filas: T[],
+  premisas: Premisa[],
+): Array<T & { sugerido: number }> {
+  const ajustes = filas.map((fila) => ({ fila, monto: aplicarPremisas(fila, premisas.filter((p) => p.tipo === "crecimiento_pct")) }));
+  const adicionales = Array<number>(filas.length).fill(0);
+
+  for (const premisa of premisas) {
+    if (premisa.tipo !== "ajuste_fijo") continue;
+    const indices = filas.flatMap((fila, i) => {
+      const aplica =
+        premisa.alcance === "global" ||
+        (premisa.alcance === "unidad" && premisa.alcanceId === fila.unidadNegocioId) ||
+        (premisa.alcance === "sucursal" && premisa.alcanceId === fila.sucursalId) ||
+        (premisa.alcance === "mes" && premisa.mes === fila.mes);
+      return aplica ? [i] : [];
+    });
+    if (indices.length === 0) continue;
+
+    const pesoTotal = indices.reduce((sum, i) => sum + Math.max(0, Number(filas[i]?.base ?? 0)), 0);
+    const distribuciones = indices.map((i) => {
+      const peso = pesoTotal > 0
+        ? Math.max(0, Number(filas[i]?.base ?? 0)) / pesoTotal
+        : 1 / indices.length;
+      return Math.round(premisa.valor * peso * 100) / 100;
+    });
+    const residuo = Math.round((premisa.valor - distribuciones.reduce((sum, monto) => sum + monto, 0)) * 100) / 100;
+    const ultimo = distribuciones.length - 1;
+    if (ultimo >= 0) distribuciones[ultimo] = (distribuciones[ultimo] ?? 0) + residuo;
+    indices.forEach((i, posicion) => { adicionales[i] = (adicionales[i] ?? 0) + (distribuciones[posicion] ?? 0); });
+  }
+
+  return ajustes.map(({ fila, monto }, i) => ({
+    ...fila,
+    sugerido: Math.max(0, Math.round((monto + (adicionales[i] ?? 0)) * 100) / 100),
+  }));
+}

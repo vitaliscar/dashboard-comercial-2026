@@ -9,6 +9,9 @@ export type Alerta = {
   asesorId: string | null;
   estado: "abierta" | "resuelta";
   createdAt: string;
+  resueltaManualmente: boolean;
+  resueltaEn: string | null;
+  resueltaPor: string | null;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -19,5 +22,5 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return response.json() as Promise<T>;
 }
-export const getAlertas = () => request<Alerta[]>("");
+export const getAlertas = (estado: "abierta" | "resuelta" | "todas" = "abierta") => request<Alerta[]>(`?estado=${estado}`);
 export const resolverAlerta = (id: string) => request<{ id: string; estado: "resuelta" }>(`/${id}/resolver`, { method: "POST" });

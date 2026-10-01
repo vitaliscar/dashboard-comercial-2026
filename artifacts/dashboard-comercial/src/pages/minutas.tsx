@@ -1,4 +1,4 @@
-import { canPickSucursalFilter, isFullAccessRole } from "@/lib/permissions";
+import { canCreateNotes, canPickSucursalFilter, isFullAccessRole } from "@/lib/permissions";
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -144,19 +144,20 @@ export default function MinutasPage() {
   const [editing, setEditing] = useState<MinutaItem | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  const canCreate = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
+  const canCreate = canCreateNotes({ role });
   const canDelete = isFullAccessRole(role);
 
   const { data: sucursales } = useSucursales();
   const { data: unidades } = useUnidades();
 
-  const { data: minutas, isLoading } = useQuery({
+  const { data: minutas, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["minutas"],
     queryFn: () => getMinutasHttp() as Promise<MinutaItem[]>,
   });
 
   const [sucursalFilter, setSucursalFilter] = useState<string>("all");
   const [estadoFilter, setEstadoFilter] = useState<"all" | MinutaEstado | "vencida">("all");
+  const [responsableFilter, setResponsableFilter] = useState<"alcance" | "mias">("alcance");
 
   const hoy = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const esVencida = (m: MinutaItem) =>
@@ -169,6 +170,7 @@ export default function MinutasPage() {
 
   const minutasFiltradas = useMemo(() => {
     let rows = minutasBase;
+    if (responsableFilter === "mias" && user?.id) rows = rows.filter((m) => m.destinatarioId === user.id || m.createdBy === user.id);
     if (estadoFilter === "vencida") rows = rows.filter((m) => esVencida(m));
     else if (estadoFilter !== "all") rows = rows.filter((m) => m.estado === estadoFilter);
     return [...rows].sort((a, b) => {
@@ -180,7 +182,7 @@ export default function MinutasPage() {
       if (!b.fechaLimite) return -1;
       return a.fechaLimite.localeCompare(b.fechaLimite);
     });
-  }, [minutasBase, estadoFilter, hoy]);
+  }, [minutasBase, responsableFilter, user?.id, estadoFilter, hoy]);
 
   // Form state (solo edición — la creación vive en /minutas/nueva)
   const [form, setForm] = useState({
@@ -280,6 +282,18 @@ export default function MinutasPage() {
 
   if (isLoading && !minutas) {
     return <PageSkeleton kpis={4} blocks={[{ cols: 1, height: 400 }]} />;
+  }
+
+  if (isError && !minutas) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader eyebrow="CRM / Compromisos" title="Minutas de gestión" description="Compromisos comerciales, seguimiento y auditoría" />
+        <div className="card-elevated flex max-w-2xl flex-col items-start gap-3 p-6" role="alert">
+          <p className="text-sm text-destructive">{error instanceof Error ? error.message : "No se pudieron cargar las minutas."}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>Reintentar</Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -419,6 +433,12 @@ export default function MinutasPage() {
             hint={`${resumen.cumplidas} cumplidas`}
           />
         </KpiFilterButton>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2" aria-label="Filtrar compromisos por responsable">
+        <span className="mr-1 text-sm text-muted-foreground">Mostrar:</span>
+        <Button type="button" size="sm" variant={responsableFilter === "alcance" ? "default" : "outline"} aria-pressed={responsableFilter === "alcance"} onClick={() => setResponsableFilter("alcance")}>Todo mi alcance</Button>
+        <Button type="button" size="sm" variant={responsableFilter === "mias" ? "default" : "outline"} aria-pressed={responsableFilter === "mias"} disabled={!user?.id} onClick={() => setResponsableFilter("mias")}>Mis compromisos</Button>
       </div>
 
       {canPickSucursalFilter(role) && sucursales && sucursales.length > 1 && (

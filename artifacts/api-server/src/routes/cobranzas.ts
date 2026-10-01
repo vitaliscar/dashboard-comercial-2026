@@ -128,7 +128,8 @@ async function loadComparison(tx: Queryable, scope: NonNullable<ReturnType<typeo
   const actual = await tx.query(
     `SELECT c.cliente, c.factura_numero AS "facturaNumero", c.saldo, c.sucursal_id AS "sucursalId"
      FROM cobranzas c
-     WHERE ($1::uuid[] IS NULL OR c.unidad_negocio_id = ANY($1::uuid[]))
+     WHERE c.saldo > 0
+       AND ($1::uuid[] IS NULL OR c.unidad_negocio_id = ANY($1::uuid[]))
        AND ($2::uuid[] IS NULL OR c.sucursal_id = ANY($2::uuid[]))
        AND ($3::uuid[] IS NULL OR c.unidad_negocio_id = ANY($3::uuid[]))
        AND ($4::uuid[] IS NULL OR c.sucursal_id = ANY($4::uuid[]))`,
@@ -142,7 +143,7 @@ async function loadComparison(tx: Queryable, scope: NonNullable<ReturnType<typeo
   const anterior = await tx.query(
     `SELECT cs.cliente, cs.factura_numero AS "facturaNumero", cs.saldo, cs.sucursal_id AS "sucursalId"
      FROM cobranzas_snapshots cs
-     WHERE cs.captured_at = $1
+     WHERE cs.captured_at = $1 AND cs.saldo > 0
        AND ($2::uuid[] IS NULL OR cs.unidad_negocio_id = ANY($2::uuid[]))
        AND ($3::uuid[] IS NULL OR cs.sucursal_id = ANY($3::uuid[]))
        AND ($4::uuid[] IS NULL OR cs.unidad_negocio_id = ANY($4::uuid[]))
