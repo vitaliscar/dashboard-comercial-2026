@@ -113,6 +113,15 @@ function sumaParticipacion(items: Array<{ participacion: number }>) {
   return items.reduce((sum, item) => sum + Number(item.participacion || 0), 0);
 }
 
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [value, delayMs]);
+  return debouncedValue;
+}
+
 function PresupuestoGerenciaPage() {
   const targetAnio = new Date().getFullYear();
   const baseAnio = targetAnio - 1;
@@ -125,6 +134,7 @@ function PresupuestoGerenciaPage() {
   const [nombre, setNombre] = useState(`Revisión presupuesto ${targetAnio}`);
   const [planTrabajo, setPlanTrabajo] = useState("");
   const [distribucion, setDistribucion] = useState<Distribucion | null>(null);
+  const distribucionProyectada = useDebouncedValue(distribucion, 250);
   const [unidadSucursalActiva, setUnidadSucursalActiva] = useState<string | null>(null);
   const [busquedaSucursal, setBusquedaSucursal] = useState("");
   const [ordenSucursal, setOrdenSucursal] = useState<"meta" | "nombre" | "participacion">("meta");
@@ -132,11 +142,12 @@ function PresupuestoGerenciaPage() {
   const { data: sucursalesCatalogo } = useSucursales();
 
   const proyeccion = useQuery<ProyeccionData>({
-    queryKey: ["presupuestos", "distribucion", targetAnio, JSON.stringify(distribucion)],
+    queryKey: ["presupuestos", "distribucion", targetAnio, JSON.stringify(distribucionProyectada)],
     queryFn: () => api("/presupuestos/proyeccion-anual", {
       method: "POST",
-      body: JSON.stringify({ modo: "distribucion", baseAnio, targetAnio, ...(distribucion ? { distribucion: esGerenteComercial ? { ...distribucion, crecimientoAnualPct: 0, unidades: [] } : distribucion } : {}) }),
+      body: JSON.stringify({ modo: "distribucion", baseAnio, targetAnio, ...(distribucionProyectada ? { distribucion: esGerenteComercial ? { ...distribucionProyectada, crecimientoAnualPct: 0, unidades: [] } : distribucionProyectada } : {}) }),
     }),
+    placeholderData: (previousData) => previousData,
   });
 
   useEffect(() => {
@@ -181,6 +192,7 @@ function PresupuestoGerenciaPage() {
   });
 
   const data = proyeccion.data;
+  const calculoPendiente = distribucion !== distribucionProyectada || proyeccion.isFetching;
   const rows = useMemo(
     () => (data?.rows ?? []).filter((row) =>
       !esGerenteComercial || (row.unidadNegocioId !== null && unidadesAsignadas.includes(row.unidadNegocioId)),
@@ -271,7 +283,7 @@ function PresupuestoGerenciaPage() {
   }, [distribucion, unidadesVisibles, esGerenteComercial]);
   const erroresVisibles = [...new Set([...(data?.errores ?? []), ...erroresLocales])];
   const configLista = !!data && erroresVisibles.length === 0;
-  const puedeGuardar = !!distribucion && configLista && !proyeccion.isFetching && !crear.isPending && !!nombre.trim() && (!esGerenteComercial || planTrabajo.trim().length >= 20);
+  const puedeGuardar = !!distribucion && configLista && !calculoPendiente && !crear.isPending && !!nombre.trim() && (!esGerenteComercial || planTrabajo.trim().length >= 20);
 
   if (esGerenteComercial) {
     return (
@@ -281,6 +293,10 @@ function PresupuestoGerenciaPage() {
           title={`Presupuesto ${targetAnio}`}
           description="Distribuye la meta asignada a tu unidad entre sucursales y meses. Gerencia Nacional conserva la meta anual y aprueba los cambios."
         />
+
+        {proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status">Calculando la propuesta inicial…</p>}
+        {calculoPendiente && !proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Recalculando el impacto de los cambios…</p>}
+        {proyeccion.isError && <QueryErrorNotice error={proyeccion.error} onRetry={() => void proyeccion.refetch()} fallback="No se pudo calcular el impacto del presupuesto." />}
 
         <Card>
           <CardHeader><CardTitle>Distribución por sucursal y mes</CardTitle></CardHeader>
@@ -336,7 +352,7 @@ function PresupuestoGerenciaPage() {
             <div><label htmlFor="plan-comercial" className="mb-1 block text-sm font-medium">Justificación y plan comercial</label><Textarea id="plan-comercial" value={planTrabajo} onChange={(event) => setPlanTrabajo(event.target.value.slice(0, 2000))} maxLength={2000} placeholder="Describe las acciones que respaldan la distribución propuesta…" aria-describedby="plan-comercial-ayuda" /><p id="plan-comercial-ayuda" className="mt-1 text-xs text-muted-foreground">Mínimo 20 caracteres. {planTrabajo.trim().length}/2.000</p></div>
             <Button onClick={() => crear.mutate()} disabled={!puedeGuardar}>{crear.isPending ? "Presentando…" : "Presentar propuesta"}</Button>
           </CardContent>
-          {(crear.error || proyeccion.error) && <p role="alert" className="px-6 pb-4 text-sm text-destructive">{(crear.error ?? proyeccion.error)?.message}</p>}
+          {crear.error && <p role="alert" className="px-6 pb-4 text-sm text-destructive">{crear.error.message}</p>}
         </Card>
 
         <Card>
@@ -358,6 +374,10 @@ function PresupuestoGerenciaPage() {
         title={`Presupuesto ${targetAnio}`}
         description={esGerenteComercial ? "Distribuye la meta asignada a tu unidad entre sucursales y meses." : "Ajusta la meta anual, distribuye entre unidades y define la participación por sucursal y mes."}
       />
+
+      {proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status">Calculando la propuesta inicial…</p>}
+      {calculoPendiente && !proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Recalculando el impacto de los cambios…</p>}
+      {proyeccion.isError && <QueryErrorNotice error={proyeccion.error} onRetry={() => void proyeccion.refetch()} fallback="No se pudo calcular el impacto del presupuesto." />}
 
       <section aria-label="Etapas del presupuesto" className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-4 sm:p-4">
         {(esGerenteComercial
@@ -515,7 +535,7 @@ function PresupuestoGerenciaPage() {
           <Textarea id="plan-comercial" value={planTrabajo} onChange={(event) => setPlanTrabajo(event.target.value.slice(0, 2000))} maxLength={2000} placeholder="Describe las iniciativas, oportunidades y acciones que respaldan la distribución propuesta…" aria-describedby="plan-comercial-ayuda" />
           <p id="plan-comercial-ayuda" className="mt-1 text-xs text-muted-foreground">Gerencia Nacional lo revisará antes de definir el % de Gestión Comercial. {planTrabajo.trim().length}/2.000 caracteres; mínimo 20.</p>
         </div>}
-        {(crear.error || aprobar.error || proyeccion.error) && <p role="alert" className="px-6 pb-4 text-sm text-destructive">{(crear.error ?? aprobar.error ?? proyeccion.error)?.message}</p>}
+        {(crear.error || aprobar.error) && <p role="alert" className="px-6 pb-4 text-sm text-destructive">{(crear.error ?? aprobar.error)?.message}</p>}
       </Card>
 
       <Card>
