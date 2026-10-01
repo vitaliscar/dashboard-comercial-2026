@@ -8,8 +8,8 @@ export type PerformanceScore = {
 };
 
 export type EvaluacionAsesor = {
-  asesor: string; anio: number; puntos: MonthlyPoint[]; ticketPropio: number; ticketPromedioGrupo: number;
-  cantidadPares: number; percentilVsPares: number; score: PerformanceScore;
+  asesor: string; anio: number; puntos: MonthlyPoint[]; ticketPropio: number; ticketPromedioGrupo: number | null;
+  cantidadPares: number; percentilVsPares: number | null; score: PerformanceScore;
 };
 export type EvaluacionSucursal = EvaluacionAsesor & { sucursal: string };
 export type EvaluacionUnidad = {

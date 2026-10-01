@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useUnidades } from "@/hooks/use-catalogos";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
+import { Button } from "@/components/ui/button";
 
 const ROUTE_BY_UNIT_LABEL: Record<string, string> = {
   Servicios: "/servicios",
@@ -20,6 +21,7 @@ function getDashboardRoute(
   units: Array<{ id: string; nombre: string }> | undefined,
 ): string | null {
   switch (role) {
+    case "administrador":
     case "gerencia":
       return "/gerencia-nacional";
     case "coordinador":
@@ -46,8 +48,10 @@ function getDashboardRoute(
 export default function DashboardPage() {
   const [location, setLocation] = useLocation();
   const { session, profile, role, loading } = useAuth();
-  const { data: units, isLoading: unitsLoading } = useUnidades();
-  const assignedUnitIds = profile?.unidades_negocio_ids ?? [];
+  const { data: units, isLoading: unitsLoading, isError: unitsError, error: unitsErrorDetail, refetch: retryUnits } = useUnidades();
+  const assignedUnitIds = profile?.unidades_negocio_ids?.length
+    ? profile.unidades_negocio_ids
+    : profile?.unidad_negocio_id ? [profile.unidad_negocio_id] : [];
   const waitingForUnitCatalog =
     role === "gerente_comercial" && assignedUnitIds.length === 1 && unitsLoading;
 
@@ -77,6 +81,16 @@ export default function DashboardPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           El modo demo se muestra desde la entrada pública del dashboard.
         </p>
+      </div>
+    );
+  }
+
+  if (role === "gerente_comercial" && assignedUnitIds.length === 1 && unitsError) {
+    return (
+      <div className="card-elevated mx-auto mt-8 flex max-w-xl flex-col items-start gap-3 p-8" role="alert">
+        <h2 className="font-display text-xl font-semibold">No se pudo cargar tu unidad</h2>
+        <p className="text-sm text-muted-foreground">{unitsErrorDetail instanceof Error ? unitsErrorDetail.message : "No se pudo consultar el catálogo de unidades asignadas."}</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void retryUnits()}>Reintentar</Button>
       </div>
     );
   }

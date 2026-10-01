@@ -72,7 +72,7 @@ export default function GerenciaNacionalPage() {
   // Un solo fetch por año (meses=all trae todo lo disponible hasta el mes
   // actual) — el filtrado por mes/sucursal/unidad ocurre en memoria abajo,
   // así que cambiar esos filtros no dispara un nuevo round-trip.
-  const { data: resumen, isLoading } = useQuery({
+  const { data: resumen, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["gerencia-nacional-resumen", anio],
     enabled: canView,
     queryFn: () => getResumen({ anio, meses: "all" }),
@@ -224,7 +224,7 @@ export default function GerenciaNacionalPage() {
         <Shield className="size-10 mx-auto text-muted-foreground" />
         <h2 className="font-display text-xl font-semibold">Acceso restringido</h2>
         <p className="text-sm text-muted-foreground">
-          Sólo los perfiles Gerencia Nacional y Gerente Comercial pueden ver esta vista.
+          Esta vista está disponible para Administrador y Gerencia Nacional.
         </p>
       </div>
     );
@@ -233,7 +233,7 @@ export default function GerenciaNacionalPage() {
   if (isLoading && !resumen) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader eyebrow="Analytics / National" title="Dashboard comercial" />
+        <PageHeader eyebrow="Gerencia nacional" title="Dashboard comercial" />
         <PageSkeleton
           kpis={0}
           blocks={[{ cols: 3, height: 260 }, { cols: 2 }, { cols: 1, height: 420 }]}
@@ -242,9 +242,26 @@ export default function GerenciaNacionalPage() {
     );
   }
 
+  if (isError && !resumen) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader eyebrow="Gerencia nacional" title="Dashboard comercial" />
+        <div className="card-elevated flex max-w-2xl flex-col items-start gap-3 p-6" role="alert">
+          <h2 className="font-display text-lg font-semibold">No se cargaron los datos</h2>
+          <p className="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "No se pudo consultar el resumen comercial."}
+          </p>
+          <button type="button" className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted" onClick={() => void refetch()}>
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Analytics / National" title="Dashboard comercial" />
+      <PageHeader eyebrow="Gerencia nacional" title="Dashboard comercial" />
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={sucursalesData

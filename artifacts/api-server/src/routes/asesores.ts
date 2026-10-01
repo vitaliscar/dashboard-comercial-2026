@@ -166,6 +166,7 @@ router.get("/asesores", async (req: Request, res: Response) => {
   const session = await currentSession(req);
   if (!session) return void res.status(401).json({ message: "Sesión no válida." });
   if (!session.role) return void res.status(403).json({ message: "El usuario no tiene un rol comercial asignado." });
+  if (session.role === "asesor") return void res.status(403).json({ message: "El análisis de asesores no está disponible para el rol asesor." });
 
   const year = Number(req.query.anio ?? new Date().getUTCFullYear());
   const branches = parseIds(req.query.sucursalIds ?? req.query.sucursalId);

@@ -89,9 +89,9 @@ export function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] bg-background">
+    <div className="ccv-login min-h-screen grid lg:grid-cols-[1.08fr_0.92fr] bg-background">
       {/* ── Left panel: brand ────────────────────────────────────────── */}
-      <div className="hidden lg:flex items-center justify-center relative overflow-hidden px-14 py-12 bg-sidebar">
+      <div className="ccv-login-brand hidden lg:flex items-center justify-center relative overflow-hidden px-14 py-12 bg-sidebar">
         {/* Amber glow behind logo */}
         <div
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-[560px] rounded-full opacity-55"
@@ -102,11 +102,27 @@ export function AuthForm() {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
-          <img src="/Logo_CCV.png" alt="CCV" className="size-[140px] object-contain" />
-          <h1 className="font-display text-[34px] font-semibold leading-[1.14] text-primary">
-            Dashboard Comercial CCV
-          </h1>
+        <div className="relative z-10 flex w-full max-w-xl flex-col items-start text-left">
+          <div className="ccv-login-brandmark flex items-center gap-4">
+            <img src="/Logo_CCV.png" alt="Centro Comercial VENEQUIP" className="size-[76px] object-contain" />
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-white">Centro Comercial</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-white/55">Venequip · Decisiones 2026</p>
+            </div>
+          </div>
+          <div className="ccv-login-orbit relative mt-16 flex min-h-[340px] w-full flex-col justify-between overflow-hidden p-8" aria-hidden="true">
+            <div className="relative z-10 max-w-lg">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#e2f0c5]">Sala comercial · 2026</span>
+              <p className="mt-5 font-display text-5xl leading-[0.98] text-white">Una operación.<br />Muchas decisiones.<br /><em className="font-normal text-[#d7b27b]">Un mismo criterio.</em></p>
+              <p className="mt-5 max-w-sm text-sm leading-6 text-white/65">Ventas, presupuesto y ejecución en el contexto de cada equipo.</p>
+            </div>
+            <div className="ccv-login-route relative z-10 mt-10 flex items-center gap-0">
+              <span>Plan</span><i aria-hidden="true" /><span>Gestión</span><i aria-hidden="true" /><span>Resultado</span>
+            </div>
+          </div>
+          <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">
+            <span>Ventas</span><span>Metas</span><span>Sucursales</span><span>Unidades de negocio</span>
+          </div>
         </div>
 
         <div className="absolute bottom-6 left-14 right-14 flex items-center justify-between text-[10px] font-mono tracking-wider text-muted-foreground/50">
@@ -116,29 +132,30 @@ export function AuthForm() {
       </div>
 
       {/* ── Right panel: login form ──────────────────────────────────── */}
-      <div className="flex items-center justify-center p-6 sm:p-10 bg-background">
-        <div className="w-full max-w-sm flex flex-col gap-8">
+      <div className="ccv-login-form flex items-center justify-center p-6 sm:p-10 bg-background">
+        <div className="w-full max-w-[390px] flex flex-col gap-8">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3">
             <img src="/Logo_CCV.png" alt="CCV" className="size-9 object-contain" />
-            <div className="font-display font-semibold text-lg text-foreground">
-              Dashboard Comercial CCV
+            <div className="font-sans font-extrabold text-sm uppercase tracking-wide text-foreground">
+              Centro Comercial CCV
+              <span className="mt-0.5 block font-mono text-[9px] font-medium tracking-[0.18em] text-muted-foreground">DECISIONES 2026</span>
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <p className="text-[10px] tracking-[0.18em] font-mono text-primary font-bold uppercase">
-              Acceso al panel
+              ACCESO INTERNO · CCV
             </p>
-            <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">
-              Iniciar sesión
+            <h2 className="font-display text-4xl font-medium tracking-tight text-foreground">
+              Entra al tablero.
             </h2>
             <p className="text-sm text-muted-foreground">
-              Ingresa tus credenciales para acceder al panel.
+              Información comercial según tu rol y alcance.
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="ccv-login-fields space-y-5">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium text-foreground">
@@ -198,11 +215,11 @@ export function AuthForm() {
 
             <Button
               type="submit"
-              className="w-full h-11 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="ccv-login-submit w-full h-12 text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               disabled={loading || isLocked}
             >
               {loading && <Loader2 className="animate-spin mr-2 size-4" />}
-              {isLocked ? `Bloqueado por ${minutesRemaining} min` : "Ingresar"}
+              {isLocked ? `Bloqueado por ${minutesRemaining} min` : "Continuar"}
             </Button>
 
             {(isLocked || attempts > 0) && (
@@ -218,8 +235,8 @@ export function AuthForm() {
             )}
           </form>
 
-          <p className="text-xs text-muted-foreground text-center leading-relaxed">
-            La creación de cuentas está restringida. Contacta al administrador del sistema.
+          <p className="ccv-login-footnote text-[11px] text-muted-foreground leading-relaxed">
+            Acceso privado para equipos CCV. Si necesitas una cuenta, contacta al administrador del sistema.
           </p>
         </div>
       </div>

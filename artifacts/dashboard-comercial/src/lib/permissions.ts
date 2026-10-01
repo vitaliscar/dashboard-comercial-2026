@@ -36,21 +36,51 @@ export type ModuleKey =
  * rol — todavía en desarrollo/validación, no listos para los usuarios reales.
  * Quitar de aquí cuando estén listos para salir a producción.
  */
-const MODULES_HIDDEN_IN_PRODUCTION: ModuleKey[] = ["comisiones", "simulador", "pareto", "mercadeo"];
+const MODULES_HIDDEN_IN_PRODUCTION: ModuleKey[] = [
+  "comisiones",
+  "simulador",
+  "pareto",
+  "mercadeo",
+  "carga",
+];
 
 const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
-  resumen: ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"],
-  dashboard: ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"],
-  minutas: ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"],
+  resumen: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+    "asesor",
+  ],
+  dashboard: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+    "asesor",
+  ],
+  minutas: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+    "asesor",
+  ],
   cobranzas: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
   pareto: ["administrador", "gerencia", "gerente_comercial"],
   asesores: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
-  alertas: ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"],
+  alertas: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+    "asesor",
+  ],
   embudo: ["administrador", "gerencia", "gerente_comercial"],
   mercadeo: ["administrador", "gerencia"],
   carga: ["administrador", "gerencia"],
   usuarios: ["administrador", "gerencia"],
-  gerencia_nacional: ["administrador", "gerencia", "gerente_comercial"],
+  gerencia_nacional: ["administrador", "gerencia"],
   coordinador: ["coordinador"],
   asesor: ["asesor"],
   servicios: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
@@ -59,15 +89,42 @@ const MODULE_ACCESS: Record<ModuleKey, AppRole[]> = {
   alquiler: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
   sucursal: ["coordinador"],
   repuestos: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
-  cliente_360: ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"],
+  cliente_360: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+    "asesor",
+  ],
   comisiones: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
   simulador: ["administrador", "gerencia", "gerente_comercial"],
-  evaluacion: ["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"],
+  evaluacion: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+    "asesor",
+  ],
   evaluacion_asesor: ["asesor"],
-  evaluacion_sucursal: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
-  evaluacion_unidad: ["administrador", "gerencia", "gerente_comercial", "coordinador"],
+  evaluacion_sucursal: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+  ],
+  evaluacion_unidad: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+  ],
   ajustes_manuales: ["administrador", "gerencia"],
-  presupuestos: ["administrador", "gerencia", "gerente_comercial"],
+  presupuestos: [
+    "administrador",
+    "gerencia",
+    "gerente_comercial",
+    "coordinador",
+  ],
 };
 
 /**
@@ -101,9 +158,15 @@ export function clearModuleAccessOverride() {
   moduleAccessOverride = null;
 }
 
-export function canAccessModule(role: AppRole | null, module: ModuleKey): boolean {
+export function canAccessModule(
+  role: AppRole | null,
+  module: ModuleKey,
+): boolean {
   if (!role) return false;
-  if (process.env.NODE_ENV === "production" && MODULES_HIDDEN_IN_PRODUCTION.includes(module)) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    MODULES_HIDDEN_IN_PRODUCTION.includes(module)
+  ) {
     return false;
   }
   // Administrador y gerencia: acceso total a módulos (RLS sigue aplicando el
@@ -121,8 +184,18 @@ export function isFullAccessRole(role: AppRole | null | undefined): boolean {
 }
 
 /** Solo Administrador puede crear o eliminar usuarios. */
-export function canCreateDeleteUsers(role: AppRole | null | undefined): boolean {
+export function canCreateDeleteUsers(
+  role: AppRole | null | undefined,
+): boolean {
   return role === "administrador";
+}
+
+/** Ajustes manuales: Administrador o Gerencia Nacional con permiso explícito. */
+export function canManageManualAdjustments(
+  role: AppRole | null | undefined,
+  isAdmin = false,
+): boolean {
+  return role === "administrador" || (role === "gerencia" && isAdmin);
 }
 
 /** Solo Gerencia Nacional puede descargar/exportar información. */
@@ -130,9 +203,17 @@ export function canDownloadData(role: AppRole | null | undefined): boolean {
   return role === "gerencia";
 }
 
-export function getModulesForRole(role: AppRole | null): ModuleKey[] {
+export function getModulesForRole(
+  role: AppRole | null,
+  isAdmin = false,
+): ModuleKey[] {
   if (!role) return [];
-  return (Object.keys(MODULE_ACCESS) as ModuleKey[]).filter((m) => canAccessModule(role, m));
+  return (Object.keys(MODULE_ACCESS) as ModuleKey[]).filter(
+    (module) =>
+      canAccessModule(role, module) &&
+      (module !== "ajustes_manuales" ||
+        canManageManualAdjustments(role, isAdmin)),
+  );
 }
 
 /**
@@ -168,7 +249,9 @@ export function canFilterSucursal(context: UserContext): boolean {
 }
 
 /** Atajo por rol: ¿puede elegir sucursal en FilterHeader / chips? */
-export function canPickSucursalFilter(role: AppRole | null | undefined): boolean {
+export function canPickSucursalFilter(
+  role: AppRole | null | undefined,
+): boolean {
   return isFullAccessRole(role) || role === "gerente_comercial";
 }
 
@@ -294,39 +377,26 @@ export function canExportData(context: UserContext): boolean {
 }
 
 /**
- * Checks if a user has permission to edit sales pipeline (carga)
- * Gerencia, Gerente Comercial, and Coordinador can edit
- * Asesor can only edit their own records (enforced at API level)
+ * The current application exposes no sales pipeline write operation.
  */
-export function canEditPipeline(context: UserContext): boolean {
-  return (
-    isFullAccessRole(context.role) ||
-    context.role === "gerente_comercial" ||
-    context.role === "coordinador" ||
-    context.role === "asesor"
-  );
+export function canEditPipeline(_context: UserContext): boolean {
+  // The current API exposes no write route for the sales pipeline.
+  return false;
 }
 
 /**
- * Checks if a user has permission to view collections/cobranzas
- * All roles can view collections relevant to their scope
+ * Checks whether the role can open the read-only collections module.
  */
 export function canViewCollections(context: UserContext): boolean {
-  return !!context.role;
+  return canAccessModule(context.role, "cobranzas");
 }
 
 /**
- * Checks if a user has permission to edit collections/cobranzas
- * Gerencia, Gerente Comercial, and Coordinador can edit
- * Asesor can edit their own records (enforced at API level)
+ * Cobranzas currently has no API mutation routes.
  */
-export function canEditCollections(context: UserContext): boolean {
-  return (
-    isFullAccessRole(context.role) ||
-    context.role === "gerente_comercial" ||
-    context.role === "coordinador" ||
-    context.role === "asesor"
-  );
+export function canEditCollections(_context: UserContext): boolean {
+  // Cobranzas is currently read-only in the API.
+  return false;
 }
 
 /**
@@ -338,11 +408,14 @@ export function canViewNotes(context: UserContext): boolean {
 }
 
 /**
- * Checks if a user has permission to create notes/minutas
- * All roles can create notes
+ * Checks if a user can create minutas within the server-enforced scope.
  */
-export function canCreateNotes(context: UserContext): boolean {
-  return !!context.role;
+export function canCreateNotes(context: { role: AppRole | null }): boolean {
+  return (
+    isFullAccessRole(context.role) ||
+    context.role === "gerente_comercial" ||
+    context.role === "coordinador"
+  );
 }
 
 /**

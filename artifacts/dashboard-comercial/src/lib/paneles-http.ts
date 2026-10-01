@@ -44,3 +44,30 @@ export function getAsesorTrend(filters: Parameters<typeof query>[0]) {
 export function getCoordinadorYear(filters: Parameters<typeof query>[0]) {
   return request<{ presupuestos: Array<{ mes: number; unidadNegocioId: string; monto: string | number; ventasCcv: string | number; ventasXibi: string | number; ventasEstrategicas: string | number }> }>("/coordinador/year", query(filters));
 }
+
+export type CoordinadorScorecard = {
+  asesores: Array<{
+    asesorId: string | null;
+    codigoAsesor: string | null;
+    asesor: string;
+    presupuesto: string | number;
+    venta: string | number;
+    pctCumplimiento: string | number;
+    pctParticipacion: string | number;
+  }>;
+};
+
+export type CoordinadorCobranza = {
+  cliente: string;
+  monto: string | number;
+  saldo: string | number;
+  unidadNegocioId: string | null;
+};
+
+export function getCoordinadorScorecard(filters: Parameters<typeof query>[0]) {
+  return request<CoordinadorScorecard>("/coordinador/scorecard", query(filters));
+}
+
+export function getCoordinadorCobranzas(filters: Parameters<typeof query>[0]) {
+  return request<CoordinadorCobranza[]>("/coordinador/cobranzas", query(filters));
+}

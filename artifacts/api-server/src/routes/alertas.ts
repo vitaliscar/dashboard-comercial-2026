@@ -32,6 +32,10 @@ async function authenticated(req: Request, res: Response) {
 
 /** Reconciles only the rows visible to the current RLS-scoped transaction. */
 async function reconcile(tx: Queryable, session: SessionPayload) {
+  // Advisor-visible alerts are created by coordinators/managers; this query
+  // intentionally cannot derive advisor-specific candidates from its sources.
+  // Running its empty candidate set would incorrectly auto-resolve those alerts.
+  if (session.role === "asesor") return;
   const s = scope(session, "source", 5);
   const currentAlerts = alertScope(session, "a", 5 + s.values.length);
   const year = new Date().getUTCFullYear();
@@ -39,23 +43,23 @@ async function reconcile(tx: Queryable, session: SessionPayload) {
   const next7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
   const candidates = await tx.query(
     `WITH candidates AS (
-      SELECT 'cobranzas:' || COALESCE(source.sucursal_id::text, 'none') || ':' || source.cliente AS clave_natural,
+      SELECT 'cobranzas:v2:' || COALESCE(source.sucursal_id::text, 'none') || ':' || COALESCE(source.unidad_negocio_id::text, 'none') || ':' || source.cliente AS clave_natural,
              'cobranzas'::alerta_tipo AS tipo, 'alta'::alerta_severidad AS severidad,
              source.cliente || ' tiene facturas vencidas' AS titulo,
               json_build_object('detalle', COUNT(*)::text || ' facturas vencidas, debe ' || ROUND(SUM(source.saldo)::numeric, 2)::text,
                'monto', SUM(source.saldo), 'accion', 'Llamar a cobrar', 'cliente', source.cliente)::text AS contexto,
-              MIN(source.sucursal_id::text)::uuid AS sucursal_id, MIN(source.unidad_negocio_id::text)::uuid AS unidad_negocio_id, NULL::uuid AS asesor_id
+              MIN(source.sucursal_id::text)::uuid AS sucursal_id, source.unidad_negocio_id, NULL::uuid AS asesor_id
       FROM cobranzas source
       WHERE source.saldo > 0 AND source.fecha_vencimiento < $1::date AND ${s.sql}
-      GROUP BY source.cliente, source.sucursal_id HAVING SUM(source.saldo) >= 50000
+      GROUP BY source.cliente, source.sucursal_id, source.unidad_negocio_id HAVING SUM(source.saldo) >= 50000
       UNION ALL
-      SELECT 'cobranzas-prox:' || COALESCE(source.sucursal_id::text, 'none') || ':' || source.cliente, 'cobranzas'::alerta_tipo, 'media'::alerta_severidad,
+      SELECT 'cobranzas-prox:v2:' || COALESCE(source.sucursal_id::text, 'none') || ':' || COALESCE(source.unidad_negocio_id::text, 'none') || ':' || source.cliente, 'cobranzas'::alerta_tipo, 'media'::alerta_severidad,
              source.cliente || ': ' || COUNT(*)::text || ' factura(s) por vencer',
               json_build_object('detalle', 'Debe ' || ROUND(SUM(source.saldo)::numeric, 2)::text || ', la próxima vence el ' || MIN(source.fecha_vencimiento)::text,
                'monto', SUM(source.saldo), 'accion', 'Recordar pago', 'cliente', source.cliente)::text,
-              MIN(source.sucursal_id::text)::uuid, MIN(source.unidad_negocio_id::text)::uuid, NULL::uuid
+              MIN(source.sucursal_id::text)::uuid, source.unidad_negocio_id, NULL::uuid
       FROM cobranzas source WHERE source.saldo > 0 AND source.fecha_vencimiento BETWEEN $1::date AND $2::date AND ${s.sql}
-      GROUP BY source.cliente, source.sucursal_id
+      GROUP BY source.cliente, source.sucursal_id, source.unidad_negocio_id
       UNION ALL
       SELECT 'minutas:' || source.id::text, 'minutas'::alerta_tipo, 'media'::alerta_severidad,
              'Minuta vencida: ' || COALESCE(p.nombre_completo, 'destinatario'),
@@ -79,7 +83,8 @@ async function reconcile(tx: Queryable, session: SessionPayload) {
       FROM candidates ORDER BY clave_natural
       ON CONFLICT (clave_natural) DO UPDATE SET severidad = EXCLUDED.severidad, titulo = EXCLUDED.titulo, contexto = EXCLUDED.contexto,
         sucursal_id = EXCLUDED.sucursal_id, unidad_negocio_id = EXCLUDED.unidad_negocio_id, asesor_id = EXCLUDED.asesor_id,
-        estado = 'abierta', updated_at = now()
+        estado = CASE WHEN alertas.resuelta_manualmente THEN alertas.estado ELSE 'abierta'::alerta_estado END,
+        updated_at = now()
       RETURNING clave_natural
     )
     UPDATE alertas a SET estado = 'resuelta', updated_at = now()
@@ -127,7 +132,12 @@ async function reconcileClientAlerts(tx: Queryable, session: SessionPayload) {
     [...s.values, anioInicio],
   );
   const codigoToAsesorId = new Map<string, string>();
-  const roster = await tx.query(`SELECT codigo_asesor AS codigo, asesor_id AS "asesorId" FROM cumplimiento_asesores WHERE asesor_id IS NOT NULL`);
+  const rosterScope = scope(session, "ca", 1);
+  const roster = await tx.query(
+    `SELECT ca.codigo_asesor AS codigo, ca.asesor_id AS "asesorId"
+     FROM cumplimiento_asesores ca WHERE ca.asesor_id IS NOT NULL AND ${rosterScope.sql}`,
+    rosterScope.values,
+  );
   for (const r of roster.rows) if (r.codigo && r.asesorId) codigoToAsesorId.set(String(r.codigo).trim(), String(r.asesorId));
 
   const nowMs = Date.now();
@@ -152,7 +162,7 @@ async function reconcileClientAlerts(tx: Queryable, session: SessionPayload) {
     if (v.monto < 5000) return;
     const cliente = key.split("|")[1];
     upserts.push({
-      clave: `venta_perdida_cliente:${v.sucursalId ?? "s"}:${key}`, tipo: "ventas_perdidas",
+      clave: `venta_perdida_cliente:v2:${v.sucursalId ?? "s"}:${v.unidadNegocioId ?? "u"}:${key}`, tipo: "ventas_perdidas",
       severidad: v.monto >= 50000 ? "alta" : "media", titulo: `Venta perdida: ${cliente}`,
       contexto: { detalle: `${v.razon || "Venta perdida"}, $${v.monto.toFixed(2)}`, monto: v.monto, cliente, accion: "Contactar de nuevo y ofrecer alternativa" },
       sucursalId: v.sucursalId, unidadNegocioId: v.unidadNegocioId, asesorId: v.asesorId,
@@ -162,7 +172,7 @@ async function reconcileClientAlerts(tx: Queryable, session: SessionPayload) {
     if (v.monto < 3000) return;
     const cliente = key.split("|")[1];
     upserts.push({
-      clave: `cotizacion_abierta:${v.sucursalId ?? "s"}:${key}`, tipo: "cotizacion_factura",
+      clave: `cotizacion_abierta:v2:${v.sucursalId ?? "s"}:${v.unidadNegocioId ?? "u"}:${key}`, tipo: "cotizacion_factura",
       severidad: v.ageDays >= 30 ? "alta" : "media", titulo: `Cotización abierta: ${cliente}`,
       contexto: { detalle: `$${v.monto.toFixed(2)} cotizado hace ${v.ageDays} días, sin facturar`, monto: v.monto, cliente, accion: "Dar seguimiento y cerrar la cotización" },
       sucursalId: v.sucursalId, unidadNegocioId: v.unidadNegocioId, asesorId: v.asesorId,
@@ -175,31 +185,39 @@ async function reconcileClientAlerts(tx: Queryable, session: SessionPayload) {
        VALUES ($1, $2::alerta_tipo, $3::alerta_severidad, $4, $5, $6::uuid, $7::uuid, $8::uuid, 'abierta'::alerta_estado)
        ON CONFLICT (clave_natural) DO UPDATE SET severidad = EXCLUDED.severidad, titulo = EXCLUDED.titulo, contexto = EXCLUDED.contexto,
          sucursal_id = EXCLUDED.sucursal_id, unidad_negocio_id = EXCLUDED.unidad_negocio_id, asesor_id = EXCLUDED.asesor_id,
-         estado = 'abierta', updated_at = now()`,
+         estado = CASE WHEN alertas.resuelta_manualmente THEN alertas.estado ELSE 'abierta'::alerta_estado END,
+         updated_at = now()`,
       [u.clave, u.tipo, u.severidad, u.titulo, JSON.stringify(u.contexto), u.sucursalId, u.unidadNegocioId, u.asesorId],
     );
   }
   // Cierra las que ya no aplican (mismo prefijo de clave_natural, ya no está en upserts)
   const clavesVigentes = upserts.map((u) => u.clave);
+  const visible = alertScope(session, "a", 2);
   await tx.query(
-    `UPDATE alertas SET estado = 'resuelta', updated_at = now()
-     WHERE estado = 'abierta' AND (clave_natural LIKE 'venta_perdida_cliente:%' OR clave_natural LIKE 'cotizacion_abierta:%')
-       AND NOT (clave_natural = ANY($1::text[]))`,
-    [clavesVigentes],
+    `UPDATE alertas a SET estado = 'resuelta', updated_at = now()
+     WHERE a.estado = 'abierta' AND (a.clave_natural LIKE 'venta_perdida_cliente:%' OR a.clave_natural LIKE 'cotizacion_abierta:%')
+       AND NOT (a.clave_natural = ANY($1::text[])) AND ${visible.sql}`,
+    [clavesVigentes, ...visible.values],
   );
 }
 
 router.get("/alertas", async (req: Request, res: Response): Promise<void> => {
   const session = await authenticated(req, res); if (!session) return;
+  const estado = String(req.query.estado ?? "abierta");
+  if (!["abierta", "resuelta", "todas"].includes(estado)) { res.status(400).json({ message: "El estado solicitado no es válido." }); return; }
   try {
     const rows = await withScopedTransaction(session, async (tx) => {
       await reconcile(tx, session);
       await reconcileClientAlerts(tx, session);
-      const visible = alertScope(session, "a");
+      const visible = alertScope(session, "a", estado === "todas" ? 1 : 2);
+      const estadoSql = estado === "todas" ? "" : "a.estado = $1::alerta_estado AND";
+      const values = estado === "todas" ? visible.values : [estado, ...visible.values];
       return (await tx.query(`SELECT a.id, a.tipo, a.severidad, a.titulo, a.contexto, a.sucursal_id AS "sucursalId",
-        a.unidad_negocio_id AS "unidadNegocioId", a.asesor_id AS "asesorId", a.estado, a.created_at AS "createdAt"
-        FROM alertas a WHERE a.estado = 'abierta' AND ${visible.sql}
-        ORDER BY CASE a.severidad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, a.created_at DESC`, visible.values)).rows;
+        a.unidad_negocio_id AS "unidadNegocioId", a.asesor_id AS "asesorId", a.estado, a.created_at AS "createdAt",
+        a.resuelta_manualmente AS "resueltaManualmente", a.resuelta_en AS "resueltaEn", p.nombre_completo AS "resueltaPor"
+        FROM alertas a LEFT JOIN profiles p ON p.id = a.resuelta_por
+        WHERE ${estadoSql} ${visible.sql}
+        ORDER BY CASE a.severidad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, a.created_at DESC`, values)).rows;
     });
     res.json(rows.map((row) => ({ ...row, contexto: typeof row.contexto === "string" ? JSON.parse(row.contexto) : row.contexto })));
   } catch (error) { req.log?.error?.({ error }, "alertas query failed"); res.status(500).json({ message: "No se pudieron reconciliar las alertas." }); }
@@ -212,11 +230,10 @@ router.post("/alertas/:id/resolver", async (req: Request, res: Response): Promis
   if (session.role === "asesor") { res.status(403).json({ message: "Solo coordinador o un rol superior puede resolver alertas." }); return; }
   try {
     const row = await withScopedTransaction(session, async (tx) => {
-      const visible = alertScope(session, "a", 2);
-      const found = await tx.query(`SELECT id FROM alertas a WHERE a.id = $1::uuid AND ${visible.sql} LIMIT 1`, [rawId, ...visible.values]);
-      if (!found.rows[0]) return null;
-      return (await tx.query(`UPDATE alertas SET estado = 'resuelta', resuelta_manualmente = true, resuelta_por = $1::uuid,
-        resuelta_en = now(), updated_at = now() WHERE id = $2::uuid RETURNING id, estado`, [session.user.id, rawId])).rows[0] ?? null;
+      const visible = alertScope(session, "a", 3);
+      return (await tx.query(`UPDATE alertas a SET estado = 'resuelta', resuelta_manualmente = true, resuelta_por = $1::uuid,
+        resuelta_en = now(), updated_at = now() WHERE a.id = $2::uuid AND ${visible.sql} RETURNING a.id, a.estado`,
+        [session.user.id, rawId, ...visible.values])).rows[0] ?? null;
     });
     if (!row) { res.status(403).json({ message: "La alerta está fuera de tu alcance." }); return; }
     res.json(row);
