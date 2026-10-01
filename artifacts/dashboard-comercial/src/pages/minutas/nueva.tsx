@@ -219,7 +219,7 @@ export default function NuevaMinutaPage() {
       <PageHeader
         eyebrow="CRM / Compromisos"
         title="Nueva minuta"
-        description="Elegí el destinatario, revisá sus alertas abiertas y armá uno o varios compromisos para esta reunión"
+        description="Selecciona un destinatario, revisa sus alertas abiertas y registra uno o varios compromisos de seguimiento."
         action={
           <Button variant="outline" onClick={() => setLocation("/minutas")}>
             <ArrowLeft data-icon="inline-start" /> Volver
@@ -255,7 +255,7 @@ export default function NuevaMinutaPage() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label>Fecha de la reunión</Label>
+          <Label>Fecha de la minuta</Label>
           <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1">
@@ -266,7 +266,7 @@ export default function NuevaMinutaPage() {
 
       {!destinatarioId ? (
         <p className="p-8 text-center text-sm text-muted-foreground">
-          Seleccioná un destinatario para ver sus alertas y armar los compromisos de esta reunión.
+          Selecciona un destinatario para revisar sus alertas y preparar compromisos.
         </p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
@@ -320,12 +320,12 @@ export default function NuevaMinutaPage() {
                     </SelectContent>
                   </Select>
                 )}
-                {clientesQuery.isError && <QueryErrorNotice compact error={clientesQuery.error} onRetry={() => void clientesQuery.refetch()} fallback="No se pudieron cargar los clientes." />}
                 {!draft.bloqueado && clientesDestinatario?.length === 0 && (
                   <p className="text-[11px] text-muted-foreground">
                     No hay clientes con actividad registrada para este destinatario todavía.
                   </p>
                 )}
+                {clientesQuery.isError && <QueryErrorNotice compact error={clientesQuery.error} onRetry={() => void clientesQuery.refetch()} fallback="No se pudieron cargar los clientes." />}
               </div>
 
               <div className="flex flex-col gap-1">
@@ -380,7 +380,7 @@ export default function NuevaMinutaPage() {
             {compromisos.length > 0 && (
               <div className="flex flex-col gap-2 border-t border-border pt-4">
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Compromisos de esta reunión ({compromisos.length})
+                  Compromisos de esta minuta ({compromisos.length})
                 </h4>
                 {compromisos.map((c) => (
                   <div
