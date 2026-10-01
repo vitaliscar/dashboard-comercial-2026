@@ -264,7 +264,7 @@ export default function AsesoresPage() {
       <PageHeader
         eyebrow="Vista Gerencial"
         title="Análisis de Asesores"
-        description="Rendimiento consolidado, metas asignadas, conversión y ranking comercial por asesor de ventas."
+        description="Metas, facturación y cotizaciones por asesor. El porcentaje facturado/cotizado compara montos agregados; no representa conversión de oportunidades."
       />
 
       <FilterHeader
@@ -370,7 +370,7 @@ export default function AsesoresPage() {
                           Perdido
                         </TableHead>
                         <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
-                          Conversión
+                          Facturado / cotizado
                         </TableHead>
                         <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
                           Part.
@@ -461,6 +461,7 @@ export default function AsesoresPage() {
                                 <Button
                                   size="icon-sm"
                                   variant="ghost"
+                                  aria-label={`Ver detalle de ${item.nombre}`}
                                   onClick={() => setSelectedAdvisor(item)}
                                   className="h-7 w-7"
                                 >
