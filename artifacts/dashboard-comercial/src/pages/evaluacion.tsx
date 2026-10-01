@@ -79,10 +79,18 @@ export default function EvaluacionPage() {
     <div className="flex flex-col gap-6">
       <PageHeader eyebrow="Evaluación de Desempeño" title="Cumplimiento y gestión comercial" description={`Año ${anio}`} />
 
-      <section className="flex flex-wrap items-start gap-6 rounded-lg border bg-card p-4">
+      <section className="flex flex-wrap items-start gap-6 rounded-lg border bg-card p-4" aria-label="Filtros de evaluación">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Mes(es)</p>
+          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Período</p>
           <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              aria-pressed={meses.length === 0}
+              onClick={() => setMeses([])}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${meses.length === 0 ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+            >
+              Todo el año
+            </button>
             {MESES.map((label, i) => {
               const m = i + 1;
               const active = meses.includes(m);
@@ -90,6 +98,7 @@ export default function EvaluacionPage() {
                 <button
                   key={m}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setMeses((prev) => toggle(prev, m))}
                   className={`rounded-md border px-2.5 py-1 text-xs font-medium ${active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
                 >
@@ -104,13 +113,14 @@ export default function EvaluacionPage() {
           <div>
             <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Sucursal(es)</p>
             {sucursalFija ? (
-              <p className="text-sm text-muted-foreground">Limitada a tus sucursales asignadas.</p>
+              <p className="text-sm text-muted-foreground">Incluye: {sucursales?.map((branch) => branch.nombre).join(", ") || "cargando asignaciones…"}</p>
             ) : (
               <div className="flex max-w-md flex-wrap gap-1.5">
                 {sucursales?.map((s) => (
                   <button
                     key={s.id}
                     type="button"
+                    aria-pressed={sucursalIds.includes(s.id)}
                     onClick={() => setSucursalIds((prev) => toggleId(prev, s.id))}
                     className={`rounded-md border px-2.5 py-1 text-xs font-medium ${sucursalIds.includes(s.id) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
                   >
@@ -125,13 +135,14 @@ export default function EvaluacionPage() {
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Unidad(es) de negocio</p>
           {unidadFija ? (
-            <p className="text-sm text-muted-foreground">Limitada a tus unidades asignadas.</p>
-          ) : (
+            <p className="text-sm text-muted-foreground">Incluye: {unidades?.map((unit) => unit.nombre).join(", ") || "cargando asignaciones…"}</p>
+            ) : (
             <div className="flex max-w-md flex-wrap gap-1.5">
               {unidades?.map((u) => (
                 <button
                   key={u.id}
                   type="button"
+                  aria-pressed={unidadNegocioIds.includes(u.id)}
                   onClick={() => setUnidadNegocioIds((prev) => toggleId(prev, u.id))}
                   className={`rounded-md border px-2.5 py-1 text-xs font-medium ${unidadNegocioIds.includes(u.id) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
                 >
@@ -141,6 +152,13 @@ export default function EvaluacionPage() {
             </div>
           )}
         </div>
+        <button
+          type="button"
+          className="rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+          onClick={() => { setMeses([]); setSucursalIds([]); setUnidadNegocioIds([]); }}
+        >
+          Restablecer filtros
+        </button>
       </section>
 
       {reporte.isLoading ? (
@@ -290,8 +308,9 @@ function ReporteSucursal({ data }: { data: import("@/lib/evaluacion-http").Repor
 function GestionAsesoresSection({ query }: { query: ReturnType<typeof useQuery<import("@/lib/evaluacion-http").GestionAsesores>> }) {
   return (
     <section className="rounded-lg border bg-card p-4">
-      <h3 className="mb-1 text-sm font-semibold">Gestión del asesor: cotizado → facturado → perdido</h3>
-      <p className="mb-3 text-xs text-muted-foreground">Solo visible para gerencia, gerente comercial y coordinador.</p>
+      <h3 className="mb-1 text-sm font-semibold">Relación de montos por asesor</h3>
+      <p className="mb-1 text-xs text-muted-foreground">Cotizaciones, facturación y ventas perdidas son totales agregados del período; no se enlaza cada cotización con su resultado.</p>
+      <p className="mb-3 text-xs text-muted-foreground">Score: cumplimiento 40 % + facturado/cotizado 35 % + (100 % − perdido/cotizado) 25 %. Solo visible para gerencia, gerente comercial y coordinador.</p>
       {query.isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>
       ) : query.isError || !query.data ? (
@@ -305,7 +324,7 @@ function GestionAsesoresSection({ query }: { query: ReturnType<typeof useQuery<i
                 <th className="py-2 text-right">Cotizado</th>
                 <th className="py-2 text-right">Facturado</th>
                 <th className="py-2 text-right">Perdido</th>
-                <th className="py-2 text-right">Conversión</th>
+                <th className="py-2 text-right">Facturado / cotizado</th>
                 <th className="py-2 text-right">Cumplimiento</th>
                 <th className="py-2 text-right">Score</th>
               </tr>
