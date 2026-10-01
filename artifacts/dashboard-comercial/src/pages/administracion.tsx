@@ -11,7 +11,7 @@ import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxCont
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { PageHeader } from "@/components/page-header";
 import { useHealthCheck } from "@workspace/api-client-react";
-import { Database, FileSpreadsheet, ShieldCheck } from "lucide-react";
+import { Clock3, Database, ShieldCheck } from "lucide-react";
 
 function Denied({ admin = false }: { admin?: boolean }) { return <div className="card-elevated max-w-xl p-8 text-center"><h2 className="font-display text-xl font-semibold">Acceso restringido</h2><p className="mt-2 text-sm text-muted-foreground">{admin ? "Esta superficie requiere Gerencia y administrador de la aplicación." : "Esta superficie requiere el rol Gerencia."}</p></div>; }
 export function UsuariosPage() {
@@ -87,18 +87,18 @@ export function CargaPage() {
           </div>
           <div className="mt-6 flex items-center gap-2 border-t border-border pt-4 text-sm">
             <span className={`size-2 rounded-full ${apiOnline ? "bg-emerald-600" : health.isLoading ? "bg-amber-500" : "bg-destructive"}`} />
-            <span className="font-medium">{apiOnline ? "API conectada" : health.isLoading ? "Verificando conexión…" : "Sin conexión con la API"}</span>
-            <span className="ml-auto text-xs text-muted-foreground">Comprobación automática</span>
+            <span className="font-medium">{apiOnline ? "API operativa" : health.isLoading ? "Verificando conexión…" : "API no disponible"}</span>
+            <span className="ml-auto text-xs text-muted-foreground">No mide frescura de datos</span>
           </div>
         </article>
         <article className="card-elevated flex min-h-52 flex-col justify-between p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">Importación Excel</p>
-              <h2 className="mt-3 font-display text-2xl font-medium">No disponible</h2>
-              <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">Esta pantalla no permite cargar archivos. Los datos operativos se administran en PostgreSQL y se consultan desde los módulos.</p>
+              <p className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">Frescura de datos</p>
+              <h2 className="mt-3 font-display text-2xl font-medium">Sin marca de tiempo</h2>
+              <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">El backend no publica cuándo se actualizó cada fuente. Los módulos consultan la base PostgreSQL directamente.</p>
             </div>
-            <span className="rounded-lg bg-amber-500/10 p-3 text-amber-700"><FileSpreadsheet aria-hidden="true" /></span>
+            <span className="rounded-lg bg-amber-500/10 p-3 text-amber-700"><Clock3 aria-hidden="true" /></span>
           </div>
           <div className="mt-6 flex items-start gap-2 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
