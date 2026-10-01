@@ -2,7 +2,7 @@ import { isFullAccessRole } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Boxes, Building2, Search, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales } from "@/hooks/use-catalogos";
 import { money } from "@/lib/format";
@@ -56,13 +56,15 @@ function SectionTitle({ title, description }: { title: string; description: stri
   );
 }
 
-function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey }) {
+function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: UnidadKey; role: AppRole | null }) {
   const brands = useMemo(() => {
     const rows = data.detallesMarcas ?? [];
     const totals = new Map<string, number>();
     rows.forEach((row) => {
       const amount = num(row.montoTotal ?? row.monto);
-      const name = label(row.marca);
+      const marca = label(row.marca);
+      const sucursal = label(row.sucursal ?? (row.sucursalId ? "Sucursal sin nombre" : "Consolidado histórico"));
+      const name = `${marca} · ${sucursal}`;
       totals.set(name, (totals.get(name) ?? 0) + amount);
     });
     return [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
@@ -209,13 +211,19 @@ function DetailSection({ data, keyName }: { data: UnidadData; keyName: UnidadKey
           title={keyName === "repuestos" ? "Ventas netas por marca" : "Ventas por marca"}
           description={
             keyName === "repuestos"
-              ? "Detalle de ventas de Repuestos con la fuente neteada contra Lubricantes/Filtros."
+              ? "Ventas netas por marca y sucursal. Los registros históricos sin sucursal se muestran como consolidados."
               : "Detalle mensual de ventas de Lubricantes/Filtros por suplidor y marca."
           }
         />
         <div className="mt-4 space-y-3">
           {brands.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay detalle de marcas para el año cargado.</p>
+            <p className="text-sm text-muted-foreground">
+              {role === "coordinador" && keyName === "repuestos"
+                ? "No hay ventas de Repuestos asignadas a tus sucursales para este período."
+                : role === "coordinador" && keyName === "lubfiltros"
+                ? "No hay ventas de Lubricantes/Filtros asignadas a tus sucursales para este período."
+                : "No hay detalle de marcas para el año cargado."}
+            </p>
           ) : (
             brands.map(([name, amount]) => (
               <div key={name} className="flex items-center justify-between border-b pb-2 text-sm last:border-0">
@@ -302,7 +310,9 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
   const { anio, meses } = filters;
   const { data: sucursales } = useSucursales();
   const [search, setSearch] = useState("");
-  const branch = isFullAccessRole(role) ? filters.sucursales[0] : undefined;
+  const branch = isFullAccessRole(role) || role === "gerente_comercial"
+    ? filters.sucursales[0]
+    : undefined;
   const copy = UNIT_COPY[unitKey];
 
   const { data, isLoading, error } = useQuery({
@@ -378,7 +388,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
       <PageHeader eyebrow="Unidad de Negocio" title={copy.title} description={copy.description} />
       <FilterHeader
         onApplyFilters={handleApplyFilters}
-        sucursalOptions={isFullAccessRole(role) ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
+        sucursalOptions={isFullAccessRole(role) || role === "gerente_comercial" ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
         defaultMes={meses}
         defaultAnio={anio}
         showAllMonths
@@ -448,7 +458,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         <GlobalMonthlyCombo data={monthly} highlightMonths={getHighlightMonthLabels(meses)} />
       </section>
 
-      <DetailSection data={data!} keyName={unitKey} />
+      <DetailSection data={data!} keyName={unitKey} role={role} />
 
       <section className="flex flex-col gap-3 section-enter section-enter-4">
         <div className="flex flex-wrap items-end justify-between gap-3">

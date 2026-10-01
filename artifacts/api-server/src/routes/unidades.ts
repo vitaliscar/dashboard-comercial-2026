@@ -190,42 +190,61 @@ async function loadUnitData(
   };
 
   if (key === "repuestos") {
+    const branchSpecific = session.role === "coordinador" || Boolean(scope.branch);
     response.detallesMarcas = (
       await tx.query(
-        `SELECT marca,
-                mes,
-                ventas_ccv AS "ventasCcv",
-                ventas_xibi AS "ventasXibi",
-                monto_total AS "montoTotal"
-         FROM detalles_ventas_repuestos
-         WHERE mes = ANY($1::int[])
-         ORDER BY mes, monto_total DESC`,
-        [months],
+        `SELECT d.marca,
+                d.mes,
+                d.sucursal_id AS "sucursalId",
+                s.nombre AS sucursal,
+                d.ventas_ccv AS "ventasCcv",
+                d.ventas_xibi AS "ventasXibi",
+                d.monto_total AS "montoTotal"
+         FROM detalles_ventas_repuestos d
+         LEFT JOIN sucursales s ON s.id = d.sucursal_id
+         WHERE d.mes = ANY($1::int[])
+           AND (NOT $4::boolean
+                OR (d.sucursal_id IS NOT NULL
+                    AND ($2::uuid IS NULL OR d.sucursal_id = $2::uuid)
+                    AND ($3::uuid[] IS NULL OR d.sucursal_id = ANY($3::uuid[]))))
+         ORDER BY d.mes, d.monto_total DESC`,
+        [months, scope.branch, scope.branchScope, branchSpecific],
       )
     ).rows;
   }
 
   if (key === "lubfiltros") {
+    const branchSpecific = session.role === "coordinador" || Boolean(scope.branch);
     const [detalles, inventario] = await Promise.all([
       tx.query(
-        `SELECT marca,
-                mes,
-                ventas_ccv AS "ventasCcv",
-                ventas_xibi AS "ventasXibi",
-                ventas_estrategicas AS "ventasEstrategicas",
-                monto_total AS "montoTotal"
-         FROM detalles_ventas_lubfiltros
-         WHERE mes = ANY($1::int[])
-         ORDER BY mes, monto_total DESC`,
-        [months],
+        `SELECT d.marca,
+                d.mes,
+                d.sucursal_id AS "sucursalId",
+                s.nombre AS sucursal,
+                d.ventas_ccv AS "ventasCcv",
+                d.ventas_xibi AS "ventasXibi",
+                d.ventas_estrategicas AS "ventasEstrategicas",
+                d.monto_total AS "montoTotal"
+         FROM detalles_ventas_lubfiltros d
+         LEFT JOIN sucursales s ON s.id = d.sucursal_id
+         WHERE d.mes = ANY($1::int[])
+           AND (NOT $4::boolean
+                OR (d.sucursal_id IS NOT NULL
+                    AND ($2::uuid IS NULL OR d.sucursal_id = $2::uuid)
+                    AND ($3::uuid[] IS NULL OR d.sucursal_id = ANY($3::uuid[]))))
+         ORDER BY d.mes, d.monto_total DESC`,
+        [months, scope.branch, scope.branchScope, branchSpecific],
       ),
       tx.query(
         `SELECT tipo,
                 proveedor_codigo AS "proveedorCodigo",
                 sucursal,
                 monto
-         FROM inventario_lubfiltros
+         FROM inventario_lubfiltros i
+         LEFT JOIN sucursales b ON lower(trim(i.sucursal)) = lower(trim(b.nombre))
+         WHERE ($1::uuid[] IS NULL OR b.id = ANY($1::uuid[]))
          ORDER BY monto DESC`,
+        [session.role === "coordinador" ? scope.branchScope : null],
       ),
     ]);
     response.detallesMarcas = detalles.rows;
@@ -298,8 +317,10 @@ async function loadUnitData(
          WHERE anio = $1
            AND mes = ANY($2::int[])
            AND unidad_negocio_id = $3::uuid
+           AND ($4::uuid IS NULL OR sucursal_id = $4::uuid)
+           AND ($5::uuid[] IS NULL OR sucursal_id = ANY($5::uuid[]))
          ORDER BY monto DESC`,
-        [year, months, unitId],
+        [year, months, unitId, scope.branch, scope.branchScope],
       ),
       tx.query(
         `SELECT marca,
@@ -333,6 +354,10 @@ router.get("/unidades/:unitKey", async (req: Request, res: Response) => {
   }
   if (!session.role) {
     res.status(403).json({ message: "El usuario no tiene un rol comercial asignado." });
+    return;
+  }
+  if (session.role === "asesor") {
+    res.status(403).json({ message: "Los paneles de unidad no están disponibles para el rol asesor." });
     return;
   }
 
