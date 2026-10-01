@@ -68,6 +68,9 @@ interface VersionRow {
   descripcion?: string | null;
   premisas?: {
     tipo?: string;
+    metaPropuesta?: number | string;
+    metaTotalConGestion?: number | string;
+    montoGestionComercialTotal?: number | string;
     unidadSolicitanteIds?: string[];
     sucursales?: ParticipacionSucursal[];
     meses?: Distribucion["meses"];
@@ -149,6 +152,12 @@ function PresupuestoGerenciaPage() {
     queryKey: ["presupuestos", "versiones", targetAnio],
     queryFn: () => api(`/presupuestos/versiones?anio=${targetAnio}`),
   });
+
+  const ultimaMetaAprobada = useMemo(() => {
+    const aprobada = versiones?.find((version) => version.estado === "aprobado");
+    const meta = aprobada?.premisas?.metaTotalConGestion ?? aprobada?.premisas?.metaPropuesta;
+    return meta == null ? null : Number(meta);
+  }, [versiones]);
 
   const crear = useMutation({
     mutationFn: async () => {
@@ -350,6 +359,18 @@ function PresupuestoGerenciaPage() {
         description={esGerenteComercial ? "Distribuye la meta asignada a tu unidad entre sucursales y meses." : "Ajusta la meta anual, distribuye entre unidades y define la participación por sucursal y mes."}
       />
 
+      <section aria-label="Etapas del presupuesto" className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-4 sm:p-4">
+        {(esGerenteComercial
+          ? ["Meta anual aprobada", "Distribuye por sucursal", "Distribuye por mes", "Envía el plan"]
+          : ["Define aumento anual", "Asigna peso y gestión", "Revisa impacto", "Aprueba versión"]
+        ).map((etapa, index) => (
+          <div key={etapa} className="flex items-center gap-2 text-xs sm:text-sm">
+            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono font-semibold text-primary">{index + 1}</span>
+            <span className="font-medium">{etapa}</span>
+          </div>
+        ))}
+      </section>
+
       {!esGerenteComercial && <Card>
         <CardHeader><CardTitle>Revisión de la meta anual</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-4">
@@ -502,18 +523,32 @@ function PresupuestoGerenciaPage() {
         <CardContent>
           {versionesError && <QueryErrorNotice error={versionesErrorDetail} onRetry={() => void refetchVersiones()} fallback="No se pudieron cargar las versiones." />}
           <div className="overflow-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-left"><th className="p-2">Nombre</th><th className="p-2">Estado</th><th className="p-2">Creado</th><th className="p-2" /></tr></thead>
+            <table className="w-full min-w-[760px] text-sm">
+              <thead><tr className="border-b text-left"><th className="p-2">Nombre</th><th className="p-2">Estado</th><th className="p-2">Impacto anual</th><th className="p-2">Creado</th><th className="p-2" /></tr></thead>
               <tbody>
                 {(versiones ?? []).map((version) => (
                   <tr key={version.id} className="border-b">
                     <td className="max-w-xl p-2"><div className="font-medium">{version.nombre}</div>{!esGerenteComercial && version.premisas?.unidadSolicitanteIds?.length ? <p className="mt-1 text-xs font-medium text-primary">{version.premisas.unidadSolicitanteIds.map((id) => { const unidad = unidades?.find((item) => item.id === id); return unidad ? unidadLabelInfo(unidad.nombre).label : "Unidad"; }).join(" · ")}</p> : null}{version.descripcion && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{version.descripcion}</p>}{!esGerenteComercial && version.premisas?.tipo === "plan_comercial_unidad" && <details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-primary">Ver distribución solicitada</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><div><p className="mb-1 text-xs font-semibold">Participación por sucursal</p>{version.premisas.sucursales?.map((row) => <p key={`${row.unidadNegocioId}:${row.sucursalId}`} className="text-xs text-muted-foreground">{sucursalesCatalogo?.find((item) => item.id === row.sucursalId)?.nombre ?? "Sucursal"}: {row.participacion.toFixed(2)}%</p>)}</div><div><p className="mb-1 text-xs font-semibold">Participación mensual</p>{version.premisas.meses?.map((row) => <p key={`${row.unidadNegocioId}:${row.mes}`} className="text-xs text-muted-foreground">{MESES[row.mes - 1]}: {row.participacion.toFixed(2)}%</p>)}</div></div></details>}</td>
                     <td className="p-2">{version.premisas?.tipo === "plan_comercial_unidad" ? "Plan recibido" : ESTADO_LABEL[version.estado]}</td>
+                    <td className="p-2 tabular-nums">
+                      {version.premisas?.tipo === "plan_comercial_unidad" ? (
+                        <span className="text-muted-foreground">Redistribución; conserva la meta</span>
+                      ) : (() => {
+                        const nuevaMeta = version.premisas?.metaTotalConGestion ?? version.premisas?.metaPropuesta;
+                        if (nuevaMeta == null) return <span className="text-muted-foreground">Pendiente de proyección</span>;
+                        const total = Number(nuevaMeta);
+                        const delta = ultimaMetaAprobada === null ? null : total - ultimaMetaAprobada;
+                        const variacion = ultimaMetaAprobada && ultimaMetaAprobada > 0 && delta !== null
+                          ? (delta / ultimaMetaAprobada) * 100
+                          : null;
+                        return <><span className="font-medium">{money(total)}</span>{version.estado === "propuesto" && delta !== null && <span className={`ml-2 text-xs ${delta >= 0 ? "text-primary" : "text-destructive"}`}>{delta >= 0 ? "+" : "−"}{money(Math.abs(delta))}{variacion !== null ? ` · ${variacion >= 0 ? "+" : ""}${variacion.toFixed(1)} %` : ""} vs. aprobada</span>}</>;
+                      })()}
+                    </td>
                     <td className="p-2">{new Date(version.createdAt).toLocaleDateString("es-VE")}</td>
-                    <td className="p-2 text-right">{!esGerenteComercial && version.estado === "propuesto" && version.premisas?.tipo !== "plan_comercial_unidad" && <Button size="sm" onClick={() => aprobar.mutate(version.id)} disabled={aprobar.isPending}>Aprobar</Button>}</td>
+                    <td className="p-2 text-right">{!esGerenteComercial && version.estado === "propuesto" && version.premisas?.tipo !== "plan_comercial_unidad" && <Button size="sm" onClick={() => aprobar.mutate(version.id)} disabled={aprobar.isPending}>{aprobar.isPending ? "Aprobando…" : "Aprobar"}</Button>}</td>
                   </tr>
                 ))}
-                {!versionesError && versiones?.length === 0 && <tr><td className="p-2 text-muted-foreground" colSpan={4}>Sin revisiones guardadas para {targetAnio}.</td></tr>}
+                {!versionesError && versiones?.length === 0 && <tr><td className="p-2 text-muted-foreground" colSpan={5}>Sin revisiones guardadas para {targetAnio}.</td></tr>}
               </tbody>
             </table>
           </div>
