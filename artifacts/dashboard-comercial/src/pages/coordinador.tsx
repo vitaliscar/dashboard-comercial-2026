@@ -232,7 +232,7 @@ export default function CoordinadorPage() {
                     <th scope="col" className="p-3 font-medium">Asesor</th>
                     <th scope="col" className="p-3 text-right font-medium">Meta</th>
                     <th scope="col" className="p-3 text-right font-medium">Facturado</th>
-                    <th scope="col" className="p-3 text-right font-medium">Brecha</th>
+                    <th scope="col" className="p-3 text-right font-medium">Brecha / excedente</th>
                     <th scope="col" className="p-3 text-right font-medium">Cumplimiento</th>
                     <th scope="col" className="p-3 text-right font-medium">Participación</th>
                   </tr>
@@ -254,7 +254,15 @@ export default function CoordinadorPage() {
                       <td className="p-3 text-right tabular-nums">{money(Number(advisor.presupuesto))}</td>
                       <td className="p-3 text-right font-medium tabular-nums">{money(Number(advisor.venta))}</td>
                       <td className="p-3 text-right tabular-nums">
-                        {Number(advisor.presupuesto) > 0 ? money(Math.max(0, Number(advisor.presupuesto) - Number(advisor.venta))) : <span className="text-muted-foreground">Sin meta</span>}
+                        {Number(advisor.presupuesto) <= 0 ? (
+                          <span className="text-muted-foreground">Sin meta</span>
+                        ) : Number(advisor.venta) >= Number(advisor.presupuesto) ? (
+                          <span className="text-success">
+                            Sobre meta {money(Number(advisor.venta) - Number(advisor.presupuesto))}
+                          </span>
+                        ) : (
+                          money(Number(advisor.presupuesto) - Number(advisor.venta))
+                        )}
                       </td>
                       <td className={`p-3 text-right font-semibold tabular-nums ${Number(advisor.pctCumplimiento) < 70 ? "text-danger" : Number(advisor.pctCumplimiento) < 90 ? "text-warning" : "text-success"}`}>
                         {pct(Number(advisor.pctCumplimiento))}
