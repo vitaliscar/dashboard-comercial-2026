@@ -75,7 +75,7 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 }
 
 export default function CobranzasPage() {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("cliente") ?? "");
   const [page, setPage] = useState(0);
   const { session, role } = useAuth();
   const { filters, setFilters } = useSharedFilters();

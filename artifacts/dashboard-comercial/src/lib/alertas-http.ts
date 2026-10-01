@@ -3,7 +3,7 @@ export type Alerta = {
   tipo: string;
   severidad: "alta" | "media" | "baja";
   titulo: string;
-  contexto: { detalle?: string; monto?: number; accion?: string } | null;
+  contexto: { detalle?: string; monto?: number; accion?: string; cliente?: string } | null;
   sucursalId: string | null;
   unidadNegocioId: string | null;
   asesorId: string | null;
