@@ -272,9 +272,17 @@ export default function GerenciaNacionalPage() {
           <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{pct(kpis.cumplimiento, 1)}</div>
         </div>
         <div className="bg-[#18352b] p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Brecha para meta</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">
+            {kpis.totalPresupuesto <= 0
+              ? "Meta no asignada"
+              : kpis.totalFacturado >= kpis.totalPresupuesto
+                ? "Sobre meta"
+                : "Falta para meta"}
+          </div>
           <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">
-            {money(Math.max(0, kpis.totalPresupuesto - kpis.totalFacturado))}
+            {kpis.totalPresupuesto <= 0
+              ? "—"
+              : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}
           </div>
         </div>
       </section>
