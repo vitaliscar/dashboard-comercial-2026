@@ -22,7 +22,6 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -94,7 +93,6 @@ export default function AsesoresPage() {
   const { anio, meses, sucursales: selectedSucursales, unidades: selectedUnidades } = filters;
 
   const chartAnimation = useChartAnimation();
-  const [activeTab, setActiveTab] = useState<"ranking">("ranking");
   const [selectedAdvisor, setSelectedAdvisor] = useState<AgrupacionAsesor | null>(null);
 
   const canView = isFullAccessRole(role) || role === "gerente_comercial" || role === "coordinador";
@@ -326,23 +324,10 @@ export default function AsesoresPage() {
             />
           </div>
 
-          <Tabs
-            value={activeTab}
-            onValueChange={() => setActiveTab("ranking")}
-            className="w-full mt-2"
-          >
-            <div className="flex items-center justify-between border-b border-border pb-1 flex-wrap gap-2">
-              <TabsList className="bg-transparent p-0 gap-2 h-auto">
-                <TabsTrigger
-                  value="ranking"
-                  className="px-4 py-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-auto font-semibold text-sm transition-colors"
-                >
-                  Ranking Comercial
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="ranking" className="mt-4">
+          <section className="w-full mt-2" aria-labelledby="asesores-ranking-title">
+            <h2 id="asesores-ranking-title" className="mb-3 font-display text-lg font-semibold">
+              Ranking comercial
+            </h2>
               <div className="bg-card border border-border shadow-sm rounded-lg overflow-hidden">
                 <div className="[&_[data-slot=table-container]]:max-h-140 [&_[data-slot=table-container]]:overflow-y-auto">
                   <Table>
@@ -369,8 +354,8 @@ export default function AsesoresPage() {
                         <TableHead className="font-bold text-right bg-primary text-primary-foreground">
                           Perdido
                         </TableHead>
-                        <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
-                          Facturado / cotizado
+                        <TableHead className="font-bold text-center w-32 bg-primary text-primary-foreground">
+                          Relación facturado / cotizado
                         </TableHead>
                         <TableHead className="font-bold text-center w-20 bg-primary text-primary-foreground">
                           Part.
@@ -399,17 +384,8 @@ export default function AsesoresPage() {
                           return (
                             <TableRow
                               key={item.codigo}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => setSelectedAdvisor(item)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  setSelectedAdvisor(item);
-                                }
-                              }}
                               className={cn(
-                                "hover:bg-muted/30 cursor-pointer transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                "hover:bg-muted/30 transition-colors",
                                 isCasa && "bg-secondary/40 font-semibold hover:bg-secondary/60",
                               )}
                             >
@@ -476,9 +452,7 @@ export default function AsesoresPage() {
                   </Table>
                 </div>
               </div>
-            </TabsContent>
-
-          </Tabs>
+          </section>
         </>
       ) : (
         <div className="h-64 flex justify-center items-center text-muted-foreground">
