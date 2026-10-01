@@ -14,7 +14,7 @@ export default function Cliente360Page() {
   const { session } = useAuth();
   const { filters } = useSharedFilters();
   const [fuente, setFuente] = useState<Cliente360Fuente>("facturado");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("cliente") ?? "");
   const [page, setPage] = useState(0);
   const selectedMonths = Array.isArray(filters.meses) ? filters.meses : [];
   const data = useQuery({
@@ -40,17 +40,17 @@ export default function Cliente360Page() {
   const visibleClients = filteredClients.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
 
   return <div className="flex flex-col gap-6">
-    <PageHeader eyebrow="Gestión comercial" title="Cliente 360" description="Valor comercial, facturación reciente y saldo por cobrar dentro de tu alcance." />
+    <PageHeader eyebrow="Gestión comercial" title="Cartera de clientes" description="Ranking agregado por facturación, cotizaciones o ventas perdidas. El saldo y la última factura son referencias disponibles para tu alcance." />
     <div className="flex flex-wrap items-center gap-2" aria-label="Fuente del ranking">
       {(["facturado", "cotizado", "perdido"] as Cliente360Fuente[]).map((value) => <button key={value} type="button" aria-pressed={fuente === value} onClick={() => { setFuente(value); setPage(0); }} className={`rounded-lg px-3 py-2 text-sm capitalize ${fuente === value ? "bg-primary text-primary-foreground" : "border border-border"}`}>{value}</button>)}
-      <label htmlFor="cliente-search" className="sr-only">Buscar cliente</label>
-      <input id="cliente-search" type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Buscar cliente" className="ml-auto h-10 w-full max-w-xs rounded-lg border border-border bg-background px-3 text-sm" />
+      <label htmlFor="cliente-search" className="sr-only">Buscar cliente por nombre</label>
+      <input id="cliente-search" type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Buscar cliente por nombre" className="ml-auto h-10 w-full max-w-xs rounded-lg border border-border bg-background px-3 text-sm" />
     </div>
     {data.isLoading ? <p className="text-sm text-muted-foreground">Cargando clientes…</p> : data.isError ? <QueryErrorNotice error={data.error} onRetry={() => void data.refetch()} fallback="No se pudieron cargar los clientes." /> : <>
       <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <caption className="sr-only">Clientes ordenados por monto {fuente}</caption>
-          <thead className="sticky top-0 z-10 border-b border-border bg-muted/90 text-left text-muted-foreground backdrop-blur"><tr><th scope="col" className="p-3">Cliente</th><th scope="col" className="p-3 text-right">Monto {fuente}</th><th scope="col" className="p-3 text-right">Cartera</th><th scope="col" className="p-3">Última factura</th></tr></thead>
+          <thead className="sticky top-0 z-10 border-b border-border bg-muted/90 text-left text-muted-foreground backdrop-blur"><tr><th scope="col" className="p-3">Cliente</th><th scope="col" className="p-3 text-right">Monto {fuente}</th><th scope="col" className="p-3 text-right">Saldo de cartera</th><th scope="col" className="p-3">Factura más reciente</th></tr></thead>
           <tbody>{visibleClients.map((item) => {
             const key = clientKey(item.cliente);
             const receivable = receivablesByClient.get(key);
