@@ -2156,3 +2156,42 @@
   .ccv-summary-detail-content { padding-inline: .75rem; }
 }
 
+.ccv-unit-tabs {
+  position: sticky;
+  top: 72px;
+  z-index: 15;
+  display: flex;
+  gap: .35rem;
+  overflow-x: auto;
+  margin-left: 0;
+  padding: .55rem 1rem;
+  border-bottom: 1px solid #d9d7cd;
+  background: rgba(247, 246, 240, .92);
+  backdrop-filter: blur(12px);
+}
+@media (min-width: 1024px) {
+  .ccv-unit-tabs { margin-left: 248px; }
+}
+.ccv-unit-tabs a {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: .4rem .8rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: #52665a;
+  font: 600 .75rem/1 var(--font-sans);
+  transition: background-color .16s ease, color .16s ease;
+}
+.ccv-unit-tabs a[aria-current="page"] {
+  border-color: #17362b;
+  background: #17362b;
+  color: #fffdf4;
+}
+.ccv-unit-tabs a:focus-visible {
+  outline: 2px solid #26764c;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ccv-unit-tabs a { transition: none; }
+}
+

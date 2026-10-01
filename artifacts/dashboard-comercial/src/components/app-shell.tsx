@@ -274,15 +274,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     return false;
   });
 
-  const [visionGeneral, gestionComercial, finanzas, administracion] = NAV_GROUPS.map(
-    (group) => ({
-      ...group,
-      items: group.items.filter(
-        (item) =>
-          canAccessModule(role, item.module) && (!item.requiresAdmin || profile?.is_admin),
-      ),
-    }),
-  );
+  const filteredNavGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) =>
+        canAccessModule(role, item.module) && (!item.requiresAdmin || profile?.is_admin),
+    ),
+  }));
 
   // Un gerente_comercial de una sola unidad (repuestos, servicios o
   // lubricantes/filtros) ya cae directo en la vista de su unidad al entrar a
@@ -292,13 +290,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   // porque su "Dashboard" cae en /gerencia-nacional en vez de una unidad fija.
   const showUnitNavGroup = !(role === "gerente_comercial" && assignedUnitIds.length <= 1);
 
-  const navGroups: NavGroup[] = [
-    visionGeneral,
-    ...(showUnitNavGroup ? [{ title: "Unidad de Negocios", items: visibleUnitNav }] : []),
-    gestionComercial,
-    finanzas,
-    administracion,
-  ].filter((group) => group.items.length > 0);
+  const navGroups: NavGroup[] = filteredNavGroups
+    .flatMap((group) =>
+      group.title === "Visión General"
+        ? [
+            group,
+            ...(showUnitNavGroup
+              ? [{ title: "Unidad de Negocios", items: visibleUnitNav }]
+              : []),
+          ]
+        : [group],
+    )
+    .filter((group) => group.items.length > 0);
 
   const canUploadExcel = canAccessModule(role, "carga");
   const canExportPdf = canDownloadData(role);
@@ -323,7 +326,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           "ccv-sidebar",
           "no-print fixed lg:sticky top-0 z-40 h-screen flex flex-col overflow-hidden",
           "bg-sidebar border-r border-sidebar-border",
-          "transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           collapseReady &&
             "lg:transition-[width] lg:duration-200 lg:ease-[cubic-bezier(0.32,0.72,0,1)]",
           // Mobile: slide in/out (el ancho colapsado solo aplica en desktop)

@@ -30,7 +30,7 @@ import {
 } from "@workspace/api-client-react";
 import type { UnidadKey } from "./lib/unidad-http";
 import { useAuth } from "./hooks/use-auth";
-import { useUnidades } from "./hooks/use-catalogos";
+import { useSucursales, useUnidades } from "./hooks/use-catalogos";
 import { canAccessModule, canManageManualAdjustments, type ModuleKey } from "./lib/permissions";
 import { unidadLabelInfo } from "./lib/unidad-labels";
 import { AuthForm } from "./components/auth-form";
@@ -410,7 +410,7 @@ function modulePage(path: string, role: DemoRole) {
 }
 
 function DashboardApp() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobileNav, setIsMobileNav] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -426,6 +426,9 @@ function DashboardApp() {
     () => new Set(["Administración"]),
   );
   const [query, setQuery] = useState("");
+  const [paletteIndex, setPaletteIndex] = useState(0);
+  const paletteInputRef = useRef<HTMLInputElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
   const {
     session: authSession,
     profile: authProfile,
@@ -434,6 +437,7 @@ function DashboardApp() {
     signOut,
   } = useAuth();
   const { data: units, isLoading: unitsLoading } = useUnidades();
+  const { data: sucursales } = useSucursales();
   const isLiveSession = !authLoading && Boolean(authSession && authRole);
   const apiHealth = useHealthCheck({
     query: {
@@ -467,19 +471,28 @@ function DashboardApp() {
     : authProfile?.unidad_negocio_id
       ? [authProfile.unidad_negocio_id]
       : [];
+  const branchIds = authProfile?.sucursales_ids?.length
+    ? authProfile.sucursales_ids
+    : authProfile?.sucursal_id
+      ? [authProfile.sucursal_id]
+      : [];
+  const branchLabel = sucursales
+    ?.filter((branch) => branchIds.includes(branch.id))
+    .map((branch) => branch.nombre)
+    .join(" · ");
+  const unitLabel =
+    units
+      ?.filter((unit) => unitIds.includes(unit.id))
+      .map((unit) => unidadLabelInfo(unit.nombre).label)
+      .join(" · ") || "";
   const roleContextLabel =
     authRole === "gerente_comercial"
-      ? units
-          ?.filter((unit) => unitIds.includes(unit.id))
-          .map((unit) => unidadLabelInfo(unit.nombre).label)
-          .join(" · ") || "Unidades asignadas"
-      : authRole === "gerencia"
-        ? "Gerencia nacional"
-        : authRole === "coordinador"
-          ? "Sucursal asignada"
-          : authRole === "asesor"
-            ? "Mi cartera"
-            : "Acceso global";
+      ? `Unidad: ${unitLabel || "sin unidad asignada"}`
+      : authRole === "coordinador" || authRole === "asesor"
+        ? `Sucursal: ${branchLabel || "sin sucursal asignada"}`
+        : authRole === "gerencia" || authRole === "administrador"
+          ? "Alcance: todas las sucursales"
+          : "Alcance: sin sesión";
   const accessibleModules = useMemo(
     () =>
       authRole
@@ -503,8 +516,17 @@ function DashboardApp() {
     [authRole, authProfile?.is_admin, unitIds, units],
   );
   const visibleModules = accessibleModules.filter((item) =>
-    `${item.label} ${item.group}`.toLowerCase().includes(query.toLowerCase()),
+    `${item.label} ${item.group} ${item.description}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
+  const paletteModules = query ? visibleModules : accessibleModules;
+  const moduleHref = (path: string) =>
+    path === "/dashboard" && authRole ? DEMO_DASHBOARD_PATHS[authRole] : path;
+
+  useEffect(() => {
+    setPaletteIndex(0);
+  }, [query, paletteOpen]);
 
   useEffect(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
@@ -590,7 +612,7 @@ function DashboardApp() {
               first.focus();
             }
           }}
-          className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
+          className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out motion-reduce:transition-none lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
         >
           <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
             <img
@@ -624,13 +646,14 @@ function DashboardApp() {
               if (groupModules.length === 0) return null;
               const canCollapseGroup = groupModules.length > 1;
               const isActiveGroup = groupModules.some(
-                (item) => location === item.path,
+                (item) =>
+                  location === item.path || location === moduleHref(item.path),
               );
               const isCollapsed =
                 canCollapseGroup && collapsedGroups.has(group) && !isActiveGroup;
               return (
                 <div key={group} className="mb-5">
-                  {canCollapseGroup && (
+                  {canCollapseGroup ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -647,9 +670,13 @@ function DashboardApp() {
                       {group}
                       <ChevronDown
                         size={12}
-                        className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                        className={`transition-transform motion-reduce:transition-none ${isCollapsed ? "-rotate-90" : ""}`}
                       />
                     </button>
+                  ) : (
+                    <p className="ccv-nav-group mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40">
+                      {group}
+                    </p>
                   )}
                   <div className={`space-y-1 ${isCollapsed ? "hidden" : ""}`}>
                     {groupModules.map((item) => {
@@ -732,12 +759,14 @@ function DashboardApp() {
                 {currentLabel}
               </p>
             </div>
-            <span className="ccv-role-context hidden md:inline-flex">
+            <span className="ccv-role-context hidden md:inline-flex" title={roleContextLabel}>
               {roleContextLabel}
             </span>
             <button
+              ref={searchButtonRef}
               type="button"
               aria-label="Abrir buscador de módulos"
+              aria-keyshortcuts="Control+K"
               onClick={() => setPaletteOpen(true)}
               className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 sm:flex"
             >
@@ -791,25 +820,83 @@ function DashboardApp() {
               {roleInitials(role)}
             </div>
           </header>
+          {accessibleModules.filter((item) => item.group === "Unidades de negocio")
+            .length > 1 && (
+            <nav aria-label="Unidades de negocio" className="ccv-unit-tabs">
+              {accessibleModules
+                .filter((item) => item.group === "Unidades de negocio")
+                .map((item) => {
+                  const href = moduleHref(item.path);
+                  const active = location === item.path || location === href;
+                  return (
+                    <Link
+                      key={item.path}
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+            </nav>
+          )}
           <div className="ccv-content mx-auto max-w-[1600px] p-4 sm:p-7">
             {paletteOpen && (
               <div
                 className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12vh]"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Buscar módulos"
-                onClick={() => setPaletteOpen(false)}
+                role="presentation"
+                onClick={() => {
+                  setPaletteOpen(false);
+                  setQuery("");
+                  searchButtonRef.current?.focus();
+                }}
               >
                 <div
                   className="ccv-command-panel w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Buscar módulos"
                   onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      setPaletteIndex((index) =>
+                        paletteModules.length === 0
+                          ? 0
+                          : (index + 1) % paletteModules.length,
+                      );
+                    } else if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setPaletteIndex((index) =>
+                        paletteModules.length === 0
+                          ? 0
+                          : (index - 1 + paletteModules.length) %
+                            paletteModules.length,
+                      );
+                    } else if (event.key === "Enter" && paletteModules[paletteIndex]) {
+                      event.preventDefault();
+                      const next = moduleHref(paletteModules[paletteIndex].path);
+                      setPaletteOpen(false);
+                      setQuery("");
+                      setLocation(next);
+                    }
+                  }}
                 >
                   <div className="flex items-center gap-2 border-b border-border pb-3">
                     <Search size={17} className="text-primary" />
                     <input
+                      ref={paletteInputRef}
                       autoFocus
+                      role="combobox"
+                      aria-expanded="true"
+                      aria-controls="module-search-results"
+                      aria-activedescendant={
+                        paletteModules[paletteIndex]
+                          ? `module-option-${paletteModules[paletteIndex].path}`
+                          : undefined
+                      }
                       aria-label="Buscar módulo"
-                      placeholder="Buscar módulo..."
+                      placeholder="Buscar por módulo, grupo o tarea…"
                       className="w-full bg-transparent text-sm outline-none"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
@@ -820,32 +907,61 @@ function DashboardApp() {
                       onClick={() => {
                         setPaletteOpen(false);
                         setQuery("");
+                        searchButtonRef.current?.focus();
                       }}
                     >
                       <X size={16} />
                     </button>
                   </div>
-                  <div className="mt-3 max-h-72 overflow-y-auto">
-                    {(query ? visibleModules : accessibleModules).map(
-                      (item) => (
-                        <Link
-                          key={item.path}
-                          href={item.path}
-                          onClick={() => {
-                            setPaletteOpen(false);
-                            setQuery("");
-                          }}
-                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-primary/10"
-                        >
-                          <item.icon size={16} className="text-primary" />
-                          <span>{item.label}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {item.group}
-                          </span>
-                        </Link>
-                      ),
-                    )}
-                    {query && visibleModules.length === 0 && (
+                  <p className="px-1 pt-3 text-[11px] font-medium text-muted-foreground">
+                    {roleContextLabel}
+                  </p>
+                  <div
+                    id="module-search-results"
+                    role="listbox"
+                    aria-label="Módulos disponibles"
+                    className="mt-1 max-h-80 overflow-y-auto"
+                  >
+                    {groups.map((group) => {
+                      const items = paletteModules.filter(
+                        (item) => item.group === group,
+                      );
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={group} role="group" aria-label={group} className="mb-2">
+                          <p className="px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                            {group}
+                          </p>
+                          {items.map((item) => {
+                            const index = paletteModules.indexOf(item);
+                            const selected = index === paletteIndex;
+                            return (
+                              <Link
+                                key={item.path}
+                                id={`module-option-${item.path}`}
+                                href={moduleHref(item.path)}
+                                role="option"
+                                aria-selected={selected}
+                                onClick={() => {
+                                  setPaletteOpen(false);
+                                  setQuery("");
+                                }}
+                                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${selected ? "bg-primary/10" : "hover:bg-primary/10"}`}
+                              >
+                                <item.icon size={16} className="text-primary" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block">{item.label}</span>
+                                  <span className="block truncate text-xs text-muted-foreground">
+                                    {item.description}
+                                  </span>
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                    {paletteModules.length === 0 && (
                       <p className="p-4 text-sm text-muted-foreground">
                         Sin módulos encontrados.
                       </p>
