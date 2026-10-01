@@ -148,6 +148,20 @@ export default function PresupuestoCoordinadorPage() {
   const currentRow = branchRows.find(
     (row) => row.unidadNegocioId === unitId && row.mes === month,
   );
+  const missingRosterScopes = useMemo(
+    () =>
+      [
+        ...new Map(
+          (data?.rows ?? [])
+            .filter((row) => row.requiereAsignacionAsesores || row.asesores.length === 0)
+            .map((row) => [
+              `${row.sucursalId}:${row.unidadNegocioId}`,
+              { sucursal: row.sucursal, unidad: row.unidad },
+            ]),
+        ).values(),
+      ],
+    [data?.rows],
+  );
   const amounts = useMemo(() => {
     if (!currentRow) return new Map<string, number>();
     const cents = Math.round(currentRow.monto * 100);
@@ -321,6 +335,15 @@ export default function PresupuestoCoordinadorPage() {
             </div>
           )}
 
+          {missingRosterScopes.length > 0 && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm" role="alert">
+              <p className="font-semibold">Guardado anual bloqueado: faltan asesores asignados</p>
+              <p className="mt-1 text-muted-foreground">
+                {missingRosterScopes.length} combinación(es) de sucursal y unidad no tienen padrón. Cada asesor debe tener asignadas su sucursal y unidad de negocio en el perfil. Solicita a Gerencia Nacional o Administración que complete esas asignaciones; el guardado requiere distribuir el 100 % de todas las metas mensuales de tu sucursal.
+              </p>
+            </div>
+          )}
+
           {currentRow && (
             <>
               <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg bg-muted/40 p-4">
@@ -339,10 +362,11 @@ export default function PresupuestoCoordinadorPage() {
 
               {currentRow.requiereAsignacionAsesores ? (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  No encontramos asesores activos de esta sucursal para esta
-                  unidad. Confirma que el perfil tenga la sucursal asignada y
-                  que exista una meta aprobada para esta combinación. No se
-                  guardará una distribución incompleta.
+                  No hay asesores elegibles para esta sucursal y unidad. Para
+                  aparecer en el reparto, cada perfil debe tener ambas
+                  asignaciones y el asesor debe estar activo. Gerencia Nacional
+                  o Administración debe completar el padrón. No se guardará
+                  una distribución incompleta.
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-lg border">
