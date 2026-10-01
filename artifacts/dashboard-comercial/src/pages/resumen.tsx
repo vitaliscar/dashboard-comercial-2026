@@ -96,7 +96,7 @@ export default function ResumenPage() {
   const { role, profile, loading: authLoading } = useAuth();
   const { filters: sharedFilters, setFilters: setSharedFilters } = useSharedFilters();
   const hideSucursalFilter = role === "coordinador" || role === "asesor";
-  const today = new Date();
+  const currentMonth = new Date().getMonth() + 1;
 
   // Fetch reference data
   const {
@@ -677,7 +677,7 @@ export default function ResumenPage() {
         if (sharedFilters.meses === "all") {
           setSharedFilters({ meses: [12] });
         } else {
-          const currentMes = sharedFilters.meses[0] ?? today.getMonth() + 1;
+          const currentMes = sharedFilters.meses[0] ?? currentMonth;
           if (currentMes > 1) {
             setSharedFilters({ meses: [currentMes - 1] });
           } else {
@@ -689,7 +689,7 @@ export default function ResumenPage() {
         if (sharedFilters.meses === "all") {
           setSharedFilters({ meses: [1] });
         } else {
-          const currentMes = sharedFilters.meses[0] ?? today.getMonth() + 1;
+          const currentMes = sharedFilters.meses[0] ?? currentMonth;
           if (currentMes < 12) {
             setSharedFilters({ meses: [currentMes + 1] });
           } else {
@@ -706,7 +706,7 @@ export default function ResumenPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [sharedFilters, setSharedFilters, today]);
+  }, [sharedFilters, setSharedFilters, currentMonth]);
 
   const isDataLoadingCombined =
     isSucLoading || isUnLoading || (isDataLoading && !!unidades && !!sucursales);
@@ -767,14 +767,14 @@ export default function ResumenPage() {
       <PageHeader
         eyebrow="Analytics / Comercial"
         title="Resumen comercial"
-        description="Cotizaciones, facturación y ventas perdidas — consolidado por unidad de negocio."
+        description={
+          selectedUnidadUi
+            ? `Cotizaciones, facturación y ventas perdidas · ${selectedUnidadUi}.`
+            : "Cotizaciones, facturación y ventas perdidas · consolidado por unidad de negocio."
+        }
         className="border-b border-border pb-4"
         action={
           <div className="flex gap-4 text-[10px] font-mono text-muted-foreground">
-            <span>
-              Última sincronización:{" "}
-              {new Date().toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" })}
-            </span>
             <span className="text-primary">Moneda: USD</span>
           </div>
         }
