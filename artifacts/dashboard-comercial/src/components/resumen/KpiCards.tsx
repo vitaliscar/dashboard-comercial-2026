@@ -1,10 +1,9 @@
 import { money, MESES } from "@/lib/format";
-import { Goal, TrendingDown, TrendingUp, XOctagon } from "lucide-react";
+import { Goal, TrendingDown, XOctagon } from "lucide-react";
 import {
   Area,
   AreaChart,
   CartesianGrid,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,11 +15,11 @@ interface KpiCardsProps {
   metaMes: number;
   facturado: number;
   facturadoMensual?: number[];
+  metaMensual?: number[];
+  periodoLabel: string;
   anio: number;
   facturadoVsCotizadoPorcentaje: number;
   cumplimientoMetaPorcentaje: number;
-  margenTotal: number;
-  margenPorcentaje: number;
   ventasPerdidas: number;
   ventasPerdidasPorcentaje: number;
   facturadoProjection?: { value: string; tone: "success" | "warning" | "danger" };
@@ -37,6 +36,8 @@ export function KpiCards({
   metaMes,
   facturado,
   facturadoMensual,
+  metaMensual,
+  periodoLabel,
   anio,
   facturadoVsCotizadoPorcentaje,
   cumplimientoMetaPorcentaje,
@@ -45,11 +46,12 @@ export function KpiCards({
   facturadoProjection,
 }: KpiCardsProps) {
   const gap = Math.max(0, metaMes - facturado);
-  const reached = cumplimientoMetaPorcentaje >= 100;
+  const reached = metaMes > 0 && cumplimientoMetaPorcentaje >= 100;
   const trend = facturadoMensual ?? [];
   const data = MESES.map((month, index) => ({
     month: month.slice(0, 3),
     facturado: trend[index] ?? 0,
+    meta: metaMensual?.[index] ?? 0,
   }));
 
   return (
@@ -57,21 +59,22 @@ export function KpiCards({
       <div className="ccv-revenue-main">
         <div className="ccv-revenue-heading">
           <div>
-            <p className="ccv-revenue-eyebrow">RITMO DE FACTURACIÓN · {anio}</p>
-            <h2>Facturado del período</h2>
+            <p className="ccv-revenue-eyebrow">RESULTADO COMERCIAL · {periodoLabel}</p>
+            <h2>Facturado en el período</h2>
           </div>
           <span className={`ccv-revenue-status ${reached ? "is-reached" : ""}`}>
             <span aria-hidden="true" />
-            {reached ? "Meta alcanzada" : "En curso"}
+            {metaMes <= 0 ? "Sin meta" : reached ? "Meta alcanzada" : "En curso"}
           </span>
         </div>
 
         <div className="ccv-revenue-value-row">
           <strong>{money(facturado)}</strong>
-          <span className="ccv-revenue-attainment">{cumplimientoMetaPorcentaje.toFixed(1)}% <small>de la meta</small></span>
+          <span className="ccv-revenue-attainment">{metaMes > 0 ? <>{cumplimientoMetaPorcentaje.toFixed(1)}% <small>de la meta</small></> : "Sin meta configurada"}</span>
         </div>
 
-        <div className="ccv-revenue-chart" role="img" aria-label={`Facturación mensual de enero a diciembre de ${anio}; meta del período ${money(metaMes)}`}>
+        <p className="ccv-revenue-chart-title">Evolución mensual · {anio}</p>
+        <div className="ccv-revenue-chart" role="img" aria-label={`Facturación y meta mensual de enero a diciembre de ${anio}`}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
               <defs>
@@ -83,18 +86,18 @@ export function KpiCards({
               <CartesianGrid vertical={false} stroke="#e8e4d8" strokeDasharray="3 5" />
               <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#747c72", fontSize: 11 }} tickMargin={10} />
               <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: "#747c72", fontSize: 10 }} tickFormatter={compactMoney} />
-              {metaMes > 0 && <ReferenceLine y={metaMes} stroke="#7b8b7d" strokeDasharray="5 5" />}
               <Tooltip
                 cursor={{ stroke: "#aab4a8", strokeDasharray: "3 4" }}
                 contentStyle={{ border: "1px solid #d9d7cd", borderRadius: 6, background: "#fffef9", fontSize: 12 }}
-                formatter={(value) => [money(Number(value)), "Facturado"]}
+                formatter={(value, name) => [money(Number(value)), name === "meta" ? "Meta mensual" : "Facturado"]}
                 labelFormatter={(label) => `${label} ${anio}`}
               />
               <Area type="monotone" dataKey="facturado" stroke="#a65e25" strokeWidth={2.5} fill="url(#revenueFill)" activeDot={{ r: 5, fill: "#a65e25", stroke: "#fffef9", strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="meta" stroke="#87988a" strokeWidth={1.5} strokeDasharray="5 4" fill="none" activeDot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="ccv-revenue-chart-key"><span><i /> Facturación mensual</span><span><i /> Meta del período</span></div>
+        <div className="ccv-revenue-chart-key"><span><i /> Facturación</span><span><i /> Meta mensual</span></div>
       </div>
 
       <aside className="ccv-revenue-aside" aria-label="Indicadores del período">
@@ -108,10 +111,9 @@ export function KpiCards({
           {facturadoProjection && <small className={`ccv-revenue-projection tone-${facturadoProjection.tone}`}>Proyección cierre <b>{facturadoProjection.value}</b></small>}
         </div>
         <div className="ccv-revenue-secondary">
-          <div><span>Total cotizado</span><strong>{money(cotizado)}</strong><small>{facturadoVsCotizadoPorcentaje.toFixed(1)}% convertido en facturación</small></div>
+          <div><span>Total cotizado</span><strong>{money(cotizado)}</strong><small>Facturación: {facturadoVsCotizadoPorcentaje.toFixed(1)}% del cotizado</small></div>
           <div className="ccv-revenue-lost"><span><TrendingDown aria-hidden="true" /> Ventas perdidas</span><strong>{money(ventasPerdidas)}</strong><small><XOctagon aria-hidden="true" /> {ventasPerdidasPorcentaje.toFixed(1)}% de lo cotizado</small></div>
         </div>
-        <div className="ccv-revenue-note"><TrendingUp aria-hidden="true" /><span>La línea muestra la venta registrada por mes. La referencia punteada marca la meta del período.</span></div>
       </aside>
     </section>
   );

@@ -25,7 +25,6 @@ import {
   getDateRangesForMonths,
   getPreviousMonthRange,
   getAllMonthsCap,
-  getHighlightMonthLabels,
 } from "@/lib/date-range";
 import { money, MESES } from "@/lib/format";
 import { getMonthlySalesProjection } from "@/lib/business-days";
@@ -798,47 +797,13 @@ export default function ResumenPage() {
         defaultUnits={sharedFilters.unidades}
       />
 
-      {/* Keyboard Shortcuts Info Bar */}
-      <div
-        role="region"
-        aria-label="Atajos de teclado rápidos del panel"
-        className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground/80 font-mono bg-card rounded-lg border border-border/40 select-none no-print"
-      >
-        <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-          <span className="bg-foreground/5 text-foreground font-semibold px-1.5 py-0.5 rounded text-[10px] tracking-wider">
-            SHORTCUTS
-          </span>
-          <span className="flex items-center gap-1.5" aria-keyshortcuts="ArrowLeft ArrowRight">
-            Navegar Meses:{" "}
-            <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-              ←
-            </kbd>{" "}
-            /{" "}
-            <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-              →
-            </kbd>
-          </span>
-          <span className="text-muted-foreground/20 hidden md:inline">|</span>
-          <span className="flex items-center gap-1.5" aria-keyshortcuts="Escape">
-            Limpiar Sucursal:{" "}
-            <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-              Esc
-            </kbd>
-          </span>
-        </div>
-        <div className="hidden sm:inline-flex items-center gap-1.5" aria-keyshortcuts="Control+P">
-          Imprimir / PDF:{" "}
-          <kbd className="bg-muted px-1 py-0.5 rounded border border-border font-sans font-bold shadow-sm">
-            Ctrl + P
-          </kbd>
-        </div>
-      </div>
-
       <KpiCards
         cotizado={resumenData.kpis.cotizado}
         metaMes={resumenData.kpis.metaMes}
         facturado={resumenData.kpis.facturado}
         facturadoMensual={resumenData.kpis.facturadoMensual}
+        metaMensual={resumenData.kpis.metaMensual}
+        periodoLabel={`${filters.meses === "all" ? "año completo" : filters.meses.map((m) => MESES[m - 1]).join(", ")} ${filters.anio}`}
         anio={filters.anio}
         facturadoVsCotizadoPorcentaje={resumenData.kpis.facturadoVsCotizadoPorcentaje}
         cumplimientoMetaPorcentaje={resumenData.kpis.cumplimientoMetaPorcentaje}
@@ -847,61 +812,38 @@ export default function ResumenPage() {
             ? { value: money(facturadoProjection.projectedSales), tone: facturadoProjection.tone }
             : undefined
         }
-        margenTotal={resumenData.kpis.margenTotal}
-        margenPorcentaje={resumenData.kpis.margenPorcentaje}
         ventasPerdidas={resumenData.kpis.ventasPerdidas}
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
       />
 
       {isSingleUnitView ? (
-        <>
-          {/* Vista por unidad (gerente_comercial, o gerencia con una unidad
-              elegida arriba): Cotizaciones y Facturado lado a lado, con
-              variación vs. mes anterior y línea de tiempo. */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4 mb-8">
+        <details className="ccv-summary-details">
+          <summary>Explorar desglose por unidad, sucursal y cliente</summary>
+          <div className="ccv-summary-detail-content">
             <CotizacionesSection
-              part="summary"
+              part="detail"
               datos={resumenData.cotizaciones}
+              hideSucursalColumn={role === "coordinador" || role === "asesor"}
+            />
+
+            <FacturadoSection
+              part="detail"
+              datos={resumenData.facturado}
+              hideSucursalColumn={role === "coordinador" || role === "asesor"}
+              anio={filters.anio}
+              meses={filters.meses}
+            />
+            <VentasPerdidasSection
+              datos={resumenData.ventasPerdidas}
               hideSucursalColumn={role === "coordinador" || role === "asesor"}
               showVariacionMesAnterior
-              highlightMonths={getHighlightMonthLabels(filters.meses)}
-            />
-
-            <FacturadoSection
-              part="summary"
-              datos={resumenData.facturado}
-              hideSucursalColumn={role === "coordinador" || role === "asesor"}
-              anio={filters.anio}
-              meses={filters.meses}
-            />
-
-            <CotizacionesSection
-              part="detail"
-              datos={resumenData.cotizaciones}
-              hideSucursalColumn={role === "coordinador" || role === "asesor"}
-            />
-
-            <FacturadoSection
-              part="detail"
-              datos={resumenData.facturado}
-              hideSucursalColumn={role === "coordinador" || role === "asesor"}
-              anio={filters.anio}
-              meses={filters.meses}
             />
           </div>
-
-          <VentasPerdidasSection
-            datos={resumenData.ventasPerdidas}
-            hideSucursalColumn={role === "coordinador" || role === "asesor"}
-            showVariacionMesAnterior
-          />
-        </>
+        </details>
       ) : (
-        <>
-          {/* Vista consolidada por tipo de métrica (Gerencia Nacional con
-              "Todas las unidades", y coordinador/asesor) — mismo layout que
-              main: tarjetas de unidad en una sola fila + tablas en 2 columnas
-              debajo, NO el layout de 3 columnas de la vista por unidad. */}
+        <details className="ccv-summary-details">
+          <summary>Ver desglose por unidad, sucursal y cliente</summary>
+          <div className="ccv-summary-detail-content">
           <CotizacionesSectionLegacy
             datos={resumenData.cotizaciones}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
@@ -916,7 +858,8 @@ export default function ResumenPage() {
             datos={resumenData.ventasPerdidas}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
           />
-        </>
+          </div>
+        </details>
       )}
     </div>
   );
