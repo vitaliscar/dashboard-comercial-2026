@@ -104,7 +104,8 @@ export default function SucursalPage() {
     facturado: Number(query.data?.facturacion.totalMonto ?? 0),
   };
   const lost = Number(query.data?.perdidas.totalMonto ?? 0);
-  const gap = Math.max(0, totals.meta - totals.facturado);
+  const aboveTarget = totals.meta > 0 && totals.facturado >= totals.meta;
+  const gap = Math.abs(totals.meta - totals.facturado);
   const periodLabel = filters.meses === "all"
     ? `Año ${filters.anio}`
     : `${filters.meses.map((month) => MESES[month - 1]).join(", ")} ${filters.anio}`;
@@ -162,8 +163,12 @@ export default function SucursalPage() {
           <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "—" : pct(totals.meta > 0 ? (totals.facturado / totals.meta) * 100 : 0, 1)}</strong>
         </div>
         <div className="bg-[#18352b] p-4 sm:p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Falta para meta</p>
-          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "—" : money(gap)}</strong>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">
+            {totals.meta <= 0 ? "Meta no asignada" : aboveTarget ? "Sobre meta" : "Falta para meta"}
+          </p>
+          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">
+            {query.isLoading ? "—" : totals.meta <= 0 ? "—" : money(gap)}
+          </strong>
         </div>
       </section>
 
