@@ -26,9 +26,11 @@ const HEAT_CLASS = {
 function CellValue({
   value,
   label,
+  onClick,
 }: {
   value?: HeatValue;
   label: string;
+  onClick?: () => void;
 }) {
   if (!value || (value.meta <= 0 && value.facturado <= 0)) {
     return (
@@ -44,10 +46,25 @@ function CellValue({
   }
 
   if (value.meta <= 0) {
+    const content = "S/M";
+    const className = "flex min-h-9 w-full items-center justify-center rounded-md bg-muted/60 px-2 text-[10px] font-semibold text-muted-foreground";
+    if (onClick && value.facturado > 0) {
+      return (
+        <button
+          type="button"
+          onClick={onClick}
+          className={cn(className, "cursor-pointer hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground")}
+          aria-label={`${label}: sin meta, ${money(value.facturado)} facturado. Abrir detalle.`}
+          title={`${label}: ${money(value.facturado)} facturado · sin meta asignada`}
+        >
+          {content}
+        </button>
+      );
+    }
     return (
       <span
         role="img"
-        className="flex min-h-9 items-center justify-center rounded-md bg-muted/60 px-2 text-[10px] font-semibold text-muted-foreground"
+        className={className}
         aria-label={`${label}: sin meta, ${money(value.facturado)} facturado`}
         title={`${label}: ${money(value.facturado)} facturado · sin meta asignada`}
       >
@@ -60,17 +77,21 @@ function CellValue({
   const status = statusFromPct90(progress);
 
   return (
-    <span
-      role="img"
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
       className={cn(
-        "flex min-h-9 items-center justify-center rounded-md px-2 font-mono text-xs font-semibold tabular-nums transition-colors",
+        "flex min-h-9 w-full items-center justify-center rounded-md px-2 font-mono text-xs font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground",
+        onClick && "cursor-pointer hover:brightness-95",
+        !onClick && "cursor-default",
         HEAT_CLASS[status],
       )}
       aria-label={`${label}: ${pct(progress, 1)}, ${money(value.facturado)} facturado de ${money(value.meta)} de meta`}
       title={`${label}: ${money(value.facturado)} de ${money(value.meta)}`}
     >
       {pct(progress, 1)}
-    </span>
+    </button>
   );
 }
 
@@ -79,11 +100,15 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
   units,
   values,
   selectedUnitIds = [],
+  onSelectCell,
+  onSelectBranch,
 }: {
   branches: BranchSummaryRow[];
   units: UnitChartRow[];
   values: BranchUnitMetric[];
   selectedUnitIds?: string[];
+  onSelectCell?: (sucursalId: string, unidadNegocioId: string) => void;
+  onSelectBranch?: (sucursalId: string) => void;
 }) {
   const valuesByBranch = useMemo(() => {
     const result = new Map<string, Map<string, HeatValue>>();
@@ -97,6 +122,9 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
 
   const hasData = branches.length > 0 && units.length > 0;
   const totalLabel = selectedUnitIds.length > 0 ? "Total filtrado" : "Total";
+  const visibleUnits = selectedUnitIds.length > 0
+    ? units.filter((unit) => selectedUnitIds.includes(unit.id))
+    : units;
 
   return (
     <section className="card-elevated section-enter overflow-hidden" aria-labelledby="unit-compliance-title">
@@ -150,22 +178,18 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
                   >
                     Sucursal
                   </th>
-                  {units.map((unit) => {
-                    const selected = selectedUnitIds.length === 0 || selectedUnitIds.includes(unit.id);
-                    return (
+                  {visibleUnits.map((unit) => (
                       <th
                         key={unit.id}
                         scope="col"
                         className={cn(
                           "min-w-24 border-b border-border px-2 py-3 text-center font-display text-[10px] font-semibold uppercase tracking-wider text-muted-foreground",
-                          !selected && "opacity-50",
                         )}
                         title={unit.label}
                       >
                         {unit.label}
                       </th>
-                    );
-                  })}
+                  ))}
                   <th
                     scope="col"
                     className="min-w-24 border-b border-border px-2 py-3 text-center font-display text-[10px] font-semibold uppercase tracking-wider text-foreground"
@@ -187,21 +211,20 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
                       >
                         {abbreviateSucursal(branch.label)}
                       </th>
-                      {units.map((unit) => {
-                        const selected = selectedUnitIds.length === 0 || selectedUnitIds.includes(unit.id);
-                        return (
-                          <td key={unit.id} className={cn("border-b border-border/70 p-1.5", !selected && "opacity-45")}>
+                      {visibleUnits.map((unit) => (
+                          <td key={unit.id} className="border-b border-border/70 p-1.5">
                             <CellValue
                               value={unitsByBranch?.get(unit.id)}
                               label={`${branch.label} · ${unit.label}`}
+                              onClick={onSelectCell ? () => onSelectCell(branch.id, unit.id) : undefined}
                             />
                           </td>
-                        );
-                      })}
+                      ))}
                       <td className="border-b border-border/70 bg-muted/20 p-1.5">
                         <CellValue
                           value={{ meta: branch.meta, facturado: branch.facturado }}
                           label={`${branch.label} · total ${selectedUnitIds.length > 0 ? "filtrado" : "general"}`}
+                          onClick={onSelectBranch ? () => onSelectBranch(branch.id) : undefined}
                         />
                       </td>
                     </tr>
@@ -224,24 +247,23 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
                       <CellValue
                         value={{ meta: branch.meta, facturado: branch.facturado }}
                         label={`${branch.label} · total ${selectedUnitIds.length > 0 ? "filtrado" : "general"}`}
+                        onClick={onSelectBranch ? () => onSelectBranch(branch.id) : undefined}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {units.map((unit) => {
-                      const selected = selectedUnitIds.length === 0 || selectedUnitIds.includes(unit.id);
-                      return (
-                        <div key={unit.id} className={cn("min-w-0", !selected && "opacity-45")}>
+                    {visibleUnits.map((unit) => (
+                        <div key={unit.id} className="min-w-0">
                           <div className="mb-1 truncate text-[10px] text-muted-foreground" title={unit.label}>
                             {unit.label}
                           </div>
                           <CellValue
                             value={unitsByBranch?.get(unit.id)}
                             label={`${branch.label} · ${unit.label}`}
+                            onClick={onSelectCell ? () => onSelectCell(branch.id, unit.id) : undefined}
                           />
                         </div>
-                      );
-                    })}
+                    ))}
                   </div>
                 </article>
               );

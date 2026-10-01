@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { getResumen } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,25 +9,18 @@ import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { canAccessModule } from "@/lib/permissions";
 import { PageHeader } from "@/components/page-header";
-import { money, pct, statusFromPct } from "@/lib/format";
+import { money, pct } from "@/lib/format";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
-import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
-import { UnitMetaVsVenta, type UnitChartRow } from "@/components/gerencia-nacional/UnitMetaVsVenta";
-import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { BranchRanking } from "@/components/gerencia-nacional/BranchRanking";
-import {
-  BranchSummaryTable,
-  type BranchSummaryRow,
-} from "@/components/gerencia-nacional/BranchSummaryTable";
+import type { BranchSummaryRow } from "@/components/gerencia-nacional/BranchSummaryTable";
 import {
   UnitComplianceHeatmap,
   type BranchUnitMetric,
 } from "@/components/gerencia-nacional/UnitComplianceHeatmap";
 import { getAllowedMonths } from "@/lib/date-range";
-import { Trophy, AlertTriangle, TrendingDown, TrendingUp, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { KpiCard } from "@/components/kpi-card";
 
 type Acc = { meta: number; facturado: number };
 const emptyAcc = (): Acc => ({ meta: 0, facturado: 0 });
@@ -45,6 +39,7 @@ type PresupuestoRow = {
 export default function GerenciaNacionalPage() {
   const { role } = useAuth();
   const canView = canAccessModule(role, "gerencia_nacional");
+  const [, setLocation] = useLocation();
 
   const { filters, setFilters } = useSharedFilters();
   const {
@@ -145,7 +140,7 @@ export default function GerenciaNacionalPage() {
         return { id: s.id, label: s.nombre, meta: a.meta, facturado: a.facturado, pct: pctOf(a) };
       })
       .filter((r) => r.meta > 0 || r.facturado > 0)
-      .sort((a, b) => b.pct - a.pct);
+      .sort((a, b) => a.pct - b.pct);
 
     const unitRows = unidades
       .map((u) => {
@@ -175,25 +170,6 @@ export default function GerenciaNacionalPage() {
     return { branchRows, unitRows, branchUnitRows };
   }, [crossRaw, sucursalesData, unidades, selectedUnidades]);
 
-  const highlights = useMemo(() => {
-    if (!cross) return null;
-    const mejorSucursal = cross.branchRows[0] ?? null;
-    const bajo70 = cross.branchRows.filter((r) => r.pct < 70);
-    const unidadesPorPct = [...cross.unitRows].sort((a, b) => a.pct - b.pct);
-    return {
-      mejorSucursal,
-      bajo70Count: bajo70.length,
-      bajo70Total: cross.branchRows.length,
-      bajo70Faltante: bajo70.reduce((acc, r) => acc + Math.max(0, r.meta - r.facturado), 0),
-      unidadMasBaja: unidadesPorPct[0] ?? null,
-      unidadMasAlta: unidadesPorPct[unidadesPorPct.length - 1] ?? null,
-    };
-  }, [cross]);
-
-  const unitChartData: UnitChartRow[] = cross?.unitRows ?? [];
-  const unitDonutData =
-    cross?.unitRows.map((u) => ({ id: u.id, label: u.label, facturado: u.facturado })) ?? [];
-
   const kpis = useMemo(() => {
     const totalFacturado = metrics.presupuestos.reduce(
       (a, r) => a + Number(r.ventasCcv ?? 0) + Number(r.ventasXibi ?? 0) + Number(r.ventasEstrategicas ?? 0),
@@ -204,19 +180,16 @@ export default function GerenciaNacionalPage() {
     return { cumplimiento, totalFacturado, totalPresupuesto };
   }, [metrics]);
 
-  const gaugeTitle = useMemo(() => {
-    if (selectedUnidades.length === 0) return "Cumplimiento General";
-    if (selectedUnidades.length === 1) {
-      const selected = unidades?.find((u) => u.id === selectedUnidades[0]);
-      return selected ? unidadLabelInfo(selected.nombre).label : "Cumplimiento General";
-    }
-    return "Cumplimiento unidades seleccionadas (consolidado)";
-  }, [selectedUnidades, unidades]);
-
-  const selectedUnitBreakdown = useMemo(() => {
-    if (!cross || selectedUnidades.length < 2) return null;
-    return cross.unitRows.filter((u) => selectedUnidades.includes(u.id));
-  }, [cross, selectedUnidades]);
+  const openSucursalResumen = useCallback(
+    (sucursalId: string, unidadNegocioId?: string) => {
+      setFilters({
+        sucursales: [sucursalId],
+        unidades: unidadNegocioId ? [unidadNegocioId] : selectedUnidades,
+      });
+      setLocation("/resumen");
+    },
+    [selectedUnidades, setFilters, setLocation],
+  );
 
   if (!canView) {
     return (
@@ -261,7 +234,11 @@ export default function GerenciaNacionalPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Gerencia nacional" title="Dashboard comercial" />
+      <PageHeader
+        eyebrow="Gerencia nacional"
+        title="Dashboard comercial"
+        description="Cumplimiento por sucursal y unidad. Selecciona una celda o sucursal para abrir su detalle filtrado."
+      />
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={sucursalesData
@@ -278,156 +255,45 @@ export default function GerenciaNacionalPage() {
         showAllMonths
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_0.75fr_1.25fr] section-enter section-enter-1">
-        <ComplianceGauge
-          pct={kpis.cumplimiento}
-          facturado={kpis.totalFacturado}
-          presupuesto={kpis.totalPresupuesto}
-          title={gaugeTitle}
-        />
-
-        <div className="flex flex-col gap-2 flex-1">
-          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
-            <Trophy className="size-4 text-success shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
-                Mejor sucursal
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-display font-bold text-xl tabular-nums text-success">
-                  {highlights?.mejorSucursal ? pct(highlights.mejorSucursal.pct) : "—"}
-                </span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {highlights?.mejorSucursal
-                    ? `${money(highlights.mejorSucursal.facturado)} · ${highlights.mejorSucursal.label}`
-                    : ""}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
-            <AlertTriangle
-              className={`size-4 shrink-0 ${
-                highlights && highlights.bajo70Count > 0 ? "text-danger" : "text-success"
-              }`}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
-                Bajo 70%
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className={`font-display font-bold text-xl tabular-nums ${
-                    highlights && highlights.bajo70Count > 0 ? "text-danger" : "text-success"
-                  }`}
-                >
-                  {highlights ? `${highlights.bajo70Count}/${highlights.bajo70Total}` : "—"}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {highlights && highlights.bajo70Count > 0
-                    ? `${money(highlights.bajo70Faltante)} faltante`
-                    : "Todas OK"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
-            <TrendingDown className="size-4 text-danger shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
-                Unidad más baja
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-display font-bold text-xl tabular-nums text-danger">
-                  {highlights?.unidadMasBaja ? pct(highlights.unidadMasBaja.pct) : "—"}
-                </span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {highlights?.unidadMasBaja
-                    ? `${money(Math.max(0, highlights.unidadMasBaja.meta - highlights.unidadMasBaja.facturado))} faltó · ${highlights.unidadMasBaja.label}`
-                    : ""}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="card-elevated px-4 py-3 flex items-center gap-3 flex-1">
-            <TrendingUp
-              className={`size-4 shrink-0 ${
-                statusFromPct(highlights?.unidadMasAlta?.pct ?? 0) === "danger"
-                  ? "text-warning"
-                  : "text-success"
-              }`}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-display font-bold tracking-wide text-muted-foreground">
-                Unidad más alta
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className={`font-display font-bold text-xl tabular-nums ${
-                    statusFromPct(highlights?.unidadMasAlta?.pct ?? 0) === "danger"
-                      ? "text-warning"
-                      : "text-success"
-                  }`}
-                >
-                  {highlights?.unidadMasAlta ? pct(highlights.unidadMasAlta.pct) : "—"}
-                </span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {highlights?.unidadMasAlta
-                    ? `${money(highlights.unidadMasAlta.facturado)} · ${highlights.unidadMasAlta.label}`
-                    : ""}
-                </span>
-              </div>
-            </div>
+      <section
+        className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#294b3b] bg-[#294b3b] text-[#f5f3ed] shadow-sm sm:grid-cols-4 section-enter section-enter-1"
+        aria-label="Resultado comercial del período"
+      >
+        <div className="bg-[#18352b] p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Facturado</div>
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{money(kpis.totalFacturado)}</div>
+        </div>
+        <div className="bg-[#18352b] p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Meta</div>
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{money(kpis.totalPresupuesto)}</div>
+        </div>
+        <div className="bg-[#18352b] p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Cumplimiento</div>
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{pct(kpis.cumplimiento, 1)}</div>
+        </div>
+        <div className="bg-[#18352b] p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Brecha para meta</div>
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">
+            {money(Math.max(0, kpis.totalPresupuesto - kpis.totalFacturado))}
           </div>
         </div>
-
-        <UnitDonut data={unitDonutData} selectedIds={selectedUnidades} />
-      </div>
-
-      {selectedUnitBreakdown && selectedUnitBreakdown.length > 0 && (
-        <div className="flex flex-col gap-3 section-enter section-enter-2">
-          <div>
-            <h3 className="font-display font-semibold text-sm">Desglose por unidad seleccionada</h3>
-            <p className="text-xs text-muted-foreground">
-              Cada unidad se muestra por separado — el consolidado está arriba
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {selectedUnitBreakdown.map((u) => {
-              const status = statusFromPct(u.pct);
-              return (
-                <KpiCard
-                  key={u.id}
-                  label={u.label}
-                  value={pct(u.pct)}
-                  hint={`${money(u.facturado)} de ${money(u.meta)}`}
-                  accent={status}
-                  progress={Math.min(100, u.pct)}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 section-enter section-enter-2">
-        <UnitMetaVsVenta data={unitChartData} selectedIds={selectedUnidades} />
-        <BranchRanking rows={cross?.branchRows ?? []} />
-      </div>
-
-      <div className="section-enter section-enter-3 [content-visibility:auto] [contain-intrinsic-size:auto_420px]">
-        <BranchSummaryTable rows={cross?.branchRows ?? []} />
-      </div>
+      </section>
 
       <UnitComplianceHeatmap
         branches={cross?.branchRows ?? []}
         units={cross?.unitRows ?? []}
         values={cross?.branchUnitRows ?? []}
         selectedUnitIds={selectedUnidades}
+        onSelectCell={(sucursalId, unidadNegocioId) => openSucursalResumen(sucursalId, unidadNegocioId)}
+        onSelectBranch={(sucursalId) => openSucursalResumen(sucursalId)}
       />
+
+      <div className="section-enter section-enter-2">
+        <BranchRanking
+          rows={cross?.branchRows ?? []}
+          onSelect={(sucursalId) => openSucursalResumen(sucursalId)}
+        />
+      </div>
 
       {isLoading && <div className="text-xs text-muted-foreground">Cargando datos…</div>}
     </div>
