@@ -30,8 +30,13 @@ import {
 } from "@workspace/api-client-react";
 import type { UnidadKey } from "./lib/unidad-http";
 import { useAuth } from "./hooks/use-auth";
-import { useUnidades } from "./hooks/use-catalogos";
-import { canAccessModule, canManageManualAdjustments, type ModuleKey } from "./lib/permissions";
+import { useSucursales, useUnidades } from "./hooks/use-catalogos";
+import { useSharedFilters } from "./hooks/use-shared-filters";
+import {
+  canAccessModule,
+  canManageManualAdjustments,
+  type ModuleKey,
+} from "./lib/permissions";
 import { unidadLabelInfo } from "./lib/unidad-labels";
 import { AuthForm } from "./components/auth-form";
 import { ProtectedShell } from "./components/protected-shell";
@@ -71,6 +76,7 @@ const AjustesPage = lazy(() =>
 const CargaPage = lazy(() =>
   import("./pages/administracion").then((m) => ({ default: m.CargaPage })),
 );
+const CommandPalette = lazy(() => import("./components/command-palette"));
 const UsuariosPage = lazy(() =>
   import("./pages/administracion").then((m) => ({ default: m.UsuariosPage })),
 );
@@ -410,7 +416,7 @@ function modulePage(path: string, role: DemoRole) {
 }
 
 function DashboardApp() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobileNav, setIsMobileNav] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -425,7 +431,8 @@ function DashboardApp() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(["Administración"]),
   );
-  const [query, setQuery] = useState("");
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileSearchButtonRef = useRef<HTMLButtonElement>(null);
   const {
     session: authSession,
     profile: authProfile,
@@ -434,6 +441,8 @@ function DashboardApp() {
     signOut,
   } = useAuth();
   const { data: units, isLoading: unitsLoading } = useUnidades();
+  const { data: sucursales } = useSucursales();
+  const { filters } = useSharedFilters();
   const isLiveSession = !authLoading && Boolean(authSession && authRole);
   const apiHealth = useHealthCheck({
     query: {
@@ -467,19 +476,34 @@ function DashboardApp() {
     : authProfile?.unidad_negocio_id
       ? [authProfile.unidad_negocio_id]
       : [];
+  const branchIds = authProfile?.sucursales_ids?.length
+    ? authProfile.sucursales_ids
+    : authProfile?.sucursal_id
+      ? [authProfile.sucursal_id]
+      : [];
+  const branchLabel = sucursales
+    ?.filter((branch) => branchIds.includes(branch.id))
+    .map((branch) => branch.nombre)
+    .join(" · ");
+  const selectedBranchLabel = sucursales
+    ?.filter((branch) => filters.sucursales.includes(branch.id))
+    .map((branch) => branch.nombre)
+    .join(" · ");
+  const unitLabel =
+    units
+      ?.filter((unit) => unitIds.includes(unit.id))
+      .map((unit) => unidadLabelInfo(unit.nombre).label)
+      .join(" · ") || "";
   const roleContextLabel =
     authRole === "gerente_comercial"
-      ? units
-          ?.filter((unit) => unitIds.includes(unit.id))
-          .map((unit) => unidadLabelInfo(unit.nombre).label)
-          .join(" · ") || "Unidades asignadas"
-      : authRole === "gerencia"
-        ? "Gerencia nacional"
-        : authRole === "coordinador"
-          ? "Sucursal asignada"
-          : authRole === "asesor"
-            ? "Mi cartera"
-            : "Acceso global";
+      ? `Unidad: ${unitLabel || "sin unidad asignada"} · ${filters.sucursales.length ? `Sucursales: ${selectedBranchLabel || "selección activa"}` : "todas las sucursales de la unidad"}`
+      : authRole === "coordinador" || authRole === "asesor"
+        ? `Sucursal: ${branchLabel || "sin sucursal asignada"}`
+        : authRole === "gerencia" || authRole === "administrador"
+          ? filters.sucursales.length
+            ? `Sucursales: ${selectedBranchLabel || "selección activa"}`
+            : "Alcance: todas las sucursales"
+          : "Alcance: sin sesión";
   const accessibleModules = useMemo(
     () =>
       authRole
@@ -502,9 +526,8 @@ function DashboardApp() {
         : [],
     [authRole, authProfile?.is_admin, unitIds, units],
   );
-  const visibleModules = accessibleModules.filter((item) =>
-    `${item.label} ${item.group}`.toLowerCase().includes(query.toLowerCase()),
-  );
+  const moduleHref = (path: string) =>
+    path === "/dashboard" && authRole ? DEMO_DASHBOARD_PATHS[authRole] : path;
 
   useEffect(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
@@ -515,7 +538,6 @@ function DashboardApp() {
       if (event.key === "Escape") {
         setPaletteOpen(false);
         setMenuOpen(false);
-        setQuery("");
       }
     };
     window.addEventListener("keydown", handleKeyboard);
@@ -524,7 +546,10 @@ function DashboardApp() {
 
   useEffect(() => {
     if (menuOpen) closeMenuRef.current?.focus();
-    else if (wasMenuOpen.current && menuTriggerRef.current?.getClientRects().length) {
+    else if (
+      wasMenuOpen.current &&
+      menuTriggerRef.current?.getClientRects().length
+    ) {
       menuTriggerRef.current.focus();
     }
     wasMenuOpen.current = menuOpen;
@@ -555,7 +580,9 @@ function DashboardApp() {
   return (
     <ProtectedShell>
       <div className="ccv-shell min-h-screen bg-background text-foreground">
-        <a className="ccv-skip-link" href="#main-content">Ir al contenido</a>
+        <a className="ccv-skip-link" href="#main-content">
+          Ir al contenido
+        </a>
         {menuOpen && (
           <button
             type="button"
@@ -579,7 +606,7 @@ function DashboardApp() {
                 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
               ) ?? [],
             ).filter((element) => element.getClientRects().length > 0);
-            if (!focusable?.length) return;
+            if (!focusable.length) return;
             const first = focusable[0];
             const last = focusable[focusable.length - 1];
             if (event.shiftKey && document.activeElement === first) {
@@ -590,7 +617,7 @@ function DashboardApp() {
               first.focus();
             }
           }}
-          className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
+          className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out motion-reduce:transition-none lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
         >
           <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
             <img
@@ -624,13 +651,16 @@ function DashboardApp() {
               if (groupModules.length === 0) return null;
               const canCollapseGroup = groupModules.length > 1;
               const isActiveGroup = groupModules.some(
-                (item) => location === item.path,
+                (item) =>
+                  location === item.path || location === moduleHref(item.path),
               );
               const isCollapsed =
-                canCollapseGroup && collapsedGroups.has(group) && !isActiveGroup;
+                canCollapseGroup &&
+                collapsedGroups.has(group) &&
+                !isActiveGroup;
               return (
                 <div key={group} className="mb-5">
-                  {canCollapseGroup && (
+                  {canCollapseGroup ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -647,9 +677,13 @@ function DashboardApp() {
                       {group}
                       <ChevronDown
                         size={12}
-                        className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                        className={`transition-transform motion-reduce:transition-none ${isCollapsed ? "-rotate-90" : ""}`}
                       />
                     </button>
+                  ) : (
+                    <p className="ccv-nav-group mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40">
+                      {group}
+                    </p>
                   )}
                   <div className={`space-y-1 ${isCollapsed ? "hidden" : ""}`}>
                     {groupModules.map((item) => {
@@ -711,7 +745,11 @@ function DashboardApp() {
           </div>
         </aside>
 
-        <main id="main-content" tabIndex={-1} className="ccv-main min-h-screen lg:pl-[248px]">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="ccv-main min-h-screen lg:pl-[248px]"
+        >
           <header className="ccv-topbar sticky top-0 z-20 flex h-[72px] items-center gap-4 border-b border-border bg-background/90 px-4 backdrop-blur-xl sm:px-6">
             <button
               ref={menuTriggerRef}
@@ -732,20 +770,28 @@ function DashboardApp() {
                 {currentLabel}
               </p>
             </div>
-            <span className="ccv-role-context hidden md:inline-flex">
+            <span
+              className="ccv-role-context hidden md:inline-flex"
+              title={roleContextLabel}
+            >
               {roleContextLabel}
             </span>
             <button
+              ref={searchButtonRef}
               type="button"
               aria-label="Abrir buscador de módulos"
+              aria-keyshortcuts="Control+K Meta+K"
               onClick={() => setPaletteOpen(true)}
               className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 sm:flex"
             >
               <Search size={16} />
               Buscar{" "}
-              <kbd className="ml-2 text-[10px] text-muted-foreground">Ctrl K</kbd>
+              <kbd className="ml-2 text-[10px] text-muted-foreground">
+                Ctrl K
+              </kbd>
             </button>
             <button
+              ref={mobileSearchButtonRef}
               type="button"
               aria-label="Abrir buscador de módulos"
               onClick={() => setPaletteOpen(true)}
@@ -791,68 +837,38 @@ function DashboardApp() {
               {roleInitials(role)}
             </div>
           </header>
+          {accessibleModules.filter(
+            (item) => item.group === "Unidades de negocio",
+          ).length > 1 && (
+            <nav aria-label="Unidades de negocio" className="ccv-unit-tabs">
+              {accessibleModules
+                .filter((item) => item.group === "Unidades de negocio")
+                .map((item) => {
+                  const href = moduleHref(item.path);
+                  const active = location === item.path || location === href;
+                  return (
+                    <Link
+                      key={item.path}
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+            </nav>
+          )}
           <div className="ccv-content mx-auto max-w-[1600px] p-4 sm:p-7">
             {paletteOpen && (
-              <div
-                className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12vh]"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Buscar módulos"
-                onClick={() => setPaletteOpen(false)}
-              >
-                <div
-                  className="ccv-command-panel w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <div className="flex items-center gap-2 border-b border-border pb-3">
-                    <Search size={17} className="text-primary" />
-                    <input
-                      autoFocus
-                      aria-label="Buscar módulo"
-                      placeholder="Buscar módulo..."
-                      className="w-full bg-transparent text-sm outline-none"
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Cerrar buscador"
-                      onClick={() => {
-                        setPaletteOpen(false);
-                        setQuery("");
-                      }}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                  <div className="mt-3 max-h-72 overflow-y-auto">
-                    {(query ? visibleModules : accessibleModules).map(
-                      (item) => (
-                        <Link
-                          key={item.path}
-                          href={item.path}
-                          onClick={() => {
-                            setPaletteOpen(false);
-                            setQuery("");
-                          }}
-                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-primary/10"
-                        >
-                          <item.icon size={16} className="text-primary" />
-                          <span>{item.label}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {item.group}
-                          </span>
-                        </Link>
-                      ),
-                    )}
-                    {query && visibleModules.length === 0 && (
-                      <p className="p-4 text-sm text-muted-foreground">
-                        Sin módulos encontrados.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <Suspense fallback={null}>
+                <CommandPalette
+                  open
+                  onOpenChange={setPaletteOpen}
+                  modules={accessibleModules}
+                  scopeLabel={roleContextLabel}
+                  onSelect={(path) => setLocation(moduleHref(path))}
+                />
+              </Suspense>
             )}
             <Suspense
               fallback={
