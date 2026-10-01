@@ -214,18 +214,26 @@ async function loadUnitData(
   }
 
   if (key === "lubfiltros") {
+    const branchSpecific = session.role === "coordinador" || Boolean(scope.branch);
     const [detalles, inventario] = await Promise.all([
-      session.role === "coordinador" ? Promise.resolve({ rows: [] }) : tx.query(
-        `SELECT marca,
-                mes,
-                ventas_ccv AS "ventasCcv",
-                ventas_xibi AS "ventasXibi",
-                ventas_estrategicas AS "ventasEstrategicas",
-                monto_total AS "montoTotal"
-         FROM detalles_ventas_lubfiltros
-         WHERE mes = ANY($1::int[])
-         ORDER BY mes, monto_total DESC`,
-        [months],
+      tx.query(
+        `SELECT d.marca,
+                d.mes,
+                d.sucursal_id AS "sucursalId",
+                s.nombre AS sucursal,
+                d.ventas_ccv AS "ventasCcv",
+                d.ventas_xibi AS "ventasXibi",
+                d.ventas_estrategicas AS "ventasEstrategicas",
+                d.monto_total AS "montoTotal"
+         FROM detalles_ventas_lubfiltros d
+         LEFT JOIN sucursales s ON s.id = d.sucursal_id
+         WHERE d.mes = ANY($1::int[])
+           AND (NOT $4::boolean
+                OR (d.sucursal_id IS NOT NULL
+                    AND ($2::uuid IS NULL OR d.sucursal_id = $2::uuid)
+                    AND ($3::uuid[] IS NULL OR d.sucursal_id = ANY($3::uuid[]))))
+         ORDER BY d.mes, d.monto_total DESC`,
+        [months, scope.branch, scope.branchScope, branchSpecific],
       ),
       tx.query(
         `SELECT tipo,
