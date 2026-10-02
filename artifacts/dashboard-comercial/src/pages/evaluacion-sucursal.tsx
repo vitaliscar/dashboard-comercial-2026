@@ -25,7 +25,7 @@ export default function EvaluacionSucursalPage() {
     : selected || undefined;
   const query = useQuery({ queryKey: ["evaluacion-sucursal", anio, branchId], queryFn: () => getEvaluacionSucursal(anio, branchId), enabled: canView && !!branchId });
   if (!canView) return <p className="p-8 text-center text-muted-foreground">Esta evaluación no está disponible para el rol asesor.</p>;
-  return <div className="flex flex-col gap-6"><PageHeader eyebrow="Evaluación de Desempeño" title={query.data?.sucursal ?? "Sucursal"} description={`Año ${anio}`} />
+  return <div className="ccv-evaluation-detail ccv-evaluation-branch flex flex-col gap-6"><PageHeader eyebrow="Evaluación de Desempeño" title={query.data?.sucursal ?? "Sucursal"} description={`Año ${anio}`} />
     {(role !== "coordinador" || assignedBranchIds.length > 1) && <label className="max-w-sm text-sm font-medium">Sucursal<select className="mt-1 block w-full rounded-md border bg-card p-2" value={branchId ?? ""} onChange={(event) => setSelected(event.target.value)}><option value="">Seleccionar sucursal…</option>{availableBranches?.map((branch) => <option key={branch.id} value={branch.id}>{branch.nombre}</option>)}</select></label>}
     {!branchId ? <p className="p-8 text-center text-muted-foreground">Selecciona una sucursal para ver su evaluación.</p> : query.isLoading ? <p className="p-8 text-muted-foreground">Cargando evaluación…</p> : query.isError || !query.data ? <QueryErrorNotice error={query.error} onRetry={() => void query.refetch()} fallback="No se pudo cargar la evaluación." /> : <SucursalData data={query.data} />}
   </div>;

@@ -258,7 +258,7 @@ export default function AsesoresPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-advisors-page flex flex-col gap-6">
       <PageHeader
         eyebrow="Vista Gerencial"
         title="Análisis de Asesores"
@@ -324,7 +324,7 @@ export default function AsesoresPage() {
             />
           </div>
 
-          <section className="w-full mt-2" aria-labelledby="asesores-ranking-title">
+          <section className="ccv-advisors-ranking w-full mt-2" aria-labelledby="asesores-ranking-title">
             <h2 id="asesores-ranking-title" className="mb-3 font-display text-lg font-semibold">
               Ranking comercial
             </h2>

@@ -18,9 +18,9 @@ export default function EvaluacionAsesorPage() {
   if (query.isError || !query.data) return <div className="max-w-2xl p-6"><QueryErrorNotice error={query.error} onRetry={() => void query.refetch()} fallback="No se pudo cargar la evaluación." /></div>;
   const data = query.data;
   const chart = data.puntos.map((point) => ({ mes: MONTHS[point.mes - 1] ?? `M${point.mes}`, cumplimiento: point.presupuesto ? Math.round((point.venta / point.presupuesto) * 1000) / 10 : null }));
-  return <div className="flex flex-col gap-6">
+  return <div className="ccv-evaluation-detail ccv-evaluation-advisor flex flex-col gap-6">
     <PageHeader eyebrow="Evaluación de Desempeño" title={data.asesor} description={`Año ${anio}`} />
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="ccv-evaluation-kpis grid gap-4 md:grid-cols-4">
       <KpiCard label="Score de desempeño" value={String(data.score.score)} accent={data.score.banda} hint="Cumplimiento 50%, tendencia 30% y ticket 20%; sin referencia de pares, el ticket usa valor neutral." />
       <KpiCard label="Cumplimiento" value={pct(data.score.cumplimiento, 1)} />
       <KpiCard label="Tendencia" value={pct(data.score.tendencia, 0)} />
