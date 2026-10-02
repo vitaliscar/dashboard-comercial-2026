@@ -51,46 +51,19 @@ export function AuthForm() {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 flex w-full max-w-xl flex-col items-start text-left">
-          <div className="ccv-login-brandmark flex items-center gap-4">
-            <img
-              src="/Logo_CCV.png"
-              alt="Centro Comercial VENEQUIP"
-              className="size-[76px] object-contain"
-            />
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-white">
-                Centro Comercial
-              </p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-white/55">
-                Venequip · Decisiones 2026
-              </p>
-            </div>
-          </div>
+        <div className="relative z-10 flex w-full max-w-xl flex-col items-center text-center">
           <div
-            className="ccv-login-orbit relative mt-16 flex min-h-[340px] w-full flex-col justify-between overflow-hidden p-8"
-            aria-hidden="true"
+            className="ccv-login-orbit relative flex min-h-[340px] w-full items-center justify-center overflow-hidden p-8"
           >
-            <div className="relative z-10 max-w-lg">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#e2f0c5]">
+            <div className="ccv-login-center relative z-10 flex flex-col items-center gap-5">
+              <img
+                src="/Logo_CCV.png"
+                alt="Logo Centro Comercial VENEQUIP"
+                className="ccv-login-panel-logo object-contain"
+              />
+              <p className="ccv-login-panel-title font-sans text-base font-extrabold uppercase tracking-[0.14em] text-white sm:text-lg">
                 CCV / Inteligencia comercial
-              </span>
-              <p className="mt-5 font-display text-5xl leading-[0.98] text-white">
-                Del plan
-                <br />a la{" "}
-                <em className="font-normal text-[#d7b27b]">ejecución.</em>
               </p>
-              <p className="mt-5 max-w-sm text-sm leading-6 text-white/65">
-                Metas, ventas y seguimiento comercial en un solo espacio de
-                trabajo.
-              </p>
-            </div>
-            <div className="ccv-login-route relative z-10 mt-10 flex items-center gap-0">
-              <span>Plan</span>
-              <i aria-hidden="true" />
-              <span>Gestión</span>
-              <i aria-hidden="true" />
-              <span>Resultado</span>
             </div>
           </div>
           <div className="ccv-login-benefits mt-7 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">

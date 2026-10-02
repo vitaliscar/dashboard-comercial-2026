@@ -1276,7 +1276,7 @@ body { color: #20242b; }
 
 @media (max-height: 760px) and (min-width: 1024px) {
   .ccv-login-brand { padding-inline: clamp(2rem, 4vw, 4rem) !important; }
-  .ccv-login-brandmark img { width: 48px !important; height: 48px !important; }
+.ccv-login-brandmark img { width: 48px !important; height: 48px !important; }
   .ccv-login-orbit { min-height: 235px !important; margin-top: 1rem !important; padding: 1.25rem !important; }
   .ccv-login-orbit > div:first-child > p:first-of-type { font-size: clamp(2.8rem, 4.5vw, 4.2rem) !important; }
   .ccv-login-orbit > div:first-child > p:last-child { margin-top: 0.65rem !important; }
@@ -1290,3 +1290,13 @@ body { color: #20242b; }
   .ccv-login-card { gap: 1.25rem !important; padding: 1.25rem !important; }
   .ccv-login-card h2 { font-size: 2rem !important; }
 }
+
+.ccv-login-panel-logo {
+  width: clamp(5.5rem, 12vh, 7.5rem);
+  height: clamp(5.5rem, 12vh, 7.5rem);
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.ccv-login-panel-title { font-size: clamp(1rem, 1.4vw, 1.25rem) !important; }
