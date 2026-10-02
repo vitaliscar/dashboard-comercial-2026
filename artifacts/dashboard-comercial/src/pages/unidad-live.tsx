@@ -310,7 +310,7 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
   }
 
   return (
-    <section className="grid gap-4 lg:grid-cols-2 section-enter section-enter-3">
+    <section className="grid items-start gap-4 lg:grid-cols-2 section-enter section-enter-3">
       <div className="rounded-xl border bg-card p-4 card-elevated">
         <SectionTitle
           title={keyName === "repuestos" ? "Ventas netas por marca" : "Ventas por marca"}
@@ -386,11 +386,11 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
         </div>
       </div>
       {keyName === "lubfiltros" ? (
-        <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card card-elevated">
+        <div className="flex flex-col overflow-hidden rounded-xl border bg-card card-elevated">
           <div className="p-4">
             <SectionTitle title="Inventario por sucursal" description="Valor en inventario. Los montos en cero no se listan." />
           </div>
-          <div className="[&_[data-slot=table-container]]:max-h-[24rem] [&_[data-slot=table-container]]:overflow-y-auto">
+          <div className="[&_[data-slot=table-container]]:max-h-[16rem] [&_[data-slot=table-container]]:overflow-y-auto">
             <Table className="table-fixed text-sm">
               <colgroup>
                 <col className="w-[34%]" />
