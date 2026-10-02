@@ -743,7 +743,7 @@ body { color: #20242b; }
 
 .ccv-shell input::placeholder,
 .ccv-shell textarea::placeholder { color: #849188; }
-.ccv-unit-tabs { background: #f3f5f1; }
+
 
 .ccv-login {
   color: #17231e;
