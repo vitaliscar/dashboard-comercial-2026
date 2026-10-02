@@ -1123,3 +1123,50 @@ body { color: #17231e; }
   .ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div { min-height: 5.5rem; padding: 0.9rem; }
   #main-content > .ccv-content > div.flex.flex-col.gap-6:has(> section.flex.flex-col.gap-3.section-enter) > section.flex.flex-col.gap-3.section-enter { padding: 0.85rem; }
 }
+
+.ccv-brand-breakdown {
+  max-height: 32rem;
+  overflow-y: auto;
+  border-top: 1px solid #e8eee7;
+}
+.ccv-brand-row { border-bottom: 1px solid #e8eee7; }
+.ccv-brand-row > summary {
+  display: flex;
+  min-height: 3.6rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.25rem;
+  color: #26372d;
+  cursor: pointer;
+  list-style: none;
+}
+.ccv-brand-row > summary::-webkit-details-marker { display: none; }
+.ccv-brand-row > summary::after {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 auto;
+  border-right: 1.5px solid #6d7d72;
+  border-bottom: 1.5px solid #6d7d72;
+  content: "";
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 140ms ease;
+}
+.ccv-brand-row[open] > summary::after { transform: rotate(225deg) translate(-1px, -1px); }
+.ccv-brand-row > summary:hover { color: #1c5b43; }
+.ccv-brand-row > summary:focus-visible { outline: 2px solid #7da660; outline-offset: -2px; }
+.ccv-brand-row > ul {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0 0.75rem 0.85rem 1rem;
+  background: #f8faf6;
+}
+.ccv-brand-row > ul > li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #68766d;
+  font-size: 0.75rem;
+}
+.ccv-brand-row > ul > li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.ccv-brand-row > ul > li span:last-child { flex: 0 0 auto; color: #34493b; }

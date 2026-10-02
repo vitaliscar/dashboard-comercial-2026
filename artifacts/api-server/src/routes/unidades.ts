@@ -203,12 +203,13 @@ async function loadUnitData(
          FROM detalles_ventas_repuestos d
          LEFT JOIN sucursales s ON s.id = d.sucursal_id
          WHERE d.mes = ANY($1::int[])
+           AND EXTRACT(YEAR FROM d.created_at AT TIME ZONE 'UTC') = $5::int
            AND (NOT $4::boolean
                 OR (d.sucursal_id IS NOT NULL
                     AND ($2::uuid IS NULL OR d.sucursal_id = $2::uuid)
                     AND ($3::uuid[] IS NULL OR d.sucursal_id = ANY($3::uuid[]))))
          ORDER BY d.mes, d.monto_total DESC`,
-        [months, scope.branch, scope.branchScope, branchSpecific],
+        [months, scope.branch, scope.branchScope, branchSpecific, year],
       )
     ).rows;
   }
@@ -228,12 +229,13 @@ async function loadUnitData(
          FROM detalles_ventas_lubfiltros d
          LEFT JOIN sucursales s ON s.id = d.sucursal_id
          WHERE d.mes = ANY($1::int[])
+           AND EXTRACT(YEAR FROM d.created_at AT TIME ZONE 'UTC') = $5::int
            AND (NOT $4::boolean
                 OR (d.sucursal_id IS NOT NULL
                     AND ($2::uuid IS NULL OR d.sucursal_id = $2::uuid)
                     AND ($3::uuid[] IS NULL OR d.sucursal_id = ANY($3::uuid[]))))
          ORDER BY d.mes, d.monto_total DESC`,
-        [months, scope.branch, scope.branchScope, branchSpecific],
+        [months, scope.branch, scope.branchScope, branchSpecific, year],
       ),
       tx.query(
         `SELECT tipo,
