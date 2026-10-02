@@ -233,7 +233,7 @@ export default function GerenciaNacionalPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-national-dashboard flex flex-col gap-6">
       <PageHeader
         eyebrow="Gerencia nacional"
         title="Dashboard comercial"

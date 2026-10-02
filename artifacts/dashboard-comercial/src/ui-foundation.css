@@ -1047,6 +1047,79 @@ body { color: #17231e; }
   .ccv-evaluation-filters { padding: 0.9rem; }
   .ccv-evaluation-filters > div { min-width: 100%; }
   .ccv-evaluation-filters button { min-height: 34px; }
-  .ccv-evaluation-page :is(section, .ccv-evaluation-narrative),
+.ccv-evaluation-page :is(section, .ccv-evaluation-narrative),
   .ccv-evaluation-detail :is(section, .ccv-evaluation-chart) { padding: 1rem; }
+}
+
+/* National view: the heatmap stays primary and the branch ranking stays actionable. */
+.ccv-national-dashboard { gap: 1.25rem; }
+.ccv-national-dashboard > section[aria-label="Resultado comercial del período"] {
+  overflow: hidden;
+  border: 1px solid #294b3b;
+  border-radius: 14px;
+  box-shadow: 0 14px 30px rgb(23 43 35 / 10%);
+}
+.ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div {
+  min-height: 6.25rem;
+  padding: 1.2rem 1.35rem;
+  background: #18352b;
+}
+.ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div:nth-child(3) {
+  background: #214835;
+}
+.ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div:nth-child(3) > div:last-child {
+  color: #d9f078;
+}
+.ccv-national-dashboard #unit-compliance-title,
+.ccv-national-dashboard #branch-priority-title {
+  color: #20392c;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: -0.025em;
+}
+.ccv-national-dashboard section[aria-labelledby="unit-compliance-title"],
+.ccv-national-dashboard section[aria-labelledby="branch-priority-title"] {
+  overflow: hidden;
+  border: 1px solid #dce4dd;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgb(25 48 36 / 3%);
+}
+.ccv-national-dashboard section[aria-labelledby="unit-compliance-title"] > header,
+.ccv-national-dashboard section[aria-labelledby="branch-priority-title"] > header {
+  padding: 1.1rem 1.25rem;
+  background: #fbfcf9;
+}
+.ccv-national-dashboard section[aria-labelledby="unit-compliance-title"] table thead th {
+  background: #f1f5ef;
+  color: #66746a;
+}
+.ccv-national-dashboard section[aria-labelledby="unit-compliance-title"] table tbody tr:hover th {
+  background: #f3f7ef;
+}
+
+/* Business unit pages share a data shell; operational detail remains unit-specific in the API view. */
+#main-content > .ccv-content > div.flex.flex-col.gap-6:has(> section.flex.flex-col.gap-3.section-enter) > section.flex.flex-col.gap-3.section-enter {
+  padding: 1.15rem;
+  border: 1px solid #dce4dd;
+  border-radius: 12px;
+  background: #f8faf6;
+}
+#main-content > .ccv-content > div.flex.flex-col.gap-6:has(> section.flex.flex-col.gap-3.section-enter) > section.flex.flex-col.gap-3.section-enter h2 {
+  color: #20392c;
+  font: 600 1.2rem/1.2 var(--font-display);
+  letter-spacing: -0.025em;
+}
+#main-content > .ccv-content > div.flex.flex-col.gap-6:has(> section.flex.flex-col.gap-3.section-enter) [class~="xl:grid-cols-4"] > * {
+  min-height: 10rem;
+}
+#main-content > .ccv-content > div.flex.flex-col.gap-6:has(> section.flex.flex-col.gap-3.section-enter) .card-elevated {
+  border-color: #dce4dd;
+  border-radius: 12px;
+  box-shadow: 0 5px 16px rgb(25 48 36 / 3%);
+}
+
+@media (max-width: 640px) {
+  .ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div { min-height: 5.5rem; padding: 0.9rem; }
+  #main-content > .ccv-content > div.flex.flex-col.gap-6:has(> section.flex.flex-col.gap-3.section-enter) > section.flex.flex-col.gap-3.section-enter { padding: 0.85rem; }
 }
