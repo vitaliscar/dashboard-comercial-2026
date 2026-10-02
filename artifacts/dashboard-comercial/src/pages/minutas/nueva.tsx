@@ -215,7 +215,7 @@ export default function NuevaMinutaPage() {
   if (!canCreate) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-commitment-create-page flex flex-col gap-6">
       <PageHeader
         eyebrow="CRM / Compromisos"
         title="Nueva minuta"
@@ -230,7 +230,7 @@ export default function NuevaMinutaPage() {
       {destinatariosQuery.isError && <QueryErrorNotice error={destinatariosQuery.error} onRetry={() => void destinatariosQuery.refetch()} fallback="No se pudieron cargar los destinatarios." />}
       {destinatariosQuery.isLoading && <p className="text-sm text-muted-foreground" role="status">Cargando destinatarios…</p>}
 
-      <div className="card-elevated p-5 grid grid-cols-2 gap-4">
+      <div className="ccv-commitment-recipient card-elevated p-5 grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1 col-span-2">
           <Label>Destinatario</Label>
           <Select
@@ -271,7 +271,7 @@ export default function NuevaMinutaPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
           {alertasQuery.isError && <QueryErrorNotice error={alertasQuery.error} onRetry={() => void alertasQuery.refetch()} fallback="No se pudieron cargar las alertas abiertas." />}
-          <div className="card-elevated p-5 flex flex-col gap-4">
+          <div className="ccv-commitment-editor card-elevated p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">
                 {draft.alertaId ? "Compromiso desde alerta" : "Nuevo compromiso"}
@@ -415,7 +415,7 @@ export default function NuevaMinutaPage() {
             </div>
           </div>
 
-          <div className="card-elevated p-5 flex flex-col gap-3 lg:sticky lg:top-4">
+          <div className="ccv-commitment-alerts card-elevated p-5 flex flex-col gap-3 lg:sticky lg:top-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="size-4 text-amber-500" />
               <h3 className="text-sm font-semibold">Alertas abiertas del destinatario</h3>
