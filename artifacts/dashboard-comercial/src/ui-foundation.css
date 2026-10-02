@@ -331,11 +331,105 @@ body { color: #17231e; }
 .ccv-unit-bar [data-state="on"],
 .ccv-unit-bar button[data-pressed="true"] { border-color: #1c5b43; background: #1c5b43; color: #fff; }
 
+/* Budget workflow: separate decision stages, editable allocation and approval history. */
+.ccv-budget-page { gap: 1.4rem; }
+.ccv-budget-page > section[aria-label="Etapas del presupuesto"] {
+  gap: 0;
+  overflow: hidden;
+  padding: 0.85rem 1rem;
+  border-color: #dce4dd;
+  border-radius: 10px;
+  background: #fff;
+}
+.ccv-budget-page > section[aria-label="Etapas del presupuesto"] > div {
+  min-height: 46px;
+  padding: 0.35rem 0.8rem;
+  border-right: 1px solid #e7ede7;
+  color: #52645a;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+.ccv-budget-page > section[aria-label="Etapas del presupuesto"] > div:last-child { border-right: 0; }
+.ccv-budget-page > section[aria-label="Etapas del presupuesto"] > div > span:first-child {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d9e8a2;
+  border-radius: 8px;
+  background: #eff7d6;
+  color: #355c37;
+  font-family: var(--font-sans);
+}
+.ccv-budget-page > [data-slot="card"] { overflow: hidden; }
+.ccv-budget-page [data-slot="card-header"] {
+  gap: 0.45rem;
+  padding: 1.35rem 1.5rem 1rem;
+}
+.ccv-budget-page [data-slot="card-content"] { padding: 0.5rem 1.5rem 1.5rem; }
+.ccv-budget-page section.rounded-xl.border,
+.ccv-budget-page section.rounded-lg.border {
+  border-color: #dce5dc;
+  border-radius: 10px;
+  background: #f9fbf8;
+}
+.ccv-budget-page section.rounded-xl.border { padding: 1.2rem; }
+.ccv-budget-page section.rounded-xl.border h3,
+.ccv-budget-page section.rounded-lg.border h3 { color: #1d392b; font-size: 1rem; font-weight: 750; }
+.ccv-budget-page section.rounded-xl.border table,
+.ccv-budget-page section.rounded-lg.border table { border-collapse: separate; border-spacing: 0; }
+.ccv-budget-page table th {
+  padding-block: 0.75rem;
+  border-bottom: 1px solid #dce5dc;
+  color: #65766b;
+  font-size: 0.65rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.ccv-budget-page table td { padding-block: 0.65rem; }
+.ccv-budget-page table tbody tr:last-child td { border-bottom: 0; }
+.ccv-budget-page table tbody tr:last-child {
+  background: #f0f5ea;
+  color: #203c2c;
+  font-weight: 750;
+}
+.ccv-budget-page input[type="number"] {
+  border-color: #d7e69f;
+  background: #f5f9df;
+  color: #263a29;
+  font-variant-numeric: tabular-nums;
+}
+.ccv-budget-page input[type="number"]:focus {
+  border-color: #90ac54;
+  background: #fbfdea;
+}
+.ccv-budget-page label:has(input[type="number"]) {
+  padding: 0.75rem;
+  border: 1px solid #e1e9d8;
+  border-radius: 8px;
+  background: #fff;
+}
+.ccv-budget-page .overflow-auto.rounded-lg.border { border-color: #dce5dc; border-radius: 9px; }
+.ccv-budget-page [role="alert"] {
+  padding: 0.8rem 1rem;
+  border: 1px solid #efd2cc;
+  border-radius: 8px;
+  background: #fff5f2;
+}
+.ccv-budget-page [data-slot="card"] button[data-slot="button"] { min-width: 150px; }
+.ccv-budget-unit-view > [data-slot="card"]:last-of-type { border-left: 4px solid #d9f078; }
+.ccv-budget-national-view > [data-slot="card"]:first-of-type { border-top: 3px solid #d9f078; }
+
 @media (max-width: 680px) {
   .ccv-revenue-panel { grid-template-columns: minmax(0, 1fr); }
   .ccv-revenue-aside { border-top: 1px solid #dce4dd; border-left: 0; }
   .ccv-revenue-chart { height: 205px; }
   .ccv-revenue-secondary { grid-template-columns: 1fr 1fr; }
+  .ccv-budget-page > section[aria-label="Etapas del presupuesto"] > div {
+    border-right: 0;
+    border-bottom: 1px solid #e7ede7;
+  }
+  .ccv-budget-page > section[aria-label="Etapas del presupuesto"] > div:last-child { border-bottom: 0; }
+  .ccv-budget-page [data-slot="card-header"] { padding-inline: 1rem; }
+  .ccv-budget-page [data-slot="card-content"] { padding-inline: 1rem; }
 }
 
 .ccv-shell [data-slot="button"] {

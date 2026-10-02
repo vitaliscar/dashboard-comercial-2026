@@ -287,7 +287,7 @@ function PresupuestoGerenciaPage() {
 
   if (esGerenteComercial) {
     return (
-      <div className="space-y-6">
+      <div className="ccv-budget-page ccv-budget-unit-view space-y-6">
         <PageHeader
           eyebrow="Planeación comercial"
           title={`Presupuesto ${targetAnio}`}
@@ -368,7 +368,7 @@ function PresupuestoGerenciaPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="ccv-budget-page ccv-budget-national-view space-y-6">
       <PageHeader
         eyebrow="Planeación"
         title={`Presupuesto ${targetAnio}`}
