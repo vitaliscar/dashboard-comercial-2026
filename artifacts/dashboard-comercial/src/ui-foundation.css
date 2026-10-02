@@ -1194,3 +1194,98 @@ body { color: #20242b; }
   box-shadow: inset 2px 0 #475569 !important;
 }
 .ccv-sidebar .ccv-nav-link[aria-current="page"] svg { color: #475569 !important; }
+
+/* Login palette: keep the brand panel, remove the previous green/lime/orange treatment. */
+.ccv-login {
+  color: #20242b !important;
+  background: #f7f8fa !important;
+  background-image: none !important;
+}
+.ccv-login-brand {
+  background: #252d39 !important;
+  background-image: none !important;
+}
+.ccv-login-brand > div:first-child {
+  opacity: 0.18 !important;
+}
+.ccv-login-orbit {
+  border-color: rgb(255 255 255 / 13%) !important;
+  border-radius: 12px !important;
+  background: rgb(255 255 255 / 2%) !important;
+  box-shadow: none !important;
+}
+.ccv-login-orbit::before {
+  border-color: rgb(203 213 225 / 18%) !important;
+  box-shadow: 0 0 0 2.5rem rgb(203 213 225 / 2%), 0 0 0 5rem rgb(203 213 225 / 1%) !important;
+}
+.ccv-login-orbit > div:first-child > span,
+.ccv-login-orbit > div:first-child > p:first-of-type em { color: #cbd5e1 !important; }
+.ccv-login-route span {
+  border: 1px solid rgb(255 255 255 / 14%);
+  background: rgb(15 23 42 / 22%) !important;
+  color: #e2e8f0 !important;
+}
+.ccv-login-route i { background: #64748b !important; }
+.ccv-login-form { background: #f7f8fa !important; background-image: none !important; }
+.ccv-login-card {
+  border-color: #e1e5eb !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  box-shadow: 0 16px 48px rgb(16 24 40 / 6%) !important;
+}
+.ccv-login-card > div:nth-child(2) > p:first-child { color: #475569 !important; }
+.ccv-login-card > div:nth-child(2) > p:last-child,
+.ccv-login-footnote { color: #667085 !important; }
+.ccv-login-fields label { color: #344054 !important; }
+.ccv-login-fields input { border-color: #d0d5dd !important; background: #fff !important; }
+.ccv-login-submit {
+  border-color: #475569 !important;
+  background: #475569 !important;
+  box-shadow: none !important;
+}
+.ccv-login-submit:hover { background: #344054 !important; }
+.ccv-login :is(button, a, select, input, textarea):focus-visible {
+  outline-color: #64748b !important;
+  box-shadow: 0 0 0 4px rgb(100 116 139 / 16%) !important;
+}
+
+/* Keep the complete sign-in experience inside common laptop and phone viewports. */
+.ccv-login-brand { min-height: 100svh; padding-block: clamp(1rem, 3vh, 2rem) !important; }
+.ccv-login-brandmark img { width: 56px !important; height: 56px !important; }
+.ccv-login-orbit {
+  min-height: clamp(250px, 38vh, 320px) !important;
+  margin-top: clamp(1.25rem, 3vh, 2rem) !important;
+  padding: clamp(1.25rem, 2.5vh, 2rem) !important;
+}
+.ccv-login-orbit > div:first-child > p:first-of-type { margin-top: 1rem !important; }
+.ccv-login-orbit > div:first-child > p:last-child { margin-top: 1rem !important; }
+.ccv-login-route { margin-top: 1.25rem !important; }
+.ccv-login-card { gap: clamp(1.25rem, 3vh, 1.75rem) !important; padding: clamp(1.5rem, 3vw, 2.5rem) !important; }
+.ccv-login-card h2 { font-size: clamp(2rem, 4vh, 2.5rem) !important; }
+.ccv-login-fields input { min-height: 2.85rem !important; height: 2.85rem !important; }
+.ccv-login-submit { min-height: 2.9rem !important; height: 2.9rem !important; }
+.ccv-login-fields > div:first-child > div + div { margin-top: 0.75rem !important; }
+.ccv-login-fields > div:first-child > div > div + div { margin-top: 0.35rem !important; }
+.ccv-login-fields > div:first-child > div label { line-height: 1.25 !important; }
+
+@media (max-width: 1023px) {
+  .ccv-login-form { min-height: 100svh; padding: 1rem 1.25rem !important; }
+  .ccv-login-card { max-width: 440px !important; }
+}
+
+@media (max-height: 760px) and (min-width: 1024px) {
+  .ccv-login-brand { padding-inline: clamp(2rem, 4vw, 4rem) !important; }
+  .ccv-login-brandmark img { width: 48px !important; height: 48px !important; }
+  .ccv-login-orbit { min-height: 235px !important; margin-top: 1rem !important; padding: 1.25rem !important; }
+  .ccv-login-orbit > div:first-child > p:first-of-type { font-size: clamp(2.8rem, 4.5vw, 4.2rem) !important; }
+  .ccv-login-orbit > div:first-child > p:last-child { margin-top: 0.65rem !important; }
+  .ccv-login-route { margin-top: 0.75rem !important; }
+  .ccv-login-card { gap: 1rem !important; padding: 1.5rem !important; }
+  .ccv-login-fields > div:first-child > div + div { margin-top: 0.55rem !important; }
+}
+
+@media (max-width: 640px) {
+  .ccv-login-form { align-items: center !important; padding: 0.75rem 1rem !important; }
+  .ccv-login-card { gap: 1.25rem !important; padding: 1.25rem !important; }
+  .ccv-login-card h2 { font-size: 2rem !important; }
+}
