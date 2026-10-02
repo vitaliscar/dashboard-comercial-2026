@@ -1261,6 +1261,7 @@ body { color: #20242b; }
 .ccv-login-orbit > div:first-child > p:last-child { margin-top: 1rem !important; }
 .ccv-login-route { margin-top: 1.25rem !important; }
 .ccv-login-card { gap: clamp(1.25rem, 3vh, 1.75rem) !important; padding: clamp(1.5rem, 3vw, 2.5rem) !important; }
+.ccv-login-benefits { width: 100%; justify-content: center !important; text-align: center; }
 .ccv-login-card h2 { font-size: clamp(2rem, 4vh, 2.5rem) !important; }
 .ccv-login-fields input { min-height: 2.85rem !important; height: 2.85rem !important; }
 .ccv-login-submit { min-height: 2.9rem !important; height: 2.9rem !important; }
