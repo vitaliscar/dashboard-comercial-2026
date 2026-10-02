@@ -2,6 +2,7 @@ import { isFullAccessRole } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Boxes, Building2, Search, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Cell, Pie, PieChart } from "recharts";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales } from "@/hooks/use-catalogos";
@@ -18,6 +19,12 @@ import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
 import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -46,6 +53,81 @@ const UNIT_COPY: Record<UnidadKey, { title: string; description: string }> = {
 
 const num = (value: unknown) => Number(value ?? 0) || 0;
 const label = (value: unknown) => String(value ?? "Sin clasificar");
+const BRAND_CHART_COLORS = [
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
+];
+
+function BrandShareDonut({
+  data,
+  total,
+  hasNegativeAmounts,
+}: {
+  data: { marca: string; monto: number }[];
+  total: number;
+  hasNegativeAmounts: boolean;
+}) {
+  const chartConfig = useMemo(
+    () =>
+      data.reduce<ChartConfig>((config, brand, index) => {
+        config[brand.marca] = {
+          label: brand.marca,
+          color: BRAND_CHART_COLORS[index % BRAND_CHART_COLORS.length],
+        };
+        return config;
+      }, {}),
+    [data],
+  );
+
+  return (
+    <div className="min-w-0 rounded-xl bg-muted/35 p-3">
+      <h3 className="text-sm font-semibold">Participación por marca</h3>
+      <div className="relative mx-auto mt-1 w-full max-w-[320px]">
+        <ChartContainer config={chartConfig} className="aspect-square min-h-[230px] max-h-[320px] w-full">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="monto"
+              nameKey="marca"
+              innerRadius="62%"
+              outerRadius="86%"
+              paddingAngle={2}
+              stroke="var(--color-card)"
+              strokeWidth={2}
+            >
+              {data.map((brand, index) => (
+                <Cell
+                  key={brand.marca}
+                  fill={BRAND_CHART_COLORS[index % BRAND_CHART_COLORS.length]}
+                />
+              ))}
+            </Pie>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  nameKey="marca"
+                  formatter={(value) => money(Number(value))}
+                />
+              }
+            />
+          </PieChart>
+        </ChartContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[10px] text-muted-foreground">Ventas positivas</span>
+          <strong className="font-mono text-sm tabular-nums">{money(total)}</strong>
+        </div>
+      </div>
+      {hasNegativeAmounts && (
+        <p className="px-1 text-center text-[11px] leading-4 text-muted-foreground">
+          Los montos netos negativos se muestran como ajustes y no forman parte de la dona.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function SectionTitle({ title, description }: { title: string; description: string }) {
   return (
@@ -76,6 +158,22 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
       .map((brand) => ({ ...brand, sucursales: [...brand.sucursales.values()].sort((a, b) => b.monto - a.monto) }))
       .sort((a, b) => b.monto - a.monto);
   }, [data.detallesMarcas]);
+
+  const brandShare = useMemo(() => {
+    const chartData = brands
+      .filter((brand) => brand.monto > 0)
+      .map(({ marca, monto }) => ({ marca, monto }));
+    const total = chartData.reduce((sum, brand) => sum + brand.monto, 0);
+    const percentages = new Map(
+      chartData.map((brand) => [brand.marca, total > 0 ? (brand.monto / total) * 100 : 0]),
+    );
+    return {
+      chartData,
+      total,
+      percentages,
+      hasNegativeAmounts: brands.some((brand) => brand.monto < 0),
+    };
+  }, [brands]);
 
   // Participación (%) de cada marca top sobre el TOTAL de todas las marcas
   // del período filtrado (no solo el subconjunto top-8) -- misma forma que
@@ -226,37 +324,64 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
                 : "Ventas mensuales por marca y sucursal. El año corresponde al lote de carga: la tabla no guarda el año de venta."
           }
         />
-        <div className="ccv-brand-breakdown mt-4">
-          {brands.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {role === "coordinador" && keyName === "repuestos"
-                ? "No hay ventas de Repuestos con sucursal asignada en tus sucursales para este período."
-                : role === "coordinador" && keyName === "lubfiltros"
-                ? "No hay ventas de Lubricantes/Filtros con sucursal asignada en tus sucursales para este período."
-                : "No hay detalle de marcas para el período y año de carga seleccionados."}
-            </p>
-          ) : (
-            brands.map((brand) => (
-              <details key={brand.marca} className="ccv-brand-row">
-                <summary>
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{brand.marca}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {brand.sucursales.length} {brand.sucursales.length === 1 ? "origen" : "orígenes"} · ver sucursales
-                    </span>
-                  </span>
-                  <span className="shrink-0 font-mono font-semibold tabular-nums">{money(brand.monto)}</span>
-                </summary>
-                <ul>
-                  {brand.sucursales.map((branch) => (
-                    <li key={branch.nombre}>
-                      <span>{branch.nombre}</span>
-                      <span className="font-mono tabular-nums">{money(branch.monto)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ))
+        <div className="mt-4 grid items-start gap-4 min-[680px]:grid-cols-[minmax(0,1fr)_minmax(240px,0.8fr)]">
+          <div className="ccv-brand-breakdown mt-0">
+            {brands.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {role === "coordinador" && keyName === "repuestos"
+                  ? "No hay ventas de Repuestos con sucursal asignada en tus sucursales para este período."
+                  : role === "coordinador" && keyName === "lubfiltros"
+                  ? "No hay ventas de Lubricantes/Filtros con sucursal asignada en tus sucursales para este período."
+                  : "No hay detalle de marcas para el período y año de carga seleccionados."}
+              </p>
+            ) : (
+              brands.map((brand, index) => {
+                const share = brandShare.percentages.get(brand.marca);
+                return (
+                  <details key={brand.marca} className="ccv-brand-row">
+                    <summary>
+                      <span className="flex min-w-0 items-start gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="mt-1.5 size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: BRAND_CHART_COLORS[index % BRAND_CHART_COLORS.length] }}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{brand.marca}</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {brand.sucursales.length} {brand.sucursales.length === 1 ? "origen" : "orígenes"} · ver sucursales
+                          </span>
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end">
+                        <span className="font-mono font-semibold tabular-nums">{money(brand.monto)}</span>
+                        <span
+                          className="text-xs font-semibold tabular-nums"
+                          style={{ color: BRAND_CHART_COLORS[index % BRAND_CHART_COLORS.length] }}
+                        >
+                          {share == null ? "Ajuste neto" : `${share.toFixed(1)}%`}
+                        </span>
+                      </span>
+                    </summary>
+                    <ul>
+                      {brand.sucursales.map((branch) => (
+                        <li key={branch.nombre}>
+                          <span>{branch.nombre}</span>
+                          <span className="font-mono tabular-nums">{money(branch.monto)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                );
+              })
+            )}
+          </div>
+          {brandShare.chartData.length > 0 && (
+            <BrandShareDonut
+              data={brandShare.chartData}
+              total={brandShare.total}
+              hasNegativeAmounts={brandShare.hasNegativeAmounts}
+            />
           )}
         </div>
       </div>
