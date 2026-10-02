@@ -59,24 +59,24 @@ export default function AlertasPage() {
   const highCount = (query.data ?? []).filter((alerta) => alerta.estado === "abierta" && alerta.severidad === "alta").length;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="ccv-alerts-page flex flex-col gap-5">
       <PageHeader eyebrow="Gestión · Seguimiento" title="Alertas" description="Prioriza riesgos por impacto y antigüedad. Cada alerta refleja datos dentro de tu alcance." />
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="ccv-alert-priority flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
         <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prioridad inmediata</p><p className="mt-1 font-display text-2xl font-semibold">{highCount}<span className="ml-2 text-sm font-normal text-muted-foreground">abiertas de severidad alta</span></p></div>
         <div className="flex flex-wrap gap-2" aria-label="Filtrar alertas por estado">
           {([["abierta", "Abiertas"], ["resuelta", "Resueltas"], ["todas", "Todas"]] as const).map(([value, label]) => <Button key={value} size="sm" variant={estado === value ? "default" : "outline"} aria-pressed={estado === value} onClick={() => setEstado(value)}>{label}</Button>)}
         </div>
       </div>
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="ccv-alert-filters flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
         <label className="min-w-40 flex-1 text-sm"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Tipo de alerta</span><select value={tipo} onChange={(event) => setTipo(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="todas">Todos los tipos</option>{tiposDisponibles.map((item) => <option key={item} value={item}>{TYPE_LABELS[item] ?? item}</option>)}</select></label>
         <label className="min-w-40 flex-1 text-sm"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Severidad</span><select value={severidad} onChange={(event) => setSeveridad(event.target.value as typeof severidad)} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="todas">Todas</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></label>
         <span className="pb-2 text-xs text-muted-foreground" aria-live="polite">{visibles.length} {visibles.length === 1 ? "alerta" : "alertas"}</span>
       </div>
       {query.isLoading ? <p className="text-sm text-muted-foreground">Reconciliando alertas…</p> : query.isError ? <QueryErrorNotice error={query.error} onRetry={() => void query.refetch()} fallback="No se pudieron reconciliar las alertas." /> : visibles.length === 0 ? <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">No hay alertas que coincidan con estos filtros.</p> :
-        <div className="grid gap-3">{visibles.map((alerta) => {
+        <div className="ccv-alert-list grid gap-3">{visibles.map((alerta) => {
           const ageDays = Math.max(0, Math.floor((Date.now() - new Date(alerta.createdAt).getTime()) / 86_400_000));
           const ageLabel = ageDays === 0 ? "hoy" : ageDays === 1 ? "hace 1 día" : `hace ${ageDays} días`;
-          return <article key={alerta.id} className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${alerta.severidad === "alta" && alerta.estado === "abierta" ? "border-l-4 border-l-destructive" : alerta.estado === "resuelta" ? "opacity-75" : "border-l-4 border-l-amber-500"}`}>
+          return <article key={alerta.id} data-severity={alerta.severidad} data-state={alerta.estado} className={`ccv-alert-card rounded-lg border border-border bg-card p-4 sm:p-5 ${alerta.severidad === "alta" && alerta.estado === "abierta" ? "border-l-4 border-l-destructive" : alerta.estado === "resuelta" ? "opacity-75" : "border-l-4 border-l-amber-500"}`}>
             <div className="flex flex-wrap items-start gap-3"><AlertTriangle aria-hidden="true" className={`mt-0.5 size-5 shrink-0 ${alerta.severidad === "alta" ? "text-danger" : "text-warning"}`} /><div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{alerta.titulo}</h3><span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium">{TYPE_LABELS[alerta.tipo] ?? alerta.tipo}</span><span className={`text-xs font-semibold uppercase ${alerta.severidad === "alta" ? "text-danger" : alerta.severidad === "media" ? "text-warning" : "text-muted-foreground"}`}>Severidad {alerta.severidad}</span></div>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">{alerta.contexto?.detalle ?? "Sin detalle disponible."}</p>

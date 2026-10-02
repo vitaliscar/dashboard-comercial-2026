@@ -34,7 +34,7 @@ export default function EmbudoPage() {
   const relation = (value: number, base: number) => base > 0 ? `${(value / base * 100).toFixed(1)} %` : "—";
   const saldoPendiente = (totals?.facturado ?? 0) - (totals?.cobrado ?? 0);
 
-  return <div className="flex flex-col gap-6">
+  return <div className="ccv-funnel-page flex flex-col gap-6">
     <PageHeader eyebrow="Gestión comercial" title="Embudo" description="Volumen cotizado por etapa y relación agregada entre cotización, facturación y cartera." />
     {query.isLoading ? <p className="text-sm text-muted-foreground">Cargando embudo…</p> : query.isError ? <QueryErrorNotice error={query.error} onRetry={() => void query.refetch()} fallback="No se pudo cargar el embudo." /> : <>
       <div className="grid gap-4 sm:grid-cols-3">
@@ -42,13 +42,13 @@ export default function EmbudoPage() {
           { label: "Cotizado", value: totals?.cotizado ?? 0, caption: `${query.data?.cotizaciones.length ?? 0} cotizaciones` },
           { label: "Facturado", value: totals?.facturado ?? 0, caption: `${relation(totals?.facturado ?? 0, totals?.cotizado ?? 0)} del monto cotizado · relación de montos` },
           { label: "Saldo pendiente actual", value: saldoPendiente, caption: "Cartera abierta; no se limita al período seleccionado" },
-        ].map(({ label, value, caption }, index) => <section key={label} className={`rounded-lg border border-border bg-card p-5 ${index === 0 ? "border-t-[3px] border-t-primary" : ""}`}>
+        ].map(({ label, value, caption }, index) => <section key={label} className={`ccv-funnel-kpi rounded-lg border border-border bg-card p-5 ${index === 0 ? "is-primary border-t-[3px] border-t-primary" : ""}`}>
           <p className="font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">{label}</p>
           <p className="mt-3 font-display text-2xl font-medium tabular-nums tracking-tight">{money(Number(value))}</p>
           <p className="mt-2 text-xs text-muted-foreground">{caption}</p>
         </section>)}
       </div>
-      <p className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+      <p className="ccv-funnel-explainer rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         Los totales vienen de registros agregados distintos; la base no atribuye cada factura o cobro a una cotización específica. Los porcentajes muestran relación entre montos y no una tasa de conversión.
       </p>
       <section className="card-elevated p-5 sm:p-6" aria-labelledby="embudo-etapas-title" data-testid="embudo-stage-chart">
