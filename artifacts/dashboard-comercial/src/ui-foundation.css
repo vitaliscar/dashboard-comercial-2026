@@ -855,3 +855,125 @@ body { color: #17231e; }
   .ccv-login-card { gap: 1.75rem; padding: 1.65rem 1.25rem; border-radius: 12px; }
   .ccv-login-card h2 { font-size: 2.25rem; }
 }
+
+/* Evaluación: lectura de alcance, resultado y evidencia en ese orden. */
+.ccv-evaluation-page,
+.ccv-evaluation-detail,
+.ccv-advisors-page { gap: 1.25rem; }
+
+.ccv-evaluation-filters {
+  gap: 1.25rem 1.75rem;
+  padding: 1.1rem 1.25rem;
+  border-color: #dce4dd;
+  border-radius: 12px;
+  background: #f8faf6;
+}
+
+.ccv-evaluation-filters > div > p {
+  color: #68766d;
+  font: 750 0.64rem/1.2 var(--font-sans);
+  letter-spacing: 0.1em;
+}
+
+.ccv-evaluation-filters button[aria-pressed="true"] {
+  border-color: #1c5b43;
+  background: #1c5b43;
+  color: #f5f8ec;
+}
+
+.ccv-evaluation-filters button[aria-pressed="false"] {
+  background: #fff;
+}
+
+.ccv-evaluation-page :is(section, .ccv-evaluation-narrative),
+.ccv-evaluation-detail :is(section, .ccv-evaluation-chart) {
+  border-color: #dce4dd;
+  border-radius: 12px;
+  box-shadow: 0 5px 16px rgb(25 48 36 / 3%);
+}
+
+.ccv-evaluation-narrative {
+  border-left: 3px solid #9bbd56 !important;
+  background: #f8faf6;
+}
+
+.ccv-evaluation-narrative h3,
+.ccv-evaluation-page section > h3,
+.ccv-evaluation-detail section > h3 {
+  color: #20392c;
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  letter-spacing: -0.025em;
+}
+
+.ccv-evaluation-table,
+.ccv-evaluation-advisors,
+.ccv-advisors-ranking > div {
+  overflow: hidden;
+  border: 1px solid #dce4dd;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.ccv-evaluation-page section:has(table),
+.ccv-evaluation-page section:has(.overflow-x-auto),
+.ccv-evaluation-detail section:has(table) {
+  padding: 0;
+}
+
+.ccv-evaluation-page section:has(table) > h3,
+.ccv-evaluation-page section:has(.overflow-x-auto) > h3,
+.ccv-evaluation-detail section:has(table) > h3 {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid #e8eee7;
+}
+
+.ccv-evaluation-detail .recharts-cartesian-axis-tick-value {
+  fill: #7c8980;
+  font-size: 11px;
+}
+.ccv-evaluation-detail .recharts-cartesian-grid line { stroke: #e8eee7; }
+
+.ccv-evaluation-table table,
+.ccv-evaluation-advisors table,
+.ccv-evaluation-detail table { border-collapse: collapse; }
+
+.ccv-evaluation-table thead,
+.ccv-evaluation-advisors thead,
+.ccv-evaluation-detail thead { background: #f3f6f1; }
+
+.ccv-evaluation-table th,
+.ccv-evaluation-advisors th,
+.ccv-evaluation-detail th {
+  padding: 0.8rem 0.9rem;
+  color: #64736a;
+  font: 750 0.64rem/1.3 var(--font-sans);
+  letter-spacing: 0.07em;
+}
+
+.ccv-evaluation-table td,
+.ccv-evaluation-advisors td,
+.ccv-evaluation-detail td {
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid #edf1ec;
+  color: #26372d;
+}
+
+.ccv-evaluation-table tbody tr:last-child td,
+.ccv-evaluation-advisors tbody tr:last-child td,
+.ccv-evaluation-detail tbody tr:last-child td { border-bottom: 0; }
+
+.ccv-advisors-ranking [data-slot="table-container"] { max-height: min(70vh, 760px); }
+.ccv-advisors-ranking thead { background: #1b382b; }
+.ccv-advisors-ranking th { color: #edf4e5 !important; }
+.ccv-advisors-ranking tbody tr:hover { background: #f3f7ef; }
+.ccv-advisors-page [role="dialog"] { border-color: #dce4dd; border-radius: 14px; }
+
+@media (max-width: 640px) {
+  .ccv-evaluation-filters { padding: 0.9rem; }
+  .ccv-evaluation-filters > div { min-width: 100%; }
+  .ccv-evaluation-filters button { min-height: 34px; }
+  .ccv-evaluation-page :is(section, .ccv-evaluation-narrative),
+  .ccv-evaluation-detail :is(section, .ccv-evaluation-chart) { padding: 1rem; }
+}

@@ -76,10 +76,10 @@ export default function EvaluacionPage() {
   const toggleId = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-evaluation-page flex flex-col gap-6">
       <PageHeader eyebrow="Evaluación de Desempeño" title="Cumplimiento y gestión comercial" description={`Año ${anio}`} />
 
-      <section className="flex flex-wrap items-start gap-6 rounded-lg border bg-card p-4" aria-label="Filtros de evaluación">
+      <section className="ccv-evaluation-filters flex flex-wrap items-start gap-6 rounded-lg border bg-card p-4" aria-label="Filtros de evaluación">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Período</p>
           <div className="flex flex-wrap gap-1.5">
@@ -172,7 +172,7 @@ export default function EvaluacionPage() {
       )}
 
       {reporte.data && (
-        <div className="rounded-lg border bg-card p-5">
+        <div className="ccv-evaluation-narrative rounded-lg border bg-card p-5">
           <h3 className="mb-3 text-sm font-semibold">Análisis narrativo</h3>
           {analisis.isLoading ? (
             <p className="text-sm text-muted-foreground">Generando análisis con IA…</p>
