@@ -113,7 +113,7 @@ export default function CoordinadorPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-role-dashboard ccv-role-coordinator flex flex-col gap-6">
       <PageHeader
         eyebrow="Coordinación"
         title="Panel de coordinador"
@@ -186,12 +186,12 @@ export default function CoordinadorPage() {
             <Bar
               dataKey="presupuesto"
               name="Presupuesto"
-              fill="hsl(var(--muted-foreground))"
+              fill="#cbdcc9"
             />
             <Bar
               dataKey="venta"
               name="Venta"
-              fill="hsl(var(--primary))"
+              fill="#2d7950"
             />
           </BarChart>
         </ResponsiveContainer>

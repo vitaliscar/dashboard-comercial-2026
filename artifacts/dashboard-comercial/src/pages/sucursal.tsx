@@ -134,7 +134,7 @@ export default function SucursalPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="ccv-role-dashboard ccv-role-branch flex flex-col gap-5">
       <PageHeader
         eyebrow="Coordinación · Sucursales"
         title="Desempeño de sucursales"
@@ -194,8 +194,8 @@ export default function SucursalPage() {
                     <YAxis tickLine={false} axisLine={false} tickFormatter={(value: number) => Math.abs(value) >= 1_000_000 ? `$${(value / 1_000_000).toFixed(1)}M` : Math.abs(value) >= 1_000 ? `$${(value / 1_000).toFixed(0)}k` : String(value)} />
                     <Tooltip formatter={(value: number) => money(Number(value))} />
                     <Legend />
-                    <Bar dataKey="budget" name="Meta" fill="#b8c5b4" radius={[3, 3, 0, 0]} />
-                    <Line dataKey="sales" name="Facturado" stroke="#a65e25" strokeWidth={2.5} dot={false} />
+                    <Bar dataKey="budget" name="Meta" fill="#cbdcc9" radius={[3, 3, 0, 0]} />
+                    <Line dataKey="sales" name="Facturado" stroke="#2d7950" strokeWidth={2.5} dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>

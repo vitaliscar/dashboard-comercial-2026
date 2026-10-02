@@ -418,6 +418,72 @@ body { color: #17231e; }
 .ccv-budget-unit-view > [data-slot="card"]:last-of-type { border-left: 4px solid #d9f078; }
 .ccv-budget-national-view > [data-slot="card"]:first-of-type { border-top: 3px solid #d9f078; }
 
+/* Role dashboards: keep each audience focused on its own next decision. */
+.ccv-role-dashboard { gap: 1.5rem; }
+.ccv-role-dashboard > section[aria-label^="Resultados comerciales"],
+.ccv-role-dashboard > section[aria-label="Tu avance frente a la meta"] {
+  overflow: hidden;
+  border: 1px solid #244737;
+  border-radius: 12px;
+  background: #172b23;
+  box-shadow: 0 12px 28px rgb(23 43 35 / 10%);
+}
+.ccv-role-dashboard > section[aria-label^="Resultados comerciales"] > div,
+.ccv-role-dashboard > section[aria-label="Tu avance frente a la meta"] > div {
+  background-color: #172b23;
+}
+.ccv-role-dashboard > section[aria-label="Tu avance frente a la meta"] > div:last-child {
+  background-color: #20392d;
+}
+.ccv-role-dashboard :is([class~="bg-[#18352b]"], [class~="bg-[#203f33]"]) {
+  background-color: #172b23;
+}
+.ccv-role-dashboard > section[aria-label^="Resultados comerciales"] strong,
+.ccv-role-dashboard > section[aria-label="Tu avance frente a la meta"] strong {
+  color: #d9f078;
+  font: 560 clamp(1.6rem, 2.8vw, 2.5rem)/1 var(--font-display);
+  letter-spacing: -0.045em;
+}
+.ccv-role-dashboard > section[aria-label^="Resultados comerciales"] p,
+.ccv-role-dashboard > section[aria-label="Tu avance frente a la meta"] p {
+  color: #b8c9bc;
+}
+.ccv-role-dashboard [data-testid^="chart-"] {
+  min-height: 300px;
+  border-color: #dce4dd;
+  border-radius: 12px;
+  background: #fff;
+}
+.ccv-role-dashboard [data-testid^="chart-"] h2 { color: #1c3629; }
+.ccv-role-dashboard section.card-elevated[aria-labelledby] {
+  border-color: #dce4dd;
+  border-radius: 12px;
+  background: #fff;
+}
+.ccv-role-dashboard section.card-elevated[aria-labelledby] > header {
+  border-color: #e4ebe4;
+  background: #f8faf7;
+}
+.ccv-role-dashboard section.card-elevated[aria-labelledby] h2 {
+  color: #1c3629;
+  font-family: var(--font-sans);
+  font-weight: 740;
+}
+.ccv-role-dashboard ul.divide-y > li button:hover { background: #f2f7ee; }
+.ccv-role-advisor > section[aria-label="Tu avance frente a la meta"] > div:first-child {
+  padding: clamp(1.5rem, 3.5vw, 2.75rem);
+}
+.ccv-role-advisor > section[aria-label="Tu avance frente a la meta"] > div:first-child > strong {
+  font-size: clamp(2.8rem, 6vw, 5rem);
+}
+.ccv-role-advisor > section[aria-label="Tu avance frente a la meta"] [role="progressbar"] { background: #2c4839; }
+.ccv-role-advisor > section[aria-label="Tu avance frente a la meta"] [role="progressbar"] > span { background: #d9f078; }
+.ccv-role-advisor section[aria-labelledby="advisor-next-steps-title"] {
+  border-radius: 12px;
+  border-color: #dce4dd;
+  background: linear-gradient(145deg, #ffffff 0%, #f4f8f0 100%);
+}
+
 @media (max-width: 680px) {
   .ccv-revenue-panel { grid-template-columns: minmax(0, 1fr); }
   .ccv-revenue-aside { border-top: 1px solid #dce4dd; border-left: 0; }

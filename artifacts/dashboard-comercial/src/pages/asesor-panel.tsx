@@ -95,7 +95,7 @@ export default function AsesorPanelPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="ccv-role-dashboard ccv-role-advisor flex flex-col gap-5">
       <PageHeader
         eyebrow="Vista personal"
         title={`Mi panel, ${profile?.nombre_completo ?? "Asesor"}`}
@@ -171,8 +171,8 @@ export default function AsesorPanelPage() {
                     <YAxis tickLine={false} axisLine={false} tickFormatter={(value: number) => Math.abs(value) >= 1_000_000 ? `$${(value / 1_000_000).toFixed(1)}M` : Math.abs(value) >= 1_000 ? `$${(value / 1_000).toFixed(0)}k` : String(value)} />
                     <Tooltip formatter={(value: number) => money(Number(value))} />
                     <Legend />
-                    <Bar dataKey="target" name="Meta" fill="#b8c5b4" radius={[3, 3, 0, 0]} />
-                    <Line dataKey="billed" name="Facturado" stroke="#a65e25" strokeWidth={2.5} dot={false} />
+                    <Bar dataKey="target" name="Meta" fill="#cbdcc9" radius={[3, 3, 0, 0]} />
+                    <Line dataKey="billed" name="Facturado" stroke="#2d7950" strokeWidth={2.5} dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
