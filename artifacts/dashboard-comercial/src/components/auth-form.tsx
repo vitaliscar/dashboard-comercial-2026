@@ -61,7 +61,7 @@ export function AuthForm() {
                 alt="Logo Centro Comercial VENEQUIP"
                 className="ccv-login-panel-logo object-contain"
               />
-              <p className="ccv-login-panel-title font-sans text-base font-extrabold uppercase tracking-[0.14em] text-white sm:text-lg">
+              <p className="ccv-login-panel-title font-sans text-base font-extrabold tracking-[0.04em] text-white sm:text-lg">
                 CCV / Inteligencia comercial
               </p>
             </div>
