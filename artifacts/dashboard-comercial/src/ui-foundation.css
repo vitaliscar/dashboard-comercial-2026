@@ -1302,10 +1302,9 @@ body { color: #20242b; }
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  transform: perspective(900px) rotateX(4deg) rotateY(-6deg) translateZ(18px);
-  filter: drop-shadow(0 18px 24px rgb(0 0 0 / 34%)) drop-shadow(0 3px 6px rgb(217 240 120 / 16%));
+  transform: none;
+  filter: drop-shadow(0 8px 12px rgb(0 0 0 / 22%));
 }
-.ccv-login-center { perspective: 900px; }
 .ccv-login-orbit { min-height: clamp(320px, 54vh, 480px) !important; }
 .ccv-login-center { min-height: inherit; }
 .ccv-login-orbit::before { display: none !important; }
