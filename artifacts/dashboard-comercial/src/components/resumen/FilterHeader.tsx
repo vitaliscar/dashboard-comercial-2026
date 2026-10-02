@@ -10,7 +10,6 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -338,7 +337,7 @@ export function FilterHeader({
       {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
         <div className="ccv-unit-bar bg-card border border-t-0 border-border rounded-b-xl px-4 py-3 flex items-center gap-4 flex-wrap">
           <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
-          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto">
+          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto" aria-label="Unidades de negocio">
             <Button
               type="button"
               variant={selectedUnits.length === 0 ? "default" : "outline"}
@@ -353,24 +352,29 @@ export function FilterHeader({
             >
               Todas
             </Button>
-            <ToggleGroup
-              multiple
-              value={selectedUnits}
-              onValueChange={applyUnitSelection}
-              spacing={2}
-              className="flex-nowrap"
-            >
-              {resolvedUnitOptions.map((opt) => (
-                <ToggleGroupItem
+            {resolvedUnitOptions.map((opt) => {
+              const pressed = selectedUnits.includes(opt.value);
+              return (
+                <Button
                   key={`${opt.value}-${opt.label}`}
-                  value={opt.value}
+                  type="button"
                   variant="outline"
-                  className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold text-muted-foreground border-border hover:bg-accent data-[pressed]:bg-primary data-[pressed]:text-primary-foreground data-[pressed]:border-primary"
+                  size="sm"
+                  aria-pressed={pressed}
+                  onClick={() => applyUnitSelection(
+                    pressed ? selectedUnits.filter((id) => id !== opt.value) : [...selectedUnits, opt.value],
+                  )}
+                  className={cn(
+                    "h-auto shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
+                    pressed
+                      ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "border-border text-muted-foreground hover:bg-accent",
+                  )}
                 >
                   {opt.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+                </Button>
+              );
+            })}
           </div>
         </div>
       )}

@@ -1,43 +1,48 @@
 /* 2026 visual reset: editorial finance desk, quiet canvas and sharp data hierarchy. */
 :root {
-  --bg-primary: #f3f5f1;
-  --background: #f3f5f1;
-  --foreground: #17231e;
+  --bg-primary: #f7f8fa;
+  --background: #f7f8fa;
+  --foreground: #20242b;
   --surface-primary: #ffffff;
-  --surface-2: #e9eee9;
+  --surface-2: #f1f3f6;
   --card: #ffffff;
-  --card-foreground: #17231e;
+  --card-foreground: #20242b;
   --popover: #ffffff;
   --popover-foreground: #17231e;
-  --primary: #1c5b43;
-  --primary-foreground: #f8fbf6;
-  --secondary: #e7ede7;
-  --secondary-foreground: #21372d;
-  --muted: #e9eee9;
-  --muted-foreground: #69766e;
-  --accent: #d9f078;
-  --accent-foreground: #213527;
-  --border: #dce4dd;
-  --input: #d2ddd4;
+  --primary: #475569;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f5;
+  --secondary-foreground: #344054;
+  --muted: #f1f3f6;
+  --muted-foreground: #667085;
+  --accent: #e9edf2;
+  --accent-foreground: #344054;
+  --border: #e1e5eb;
+  --input: #d0d5dd;
   --input-background: #ffffff;
-  --ring: #6c9e5f;
-  --sidebar: #172b23;
-  --sidebar-foreground: #eef4ed;
-  --sidebar-primary: #d9f078;
-  --sidebar-primary-foreground: #172b23;
-  --sidebar-accent: #263c32;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2c4338;
-  --success: #23744d;
-  --warning: #9b6414;
-  --danger: #b4493d;
+  --ring: #64748b;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #344054;
+  --sidebar-primary: #475569;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f3f6;
+  --sidebar-accent-foreground: #20242b;
+  --sidebar-border: #e1e5eb;
+  --success: #34745a;
+  --warning: #92703b;
+  --danger: #a65b5b;
+  --chart-1: #475569;
+  --chart-2: #64748b;
+  --chart-3: #94a3b8;
+  --chart-4: #334155;
+  --chart-5: #cbd5e1;
 }
 
-html { background: #f3f5f1; }
-body { color: #17231e; }
+html { background: #f7f8fa; }
+body { color: #20242b; }
 
 .ccv-shell {
-  background: #f3f5f1;
+  background: #f7f8fa;
   background-image: none;
   font-family: var(--font-sans);
 }
@@ -1170,3 +1175,22 @@ body { color: #17231e; }
 }
 .ccv-brand-row > ul > li span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .ccv-brand-row > ul > li span:last-child { flex: 0 0 auto; color: #34493b; }
+
+/* Neutral palette: white navigation, slate accent, restrained contrast. */
+.ccv-shell > .ccv-sidebar {
+  background: #fff !important;
+  border-color: #e1e5eb !important;
+  box-shadow: 1px 0 0 rgb(16 24 40 / 3%) !important;
+  color: #344054;
+}
+.ccv-sidebar > div:first-child { border-color: #eaecf0 !important; }
+.ccv-sidebar .ccv-nav-group { color: #98a2b3 !important; }
+.ccv-sidebar .ccv-nav-link { color: #475467 !important; }
+.ccv-sidebar .ccv-nav-link svg { color: #667085 !important; }
+.ccv-sidebar .ccv-nav-link:hover { background: #f8f9fb !important; color: #20242b !important; }
+.ccv-sidebar .ccv-nav-link[aria-current="page"] {
+  color: #344054 !important;
+  background: #eef1f5 !important;
+  box-shadow: inset 2px 0 #475569 !important;
+}
+.ccv-sidebar .ccv-nav-link[aria-current="page"] svg { color: #475569 !important; }
