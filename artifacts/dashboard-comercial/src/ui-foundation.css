@@ -1063,21 +1063,30 @@ body { color: #20242b; }
 /* National view: the heatmap stays primary and the branch ranking stays actionable. */
 .ccv-national-dashboard { gap: 1.25rem; }
 .ccv-national-dashboard > section[aria-label="Resultado comercial del período"] {
-  overflow: hidden;
-  border: 1px solid #294b3b;
-  border-radius: 14px;
-  box-shadow: 0 14px 30px rgb(23 43 35 / 10%);
+  gap: 0.75rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div {
   min-height: 6.25rem;
   padding: 1.2rem 1.35rem;
-  background: #18352b;
+  border: 1px solid #dce5dc;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(23 43 35 / 5%);
 }
 .ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div:nth-child(3) {
-  background: #214835;
+  border-color: #d4e1d1;
+  background: #edf3e7;
 }
-.ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div:nth-child(3) > div:last-child {
-  color: #d9f078;
+.ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div > div:first-child {
+  color: #647168 !important;
+}
+.ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div > div:last-child {
+  color: #18352b !important;
 }
 .ccv-national-dashboard #unit-compliance-title,
 .ccv-national-dashboard #branch-priority-title {
