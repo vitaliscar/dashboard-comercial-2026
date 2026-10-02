@@ -13,6 +13,8 @@ import { money, pct } from "@/lib/format";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { BranchRanking } from "@/components/gerencia-nacional/BranchRanking";
+import { UnitMetaVsVenta } from "@/components/gerencia-nacional/UnitMetaVsVenta";
+import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import type { BranchSummaryRow } from "@/components/gerencia-nacional/BranchSummaryTable";
 import {
   UnitComplianceHeatmap,
@@ -180,6 +182,13 @@ export default function GerenciaNacionalPage() {
     return { cumplimiento, totalFacturado, totalPresupuesto };
   }, [metrics]);
 
+  const unitChartData = cross?.unitRows ?? [];
+  const unitDonutData = cross?.unitRows.map((unit) => ({
+    id: unit.id,
+    label: unit.label,
+    facturado: unit.facturado,
+  })) ?? [];
+
   const openSucursalResumen = useCallback(
     (sucursalId: string, unidadNegocioId?: string) => {
       setFilters({
@@ -256,35 +265,40 @@ export default function GerenciaNacionalPage() {
       />
 
       <section
-        className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#294b3b] bg-[#294b3b] text-[#f5f3ed] shadow-sm sm:grid-cols-4 section-enter section-enter-1"
+        className="grid grid-cols-2 gap-3 sm:grid-cols-4 section-enter section-enter-1"
         aria-label="Resultado comercial del período"
       >
-        <div className="bg-[#18352b] p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Facturado</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{money(kpis.totalFacturado)}</div>
+        <div className="card-elevated p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Facturado</div>
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{money(kpis.totalFacturado)}</div>
         </div>
-        <div className="bg-[#18352b] p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Meta</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{money(kpis.totalPresupuesto)}</div>
+        <div className="card-elevated p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Meta</div>
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{money(kpis.totalPresupuesto)}</div>
         </div>
-        <div className="bg-[#18352b] p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Cumplimiento</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">{pct(kpis.cumplimiento, 1)}</div>
+        <div className="card-elevated p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cumplimiento</div>
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{pct(kpis.cumplimiento, 1)}</div>
         </div>
-        <div className="bg-[#18352b] p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">
+        <div className="card-elevated p-4 sm:p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {kpis.totalPresupuesto <= 0
               ? "Meta no asignada"
               : kpis.totalFacturado >= kpis.totalPresupuesto
                 ? "Sobre meta"
                 : "Falta para meta"}
           </div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums sm:text-2xl">
+          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
             {kpis.totalPresupuesto <= 0
               ? "—"
               : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}
           </div>
         </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]" aria-label="Gráficos generales del período">
+        <UnitMetaVsVenta data={unitChartData} selectedIds={selectedUnidades} />
+        <UnitDonut data={unitDonutData} selectedIds={selectedUnidades} title="Distribución de facturación" />
       </section>
 
       <UnitComplianceHeatmap
