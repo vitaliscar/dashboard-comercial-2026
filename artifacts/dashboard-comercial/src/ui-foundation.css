@@ -214,6 +214,130 @@ body { color: #17231e; }
 .ccv-shell table td { border-color: #e8eee8; }
 .ccv-shell table tbody tr:hover { background: #f5f8f3; }
 
+/* Resumen: make the period result the visual anchor; put secondary measures in context. */
+.ccv-revenue-panel {
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.72fr);
+  border-color: #dce4dd;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgb(24 43 33 / 3%), 0 18px 42px rgb(24 43 33 / 4%);
+}
+.ccv-revenue-main { padding: clamp(1.35rem, 2.8vw, 2.5rem); }
+.ccv-revenue-eyebrow {
+  color: #5d8551;
+  font: 750 0.63rem/1.2 var(--font-sans);
+  letter-spacing: 0.13em;
+}
+.ccv-revenue-heading h2 {
+  color: #172b23;
+  font: 600 clamp(1.35rem, 2vw, 1.8rem)/1.1 var(--font-sans);
+  letter-spacing: -0.04em;
+}
+.ccv-revenue-status {
+  border-color: #dce8d9;
+  border-radius: 6px;
+  color: #41653f;
+  background: #f1f6ec;
+}
+.ccv-revenue-status > span { background: #83a95d; }
+.ccv-revenue-status.is-reached { border-color: #cfe1c4; color: #245b3e; background: #edf6e8; }
+.ccv-revenue-value-row { margin-top: 1.1rem; }
+.ccv-revenue-value-row > strong {
+  color: #1c5b43;
+  font: 550 clamp(2.5rem, 5vw, 4.15rem)/0.95 var(--font-display);
+  letter-spacing: -0.055em;
+}
+.ccv-revenue-attainment {
+  padding: 0.55rem 0.72rem;
+  border: 1px solid #dce9d7;
+  border-radius: 7px;
+  color: #315f3d;
+  background: #f1f6eb;
+}
+.ccv-revenue-chart-title { margin-top: 1.7rem; color: #65756a; font-size: 0.73rem; }
+.ccv-revenue-chart { height: 248px; margin-top: 0.65rem; }
+.ccv-revenue-chart-key { gap: 1.1rem; color: #748279; font-size: 0.68rem; }
+.ccv-revenue-chart-key i { background: #2d7950; }
+.ccv-revenue-chart-key span:last-child i { border-color: #91a396; }
+.ccv-revenue-aside {
+  justify-content: flex-start;
+  gap: 1.5rem;
+  padding: clamp(1.35rem, 2.4vw, 2rem);
+  border-left: 1px solid #dce4dd;
+  background: #f2f6f0;
+}
+.ccv-revenue-target {
+  padding: 1.1rem;
+  border: 1px solid #dce7da;
+  border-radius: 10px;
+  background: #fff;
+}
+.ccv-revenue-target > div:first-child { color: #64736a; }
+.ccv-revenue-target > div:first-child svg { color: #5d8551; }
+.ccv-revenue-target > strong {
+  color: #172b23;
+  font: 600 clamp(1.55rem, 2.5vw, 2.15rem)/1 var(--font-display);
+  letter-spacing: -0.03em;
+}
+.ccv-revenue-target > p { margin-bottom: 0.9rem; color: #65756a; }
+.ccv-revenue-progress { height: 7px; background: #e8eee7; }
+.ccv-revenue-progress > span { background: #85ae59; }
+.ccv-revenue-projection { margin-top: 0.9rem; color: #68776d; }
+.ccv-revenue-projection b { color: #1c5b43; }
+.ccv-revenue-secondary {
+  gap: 0;
+  padding-top: 1.25rem;
+  border-color: #dce4dd;
+}
+.ccv-revenue-secondary > div { padding: 0.25rem 0.7rem; }
+.ccv-revenue-secondary > div:first-child { padding-left: 0; }
+.ccv-revenue-secondary > div:last-child { padding-right: 0; }
+.ccv-revenue-secondary span { color: #66746b; font-weight: 650; }
+.ccv-revenue-secondary strong { color: #1b3025; }
+.ccv-revenue-lost strong,
+.ccv-revenue-lost small svg { color: #b4493d; }
+.ccv-revenue-secondary small { color: #748077; }
+.ccv-summary-details {
+  border-color: #dce4dd;
+  border-radius: 10px;
+  background: #fff;
+}
+.ccv-summary-details > summary {
+  min-height: 58px;
+  padding-inline: 1.2rem;
+  color: #263d30;
+  font-size: 0.85rem;
+}
+.ccv-summary-details > summary::after { color: #477849; }
+.ccv-summary-detail-content { border-color: #e6ece6; }
+
+.ccv-filter-shell {
+  border-color: #dce4dd;
+  background: rgb(243 245 241 / 94%);
+}
+.ccv-filter-bar,
+.ccv-unit-bar {
+  border-color: #dce4dd;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(24 43 33 / 3%);
+}
+.ccv-filter-bar label,
+.ccv-unit-bar > span:first-child { color: #64736a; }
+.ccv-filter-bar button,
+.ccv-filter-bar [role="combobox"],
+.ccv-unit-bar button,
+.ccv-unit-bar [role="button"] { border-radius: 7px; }
+.ccv-unit-bar [data-state="on"],
+.ccv-unit-bar button[data-pressed="true"] { border-color: #1c5b43; background: #1c5b43; color: #fff; }
+
+@media (max-width: 680px) {
+  .ccv-revenue-panel { grid-template-columns: minmax(0, 1fr); }
+  .ccv-revenue-aside { border-top: 1px solid #dce4dd; border-left: 0; }
+  .ccv-revenue-chart { height: 205px; }
+  .ccv-revenue-secondary { grid-template-columns: 1fr 1fr; }
+}
+
 .ccv-shell [data-slot="button"] {
   min-height: 38px;
   border-radius: 8px;
