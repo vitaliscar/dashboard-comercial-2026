@@ -856,6 +856,79 @@ body { color: #17231e; }
   .ccv-login-card h2 { font-size: 2.25rem; }
 }
 
+/* Administración: permisos claros, edición contenida y cambios auditables. */
+.ccv-admin-page { gap: 1.25rem; }
+.ccv-admin-page > section,
+.ccv-admin-page article,
+.ccv-admin-denied {
+  border-color: #dce4dd;
+  border-radius: 12px;
+  box-shadow: 0 5px 16px rgb(25 48 36 / 3%);
+}
+
+.ccv-admin-form {
+  padding: clamp(1rem, 2vw, 1.5rem);
+  background: #f8faf6;
+}
+.ccv-admin-form > h3 {
+  color: #20392c;
+  font: 600 1.25rem/1.2 var(--font-display);
+  letter-spacing: -0.025em;
+}
+.ccv-admin-form label { color: #435449; font-weight: 650; }
+.ccv-admin-form select,
+.ccv-admin-form input { background: #fff; }
+.ccv-admin-form [data-slot="combobox-chips"] { min-height: 42px; border-color: #d5e0d6; border-radius: 8px; background: #fff; }
+
+.ccv-admin-table table { border-collapse: collapse; }
+.ccv-admin-table thead { position: sticky; top: 0; z-index: 1; background: #1b382b; }
+.ccv-admin-table th { padding: 0.8rem 0.9rem; color: #edf4e5; font: 750 0.64rem/1.3 var(--font-sans); letter-spacing: 0.07em; text-align: left; }
+.ccv-admin-table td { padding: 0.8rem 0.9rem; border-bottom: 1px solid #edf1ec; color: #26372d; vertical-align: top; }
+.ccv-admin-table tbody tr:hover { background: #f5f8f3; }
+.ccv-admin-table tbody tr:last-child td { border-bottom: 0; }
+
+.ccv-role-badge,
+.ccv-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #dce4dd;
+  border-radius: 999px;
+  background: #f4f7f2;
+  color: #36513f;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ccv-status-badge.is-active { border-color: #c8dfbc; background: #eff7e9; color: #356b37; }
+.ccv-status-badge.is-inactive { border-color: #efd1ce; background: #fff2f0; color: #a4433b; }
+
+.ccv-adjustment-preview {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #dce7d4;
+  border-radius: 9px;
+  background: #f0f5e9;
+}
+.ccv-adjustment-preview > span { color: #63736a; font-size: 0.7rem; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; }
+.ccv-adjustment-preview > strong { color: #1c5b43; font: 700 1rem/1.2 var(--font-sans); font-variant-numeric: tabular-nums; }
+.ccv-adjustment-preview p { grid-column: 1 / -1; color: #27392d; font-size: 0.85rem; font-weight: 650; }
+.ccv-adjustment-preview small { grid-column: 1 / -1; color: #68766d; line-height: 1.45; }
+
+.ccv-data-sources-page > section > article { min-height: 13rem; background: #fff; }
+.ccv-data-sources-page > section > article:first-child { border-top: 3px solid #4e9563; }
+.ccv-data-sources-page > section > article:last-child { border-top: 3px solid #b0bb77; }
+
+@media (max-width: 640px) {
+  .ccv-admin-page > section { padding: 1rem; }
+  .ccv-admin-table { overflow-x: auto; }
+  .ccv-admin-table table { min-width: 720px; }
+  .ccv-adjustment-preview { grid-template-columns: 1fr; }
+}
+
 /* Evaluación: lectura de alcance, resultado y evidencia en ese orden. */
 .ccv-evaluation-page,
 .ccv-evaluation-detail,
