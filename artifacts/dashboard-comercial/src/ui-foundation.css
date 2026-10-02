@@ -1361,3 +1361,26 @@ body { color: #20242b; }
   font-weight: 600 !important;
   letter-spacing: 0.06em !important;
 }
+
+/* Subtle CCV grid motion behind the login mark. */
+.ccv-login-brand {
+  background-color: #172b23 !important;
+  background-image:
+    radial-gradient(circle at center, transparent 32%, rgb(9 19 14 / 58%) 100%),
+    linear-gradient(rgb(217 240 120 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(217 240 120 / 7%) 1px, transparent 1px),
+    linear-gradient(rgb(255 255 255 / 2.2%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 2.2%) 1px, transparent 1px) !important;
+  background-size: 100% 100%, 56px 56px, 56px 56px, 14px 14px, 14px 14px !important;
+  animation: ccv-login-grid-drift 36s linear infinite;
+}
+
+@keyframes ccv-login-grid-drift {
+  to {
+    background-position: 0 0, 56px 56px, 56px 56px, 28px 28px, 28px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ccv-login-brand { animation: none !important; }
+}
