@@ -79,21 +79,21 @@ export function KpiCards({
             <AreaChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#b36e2d" stopOpacity={0.22} />
-                  <stop offset="95%" stopColor="#b36e2d" stopOpacity={0.015} />
+                  <stop offset="0%" stopColor="#2d7950" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#2d7950" stopOpacity={0.015} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} stroke="#e8e4d8" strokeDasharray="3 5" />
+              <CartesianGrid vertical={false} stroke="#e0e9e0" strokeDasharray="3 5" />
               <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#747c72", fontSize: 11 }} tickMargin={10} />
               <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: "#747c72", fontSize: 10 }} tickFormatter={compactMoney} />
               <Tooltip
                 cursor={{ stroke: "#aab4a8", strokeDasharray: "3 4" }}
-                contentStyle={{ border: "1px solid #d9d7cd", borderRadius: 6, background: "#fffef9", fontSize: 12 }}
+                contentStyle={{ border: "1px solid #dce4dd", borderRadius: 8, background: "#ffffff", fontSize: 12 }}
                 formatter={(value, name) => [money(Number(value)), name === "meta" ? "Meta mensual" : "Facturado"]}
                 labelFormatter={(label) => `${label} ${anio}`}
               />
-              <Area type="monotone" dataKey="facturado" stroke="#a65e25" strokeWidth={2.5} fill="url(#revenueFill)" activeDot={{ r: 5, fill: "#a65e25", stroke: "#fffef9", strokeWidth: 2 }} />
-              <Area type="monotone" dataKey="meta" stroke="#87988a" strokeWidth={1.5} strokeDasharray="5 4" fill="none" activeDot={false} />
+              <Area type="monotone" dataKey="facturado" stroke="#2d7950" strokeWidth={2.5} fill="url(#revenueFill)" activeDot={{ r: 5, fill: "#2d7950", stroke: "#ffffff", strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="meta" stroke="#90a394" strokeWidth={1.5} strokeDasharray="5 4" fill="none" activeDot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
