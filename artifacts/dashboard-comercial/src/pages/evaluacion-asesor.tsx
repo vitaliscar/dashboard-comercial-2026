@@ -26,6 +26,6 @@ export default function EvaluacionAsesorPage() {
       <KpiCard label="Tendencia" value={pct(data.score.tendencia, 0)} />
       <KpiCard label="Ticket promedio propio" value={money(data.ticketPropio)} hint="Componente de ticket del score de desempeño." />
     </div>
-    <section className="rounded-lg border bg-card p-5"><h3 className="mb-4 font-semibold">Evolución mensual de cumplimiento</h3><ResponsiveContainer width="100%" height={280}><LineChart data={chart}><XAxis dataKey="mes" /><YAxis /><Tooltip formatter={(value) => value == null ? "Sin datos" : `${value}%`} /><Line type="monotone" dataKey="cumplimiento" stroke="hsl(var(--primary))" strokeWidth={2} connectNulls /></LineChart></ResponsiveContainer></section>
+    <section className="rounded-lg border bg-card p-5"><h3 className="mb-4 font-semibold">Evolución mensual de cumplimiento</h3><ResponsiveContainer width="100%" height={280}><LineChart data={chart}><XAxis dataKey="mes" /><YAxis /><Tooltip formatter={(value) => value == null ? "Sin datos" : `${value}%`} /><Line type="monotone" dataKey="cumplimiento" stroke="var(--color-chart-1)" strokeWidth={2} connectNulls /></LineChart></ResponsiveContainer></section>
   </div>;
 }

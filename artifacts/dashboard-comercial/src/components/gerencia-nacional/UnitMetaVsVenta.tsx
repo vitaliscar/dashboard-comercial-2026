@@ -29,9 +29,9 @@ const ACCENT_VAR: Record<ReturnType<typeof statusFromPct90>, string> = {
 };
 
 const chartConfig = {
-  pct: { label: "Cumplimiento %", color: "var(--color-primary)" },
-  facturado: { label: "Vendido", color: "var(--color-primary)" },
-  meta: { label: "Meta", color: "var(--color-success)" },
+  pct: { label: "Cumplimiento %", color: "var(--color-chart-1)" },
+  facturado: { label: "Vendido", color: "var(--color-chart-1)" },
+  meta: { label: "Meta", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
 
 import { useChartAnimation } from "@/hooks/use-chart-animation";

@@ -93,7 +93,7 @@ export function KpiCards({
                 labelFormatter={(label) => `${label} ${anio}`}
               />
               <Area type="monotone" dataKey="facturado" stroke="#2d7950" strokeWidth={2.5} fill="url(#revenueFill)" activeDot={{ r: 5, fill: "#2d7950", stroke: "#ffffff", strokeWidth: 2 }} />
-              <Area type="monotone" dataKey="meta" stroke="#90a394" strokeWidth={1.5} strokeDasharray="5 4" fill="none" activeDot={false} />
+              <Area type="monotone" dataKey="meta" stroke="var(--color-chart-2)" strokeWidth={1.5} strokeDasharray="5 4" fill="none" activeDot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

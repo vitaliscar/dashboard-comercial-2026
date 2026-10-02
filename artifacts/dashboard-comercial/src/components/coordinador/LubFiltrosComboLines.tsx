@@ -16,7 +16,7 @@ import {
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 
 const chartConfig = {
-  presupuesto: { label: "Presupuesto", color: "var(--color-muted-foreground)" },
+  presupuesto: { label: "Presupuesto", color: "var(--color-chart-2)" },
   venta: { label: "Venta Total", color: "var(--color-chart-calm-1)" },
 } satisfies ChartConfig;
 

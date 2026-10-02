@@ -16,8 +16,8 @@ import {
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 
 const chartConfig = {
-  presupuesto: { label: "Presupuesto", color: "var(--color-muted-foreground)" },
-  venta: { label: "Venta Total", color: "var(--color-chart-calm-2)" },
+  presupuesto: { label: "Presupuesto", color: "var(--color-chart-2)" },
+  venta: { label: "Venta Total", color: "var(--color-chart-3)" },
 } satisfies ChartConfig;
 
 export const RepuestosAreaChart = memo(function RepuestosAreaChart({
@@ -62,7 +62,7 @@ export const RepuestosAreaChart = memo(function RepuestosAreaChart({
                 content={createLastPointLabel(
                   data.length,
                   (v) => money(v),
-                  "var(--color-muted-foreground)",
+                  "var(--color-chart-2)",
                   1,
                 )}
               />

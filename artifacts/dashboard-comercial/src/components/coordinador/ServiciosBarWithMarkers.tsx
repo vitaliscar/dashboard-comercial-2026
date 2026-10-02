@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/chart";
 
 const chartConfig = {
-  venta: { label: "Venta Total", color: "var(--color-chart-calm-3)" },
-  presupuesto: { label: "Presupuesto", color: "var(--color-chart-calm-4)" },
+  venta: { label: "Venta Total", color: "var(--color-chart-3)" },
+  presupuesto: { label: "Presupuesto", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
 
 type MarkerProps = { cx?: number; cy?: number };
@@ -28,7 +28,7 @@ function TargetMarker({ cx, cy }: MarkerProps) {
       width={3}
       height={22}
       rx={1.5}
-      fill="var(--color-chart-calm-4)"
+      fill="var(--color-chart-2)"
     />
   );
 }
@@ -51,11 +51,11 @@ export const ServiciosBarWithMarkers = memo(function ServiciosBarWithMarkers({
             uniform square swatches, so a custom legend preserves that visual distinction. */}
         <div className="mb-4 flex items-center justify-center gap-4 text-center text-[10px] font-bold">
           <span className="inline-flex items-center gap-2 text-muted-foreground">
-            <span className="h-3 w-1 rounded-sm bg-(--color-chart-calm-4)" aria-hidden="true" />
+            <span className="h-3 w-1 rounded-sm bg-(--color-chart-2)" aria-hidden="true" />
             <span>Presupuesto (meta)</span>
           </span>
           <span className="inline-flex items-center gap-2 text-primary">
-            <span className="size-3 rounded-sm bg-(--color-chart-calm-3)" aria-hidden="true" />
+            <span className="size-3 rounded-sm bg-(--color-chart-3)" aria-hidden="true" />
             <span>Venta total</span>
           </span>
         </div>

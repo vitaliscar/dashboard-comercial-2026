@@ -18,7 +18,7 @@ export type MonthlyRow = { mes: string; presupuesto: number; venta: number };
 
 const chartConfig = {
   venta: { label: "Venta Total", color: "var(--color-chart-calm-1)" },
-  presupuesto: { label: "Presupuesto", color: "var(--color-muted-foreground)" },
+  presupuesto: { label: "Presupuesto", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
 
 export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
@@ -108,7 +108,7 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
                 dataKey="presupuesto"
                 content={createChartLabel({
                   formatter: (v) => money(v),
-                  fill: "var(--color-muted-foreground)",
+                  fill: "var(--color-chart-2)",
                   dy: 14,
                   fontSize: 9,
                 })}

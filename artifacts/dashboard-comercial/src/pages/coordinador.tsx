@@ -186,12 +186,12 @@ export default function CoordinadorPage() {
             <Bar
               dataKey="presupuesto"
               name="Presupuesto"
-              fill="#cbdcc9"
+              fill="var(--color-chart-2)"
             />
             <Bar
               dataKey="venta"
               name="Venta"
-              fill="#2d7950"
+              fill="var(--color-chart-1)"
             />
           </BarChart>
         </ResponsiveContainer>
