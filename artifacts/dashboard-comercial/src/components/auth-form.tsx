@@ -55,15 +55,12 @@ export function AuthForm() {
           <div
             className="ccv-login-orbit relative flex min-h-[340px] w-full items-center justify-center overflow-hidden p-8"
           >
-            <div className="ccv-login-center relative z-10 flex flex-col items-center gap-5">
+            <div className="ccv-login-center relative z-10 flex h-full w-full items-center justify-center">
               <img
                 src="/Logo_CCV.png"
                 alt="Logo Centro Comercial VENEQUIP"
                 className="ccv-login-panel-logo object-contain"
               />
-              <p className="ccv-login-panel-title font-sans text-base font-extrabold tracking-[0.04em] text-white sm:text-lg">
-                CCV / Inteligencia comercial
-              </p>
             </div>
           </div>
           <div className="ccv-login-benefits mt-7 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">

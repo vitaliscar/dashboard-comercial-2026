@@ -1296,13 +1296,15 @@ body { color: #20242b; }
 }
 
 .ccv-login-panel-logo {
-  width: clamp(5.5rem, 12vh, 7.5rem);
-  height: clamp(5.5rem, 12vh, 7.5rem);
+  width: clamp(14rem, 28vw, 22rem) !important;
+  height: clamp(14rem, 28vw, 22rem) !important;
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
 }
+.ccv-login-orbit { min-height: clamp(320px, 54vh, 480px) !important; }
+.ccv-login-center { min-height: inherit; }
 .ccv-login-orbit::before { display: none !important; }
 .ccv-login-orbit > .ccv-login-center > .ccv-login-panel-title {
   max-width: 100%;
