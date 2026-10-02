@@ -837,27 +837,6 @@ function DashboardApp() {
               {roleInitials(role)}
             </div>
           </header>
-          {accessibleModules.filter(
-            (item) => item.group === "Unidades de negocio",
-          ).length > 1 && (
-            <nav aria-label="Unidades de negocio" className="ccv-unit-tabs">
-              {accessibleModules
-                .filter((item) => item.group === "Unidades de negocio")
-                .map((item) => {
-                  const href = moduleHref(item.path);
-                  const active = location === item.path || location === href;
-                  return (
-                    <Link
-                      key={item.path}
-                      href={href}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-            </nav>
-          )}
           <div className="ccv-content mx-auto max-w-[1600px] p-4 sm:p-7">
             {paletteOpen && (
               <Suspense fallback={null}>

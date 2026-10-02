@@ -947,42 +947,6 @@
   margin-bottom: 1.35rem;
 }
 
-.ccv-unit-tabs {
-  position: sticky;
-  top: 72px;
-  z-index: 15;
-  display: flex;
-  gap: 0.35rem;
-  overflow-x: auto;
-  padding: 0.55rem 1rem;
-  border-bottom: 1px solid #d9d7cd;
-  background: rgb(247 246 240 / 92%);
-  backdrop-filter: blur(12px);
-}
-.ccv-unit-tabs a {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  min-height: 36px;
-  padding: 0.4rem 0.8rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  color: #52665a;
-  font: 600 0.75rem/1 var(--font-sans);
-  transition: background-color 0.16s ease, color 0.16s ease;
-}
-.ccv-unit-tabs a[aria-current="page"] {
-  border-color: #17362b;
-  background: #17362b;
-  color: #fffdf4;
-}
-.ccv-unit-tabs a:focus-visible {
-  outline: 2px solid #26764c;
-  outline-offset: 2px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ccv-unit-tabs a { transition: none; }
-}
 .ccv-sidebar .ccv-nav-group {
   color: #8b98a3;
   letter-spacing: 0.11em;
