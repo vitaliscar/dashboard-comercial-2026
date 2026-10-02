@@ -196,7 +196,7 @@ export default function CobranzasPage() {
         <PageHeader
           eyebrow="Cartera"
           title="Cobranzas"
-           description="Cuentas por cobrar, análisis de tendencia y riesgo"
+           description="Saldo pendiente, antigüedad de deuda y concentración del riesgo en tu alcance."
         />
         <PageSkeleton
           kpis={2}
@@ -226,15 +226,15 @@ export default function CobranzasPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-collections-page flex flex-col gap-6">
       <PageHeader
-        eyebrow="Cartera"
+        eyebrow="Cartera · Consulta"
         title="Cobranzas"
          description="Cuentas por cobrar, análisis de tendencia y riesgo"
       />
 
       {unitOptions.length > 0 && (
-        <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
+        <div className="ccv-collections-filter bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
           <span className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
             Filtrar por unidad:
           </span>
@@ -316,7 +316,7 @@ export default function CobranzasPage() {
       )}
 
       {/* KPI DESTACADO (bento span-2) + GAUGE DE % VENCIDO */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="ccv-collections-primary-kpis grid grid-cols-1 sm:grid-cols-2 gap-4">
         <KpiCard
           label="Total por cobrar"
           value={money(totalGeneral)}
@@ -337,7 +337,7 @@ export default function CobranzasPage() {
       </div>
 
       {/* TARJETAS DE ANTIGÜEDAD POR DÍAS (5 PEQUEÑAS) */}
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+      <div className="ccv-aging-buckets grid grid-cols-1 sm:grid-cols-5 gap-4">
         {BUCKET_ORDER.map((k) => {
           const monto = totals[k] ?? 0;
           const share = totalGeneral > 0 ? monto / totalGeneral : 0;

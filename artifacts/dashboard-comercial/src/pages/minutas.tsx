@@ -129,6 +129,7 @@ function KpiFilterButton({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={activo}
       className={`rounded-lg text-left transition ${activo ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:opacity-80"}`}
     >
       {children}
@@ -297,7 +298,7 @@ export default function MinutasPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-commitments-page flex flex-col gap-6">
       <PageHeader
         eyebrow="CRM / Compromisos"
         title="Minutas de gestión"
@@ -383,7 +384,7 @@ export default function MinutasPage() {
         }
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="ccv-commitment-kpis grid grid-cols-2 sm:grid-cols-5 gap-4">
         <KpiFilterButton activo={estadoFilter === "all"} onClick={() => setEstadoFilter("all")}>
           <KpiCard label="Total" value={String(resumen.total)} icon={ClipboardList} />
         </KpiFilterButton>
@@ -435,14 +436,14 @@ export default function MinutasPage() {
         </KpiFilterButton>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2" aria-label="Filtrar compromisos por responsable">
+      <div className="ccv-commitment-filters flex flex-wrap items-center gap-2" aria-label="Filtrar compromisos por responsable">
         <span className="mr-1 text-sm text-muted-foreground">Mostrar:</span>
         <Button type="button" size="sm" variant={responsableFilter === "alcance" ? "default" : "outline"} aria-pressed={responsableFilter === "alcance"} onClick={() => setResponsableFilter("alcance")}>Todo mi alcance</Button>
         <Button type="button" size="sm" variant={responsableFilter === "mias" ? "default" : "outline"} aria-pressed={responsableFilter === "mias"} disabled={!user?.id} onClick={() => setResponsableFilter("mias")}>Mis compromisos</Button>
       </div>
 
       {canPickSucursalFilter(role) && sucursales && sucursales.length > 1 && (
-        <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-3 flex-wrap">
+        <div className="ccv-commitment-branch-filter bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-3 flex-wrap">
           <Label className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
             Filtrar por sucursal:
           </Label>
@@ -469,7 +470,7 @@ export default function MinutasPage() {
         </div>
       )}
 
-      <div className="card-elevated overflow-hidden">
+      <div className="ccv-commitment-table card-elevated overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="text-sm">
             <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0">
