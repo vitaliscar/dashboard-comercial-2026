@@ -162,7 +162,7 @@ export function KpiCard({
       {/* Header row */}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[9px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+          <span className="font-mono text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
             {label}
           </span>
           {tooltip && (
