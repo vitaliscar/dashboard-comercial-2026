@@ -9,7 +9,7 @@
  * Sistema inspirado en el lenguaje visual de referencia "Elera": sidebar clara
  * agrupada por categorías, fondo cálido neutro, cards blancas con radio grande,
  * acento verde de marca + semánticos ámbar/rojo/azul en badges tipo pill.
- * Tipografía: Space Grotesk (display) / Outfit (UI) / JetBrains Mono (números).
+ * Tipografía: Space Grotesk (display) / Inter (UI) / JetBrains Mono (números).
  * Todos los pares texto/fondo verificados a ≥4.5:1 (WCAG AA).
  * Fuente única de verdad: este bloque :root.
  */
@@ -87,9 +87,9 @@
   --chart-calm-4: oklch(0.58 0.18 25 / 0.5);
   --chart-calm-5: oklch(0.6 0.1 300 / 0.5);
 
-  --font-display: "Newsreader", Georgia, serif;
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, monospace;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /* Sombras — en light mode el peso lo lleva una sombra suave, no el borde */
   --component-card-border-width: 1px;
@@ -183,9 +183,9 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-ochre: var(--ochre);
 
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Newsreader", Georgia, serif;
-  --font-mono: "DM Mono", ui-monospace, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -535,7 +535,7 @@
     radial-gradient(circle at 94% -10%, rgba(47, 158, 86, .07), transparent 28rem),
     radial-gradient(circle at -8% 90%, rgba(200, 121, 26, .05), transparent 25rem),
     #eeece5;
-  font-family: "Outfit", ui-sans-serif, sans-serif;
+  font-family: "Inter", ui-sans-serif, sans-serif;
 }
 .ccv-shell .bg-card {
   background: #ffffff;
@@ -577,7 +577,7 @@
 }
 .ccv-kpi-hero > div:first-child > div > span:first-child {
   color: #d1dfd5;
-  font-family: "Outfit", ui-sans-serif, sans-serif;
+  font-family: "Inter", ui-sans-serif, sans-serif;
   font-size: 0.72rem;
   letter-spacing: 0.12em;
 }
@@ -822,7 +822,7 @@
   min-height: 100vh;
   color: var(--foreground);
   background: #f1efe7;
-  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 .ccv-shell > .ccv-sidebar {
@@ -939,7 +939,7 @@
 .ccv-page-header > div:first-child > p:first-child {
   margin-bottom: 0.4rem;
   color: var(--primary);
-  font-family: "Outfit", ui-sans-serif, sans-serif;
+  font-family: "Inter", ui-sans-serif, sans-serif;
   font-size: 0.68rem;
   letter-spacing: 0.13em;
 }
@@ -985,7 +985,7 @@
 
 .ccv-filter-shell label {
   color: #637268;
-  font-family: "Outfit", ui-sans-serif, sans-serif;
+  font-family: "Inter", ui-sans-serif, sans-serif;
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -1080,7 +1080,7 @@
 
 .ccv-kpi-card > div:first-child > div > span:first-child {
   color: #64746a;
-  font-family: "Outfit", ui-sans-serif, sans-serif;
+  font-family: "Inter", ui-sans-serif, sans-serif;
   font-size: 0.68rem;
   letter-spacing: 0.09em;
 }
@@ -1170,32 +1170,32 @@
   }
 }
 /* CCV UI finish — final cascade for the shared shell and its responsive states. */
-.ccv-shell { background-color:#f1efe7; background-image:radial-gradient(ellipse at 84% 2%,rgba(222,118,27,.06),transparent 28rem),linear-gradient(rgba(35,53,43,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(35,53,43,.022) 1px,transparent 1px); background-size:auto,32px 32px,32px 32px; font-family:"Manrope",ui-sans-serif,system-ui,sans-serif; }
+.ccv-shell { background-color:#f1efe7; background-image:radial-gradient(ellipse at 84% 2%,rgba(222,118,27,.06),transparent 28rem),linear-gradient(rgba(35,53,43,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(35,53,43,.022) 1px,transparent 1px); background-size:auto,32px 32px,32px 32px; font-family:"Inter",ui-sans-serif,system-ui,sans-serif; }
 .ccv-shell > .ccv-sidebar { background:#18352b; border-color:#2b4a3d; box-shadow:8px 0 24px rgba(14,35,25,.08); }
 .ccv-sidebar > div:first-child { height:86px; }
 .ccv-sidebar > div:first-child img { padding:5px; background:#f5f1e8; border:1px solid rgba(255,255,255,.22); border-radius:8px; }
-.ccv-sidebar > div:first-child p:first-child { font-family:"Manrope",ui-sans-serif,sans-serif; font-size:.69rem; letter-spacing:.08em; }
+.ccv-sidebar > div:first-child p:first-child { font-family:"Inter",ui-sans-serif,sans-serif; font-size:.69rem; letter-spacing:.08em; }
 .ccv-sidebar nav > div { margin-bottom:1.55rem; }
-.ccv-sidebar .ccv-nav-group { padding-inline:.7rem; color:#a8b8ad; font-family:"DM Mono",ui-monospace,monospace; font-size:.59rem; letter-spacing:.16em; }
+.ccv-sidebar .ccv-nav-group { padding-inline:.7rem; color:#a8b8ad; font-family:"Inter",ui-monospace,monospace; font-size:.59rem; letter-spacing:.16em; }
 .ccv-sidebar .ccv-nav-link { min-height:40px; border-radius:7px; padding-inline:.75rem; color:#d5ddd5; font-size:.79rem; }
 .ccv-sidebar .ccv-nav-link[aria-current="page"] { position:relative; color:#18352b; background:#e2f0c5; box-shadow:inset 3px 0 0 #de761b; }
 .ccv-sidebar .ccv-nav-link[aria-current="page"] > span:last-child { display:none; }
 .ccv-user-card { border-radius:10px; background:#203e32; }
 .ccv-topbar { height:78px; border-bottom-color:#d9d9cf; background:rgba(241,239,231,.94); box-shadow:none; }
-.ccv-topbar h1 { font-family:"Newsreader",Georgia,serif; font-size:1.55rem; font-weight:500; letter-spacing:-.025em; }
-.ccv-topbar > div:first-of-type > p { color:#8c5a29; font-family:"DM Mono",ui-monospace,monospace; font-size:.58rem; letter-spacing:.17em; }
+.ccv-topbar h1 { font-family:"Inter",Georgia,serif; font-size:1.55rem; font-weight:500; letter-spacing:-.025em; }
+.ccv-topbar > div:first-of-type > p { color:#8c5a29; font-family:"Inter",ui-monospace,monospace; font-size:.58rem; letter-spacing:.17em; }
 .ccv-content { max-width:1760px; padding-top:clamp(1.35rem,2vw,2.1rem); }
 .ccv-page-header { min-height:96px; margin-bottom:1.1rem; padding-bottom:1.2rem; border-color:#d2d2c6; }
-.ccv-page-header > div:first-child > p:first-child { color:#9b581b; font-family:"DM Mono",ui-monospace,monospace; font-size:.62rem; letter-spacing:.16em; }
-.ccv-page-header h1 { font-family:"Newsreader",Georgia,serif; font-size:clamp(2rem,2.8vw,2.65rem); font-weight:500; letter-spacing:-.035em; line-height:1.04; }
+.ccv-page-header > div:first-child > p:first-child { color:#9b581b; font-family:"Inter",ui-monospace,monospace; font-size:.62rem; letter-spacing:.16em; }
+.ccv-page-header h1 { font-family:"Inter",Georgia,serif; font-size:clamp(2rem,2.8vw,2.65rem); font-weight:500; letter-spacing:-.035em; line-height:1.04; }
 .ccv-page-header > div:first-child > p:last-child { max-width:74ch; color:#646d64; font-size:.82rem; }
 .ccv-shell .card-elevated,.ccv-shell .bg-card { border-color:#d9d9cf; border-radius:11px; box-shadow:0 1px 1px rgba(32,40,33,.025),0 7px 18px rgba(32,40,33,.035); }
 .ccv-shell table thead tr { background:#eae9e0; }
-.ccv-shell table th { color:#606b61; font-family:"DM Mono",ui-monospace,monospace; font-size:.62rem; font-weight:500; letter-spacing:.035em; text-transform:uppercase; }
+.ccv-shell table th { color:#606b61; font-family:"Inter",ui-monospace,monospace; font-size:.62rem; font-weight:500; letter-spacing:.035em; text-transform:uppercase; }
 .ccv-shell table td { border-color:#e6e5dc; font-variant-numeric:tabular-nums; }
 .ccv-kpi-card { border-radius:10px; background:#fffefa; box-shadow:0 1px 1px rgba(32,40,33,.025),0 9px 22px rgba(32,40,33,.045); }
-.ccv-kpi-card > div:first-child > div > span:first-child { color:#70776d; font-family:"DM Mono",ui-monospace,monospace; font-size:.61rem; letter-spacing:.11em; }
-.ccv-kpi-card > div:nth-child(2) > div:first-child > span:first-child { font-family:"Newsreader",Georgia,serif; font-size:clamp(2rem,2.6vw,2.7rem); font-weight:500; letter-spacing:-.035em; }
+.ccv-kpi-card > div:first-child > div > span:first-child { color:#70776d; font-family:"Inter",ui-monospace,monospace; font-size:.61rem; letter-spacing:.11em; }
+.ccv-kpi-card > div:nth-child(2) > div:first-child > span:first-child { font-family:"Inter",Georgia,serif; font-size:clamp(2rem,2.6vw,2.7rem); font-weight:500; letter-spacing:-.035em; }
 .ccv-kpi-card.ccv-kpi-featured { background:#18352b; border-color:#18352b; }
 .ccv-filter-shell { border-color:#d2d2c6; background:rgba(241,239,231,.96); }
 .ccv-content [aria-label="Atajos de teclado rápidos del panel"] { color:#58665c; border-color:#d9d9cf; background:#e8e7dd; }
@@ -1203,7 +1203,7 @@
 .ccv-login { min-height:100svh; background:#f1efe7; }
 .ccv-login-brand { isolation:isolate; background-color:#18352b; background-image:radial-gradient(ellipse at 10% 12%,rgba(222,118,27,.2),transparent 34rem); }
 .ccv-login-brand > div:first-child { opacity:.65; background:radial-gradient(circle,rgba(226,240,197,.2) 0%,transparent 70%) !important; }
-.ccv-login-brand > div:last-child { color:rgba(238,241,233,.66) !important; font-family:"DM Mono",ui-monospace,monospace; font-size:.6rem; opacity:1; }
+.ccv-login-brand > div:last-child { color:rgba(238,241,233,.66) !important; font-family:"Inter",ui-monospace,monospace; font-size:.6rem; opacity:1; }
 .ccv-login-orbit { background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.012)),repeating-linear-gradient(135deg,transparent 0 23px,rgba(255,255,255,.035) 24px 25px); }
 .ccv-login-orbit::before,.ccv-login-orbit::after { position:absolute; content:""; pointer-events:none; }
 .ccv-login-orbit::before { top:-9rem; right:-1rem; width:26rem; height:26rem; border:1px solid rgba(226,240,197,.27); border-radius:50%; box-shadow:0 0 0 2.2rem rgba(226,240,197,.035),0 0 0 5rem rgba(226,240,197,.025); }
