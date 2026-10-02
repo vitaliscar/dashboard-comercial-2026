@@ -93,7 +93,7 @@ export function AuthForm() {
               <span>Resultado</span>
             </div>
           </div>
-          <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">
+          <div className="ccv-login-benefits mt-7 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">
             <span>Ventas</span>
             <span>Metas</span>
             <span>Sucursales</span>
