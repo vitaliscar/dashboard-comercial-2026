@@ -23,8 +23,8 @@ export type EquiposAlquilerRow = {
 
 const chartConfig = {
   equiposVenta: { label: "Equipos", color: "var(--color-chart-calm-1)" },
-  alquilerVenta: { label: "Alquiler", color: "var(--color-chart-calm-4)" },
-  presupuestoTotal: { label: "Presupuesto (combinado)", color: "var(--color-muted-foreground)" },
+  alquilerVenta: { label: "Alquiler", color: "var(--color-chart-3)" },
+  presupuestoTotal: { label: "Presupuesto (combinado)", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
 
 export const EquiposAlquilerStacked = memo(function EquiposAlquilerStacked({

@@ -13,7 +13,7 @@
   --font-display: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-kpi: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --primary: #475569;
+  --primary: #1d503b;
   --primary-foreground: #ffffff;
   --secondary: #eef1f5;
   --secondary-foreground: #344054;
@@ -24,22 +24,22 @@
   --border: #e1e5eb;
   --input: #d0d5dd;
   --input-background: #ffffff;
-  --ring: #64748b;
+  --ring: #347ca5;
   --sidebar: #ffffff;
   --sidebar-foreground: #344054;
-  --sidebar-primary: #475569;
+  --sidebar-primary: #1d503b;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f1f3f6;
   --sidebar-accent-foreground: #20242b;
   --sidebar-border: #e1e5eb;
-  --success: #34745a;
-  --warning: #92703b;
-  --danger: #a65b5b;
-  --chart-1: #475569;
-  --chart-2: #64748b;
-  --chart-3: #94a3b8;
-  --chart-4: #334155;
-  --chart-5: #cbd5e1;
+  --success: #1d503b;
+  --warning: #c37a2d;
+  --danger: #b3483b;
+  --chart-1: #1d503b;
+  --chart-2: #c37a2d;
+  --chart-3: #347ca5;
+  --chart-4: #b3483b;
+  --chart-5: #8060a8;
 }
 
 html { background: #f7f8fa; }

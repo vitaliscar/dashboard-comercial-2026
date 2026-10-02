@@ -503,7 +503,7 @@ export default function AsesoresPage() {
                         <Bar
                           dataKey="venta"
                           name="Facturado"
-                          fill="hsl(var(--primary))"
+                          fill="var(--color-chart-1)"
                           radius={[4, 4, 0, 0]}
                           maxBarSize={30}
                           {...chartAnimation}
@@ -513,7 +513,7 @@ export default function AsesoresPage() {
                             position="top"
                             fontSize={9}
                             fontWeight={700}
-                            fill="hsl(var(--primary))"
+                            fill="var(--color-chart-1)"
                             formatter={((v: unknown) => money(Number(v))) as never}
                           />
                         </Bar>
