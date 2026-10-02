@@ -59,15 +59,22 @@ function SectionTitle({ title, description }: { title: string; description: stri
 function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: UnidadKey; role: AppRole | null }) {
   const brands = useMemo(() => {
     const rows = data.detallesMarcas ?? [];
-    const totals = new Map<string, number>();
+    const totals = new Map<string, { marca: string; monto: number; sucursales: Map<string, { nombre: string; monto: number }> }>();
     rows.forEach((row) => {
       const amount = num(row.montoTotal ?? row.monto);
       const marca = label(row.marca);
       const sucursal = label(row.sucursal ?? (row.sucursalId ? "Sucursal sin nombre" : "Consolidado histórico"));
-      const name = `${marca} · ${sucursal}`;
-      totals.set(name, (totals.get(name) ?? 0) + amount);
+      const sucursalKey = String(row.sucursalId ?? sucursal);
+      const brand = totals.get(marca) ?? { marca, monto: 0, sucursales: new Map() };
+      const branch = brand.sucursales.get(sucursalKey) ?? { nombre: sucursal, monto: 0 };
+      brand.monto += amount;
+      branch.monto += amount;
+      brand.sucursales.set(sucursalKey, branch);
+      totals.set(marca, brand);
     });
-    return [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    return [...totals.values()]
+      .map((brand) => ({ ...brand, sucursales: [...brand.sucursales.values()].sort((a, b) => b.monto - a.monto) }))
+      .sort((a, b) => b.monto - a.monto);
   }, [data.detallesMarcas]);
 
   // Participación (%) de cada marca top sobre el TOTAL de todas las marcas
@@ -77,8 +84,8 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
   const brandPerformance = useMemo(() => {
     const rows = data.detallesMarcas ?? [];
     const totalGeneral = rows.reduce((sum, row) => sum + num(row.montoTotal ?? row.monto), 0);
-    return brands.map(([nombre, monto]) => ({
-      nombre,
+    return brands.slice(0, 8).map(({ marca, monto }) => ({
+      nombre: marca,
       monto,
       presupuesto: totalGeneral,
       pctCumplimiento: totalGeneral > 0 ? (monto / totalGeneral) * 100 : 0,
@@ -211,25 +218,44 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
           title={keyName === "repuestos" ? "Ventas netas por marca" : "Ventas por marca"}
           description={
             keyName === "repuestos"
-              ? "Ventas netas por marca y sucursal. Los registros históricos sin sucursal se muestran como consolidados."
-              : "Detalle mensual de ventas de Lubricantes/Filtros por suplidor y marca."
+              ? role === "coordinador"
+                ? "Ventas netas por marca en tus sucursales. Los datos históricos sin sucursal no se atribuyen a tu alcance. El año corresponde al lote de carga, no al año de venta."
+                : "Ventas netas por marca y sucursal; los registros históricos sin sucursal quedan consolidados. El año corresponde al lote de carga, no al año de venta."
+              : role === "coordinador"
+                ? "Ventas de Lubricantes/Filtros por marca en tus sucursales. Los datos históricos sin sucursal no se atribuyen a tu alcance. El año corresponde al lote de carga, no al año de venta."
+                : "Ventas mensuales por marca y sucursal. El año corresponde al lote de carga: la tabla no guarda el año de venta."
           }
         />
-        <div className="mt-4 space-y-3">
+        <div className="ccv-brand-breakdown mt-4">
           {brands.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {role === "coordinador" && keyName === "repuestos"
-                ? "No hay ventas de Repuestos asignadas a tus sucursales para este período."
+                ? "No hay ventas de Repuestos con sucursal asignada en tus sucursales para este período."
                 : role === "coordinador" && keyName === "lubfiltros"
-                ? "No hay ventas de Lubricantes/Filtros asignadas a tus sucursales para este período."
-                : "No hay detalle de marcas para el año cargado."}
+                ? "No hay ventas de Lubricantes/Filtros con sucursal asignada en tus sucursales para este período."
+                : "No hay detalle de marcas para el período y año de carga seleccionados."}
             </p>
           ) : (
-            brands.map(([name, amount]) => (
-              <div key={name} className="flex items-center justify-between border-b pb-2 text-sm last:border-0">
-                <span>{name}</span>
-                <span className="font-mono tabular-nums">{money(amount)}</span>
-              </div>
+            brands.map((brand) => (
+              <details key={brand.marca} className="ccv-brand-row">
+                <summary>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{brand.marca}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {brand.sucursales.length} {brand.sucursales.length === 1 ? "origen" : "orígenes"} · ver sucursales
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono font-semibold tabular-nums">{money(brand.monto)}</span>
+                </summary>
+                <ul>
+                  {brand.sucursales.map((branch) => (
+                    <li key={branch.nombre}>
+                      <span>{branch.nombre}</span>
+                      <span className="font-mono tabular-nums">{money(branch.monto)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ))
           )}
         </div>
