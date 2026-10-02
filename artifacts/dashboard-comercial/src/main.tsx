@@ -6,6 +6,7 @@ import { AuthProvider } from './hooks/use-auth';
 import { SharedFiltersProvider } from './hooks/shared-filters-provider';
 
 import './styles.css';
+import './ui-foundation.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
