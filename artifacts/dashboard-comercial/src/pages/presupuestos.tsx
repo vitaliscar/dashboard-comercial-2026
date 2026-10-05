@@ -47,6 +47,12 @@ interface ProyeccionData {
   baseAnio: number;
   targetAnio: number;
   versionBaseId: string | null;
+  proyeccionVenta: {
+    anio: number;
+    ventaAcumulada: number;
+    mesesConsiderados: number;
+    metodo: "proyeccion" | "cierre" | "presupuesto";
+  };
   distribucion: Distribucion;
   metaBase: number;
   metaMinima: number;
@@ -88,6 +94,18 @@ interface SucursalResumen {
 }
 
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+function descripcionMetaBase(data: ProyeccionData) {
+  const proyeccion = data.proyeccionVenta;
+  if (proyeccion.metodo === "proyeccion") {
+    const mes = MESES[Math.max(0, Math.min(MESES.length - 1, proyeccion.mesesConsiderados - 1))];
+    return `Venta ene–${mes} ${proyeccion.anio}: ${money(proyeccion.ventaAcumulada)} ÷ ${proyeccion.mesesConsiderados} × 12`;
+  }
+  if (proyeccion.metodo === "cierre") {
+    return `Venta de cierre ${proyeccion.anio}: ${money(proyeccion.ventaAcumulada)}`;
+  }
+  return `Sin venta registrada; se usa el presupuesto ${proyeccion.anio}`;
+}
 
 const ESTADO_LABEL: Record<VersionRow["estado"], string> = {
   borrador: "Borrador",
@@ -400,7 +418,7 @@ function PresupuestoGerenciaPage() {
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">Meta base</label>
             <div className="h-9 content-center text-lg font-semibold">{data ? money(data.metaBase) : "Cargando…"}</div>
-            <p className="text-xs text-muted-foreground">{data?.versionBaseId ? "Última versión aprobada" : `Presupuesto ${data?.baseAnio ?? baseAnio}`}</p>
+            <p className="text-xs text-muted-foreground">{data ? descripcionMetaBase(data) : `Proyección de ventas ${baseAnio}`}</p>
           </div>
           <div>
             <label htmlFor="crecimiento-anual" className="mb-1 block text-sm text-muted-foreground">Aumento anual (%)</label>

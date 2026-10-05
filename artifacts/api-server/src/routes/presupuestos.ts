@@ -4,6 +4,7 @@ import { aplicarPremisasConjunto, premisaGlobalLegacy, validarPremisas, type Pre
 import {
   calcularDistribucionPresupuesto,
   distribucionInicial,
+  proyectarMetaBaseDesdeVentas,
   type DistribucionPresupuesto,
   type FilaBasePresupuesto,
 } from "../lib/distribucion-presupuesto";
@@ -47,7 +48,17 @@ async function contextoPresupuesto(tx: Queryable, anioBase: number, anioObjetivo
       basePresupuesto: Number(row.basePresupuesto ?? 0),
       realBase: Number(row.realBase ?? 0),
     }));
-    return { filas, versionBaseId: null as string | null, premisasBase: null as Record<string, unknown> | null, anioBaseUsado: anioFuente, origen: anioFuente === anioObjetivo ? "presupuesto_objetivo" : "anio_anterior" };
+    const proyeccionVenta = proyectarMetaBaseDesdeVentas(filas, anioFuente);
+    return {
+      filas: proyeccionVenta.filas,
+      metaBase: proyeccionVenta.metaBase,
+      metaMinima: proyeccionVenta.metaMinima,
+      proyeccionVenta: { anio: anioFuente, ventaAcumulada: proyeccionVenta.ventaAcumulada, mesesConsiderados: proyeccionVenta.mesesConsiderados, metodo: proyeccionVenta.metodo },
+      versionBaseId: null as string | null,
+      premisasBase: null as Record<string, unknown> | null,
+      anioBaseUsado: anioFuente,
+      origen: anioFuente === anioObjetivo ? "presupuesto_objetivo" : "anio_anterior",
+    };
   }
 
   const base = await tx.query(`
@@ -76,7 +87,17 @@ async function contextoPresupuesto(tx: Queryable, anioBase: number, anioObjetivo
     basePresupuesto: Math.max(0, Number(row.basePresupuesto ?? 0) - montoGestionPorFila(aprobada.rows[0].premisas, row.unidadNegocioId, row.sucursalId, Number(row.mes))),
     realBase: Number(row.realBase ?? 0),
   }));
-  return { filas, versionBaseId: String(versionBaseId), premisasBase: aprobada.rows[0].premisas as Record<string, unknown> | null, anioBaseUsado: anioObjetivo, origen: "version_aprobada" };
+  const proyeccionVenta = proyectarMetaBaseDesdeVentas(filas, anioObjetivo);
+  return {
+    filas: proyeccionVenta.filas,
+    metaBase: proyeccionVenta.metaBase,
+    metaMinima: proyeccionVenta.metaMinima,
+    proyeccionVenta: { anio: anioObjetivo, ventaAcumulada: proyeccionVenta.ventaAcumulada, mesesConsiderados: proyeccionVenta.mesesConsiderados, metodo: proyeccionVenta.metodo },
+    versionBaseId: String(versionBaseId),
+    premisasBase: aprobada.rows[0].premisas as Record<string, unknown> | null,
+    anioBaseUsado: anioObjetivo,
+    origen: "version_aprobada",
+  };
 }
 
 function distribucionDeBody(input: unknown): DistribucionPresupuesto | null {
@@ -438,7 +459,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
             gestionComercialMonto: gestionFijada.get(unidad.unidadNegocioId ?? "__sin_id__") ?? null,
           })),
         };
-        const calculo = calcularDistribucionPresupuesto(contexto.filas, configConMontoFijado, contexto.filas.reduce((sum, row) => sum + row.basePresupuesto, 0));
+        const calculo = calcularDistribucionPresupuesto(contexto.filas, configConMontoFijado, contexto.metaMinima);
         const snapshotCompleto: DistribucionPresupuesto = {
           ...configConMontoFijado,
           unidades: calculo.totalesUnidad.map((total) => ({
@@ -622,7 +643,9 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         : configuracionConGestionFijada;
       const alcance = aplicarAlcanceDistribucion(value, contexto.filas, enviada, gestionPorUnidad);
       const config = alcance.distribucion;
-      const metaMinima = contexto.filas.reduce((sum, row) => sum + row.basePresupuesto, 0);
+      const metaMinima = alcance.unidadIds
+        ? contexto.filas.filter((row) => row.unidadNegocioId !== null && alcance.unidadIds!.includes(row.unidadNegocioId)).reduce((sum, row) => sum + row.basePresupuesto, 0)
+        : contexto.metaMinima;
       const calculo = calcularDistribucionPresupuesto(contexto.filas, config, metaMinima);
       if (calculo.errores.length > 0) {
         if (alcance.unidadIds) {
@@ -681,6 +704,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
       distribucion: result.config,
       metaBase: result.metaBase ?? result.calculo.metaBase,
       metaMinima: result.metaMinima,
+      proyeccionVenta: result.contexto.proyeccionVenta,
       metaPropuesta: result.unidadIds
         ? (result.calculo.filas as Array<{ sugerido: number }>).reduce((sum, row) => sum + row.sugerido, 0)
         : result.calculo.metaPropuesta,
