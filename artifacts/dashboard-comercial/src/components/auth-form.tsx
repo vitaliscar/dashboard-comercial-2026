@@ -58,7 +58,7 @@ export function AuthForm() {
             <div className="ccv-login-center relative z-10 flex h-full w-full items-center justify-center">
               <img
                 src="/Logo_CCV.png"
-                alt="Logo Centro Comercial VENEQUIP"
+                alt="Logo Dashboard Comercial CCV"
                 className="ccv-login-panel-logo object-contain"
               />
             </div>
@@ -88,7 +88,7 @@ export function AuthForm() {
               className="size-9 object-contain"
             />
             <div className="font-sans font-extrabold text-sm uppercase tracking-wide text-foreground">
-              Centro Comercial CCV
+              Dashboard Comercial CCV
               <span className="mt-0.5 block font-mono text-[9px] font-medium tracking-[0.18em] text-muted-foreground">
                 DECISIONES 2026
               </span>
