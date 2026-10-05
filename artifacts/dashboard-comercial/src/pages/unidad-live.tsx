@@ -649,7 +649,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
       <section className="flex flex-col gap-3 section-enter section-enter-1">
         <SectionTitle title="Desempeño por sucursal" description="Cumplimiento general, facturación por compañía y detalle de alcance." />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
-          <ComplianceGauge title={`Cumplimiento General ${data?.unit.nombre ?? copy.title}`} pct={compliance} facturado={sales} presupuesto={target} />
+          <ComplianceGauge title="Cumplimiento general" subtitle={data?.unit.nombre ?? copy.title} pct={compliance} facturado={sales} presupuesto={target} />
           <div className="lg:col-span-2">
             <div className="flex h-full flex-col rounded-xl border bg-card p-4 card-elevated">
               <p className="font-display font-semibold">Facturación por compañía</p>

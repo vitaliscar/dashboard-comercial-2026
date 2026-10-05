@@ -16,6 +16,7 @@ type Props = {
   facturado: number;
   presupuesto: number;
   title?: string;
+  subtitle?: string;
   projection?: {
     value: number;
     tone: "success" | "warning" | "danger";
@@ -33,6 +34,7 @@ export const ComplianceGauge = memo(function ComplianceGauge({
   facturado,
   presupuesto,
   title = "Cumplimiento General",
+  subtitle,
   projection,
 }: Props) {
   const chartAnimation = useChartAnimation();
@@ -43,9 +45,14 @@ export const ComplianceGauge = memo(function ComplianceGauge({
   return (
     <Card className="ring-0 card-elevated flex h-full flex-col items-center ring-1 ring-primary/20">
       <CardHeader className="w-full text-center pb-2">
-        <CardTitle className="font-mono text-[9px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+        <CardTitle className="w-full text-center text-xs font-semibold leading-tight text-foreground [text-wrap:balance]">
           {title}
         </CardTitle>
+        {subtitle && (
+          <p className="mt-1 text-center text-[11px] leading-tight text-muted-foreground [overflow-wrap:anywhere]">
+            {subtitle}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="flex flex-1 flex-col items-center justify-center">
         <div className="relative size-36 shrink-0">
