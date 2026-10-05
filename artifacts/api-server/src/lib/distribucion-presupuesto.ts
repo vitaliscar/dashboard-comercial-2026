@@ -49,6 +49,10 @@ function redondear(valor: number): number {
   return Math.round((valor + Number.EPSILON) * 100) / 100;
 }
 
+function formatearMonto(valor: number): string {
+  return new Intl.NumberFormat("es-VE", { maximumFractionDigits: 0 }).format(valor);
+}
+
 export interface ProyeccionVentaBase {
   filas: FilaBasePresupuesto[];
   metaBase: number;
@@ -272,7 +276,7 @@ export function calcularDistribucionPresupuesto(
 
   const metaPropuesta = redondear(metaBase * (1 + distribucion.crecimientoAnualPct / 100));
   if (metaPropuesta + 0.005 < metaMinima) {
-    errores.push(`La meta propuesta (${metaPropuesta}) no puede ser menor que la última meta aprobada (${redondear(metaMinima)}).`);
+    errores.push(`La meta propuesta (${formatearMonto(metaPropuesta)}) no puede ser menor que la última meta aprobada (${formatearMonto(metaMinima)}).`);
   }
   if (errores.length > 0) return { metaBase, metaPropuesta, montoGestionComercialTotal: 0, metaTotalConGestion: metaPropuesta, totalesUnidad: [], errores, filas: [] };
 
