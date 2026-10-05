@@ -17,6 +17,7 @@ import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeade
 import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
+import { MarcasMonthlyChart, type MonthlyMarcaRow } from "@/components/lubfiltros/MarcasMonthlyChart";
 import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import {
@@ -138,6 +139,21 @@ function SectionTitle({ title, description }: { title: string; description: stri
   );
 }
 
+function etiquetaLineaLubFiltros(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "lubricantes") return "Lubricantes · Chronus / CO";
+  if (normalized === "filtros") return "Filtros · Donaldson / DN, D1, GF, NC";
+  return value;
+}
+
+function familiaMarcaLubFiltros(value: string): "Lubricantes" | "Filtros" | "Otros" {
+  const marca = value.trim().toLowerCase();
+  const codigo = marca.replace(/[^a-z0-9]/g, "").toUpperCase();
+  if (marca.includes("chronus") || codigo === "CO") return "Lubricantes";
+  if (marca.includes("donaldson") || ["DN", "D1", "GF", "NC"].includes(codigo)) return "Filtros";
+  return "Otros";
+}
+
 function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: UnidadKey; role: AppRole | null }) {
   const brands = useMemo(() => {
     const rows = data.detallesMarcas ?? [];
@@ -173,6 +189,18 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
       percentages,
       hasNegativeAmounts: brands.some((brand) => brand.monto < 0),
     };
+  }, [brands]);
+
+  const brandLines = useMemo(() => {
+    const groups = [
+      { id: "lubricantes", title: "Lubricantes · Chronus / CO", matches: (name: string) => familiaMarcaLubFiltros(name) === "Lubricantes" },
+      { id: "filtros", title: "Filtros · Donaldson / DN, D1, GF, NC", matches: (name: string) => familiaMarcaLubFiltros(name) === "Filtros" },
+      { id: "otros", title: "Otros / sin clasificar", matches: (name: string) => familiaMarcaLubFiltros(name) === "Otros" },
+    ];
+    return groups.map((group) => {
+      const items = brands.filter((brand) => group.matches(brand.marca));
+      return { ...group, brands: items, monto: items.reduce((sum, brand) => sum + brand.monto, 0) };
+    }).filter((group) => group.brands.length > 0);
   }, [brands]);
 
   // Participación (%) de cada marca top sobre el TOTAL de todas las marcas
@@ -313,15 +341,15 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
     <section className="grid items-start gap-4 lg:grid-cols-2 section-enter section-enter-3">
       <div className="rounded-xl border bg-card p-4 card-elevated">
         <SectionTitle
-          title={keyName === "repuestos" ? "Ventas netas por marca" : "Ventas por marca"}
+          title={keyName === "lubfiltros" ? "Lubricantes y filtros por separado" : keyName === "repuestos" ? "Ventas netas por marca" : "Ventas por marca"}
           description={
             keyName === "repuestos"
               ? role === "coordinador"
                 ? "Ventas netas por marca en tus sucursales. Los datos históricos sin sucursal no se atribuyen a tu alcance. El año corresponde al lote de carga, no al año de venta."
                 : "Ventas netas por marca y sucursal; los registros históricos sin sucursal quedan consolidados. El año corresponde al lote de carga, no al año de venta."
               : role === "coordinador"
-                ? "Ventas de Lubricantes/Filtros por marca en tus sucursales. Los datos históricos sin sucursal no se atribuyen a tu alcance. El año corresponde al lote de carga, no al año de venta."
-                : "Ventas mensuales por marca y sucursal. El año corresponde al lote de carga: la tabla no guarda el año de venta."
+                ? "Chronus / CO se agrupa como lubricantes; Donaldson / DN, D1, GF y NC como filtros. Solo tus sucursales; los registros históricos sin sucursal no se atribuyen a tu alcance."
+                : "Chronus / CO se agrupa como lubricantes; Donaldson / DN, D1, GF y NC como filtros. El detalle respeta las sucursales permitidas para tu rol."
           }
         />
         <div className="mt-4 grid items-start gap-4 min-[680px]:grid-cols-[minmax(0,1fr)_minmax(240px,0.8fr)]">
@@ -334,6 +362,39 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
                   ? "No hay ventas de Lubricantes/Filtros con sucursal asignada en tus sucursales para este período."
                   : "No hay detalle de marcas para el período y año de carga seleccionados."}
               </p>
+            ) : keyName === "lubfiltros" ? (
+              <div className="space-y-3">
+                {brandLines.map((group, groupIndex) => (
+                  <section key={group.id} className="rounded-lg border bg-card p-3">
+                    <header className="mb-2 flex items-center justify-between gap-3 border-b pb-2">
+                      <h3 className="text-sm font-semibold">{group.title}</h3>
+                      <span className="font-mono text-sm font-semibold tabular-nums">{money(group.monto)}</span>
+                    </header>
+                    {group.brands.map((brand) => {
+                      const share = group.monto > 0 ? (brand.monto / group.monto) * 100 : null;
+                      const color = BRAND_CHART_COLORS[groupIndex % BRAND_CHART_COLORS.length];
+                      return (
+                        <details key={brand.marca} className="ccv-brand-row">
+                          <summary>
+                            <span className="flex min-w-0 items-start gap-2">
+                              <span aria-hidden="true" className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                              <span className="min-w-0">
+                                <span className="block truncate font-medium">{brand.marca}</span>
+                                <span className="mt-0.5 block text-xs text-muted-foreground">{brand.sucursales.length} {brand.sucursales.length === 1 ? "origen" : "orígenes"} · ver sucursales</span>
+                              </span>
+                            </span>
+                            <span className="flex shrink-0 flex-col items-end">
+                              <span className="font-mono font-semibold tabular-nums">{money(brand.monto)}</span>
+                              <span className="text-xs font-semibold tabular-nums" style={{ color }}>{share == null ? "Ajuste neto" : `${share.toFixed(1)}% de la línea`}</span>
+                            </span>
+                          </summary>
+                          <ul>{brand.sucursales.map((branch) => <li key={branch.nombre}><span>{branch.nombre}</span><span className="font-mono tabular-nums">{money(branch.monto)}</span></li>)}</ul>
+                        </details>
+                      );
+                    })}
+                  </section>
+                ))}
+              </div>
             ) : (
               brands.map((brand, index) => {
                 const share = brandShare.percentages.get(brand.marca);
@@ -388,7 +449,7 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
       {keyName === "lubfiltros" ? (
         <div className="flex flex-col overflow-hidden rounded-xl border bg-card card-elevated">
           <div className="p-4">
-            <SectionTitle title="Inventario por sucursal" description="Valor en inventario. Los montos en cero no se listan." />
+            <SectionTitle title="Inventario por sucursal" description="CO corresponde a Lubricantes / Chronus; DN, D1, GF y NC corresponden a Filtros / Donaldson. Los montos en cero no se listan." />
           </div>
           <div className="[&_[data-slot=table-container]]:max-h-[16rem] [&_[data-slot=table-container]]:overflow-y-auto">
             <Table className="table-fixed text-sm">
@@ -399,7 +460,7 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
               </colgroup>
               <TableHeader className="bg-primary text-primary-foreground [&_tr]:border-b-0 sticky top-0 z-10">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-4 py-2 text-left text-xs font-medium text-primary-foreground">Tipo</TableHead>
+                  <TableHead className="px-4 py-2 text-left text-xs font-medium text-primary-foreground">Línea y códigos</TableHead>
                   <TableHead className="px-4 py-2 text-left text-xs font-medium text-primary-foreground">Sucursal</TableHead>
                   <TableHead className="px-4 py-2 text-right text-xs font-medium text-primary-foreground">Monto</TableHead>
                 </TableRow>
@@ -414,7 +475,7 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
                 ) : (
                   inventarioPorSucursal.map((row) => (
                     <TableRow key={`${row.tipo}|${row.sucursal}`}>
-                      <TableCell className="px-4 py-2.5 font-medium">{row.tipo}</TableCell>
+                      <TableCell className="px-4 py-2.5 font-medium">{etiquetaLineaLubFiltros(row.tipo)}</TableCell>
                       <TableCell className="px-4 py-2.5">{row.sucursal}</TableCell>
                       <TableCell className="px-4 py-2.5 text-right font-mono tabular-nums">{money(row.monto)}</TableCell>
                     </TableRow>
@@ -432,8 +493,8 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
             <TableBody>
               {(
                 [
-                  ["Lubricantes", inventory.find(([name]) => name === "Lubricantes")?.[1] ?? 0],
-                  ["Filtros", inventory.find(([name]) => name === "Filtros")?.[1] ?? 0],
+                  ["Lubricantes · Chronus / CO", inventory.find(([name]) => name === "Lubricantes")?.[1] ?? 0],
+                  ["Filtros · Donaldson / DN, D1, GF, NC", inventory.find(([name]) => name === "Filtros")?.[1] ?? 0],
                   ["Total", inventory.reduce((sum, [, amount]) => sum + amount, 0)],
                 ] as const
               ).map(([name, amount]) => (
@@ -493,6 +554,15 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
     });
     return rows;
   }, [anio, data?.presupuestosYtd]);
+  const monthlyBrandLines = useMemo<MonthlyMarcaRow[]>(() => {
+    const rows = Array.from({ length: 12 }, (_, index) => ({ mes: MESES[index].slice(0, 3), Lubricantes: 0, Filtros: 0, Otros: 0 }));
+    (data?.detallesMarcas ?? []).forEach((row) => {
+      const month = Number(row.mes) - 1;
+      if (month < 0 || month >= rows.length) return;
+      rows[month][familiaMarcaLubFiltros(label(row.marca))] += num(row.montoTotal ?? row.monto);
+    });
+    return rows;
+  }, [data?.detallesMarcas]);
   const companies = useMemo(() => {
     const totals: [string, number][] = [
       ["Consorcio Venequip", selectedBudgets.reduce((sum, row) => sum + num(row.ventasCcv), 0)],
@@ -606,7 +676,10 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
 
       <section className="flex flex-col gap-3 section-enter section-enter-2">
         <SectionTitle title="Evolución mensual" description={`Venta real vs. presupuesto, año a la fecha · ${getHighlightMonthLabels(meses).join(", ") || "todos los meses"} en revisión.`} />
-        <GlobalMonthlyCombo data={monthly} highlightMonths={getHighlightMonthLabels(meses)} />
+        <div className={unitKey === "lubfiltros" ? "grid gap-4 xl:grid-cols-2" : ""}>
+          <GlobalMonthlyCombo data={monthly} highlightMonths={getHighlightMonthLabels(meses)} />
+          {unitKey === "lubfiltros" && <MarcasMonthlyChart data={monthlyBrandLines} highlightMonths={getHighlightMonthLabels(meses)} />}
+        </div>
       </section>
 
       <DetailSection data={data!} keyName={unitKey} role={role} />
