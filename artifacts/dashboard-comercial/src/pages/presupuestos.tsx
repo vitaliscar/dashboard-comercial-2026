@@ -128,6 +128,9 @@ function PresupuestoGerenciaPage() {
   const queryClient = useQueryClient();
   const { role, profile } = useAuth();
   const esGerenteComercial = role === "gerente_comercial";
+  const esDirector = role === "director";
+  const puedeEditarDistribucionAnual = !esDirector;
+  const puedeEditarCrecimiento = esDirector || role === "administrador";
   const unidadesAsignadas = profile?.unidades_negocio_ids?.length
     ? profile.unidades_negocio_ids
     : profile?.unidad_negocio_id ? [profile.unidad_negocio_id] : [];
@@ -372,7 +375,7 @@ function PresupuestoGerenciaPage() {
       <PageHeader
         eyebrow="Planeación"
         title={`Presupuesto ${targetAnio}`}
-        description={esGerenteComercial ? "Distribuye la meta asignada a tu unidad entre sucursales y meses." : "Ajusta la meta anual, distribuye entre unidades y define la participación por sucursal y mes."}
+        description={esGerenteComercial ? "Distribuye la meta asignada a tu unidad entre sucursales y meses." : esDirector ? "Define el crecimiento anual. La distribución aprobada por Gerencia Nacional se conserva." : "Define pesos de unidades, gestión comercial y revisa la distribución aprobada."}
       />
 
       {proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status">Calculando la propuesta inicial…</p>}
@@ -382,7 +385,7 @@ function PresupuestoGerenciaPage() {
       <section aria-label="Etapas del presupuesto" className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-4 sm:p-4">
         {(esGerenteComercial
           ? ["Meta anual aprobada", "Distribuye por sucursal", "Distribuye por mes", "Envía el plan"]
-          : ["Define aumento anual", "Asigna peso y gestión", "Revisa impacto", "Aprueba versión"]
+          : esDirector ? ["Define crecimiento", "Revisa la meta", "Envía propuesta", "Aprueba versión"] : ["Asigna peso y gestión", "Revisa impacto", "Aprueba versión", "Seguimiento"]
         ).map((etapa, index) => (
           <div key={etapa} className="flex items-center gap-2 text-xs sm:text-sm">
             <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono font-semibold text-primary">{index + 1}</span>
@@ -408,8 +411,10 @@ function PresupuestoGerenciaPage() {
               max="500"
               step="0.1"
               value={distribucion?.crecimientoAnualPct ?? 0}
+              disabled={!puedeEditarCrecimiento}
               onChange={(event) => actualizarCrecimiento(Number(event.target.value))}
             />
+            {!puedeEditarCrecimiento && <p className="mt-1 text-xs text-muted-foreground">El crecimiento anual lo define Dirección.</p>}
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">Piso aprobado</label>
@@ -428,7 +433,7 @@ function PresupuestoGerenciaPage() {
         <div key={error} role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
       ))}
 
-      {!esGerenteComercial && <Card>
+      {!esGerenteComercial && puedeEditarDistribucionAnual && <Card>
         <CardHeader>
           <CardTitle>Participación por unidad de negocio</CardTitle>
           <p className="text-sm text-muted-foreground">El peso base distribuye la meta anual. En la primera generación, el % de Gestión Comercial calcula un monto sobre la base de cada unidad. Al aprobarse, ese monto queda fijo en moneda para las revisiones siguientes.</p>
@@ -461,7 +466,7 @@ function PresupuestoGerenciaPage() {
         </CardContent>
       </Card>}
 
-      <Card>
+      {!esDirector && <Card>
         <CardHeader>
           <CardTitle>{esGerenteComercial ? "Asignación por sucursal" : "Balance de metas por sucursal"}</CardTitle>
           <p className="text-sm text-muted-foreground">Compara la base, la venta real y la meta distribuida. La suma de participación de la unidad debe ser 100 %.</p>
@@ -520,7 +525,7 @@ function PresupuestoGerenciaPage() {
             </section>;
           })}
         </CardContent>
-      </Card>
+      </Card>}
 
       <Card>
         <CardHeader><CardTitle>Guardar revisión {targetAnio}</CardTitle></CardHeader>

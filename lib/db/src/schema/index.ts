@@ -17,6 +17,7 @@ import {
 // de supabase/migrations/*.sql, que están desincronizados.
 export const appRole = pgEnum("app_role", [
   "administrador",
+  "director",
   "gerencia",
   "gerente_comercial",
   "coordinador",

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { clearSharedFilters } from "@/lib/shared-filters";
 
-export type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+export type AppRole = "administrador" | "director" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 export interface UserProfile {
   id: string;
