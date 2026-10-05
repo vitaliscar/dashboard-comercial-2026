@@ -622,7 +622,6 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
           accent="ochre"
           icon={TrendingUp}
           projection={projection ? { value: money(projection.projectedSales), tone: projection.tone } : undefined}
-          hint="Fuente: presupuesto mensual · CCV + Xibi + Estratégicas"
         />
         <KpiCard
           label="Presupuesto"
