@@ -16,10 +16,9 @@ import { useChartAnimation } from "@/hooks/use-chart-animation";
 
 export type MonthlyMarcaRow = {
   mes: string;
-  Chronus: number;
-  Donaldson: number;
-  DonaldsonIndustrial: number;
-  OtraMarca: number;
+  Lubricantes: number;
+  Filtros: number;
+  Otros: number;
 };
 
 type Props = {
@@ -30,17 +29,15 @@ type Props = {
 };
 
 const MARCA_COLORS: Record<string, string> = {
-  Chronus: "var(--color-chart-calm-1)",
-  Donaldson: "var(--color-chart-calm-2)",
-  DonaldsonIndustrial: "var(--color-chart-calm-3)",
-  OtraMarca: "var(--color-chart-calm-4)",
+  Lubricantes: "var(--color-chart-calm-1)",
+  Filtros: "var(--color-chart-calm-2)",
+  Otros: "var(--color-chart-calm-4)",
 };
 
 const MARCA_LABELS: Record<string, string> = {
-  Chronus: "Chronus",
-  Donaldson: "Donaldson",
-  DonaldsonIndustrial: "Donaldson Industrial",
-  OtraMarca: "Otra Marca",
+  Lubricantes: "Lubricantes · Chronus / CO",
+  Filtros: "Filtros · Donaldson / DN, D1, GF, NC",
+  Otros: "Otras marcas sin clasificar",
 };
 
 interface CustomDotProps {
@@ -85,7 +82,7 @@ function renderCustomDot(
 
 export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
   data,
-  title = "Ventas por Marca (Chronus / Donaldson)",
+  title = "Ventas mensuales por línea",
   highlightMonths,
 }: Props) {
   const chartAnimation = useChartAnimation();

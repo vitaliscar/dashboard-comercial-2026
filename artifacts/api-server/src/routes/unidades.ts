@@ -238,7 +238,11 @@ async function loadUnitData(
         [months, scope.branch, scope.branchScope, branchSpecific, year],
       ),
       tx.query(
-        `SELECT tipo,
+        `SELECT CASE
+                  WHEN upper(trim(i.proveedor_codigo)) = 'CO' THEN 'Lubricantes'
+                  WHEN upper(trim(i.proveedor_codigo)) IN ('DN', 'D1', 'GF', 'NC') THEN 'Filtros'
+                  ELSE i.tipo
+                END AS tipo,
                 proveedor_codigo AS "proveedorCodigo",
                 sucursal,
                 monto
