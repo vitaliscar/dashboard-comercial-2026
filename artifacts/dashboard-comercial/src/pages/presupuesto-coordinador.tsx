@@ -6,6 +6,16 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { QueryErrorNotice } from "@/components/query-error-notice";
 import { money } from "@/lib/format";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type AdvisorAllocation = {
   advisorId: string;
@@ -90,6 +100,7 @@ export default function PresupuestoCoordinadorPage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [draft, setDraft] = useState<Record<string, number>>({});
   const [dirty, setDirty] = useState(false);
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
 
   const query = useQuery<BudgetData>({
     queryKey: ["presupuestos", "asesores", year],
@@ -200,6 +211,16 @@ export default function PresupuestoCoordinadorPage() {
     );
     return Math.abs(sum - 100) <= 0.000005;
   });
+  const saveScope = useMemo(() => {
+    const rows = data?.rows ?? [];
+    return {
+      branches: new Set(rows.map((row) => row.sucursalId)).size,
+      units: new Set(rows.map((row) => row.unidadNegocioId)).size,
+      months: new Set(rows.map((row) => row.mes)).size,
+      advisorAllocations: rows.reduce((count, row) => count + row.asesores.length, 0),
+      targetAmount: rows.reduce((sum, row) => sum + Number(row.monto || 0), 0),
+    };
+  }, [data?.rows]);
 
   const save = useMutation({
     mutationFn: () =>
@@ -355,9 +376,16 @@ export default function PresupuestoCoordinadorPage() {
                     {money(currentRow.monto)}
                   </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  La suma de participación debe ser 100 %
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <span>La suma de participación debe ser 100 %</span>
+                  {currentRow.asesores.length > 0 && <Button type="button" size="sm" variant="outline" onClick={() => {
+                    const advisors = currentRow.asesores;
+                    const basisPoints = Math.floor(10000 / advisors.length);
+                    const remainder = 10000 - basisPoints * advisors.length;
+                    setDirty(true);
+                    setDraft((previous) => ({ ...previous, ...Object.fromEntries(advisors.map((advisor, index) => [keyOf(currentRow, advisor.advisorId), (basisPoints + (index === advisors.length - 1 ? remainder : 0)) / 100])) }));
+                  }}>Repartir por igual</Button>}
+                </div>
               </div>
 
               {currentRow.requiereAsignacionAsesores ? (
@@ -369,7 +397,8 @@ export default function PresupuestoCoordinadorPage() {
                   una distribución incompleta.
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border">
+                <>
+                <div className="hidden overflow-x-auto rounded-lg border sm:block">
                   <table className="w-full min-w-[760px] text-sm">
                     <thead>
                       <tr className="border-b bg-muted/30 text-left">
@@ -472,6 +501,22 @@ export default function PresupuestoCoordinadorPage() {
                     </tfoot>
                   </table>
                 </div>
+                <div className="space-y-3 sm:hidden" aria-label="Distribución del presupuesto por asesor">
+                  <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3 text-sm">
+                    <div><p className="text-xs text-muted-foreground">Venta base del grupo</p><p className="font-medium tabular-nums">{money(currentRow.asesores.reduce((sum, advisor) => sum + advisor.ventaBase, 0))}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Meta del período</p><p className="font-medium tabular-nums">{money(currentRow.monto)}</p></div>
+                  </div>
+                  {currentRow.asesores.map((advisor) => {
+                    const share = Number(draft[keyOf(currentRow, advisor.advisorId)] ?? advisor.participacion);
+                    return <section key={advisor.advisorId} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3"><div><h3 className="font-medium">{advisor.advisor}</h3>{advisor.codigoAsesor && <p className="text-xs text-muted-foreground">{advisor.codigoAsesor}</p>}</div><p className="text-right text-sm font-semibold tabular-nums">{money(amounts.get(advisor.advisorId) ?? 0)}</p></div>
+                      <p className="mt-1 text-xs text-muted-foreground">{origenLabel(advisor.origen)} · Venta base {money(advisor.ventaBase)}</p>
+                      <label className="mt-3 block text-xs font-medium text-muted-foreground">Participación (%)<Input aria-label={`Participación de ${advisor.advisor}`} type="number" min="0" max="100" step="0.01" value={Number.isFinite(share) ? share : 0} onChange={(event) => updateShare(currentRow, advisor, Number(event.target.value))} className="mt-1 text-right tabular-nums" /></label>
+                    </section>;
+                  })}
+                  <div className="flex justify-between border-t pt-3 text-sm font-semibold"><span>Participación total</span><span className={Math.abs(currentRow.asesores.reduce((sum, advisor) => sum + Number(draft[keyOf(currentRow, advisor.advisorId)] ?? advisor.participacion), 0) - 100) > 0.000005 ? "text-destructive" : "text-primary"}>{currentRow.asesores.reduce((sum, advisor) => sum + Number(draft[keyOf(currentRow, advisor.advisorId)] ?? advisor.participacion), 0).toFixed(2)} %</span></div>
+                </div>
+                </>
               )}
 
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -488,7 +533,7 @@ export default function PresupuestoCoordinadorPage() {
                     </Button>
                   )}
                   <Button
-                    onClick={() => save.mutate()}
+                    onClick={() => setConfirmSaveOpen(true)}
                     disabled={
                       !dirty ||
                       !allSharesValid ||
@@ -502,7 +547,11 @@ export default function PresupuestoCoordinadorPage() {
                   </Button>
                 </div>
               </div>
-              {dirty && <p className="text-xs font-medium text-warning" role="status">Cambios sin guardar. Se guardarán todas las unidades y meses de tus sucursales.</p>}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm" role="note">
+                <p className="font-semibold">Alcance de este guardado</p>
+                <p className="mt-1 text-muted-foreground">Se guardarán {saveScope.advisorAllocations} repartos de asesores en {saveScope.branches} sucursal(es), {saveScope.units} unidad(es) y {saveScope.months} mes(es) de {year}. Incluye todas tus sucursales y sus demás unidades y meses, no solo la selección actual.</p>
+              </div>
+              {dirty && <p className="text-xs font-medium text-warning" role="status">Cambios sin guardar. Revisa el alcance antes de confirmar.</p>}
               {save.isSuccess && !dirty && <p className="text-xs font-medium text-success" role="status">Distribución guardada para todas tus sucursales.</p>}
               {!allSharesValid && data?.rows.length ? (
                 <p role="alert" className="text-sm text-destructive">
@@ -517,6 +566,25 @@ export default function PresupuestoCoordinadorPage() {
               )}
             </>
           )}
+          <AlertDialog open={confirmSaveOpen} onOpenChange={setConfirmSaveOpen}>
+            <AlertDialogContent size="sm">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Guardar distribución anual</AlertDialogTitle>
+                <AlertDialogDescription>Este envío actualiza el reparto de todas las metas de asesor dentro de tus sucursales autorizadas.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-muted/40 p-3 text-sm">
+                <dt className="text-muted-foreground">Año</dt><dd className="text-right">{year}</dd>
+                <dt className="text-muted-foreground">Sucursales</dt><dd className="text-right">{saveScope.branches}</dd>
+                <dt className="text-muted-foreground">Unidades × meses</dt><dd className="text-right">{saveScope.units} × {saveScope.months}</dd>
+                <dt className="text-muted-foreground">Repartos de asesor</dt><dd className="text-right">{saveScope.advisorAllocations}</dd>
+                <dt className="text-muted-foreground">Meta total</dt><dd className="text-right font-semibold tabular-nums">{money(saveScope.targetAmount)}</dd>
+              </dl>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={save.isPending}>Seguir editando</AlertDialogCancel>
+                <AlertDialogAction disabled={save.isPending} onClick={() => { setConfirmSaveOpen(false); save.mutate(); }}>{save.isPending ? "Guardando…" : "Confirmar guardado"}</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>
