@@ -1731,6 +1731,12 @@
   height: auto;
   padding: 1rem 0.9rem;
   border-bottom-color: rgba(236, 241, 232, 0.13);
+  background: #f4f2e9;
+  border-bottom-color: #d4d2c6;
+}
+
+.ccv-sidebar > div:first-child p:first-child {
+  color: #111111;
 }
 
 .ccv-sidebar > div:first-child img {
