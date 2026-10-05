@@ -49,6 +49,71 @@ function redondear(valor: number): number {
   return Math.round((valor + Number.EPSILON) * 100) / 100;
 }
 
+export interface ProyeccionVentaBase {
+  filas: FilaBasePresupuesto[];
+  metaBase: number;
+  metaMinima: number;
+  ventaAcumulada: number;
+  mesesConsiderados: number;
+  metodo: "proyeccion" | "cierre" | "presupuesto";
+}
+
+/**
+ * Projects the annual sales baseline from year-to-date actuals. The existing
+ * budget mix across unit, branch and month is preserved when scaling rows.
+ */
+export function proyectarMetaBaseDesdeVentas(
+  filas: FilaBasePresupuesto[],
+  anioVentas: number,
+  fechaReferencia = new Date(),
+): ProyeccionVentaBase {
+  const anioActual = fechaReferencia.getFullYear();
+  const mesActual = fechaReferencia.getMonth() + 1;
+  const mesesConsiderados = anioVentas < anioActual
+    ? 12
+    : anioVentas === anioActual ? mesActual : 0;
+  const ventaAcumulada = redondear(filas.reduce(
+    (total, fila) => total + (fila.mes <= mesesConsiderados ? fila.realBase : 0),
+    0,
+  ));
+  const presupuestoDisponible = redondear(filas.reduce(
+    (total, fila) => total + Math.max(0, fila.basePresupuesto),
+    0,
+  ));
+  const tieneVentas = ventaAcumulada > 0 && mesesConsiderados > 0;
+  const metaBase = tieneVentas
+    ? redondear(mesesConsiderados === 12 ? ventaAcumulada : ventaAcumulada / mesesConsiderados * 12)
+    : presupuestoDisponible;
+  const metaMinima = presupuestoDisponible;
+  const metodo = !tieneVentas
+    ? "presupuesto"
+    : mesesConsiderados === 12 ? "cierre" : "proyeccion";
+
+  let pesos = filas.map((fila) => Math.max(0, fila.basePresupuesto));
+  let sumaPesos = pesos.reduce((total, peso) => total + peso, 0);
+  if (sumaPesos <= 0) {
+    pesos = filas.map((fila) => Math.max(0, fila.mes <= mesesConsiderados ? fila.realBase : 0));
+    sumaPesos = pesos.reduce((total, peso) => total + peso, 0);
+  }
+  if (sumaPesos <= 0 && filas.length > 0) {
+    pesos = filas.map(() => 1);
+    sumaPesos = pesos.length;
+  }
+
+  const indiceUltimoConPeso = pesos.reduce((ultimo, peso, indice) => peso > 0 ? indice : ultimo, -1);
+  let asignado = 0;
+  const filasProyectadas = filas.map((fila, indice) => {
+    if (indiceUltimoConPeso < 0) return { ...fila, basePresupuesto: 0 };
+    const monto = indice === indiceUltimoConPeso
+      ? redondear(metaBase - asignado)
+      : redondear(metaBase * pesos[indice] / sumaPesos);
+    asignado = redondear(asignado + monto);
+    return { ...fila, basePresupuesto: monto };
+  });
+
+  return { filas: filasProyectadas, metaBase, metaMinima, ventaAcumulada, mesesConsiderados, metodo };
+}
+
 function repartir(total: number, porcentajes: number[]): number[] {
   if (porcentajes.length === 0) return [];
   const centavos = Math.round(total * 100);
