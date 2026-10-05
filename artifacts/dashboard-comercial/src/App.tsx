@@ -630,7 +630,7 @@ function DashboardApp() {
             />
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold tracking-wide">
-                CENTRO COMERCIAL
+                DASHBOARD COMERCIAL
               </p>
               <p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/55">
                 Decisiones 2026
