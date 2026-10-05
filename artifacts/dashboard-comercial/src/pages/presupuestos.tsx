@@ -71,13 +71,17 @@ interface VersionRow {
   escenario: string;
   estado: "borrador" | "propuesto" | "aprobado" | "archivado";
   createdAt: string;
+  creadorRol?: string | null;
   descripcion?: string | null;
   premisas?: {
     tipo?: string;
+    crecimientoAnualPct?: number;
+    versionPadreId?: string;
     metaPropuesta?: number | string;
     metaTotalConGestion?: number | string;
     montoGestionComercialTotal?: number | string;
     unidadSolicitanteIds?: string[];
+    unidades?: ParticipacionUnidad[];
     sucursales?: ParticipacionSucursal[];
     meses?: Distribucion["meses"];
   } | null;
@@ -147,7 +151,7 @@ function PresupuestoGerenciaPage() {
   const { role, profile } = useAuth();
   const esGerenteComercial = role === "gerente_comercial";
   const esDirector = role === "director";
-  const puedeEditarDistribucionAnual = !esDirector;
+  const puedeEditarDistribucionAnual = true;
   const puedeEditarCrecimiento = esDirector || role === "administrador";
   const unidadesAsignadas = profile?.unidades_negocio_ids?.length
     ? profile.unidades_negocio_ids
@@ -155,6 +159,7 @@ function PresupuestoGerenciaPage() {
   const [nombre, setNombre] = useState(`Revisión presupuesto ${targetAnio}`);
   const [planTrabajo, setPlanTrabajo] = useState("");
   const [distribucion, setDistribucion] = useState<Distribucion | null>(null);
+  const [versionPadreId, setVersionPadreId] = useState<string | null>(null);
   const distribucionProyectada = useDebouncedValue(distribucion, 250);
   const [unidadSucursalActiva, setUnidadSucursalActiva] = useState<string | null>(null);
   const [busquedaSucursal, setBusquedaSucursal] = useState("");
@@ -163,10 +168,10 @@ function PresupuestoGerenciaPage() {
   const { data: sucursalesCatalogo } = useSucursales();
 
   const proyeccion = useQuery<ProyeccionData>({
-    queryKey: ["presupuestos", "distribucion", targetAnio, JSON.stringify(distribucionProyectada)],
+    queryKey: ["presupuestos", "distribucion", targetAnio, versionPadreId, JSON.stringify(distribucionProyectada)],
     queryFn: () => api("/presupuestos/proyeccion-anual", {
       method: "POST",
-      body: JSON.stringify({ modo: "distribucion", baseAnio, targetAnio, ...(distribucionProyectada ? { distribucion: esGerenteComercial ? { ...distribucionProyectada, crecimientoAnualPct: 0, unidades: [] } : distribucionProyectada } : {}) }),
+      body: JSON.stringify({ modo: "distribucion", baseAnio, targetAnio, ...(versionPadreId ? { versionPadreId } : {}), ...(distribucionProyectada ? { distribucion: esGerenteComercial ? { ...distribucionProyectada, crecimientoAnualPct: 0, unidades: [] } : distribucionProyectada } : {}) }),
     }),
     placeholderData: (previousData) => previousData,
   });
@@ -196,7 +201,7 @@ function PresupuestoGerenciaPage() {
       if (!distribucion) throw new Error("La distribución todavía está cargando.");
       const version = await api("/presupuestos/versiones", {
         method: "POST",
-        body: JSON.stringify({ anio: targetAnio, baseAnio, nombre, escenario: "base", ...(esGerenteComercial ? { descripcion: planTrabajo.trim() } : {}), distribucion: esGerenteComercial ? { ...distribucion, crecimientoAnualPct: 0, unidades: [] } : distribucion }),
+        body: JSON.stringify({ anio: targetAnio, baseAnio, nombre, escenario: "base", ...(esGerenteComercial ? { descripcion: planTrabajo.trim() } : {}), ...(versionPadreId ? { versionPadreId } : {}), distribucion: esGerenteComercial ? { ...distribucion, crecimientoAnualPct: 0, unidades: [] } : distribucion }),
       });
       if (esGerenteComercial) return version;
       return api(`/presupuestos/versiones/${version.id}/generar`, {
@@ -204,7 +209,10 @@ function PresupuestoGerenciaPage() {
         body: JSON.stringify({ anio: baseAnio, distribucion: esGerenteComercial ? { ...distribucion, crecimientoAnualPct: 0, unidades: [] } : distribucion }),
       });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["presupuestos", "versiones", targetAnio] }),
+    onSuccess: () => {
+      setVersionPadreId(null);
+      void queryClient.invalidateQueries({ queryKey: ["presupuestos", "versiones", targetAnio] });
+    },
   });
 
   const aprobar = useMutation({
@@ -282,6 +290,20 @@ function PresupuestoGerenciaPage() {
     ...actual,
     meses: actual.meses.map((item) => item.unidadNegocioId === unidadId && item.mes === mes ? { ...item, participacion: valor } : item),
   } : actual);
+
+  const iniciarCompletarPropuesta = (version: VersionRow) => {
+    const premisas = version.premisas;
+    if (premisas?.tipo !== "participacion" || !premisas.unidades || !premisas.sucursales || !premisas.meses) return;
+    setNombre(`Completar ${version.nombre}`);
+    setVersionPadreId(version.id);
+    setDistribucion({
+      crecimientoAnualPct: Number(premisas.crecimientoAnualPct ?? 0),
+      unidades: premisas.unidades,
+      sucursales: premisas.sucursales,
+      meses: premisas.meses,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const erroresLocales = useMemo(() => {
     if (!distribucion) return [];
@@ -393,7 +415,7 @@ function PresupuestoGerenciaPage() {
       <PageHeader
         eyebrow="Planeación"
         title={`Presupuesto ${targetAnio}`}
-        description={esGerenteComercial ? "Distribuye la meta asignada a tu unidad entre sucursales y meses." : esDirector ? "Define el crecimiento anual. La distribución aprobada por Gerencia Nacional se conserva." : "Define pesos de unidades, gestión comercial y revisa la distribución aprobada."}
+          description={esDirector ? "Define el crecimiento y revisa o corrige la distribución general por unidad y sucursal." : "Define pesos por unidad y Gestión Comercial; revisa y corrige el reparto general por sucursal."}
       />
 
       {proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status">Calculando la propuesta inicial…</p>}
@@ -403,7 +425,7 @@ function PresupuestoGerenciaPage() {
       <section aria-label="Etapas del presupuesto" className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-4 sm:p-4">
         {(esGerenteComercial
           ? ["Meta anual aprobada", "Distribuye por sucursal", "Distribuye por mes", "Envía el plan"]
-          : esDirector ? ["Define crecimiento", "Revisa la meta", "Envía propuesta", "Aprueba versión"] : ["Asigna peso y gestión", "Revisa impacto", "Aprueba versión", "Seguimiento"]
+          : esDirector ? ["Define crecimiento", "Ajusta unidades y sucursales", "Revisa la meta", "Aprueba versión"] : ["Asigna pesos y gestión", "Distribuye sucursales", "Revisa impacto", "Aprueba versión"]
         ).map((etapa, index) => (
           <div key={etapa} className="flex items-center gap-2 text-xs sm:text-sm">
             <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono font-semibold text-primary">{index + 1}</span>
@@ -455,6 +477,7 @@ function PresupuestoGerenciaPage() {
         <CardHeader>
           <CardTitle>Participación por unidad de negocio</CardTitle>
           <p className="text-sm text-muted-foreground">El peso base distribuye la meta anual. En la primera generación, el % de Gestión Comercial calcula un monto sobre la base de cada unidad. Al aprobarse, ese monto queda fijo en moneda para las revisiones siguientes.</p>
+          {versionPadreId && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm"><span>Estás completando una propuesta del Director. Su crecimiento anual se conserva.</span><Button type="button" variant="outline" size="sm" onClick={() => { setVersionPadreId(null); setDistribucion(null); }}>Cancelar revisión</Button></div>}
         </CardHeader>
         <CardContent>
           <div className="overflow-auto">
@@ -484,7 +507,7 @@ function PresupuestoGerenciaPage() {
         </CardContent>
       </Card>}
 
-      {!esDirector && <Card>
+      <Card>
         <CardHeader>
           <CardTitle>{esGerenteComercial ? "Asignación por sucursal" : "Balance de metas por sucursal"}</CardTitle>
           <p className="text-sm text-muted-foreground">Compara la base, la venta real y la meta distribuida. La suma de participación de la unidad debe ser 100 %.</p>
@@ -543,7 +566,7 @@ function PresupuestoGerenciaPage() {
             </section>;
           })}
         </CardContent>
-      </Card>}
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Guardar revisión {targetAnio}</CardTitle></CardHeader>
@@ -571,7 +594,7 @@ function PresupuestoGerenciaPage() {
               <tbody>
                 {(versiones ?? []).map((version) => (
                   <tr key={version.id} className="border-b">
-                    <td className="max-w-xl p-2"><div className="font-medium">{version.nombre}</div>{!esGerenteComercial && version.premisas?.unidadSolicitanteIds?.length ? <p className="mt-1 text-xs font-medium text-primary">{version.premisas.unidadSolicitanteIds.map((id) => { const unidad = unidades?.find((item) => item.id === id); return unidad ? unidadLabelInfo(unidad.nombre).label : "Unidad"; }).join(" · ")}</p> : null}{version.descripcion && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{version.descripcion}</p>}{!esGerenteComercial && version.premisas?.tipo === "plan_comercial_unidad" && <details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-primary">Ver distribución solicitada</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><div><p className="mb-1 text-xs font-semibold">Participación por sucursal</p>{version.premisas.sucursales?.map((row) => <p key={`${row.unidadNegocioId}:${row.sucursalId}`} className="text-xs text-muted-foreground">{sucursalesCatalogo?.find((item) => item.id === row.sucursalId)?.nombre ?? "Sucursal"}: {row.participacion.toFixed(2)}%</p>)}</div><div><p className="mb-1 text-xs font-semibold">Participación mensual</p>{version.premisas.meses?.map((row) => <p key={`${row.unidadNegocioId}:${row.mes}`} className="text-xs text-muted-foreground">{MESES[row.mes - 1]}: {row.participacion.toFixed(2)}%</p>)}</div></div></details>}</td>
+                    <td className="max-w-xl p-2"><div className="font-medium">{version.nombre}</div>{!esGerenteComercial && version.premisas?.unidadSolicitanteIds?.length ? <p className="mt-1 text-xs font-medium text-primary">{version.premisas.unidadSolicitanteIds.map((id) => { const unidad = unidades?.find((item) => item.id === id); return unidad ? unidadLabelInfo(unidad.nombre).label : "Unidad"; }).join(" · ")}</p> : null}{version.descripcion && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{version.descripcion}</p>}{!esGerenteComercial && version.premisas?.tipo === "participacion" && <details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-primary">Ver distribución y premisas</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><div><p className="mb-1 text-xs font-semibold">Unidad · peso · gestión comercial</p>{version.premisas.unidades?.map((row) => { const unidad = unidades?.find((item) => item.id === row.unidadNegocioId); return <p key={row.unidadNegocioId ?? "sin-unidad"} className="text-xs text-muted-foreground">{unidad ? unidadLabelInfo(unidad.nombre).label : "Unidad"}: {row.participacion.toFixed(2)}% · GC {row.gestionComercialPct.toFixed(2)}%</p>; })}</div><div><p className="mb-1 text-xs font-semibold">Distribución por sucursal y mes</p>{version.premisas.sucursales?.map((row) => <p key={`${row.unidadNegocioId}:${row.sucursalId}`} className="text-xs text-muted-foreground">{sucursalesCatalogo?.find((item) => item.id === row.sucursalId)?.nombre ?? "Sucursal"}: {row.participacion.toFixed(2)}%</p>)}{version.premisas.meses?.map((row) => <p key={`${row.unidadNegocioId}:${row.mes}`} className="text-xs text-muted-foreground">{MESES[row.mes - 1]}: {row.participacion.toFixed(2)}%</p>)}</div></div></details>}{!esGerenteComercial && version.premisas?.tipo === "plan_comercial_unidad" && <details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-primary">Ver distribución solicitada</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><div><p className="mb-1 text-xs font-semibold">Participación por sucursal</p>{version.premisas.sucursales?.map((row) => <p key={`${row.unidadNegocioId}:${row.sucursalId}`} className="text-xs text-muted-foreground">{sucursalesCatalogo?.find((item) => item.id === row.sucursalId)?.nombre ?? "Sucursal"}: {row.participacion.toFixed(2)}%</p>)}</div><div><p className="mb-1 text-xs font-semibold">Participación mensual</p>{version.premisas.meses?.map((row) => <p key={`${row.unidadNegocioId}:${row.mes}`} className="text-xs text-muted-foreground">{MESES[row.mes - 1]}: {row.participacion.toFixed(2)}%</p>)}</div></div></details>}</td>
                     <td className="p-2">{version.premisas?.tipo === "plan_comercial_unidad" ? "Plan recibido" : ESTADO_LABEL[version.estado]}</td>
                     <td className="p-2 tabular-nums">
                       {version.premisas?.tipo === "plan_comercial_unidad" ? (
@@ -588,7 +611,12 @@ function PresupuestoGerenciaPage() {
                       })()}
                     </td>
                     <td className="p-2">{new Date(version.createdAt).toLocaleDateString("es-VE")}</td>
-                    <td className="p-2 text-right">{!esGerenteComercial && version.estado === "propuesto" && version.premisas?.tipo !== "plan_comercial_unidad" && <Button size="sm" onClick={() => aprobar.mutate(version.id)} disabled={aprobar.isPending}>{aprobar.isPending ? "Aprobando…" : "Aprobar"}</Button>}</td>
+                    <td className="p-2 text-right">{role === "gerencia" && version.estado === "propuesto" && version.creadorRol === "director" && version.premisas?.tipo === "participacion" && (() => {
+                      const hijaPendiente = versiones?.some((item) => item.estado === "propuesto" && item.premisas?.versionPadreId === version.id);
+                      return hijaPendiente
+                        ? <span className="text-xs text-muted-foreground">Revisión de Gerencia pendiente</span>
+                        : <Button size="sm" variant="outline" onClick={() => iniciarCompletarPropuesta(version)}>Completar mi nivel</Button>;
+                    })()}{!esGerenteComercial && version.estado === "propuesto" && version.premisas?.tipo !== "plan_comercial_unidad" && !(role === "gerencia" && version.creadorRol === "director") && <Button size="sm" onClick={() => aprobar.mutate(version.id)} disabled={aprobar.isPending}>{aprobar.isPending ? "Aprobando…" : "Aprobar"}</Button>}</td>
                   </tr>
                 ))}
                 {!versionesError && versiones?.length === 0 && <tr><td className="p-2 text-muted-foreground" colSpan={5}>Sin revisiones guardadas para {targetAnio}.</td></tr>}
