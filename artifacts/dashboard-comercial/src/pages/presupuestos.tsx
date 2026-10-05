@@ -102,8 +102,7 @@ const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "O
 function descripcionMetaBase(data: ProyeccionData) {
   const proyeccion = data.proyeccionVenta;
   if (proyeccion.metodo === "proyeccion") {
-    const mes = MESES[Math.max(0, Math.min(MESES.length - 1, proyeccion.mesesConsiderados - 1))];
-    return `Venta ene–${mes} ${proyeccion.anio}: ${money(proyeccion.ventaAcumulada)} ÷ ${proyeccion.mesesConsiderados} × 12`;
+    return `${money(proyeccion.ventaAcumulada)} ÷ ${proyeccion.mesesConsiderados} × 12`;
   }
   if (proyeccion.metodo === "cierre") {
     return `Venta de cierre ${proyeccion.anio}: ${money(proyeccion.ventaAcumulada)}`;

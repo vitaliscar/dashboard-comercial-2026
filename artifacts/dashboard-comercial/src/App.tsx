@@ -629,11 +629,8 @@ function DashboardApp() {
               className="size-10 rounded-xl object-contain"
             />
             <div className="min-w-0 flex-1">
-              <p className="font-display text-sm font-bold tracking-wide">
+              <p className="font-display text-sm font-bold tracking-wide text-black">
                 DASHBOARD COMERCIAL
-              </p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/55">
-                Decisiones 2026
               </p>
             </div>
             <button
