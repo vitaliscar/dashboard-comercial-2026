@@ -583,15 +583,16 @@ function DashboardApp() {
   return (
     <ProtectedShell>
       <div className="ccv-shell min-h-screen bg-background text-foreground">
-        <a className="ccv-skip-link" href="#main-content">
+        <a className="ccv-skip-link" href="#main-content" aria-hidden={isMobileNav && menuOpen} inert={isMobileNav && menuOpen}>
           Ir al contenido
         </a>
         {menuOpen && (
           <button
             type="button"
+            tabIndex={-1}
+            aria-hidden="true"
             className="fixed inset-0 z-30 bg-black/70 lg:hidden"
             onClick={() => setMenuOpen(false)}
-            aria-label="Cerrar menú"
           />
         )}
         <aside
@@ -606,13 +607,16 @@ function DashboardApp() {
             if (!menuOpen || event.key !== "Tab") return;
             const focusable = Array.from(
               sidebarRef.current?.querySelectorAll<HTMLElement>(
-                'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])',
               ) ?? [],
             ).filter((element) => element.getClientRects().length > 0);
             if (!focusable.length) return;
             const first = focusable[0];
             const last = focusable[focusable.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
+            if (!sidebarRef.current?.contains(document.activeElement)) {
+              event.preventDefault();
+              first.focus();
+            } else if (event.shiftKey && document.activeElement === first) {
               event.preventDefault();
               last.focus();
             } else if (!event.shiftKey && document.activeElement === last) {
@@ -745,6 +749,7 @@ function DashboardApp() {
           </div>
         </aside>
 
+        <div aria-hidden={isMobileNav && menuOpen} inert={isMobileNav && menuOpen}>
         <main
           id="main-content"
           tabIndex={-1}
@@ -948,6 +953,7 @@ function DashboardApp() {
             </Suspense>
           </div>
         </main>
+        </div>
       </div>
     </ProtectedShell>
   );
