@@ -156,12 +156,9 @@ function aplicarPermisosDeRol(
   enviada: DistribucionPresupuesto,
   crecimientoInicial: number,
 ): DistribucionPresupuesto {
-  if (role !== "director" && role !== "gerencia") return enviada;
+  if (role !== "gerencia") return enviada;
   const gestionBase = gestionConfigDePremisas(contexto.premisasBase);
   const base = distribucionAprobada(contexto, crecimientoInicial, gestionBase);
-  if (role === "director") {
-    return { ...base, crecimientoAnualPct: enviada.crecimientoAnualPct };
-  }
   return { ...enviada, crecimientoAnualPct: base.crecimientoAnualPct };
 }
 
@@ -337,6 +334,9 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const rows = await run(res, value, (tx) => tx.query(
       `SELECT id, anio, nombre, escenario, estado, descripcion, ${premisasSelect},
         creado_por AS "creadoPor",
+        (SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = presupuestos_versiones.creado_por
+         ORDER BY CASE ur.role WHEN 'administrador' THEN 0 WHEN 'director' THEN 1 WHEN 'gerencia' THEN 2 WHEN 'gerente_comercial' THEN 3 WHEN 'coordinador' THEN 4 ELSE 5 END
+         LIMIT 1) AS "creadorRol",
         aprobado_por AS "aprobadoPor", aprobado_at AS "aprobadoAt",
         created_at AS "createdAt", updated_at AS "updatedAt"
        FROM presupuestos_versiones WHERE anio = $1 ${managerFilter} ORDER BY created_at DESC`,
@@ -352,6 +352,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const escenario = req.body?.escenario;
     const baseAnio = Number(req.body?.baseAnio);
     const descripcion = typeof req.body?.descripcion === "string" ? req.body.descripcion.trim() : null;
+    const versionPadreId = typeof req.body?.versionPadreId === "string" ? req.body.versionPadreId : null;
     if (!anioValido(anio) || !nombre || nombre.length > 120 || !ESCENARIOS.includes(escenario)) {
       res.status(400).json({ message: "Los datos de la versión no son válidos." }); return;
     }
@@ -361,6 +362,22 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     if ((value.role === "director" || value.role === "gerencia") && !distribucion) { res.status(403).json({ message: "Dirección y Gerencia Nacional deben usar la propuesta por distribución." }); return; }
     if (value.role === "gerente_comercial" && !distribucion) { res.status(403).json({ message: "La gerencia comercial solo puede proponer la distribución de su unidad." }); return; }
     if ((value.role === "gerente_comercial" || value.role === "director") && !anioValido(baseAnio)) { res.status(400).json({ message: "El año base de la propuesta no es válido." }); return; }
+    if (versionPadreId && value.role !== "gerencia") { res.status(403).json({ message: "Solo Gerencia Nacional puede completar una propuesta de Dirección." }); return; }
+    if (value.role === "gerencia" && !versionPadreId) {
+      const pendienteDireccion = await run(res, value, (tx) => tx.query(
+        `SELECT id FROM presupuestos_versiones v
+         WHERE v.anio = $1 AND v.estado = 'propuesto'
+           AND (SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = v.creado_por
+                ORDER BY CASE ur.role WHEN 'administrador' THEN 0 WHEN 'director' THEN 1 WHEN 'gerencia' THEN 2 ELSE 3 END LIMIT 1) = 'director'
+         ORDER BY v.created_at DESC LIMIT 1`,
+        [anio],
+      ));
+      if (!pendienteDireccion) return;
+      if (pendienteDireccion.rows.length > 0) {
+        res.status(409).json({ message: "Hay una propuesta del Director pendiente. Complétala desde Versiones guardadas antes de crear otra revisión." });
+        return;
+      }
+    }
     if (value.role === "gerente_comercial" && (!descripcion || descripcion.length < 20 || descripcion.length > 2000)) {
       res.status(400).json({ message: "Incluye un plan comercial de al menos 20 caracteres y máximo 2.000." }); return;
     }
@@ -385,11 +402,38 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
           versionBaseId: contexto.versionBaseId,
           unidadSolicitanteIds: alcance.unidadIds,
         };
-      } else if (value.role === "director" && distribucion) {
+      } else if ((value.role === "director" || value.role === "gerencia" || value.role === "administrador") && distribucion) {
         const contexto = await contextoPresupuesto(tx, baseAnio, anio);
         const crecimientoInicial = contexto.origen === "anio_anterior" ? 5 : 0;
+        if (versionPadreId) {
+          const parent = await tx.query(
+            `SELECT v.id, v.estado, v.premisas,
+              (SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = v.creado_por
+               ORDER BY CASE ur.role WHEN 'administrador' THEN 0 WHEN 'director' THEN 1 WHEN 'gerencia' THEN 2 ELSE 3 END LIMIT 1) AS "creadorRol"
+             FROM presupuestos_versiones v WHERE v.id = $1::uuid AND v.anio = $2 FOR UPDATE`,
+            [versionPadreId, anio],
+          );
+          const parentVersion = parent.rows[0];
+          const parentPremisas = parentVersion?.premisas as Record<string, unknown> | null;
+          if (!parentVersion || parentVersion.estado !== "propuesto" || parentVersion.creadorRol !== "director" || parentPremisas?.tipo !== "participacion") {
+            throw new Error("PRESUPUESTO_INVALIDO:Solo puedes completar una propuesta vigente de Dirección.");
+          }
+          if ((parentPremisas.versionBaseId ?? null) !== (contexto.versionBaseId ?? null)) {
+            throw new Error("PRESUPUESTO_INVALIDO:La propuesta de Dirección parte de una versión anterior. Genera una nueva revisión.");
+          }
+          const child = await tx.query(
+            `SELECT id FROM presupuestos_versiones
+             WHERE estado IN ('borrador', 'propuesto') AND premisas->>'versionPadreId' = $1
+             LIMIT 1`,
+            [versionPadreId],
+          );
+          if (child.rows.length > 0) {
+            throw new Error("PRESUPUESTO_INVALIDO:Ya existe una revisión de Gerencia Nacional para esta propuesta del Director.");
+          }
+          contexto.premisasBase = parentPremisas;
+        }
         const config = aplicarPermisosDeRol(value.role, contexto, distribucion, crecimientoInicial);
-        snapshot = { tipo: "participacion", ...config, versionBaseId: contexto.versionBaseId };
+        snapshot = { tipo: "participacion", ...config, versionBaseId: contexto.versionBaseId, ...(versionPadreId ? { versionPadreId } : {}) };
       }
       return tx.query(
       `INSERT INTO presupuestos_versiones (anio, nombre, escenario, estado, descripcion, premisas, creado_por)
@@ -439,13 +483,28 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const premisas = distribucion ? [] : premisasDeBody(req.body ?? {});
     if (!distribucion && !premisas) { res.status(400).json({ message: "Las premisas o la distribución no son válidas." }); return; }
     const result = await run(res, value, async (tx) => {
-      const exists = await tx.query("SELECT id, anio, estado FROM presupuestos_versiones WHERE id = $1::uuid", [id]);
+      const exists = await tx.query(`SELECT id, anio, estado, creado_por AS "creadoPor", premisas FROM presupuestos_versiones WHERE id = $1::uuid`, [id]);
       const version = exists.rows[0];
       if (!version) throw new Error("NOT_FOUND");
+      if (value.role !== "administrador" && String(version.creadoPor) !== value.user.id) {
+        throw new Error("PRESUPUESTO_INVALIDO:No puedes regenerar una versión creada por otra persona. Crea una revisión desde esa propuesta.");
+      }
       if (version.estado === "aprobado" || version.estado === "archivado") throw new Error("PRESUPUESTO_INVALIDO:No se puede regenerar una versión aprobada o archivada.");
       if (distribucion) {
         const contexto = await contextoPresupuesto(tx, anio, Number(version.anio));
         const crecimientoInicial = contexto.origen === "anio_anterior" ? 5 : 0;
+        const versionPremisas = version.premisas as Record<string, unknown> | null;
+        if (typeof versionPremisas?.versionPadreId === "string") {
+          const parent = await tx.query("SELECT estado, premisas FROM presupuestos_versiones WHERE id = $1::uuid AND anio = $2", [versionPremisas.versionPadreId, version.anio]);
+          const parentPremisas = parent.rows[0]?.premisas as Record<string, unknown> | null;
+          if (!parentPremisas || parentPremisas.tipo !== "participacion" || parent.rows[0]?.estado !== "propuesto") {
+            throw new Error("PRESUPUESTO_INVALIDO:La propuesta que intentas completar ya no está vigente.");
+          }
+          if ((parentPremisas.versionBaseId ?? null) !== (contexto.versionBaseId ?? null)) {
+            throw new Error("PRESUPUESTO_INVALIDO:La propuesta base cambió. Genera una nueva revisión.");
+          }
+          contexto.premisasBase = parentPremisas;
+        }
         const distribucionAutorizada = aplicarPermisosDeRol(value.role, contexto, distribucion, crecimientoInicial);
         const alcance = aplicarAlcanceDistribucion(value, contexto.filas, distribucionAutorizada, gestionConfigDePremisas(contexto.premisasBase));
         const configCompleta = alcance.distribucion;
@@ -518,8 +577,17 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const value = await scopedSession(req, res); if (!value) return;
     if (value.role === "gerente_comercial") { res.status(403).json({ message: "La aprobación de versiones corresponde a gerencia nacional." }); return; }
     const result = await run(res, value, async (tx) => {
-      const candidate = await tx.query("SELECT anio, premisas FROM presupuestos_versiones WHERE id = $1::uuid AND estado = 'propuesto'", [req.params.id]);
+      const candidate = await tx.query(
+        `SELECT v.anio, v.premisas,
+          (SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = v.creado_por
+           ORDER BY CASE ur.role WHEN 'administrador' THEN 0 WHEN 'director' THEN 1 WHEN 'gerencia' THEN 2 WHEN 'gerente_comercial' THEN 3 ELSE 4 END LIMIT 1) AS "creadorRol"
+         FROM presupuestos_versiones v WHERE v.id = $1::uuid AND v.estado = 'propuesto'`,
+        [req.params.id],
+      );
       if (!candidate.rows[0]) throw new Error("NOT_FOUND");
+      if (value.role === "gerencia" && candidate.rows[0].creadorRol === "director") {
+        throw new Error("PRESUPUESTO_INVALIDO:Gerencia Nacional debe completar la propuesta del Director antes de aprobarla.");
+      }
       if ((candidate.rows[0].premisas as Record<string, unknown> | null)?.tipo === "plan_comercial_unidad") {
         throw new Error("PRESUPUESTO_INVALIDO:Un plan comercial de unidad no puede aprobarse como presupuesto anual completo.");
       }
@@ -561,6 +629,10 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         [value.user.id, req.params.id],
       );
       if (!version.rows[0]) throw new Error("NOT_FOUND");
+      const versionPadreId = typeof premisasSnapshot?.versionPadreId === "string" ? premisasSnapshot.versionPadreId : null;
+      if (versionPadreId) {
+        await tx.query("UPDATE presupuestos_versiones SET estado = 'archivado', updated_at = now() WHERE id = $1::uuid AND estado = 'propuesto'", [versionPadreId]);
+      }
       const anio = version.rows[0].anio;
       const lineas = await tx.query(
         `SELECT mes, sucursal_id AS "sucursalId", unidad_negocio_id AS "unidadNegocioId", monto FROM presupuestos_versiones_lineas WHERE version_id = $1::uuid`,
@@ -600,7 +672,9 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const value = await scopedSession(req, res); if (!value) return;
     const baseAnio = Number(req.body?.baseAnio);
     const targetAnio = Number(req.body?.targetAnio);
+    const versionPadreId = typeof req.body?.versionPadreId === "string" ? req.body.versionPadreId : null;
     if (!anioValido(baseAnio) || !anioValido(targetAnio)) { res.status(400).json({ message: "Los años no son válidos." }); return; }
+    if (versionPadreId && value.role !== "gerencia") { res.status(403).json({ message: "Solo Gerencia Nacional puede completar una propuesta de Dirección." }); return; }
     if (req.body?.modo !== "distribucion") {
       const premisas = premisasDeBody(req.body ?? {});
       if (!premisas) { res.status(400).json({ message: "Las premisas no son válidas." }); return; }
@@ -622,6 +696,23 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const result = await run(res, value, async (tx) => {
       const contexto = await contextoPresupuesto(tx, baseAnio, targetAnio);
       const crecimientoInicial = contexto.origen === "anio_anterior" ? 5 : 0;
+      if (versionPadreId) {
+        const parent = await tx.query(
+          `SELECT v.estado, v.premisas,
+            (SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = v.creado_por
+             ORDER BY CASE ur.role WHEN 'administrador' THEN 0 WHEN 'director' THEN 1 WHEN 'gerencia' THEN 2 ELSE 3 END LIMIT 1) AS "creadorRol"
+           FROM presupuestos_versiones v WHERE v.id = $1::uuid AND v.anio = $2`,
+          [versionPadreId, targetAnio],
+        );
+        const parentPremisas = parent.rows[0]?.premisas as Record<string, unknown> | null;
+        if (parent.rows[0]?.estado !== "propuesto" || parent.rows[0]?.creadorRol !== "director" || parentPremisas?.tipo !== "participacion") {
+          throw new Error("PRESUPUESTO_INVALIDO:Solo puedes completar una propuesta vigente de Dirección.");
+        }
+        if ((parentPremisas.versionBaseId ?? null) !== (contexto.versionBaseId ?? null)) {
+          throw new Error("PRESUPUESTO_INVALIDO:La propuesta de Dirección parte de una versión anterior. Genera una nueva revisión.");
+        }
+        contexto.premisasBase = parentPremisas;
+      }
       const gestionPorUnidad = gestionConfigDePremisas(contexto.premisasBase);
       const configuracionSolicitada = req.body?.distribucion === undefined
         ? distribucionInicial(contexto.filas, crecimientoInicial, gestionPorUnidad.porcentajes, gestionPorUnidad.montos)
