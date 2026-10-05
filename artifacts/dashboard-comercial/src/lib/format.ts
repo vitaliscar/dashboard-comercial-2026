@@ -65,6 +65,8 @@ export function roleLabel(r?: string | null): string {
       return "Administrador";
     case "gerencia":
       return "Gerencia Nacional";
+    case "director":
+      return "Dirección";
     case "gerente_comercial":
       return "Gerente Comercial";
     case "coordinador":

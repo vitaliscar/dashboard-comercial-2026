@@ -6,7 +6,7 @@ type Queryable = { query: (text: string, values?: unknown[]) => Promise<{ rows: 
 type SessionLoader = (req: Request) => Promise<SessionPayload | null>;
 type Transaction = <T>(session: SessionPayload, fn: (tx: Queryable) => Promise<T>) => Promise<T>;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ROLES = new Set(["administrador", "gerencia", "gerente_comercial", "coordinador", "asesor"]);
+const ROLES = new Set(["administrador", "director", "gerencia", "gerente_comercial", "coordinador", "asesor"]);
 
 function id(value: unknown) { return typeof value === "string" && UUID.test(value) ? value : null; }
 function optionalId(value: unknown) { return value == null || value === "" ? null : id(value); }
@@ -32,7 +32,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
     const session = await currentSession(req);
     if (!session) { res.status(401).json({ message: "Sesión no válida." }); return null; }
     if (!isFullAccessRole(session.role)) {
-      res.status(403).json({ message: "Solo Gerencia Nacional o Administrador puede administrar usuarios." });
+      res.status(403).json({ message: "Solo Dirección, Gerencia Nacional o Administrador puede administrar usuarios." });
       return null;
     }
     return session;
@@ -53,7 +53,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
   async function ajustesAccess(req: Request, res: Response) {
     const session = await currentSession(req);
     if (!session) { res.status(401).json({ message: "Sesión no válida." }); return null; }
-    if (session.role === "administrador" || (session.role === "gerencia" && session.profile.isAdmin)) {
+    if (session.role === "administrador" || ((session.role === "gerencia" || session.role === "director") && session.profile.isAdmin)) {
       return session;
     }
     res.status(403).json({ message: "Solo Gerencia administradora puede administrar ajustes manuales." });
@@ -146,7 +146,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
       const resolvedUnits = unidadIds ?? (req.body?.unidadNegocioId !== undefined ? (unidadId ? [unidadId] : []) : currentUnits.rows.map((row) => String(row.id)).concat(currentUnits.rows.length ? [] : legacy.unidadId ? [String(legacy.unidadId)] : []));
       const resolvedBranches = sucursalIds ?? (req.body?.sucursalId !== undefined ? (sucursalId ? [sucursalId] : []) : currentBranches.rows.map((row) => String(row.id)).concat(currentBranches.rows.length ? [] : legacy.sucursalId ? [String(legacy.sucursalId)] : []));
       if (scopeRequired(nextRole, resolvedUnits, resolvedBranches)) throw new Error("SCOPE_REQUIRED");
-      if (session.role === "gerencia" && hasAdminRole) throw new Error("ADMIN_TARGET");
+      if (session.role !== "administrador" && hasAdminRole) throw new Error("ADMIN_TARGET");
       if (role !== undefined) { await tx.query("DELETE FROM user_roles WHERE user_id = $1::uuid", [userId]); await tx.query("INSERT INTO user_roles (user_id, role) VALUES ($1::uuid, $2::app_role)", [userId, role]); }
       if (isActive !== undefined) { await tx.query("UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2::uuid", [isActive, userId]); if (!isActive) await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]); }
       if (isAdmin !== undefined || sucursalIds !== undefined || unidadIds !== undefined || req.body?.sucursalId !== undefined || req.body?.unidadNegocioId !== undefined) await tx.query("UPDATE profiles SET is_admin = COALESCE($1, is_admin), sucursal_id = CASE WHEN $2 THEN $3::uuid ELSE sucursal_id END, unidad_negocio_id = CASE WHEN $4 THEN $5::uuid ELSE unidad_negocio_id END, updated_at = now() WHERE id = $6::uuid", [isAdmin ?? null, sucursalIds !== undefined || req.body?.sucursalId !== undefined, resolvedBranches[0] ?? null, unidadIds !== undefined || req.body?.unidadNegocioId !== undefined, resolvedUnits[0] ?? null, userId]);
@@ -168,7 +168,7 @@ export default function administracionRouter(currentSession: SessionLoader, with
     const result = await run(res, session, async (tx) => {
       const targetRoles = await tx.query("SELECT role FROM user_roles WHERE user_id = $1::uuid", [userId]);
       if (!targetRoles.rows.length) throw new Error("USER_NOT_FOUND");
-      if (session.role === "gerencia" && targetRoles.rows.some((row) => row.role === "administrador")) throw new Error("ADMIN_TARGET");
+      if (session.role !== "administrador" && targetRoles.rows.some((row) => row.role === "administrador")) throw new Error("ADMIN_TARGET");
       await tx.query("UPDATE users SET password_hash = $1, must_change_password = true, updated_at = now() WHERE id = $2::uuid", [await hash(password), userId]);
       await tx.query("DELETE FROM sessions WHERE user_id = $1::uuid", [userId]);
       return { success: true };

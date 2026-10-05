@@ -10,10 +10,10 @@ const LOCK_MS = 15 * 60 * 1000;
 const SESSION_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+type AppRole = "administrador" | "director" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 export function isFullAccessRole(role: string | null | undefined): boolean {
-  return role === "administrador" || role === "gerencia";
+  return role === "administrador" || role === "director" || role === "gerencia";
 }
 export type QueryResult = { rows: any[] };
 export type Queryable = {
@@ -85,12 +85,14 @@ export async function loadPayload(pool: Queryable, userId: string) {
     pool.query(`SELECT sucursal_id FROM profile_sucursales WHERE profile_id = $1`, [userId]),
   ]);
 
-  const rolePriority: AppRole[] = ["gerencia", "gerente_comercial", "coordinador", "asesor"];
+  const rolePriority: AppRole[] = ["director", "gerencia", "gerente_comercial", "coordinador", "asesor"];
   const assignedRoles = rolesResult.rows.map((row) => row.role as AppRole);
   // administrador gana sobre is_admin→gerencia.
   const role = assignedRoles.includes("administrador")
     ? "administrador"
-    : profile.is_admin
+    : assignedRoles.includes("director")
+      ? "director"
+      : profile.is_admin
       ? "gerencia"
       : rolePriority.find((candidate) => assignedRoles.includes(candidate)) ?? null;
   const unidadesNegocioIds = unitsResult.rows.length
@@ -169,7 +171,9 @@ export async function withScopedTransaction<T>(
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL ROLE app_user");
-    await client.query("SELECT set_config('app.current_role', $1, true)", [session.role ?? ""]);
+    // Director has the same row-level scope as Gerencia Nacional. Keep the
+    // application role distinct for budget field-level permissions.
+    await client.query("SELECT set_config('app.current_role', $1, true)", [session.role === "director" ? "gerencia" : session.role ?? ""]);
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [session.user.id]);
     await client.query(
       "SELECT set_config('app.current_sucursal_id', $1, true)",

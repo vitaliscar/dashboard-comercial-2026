@@ -169,7 +169,7 @@ export function canAccessModule(
   ) {
     return false;
   }
-  // Administrador y gerencia: acceso total a módulos (RLS sigue aplicando el
+  // Administrador, Dirección y gerencia: acceso total a módulos (RLS sigue aplicando el
   // scope de datos). Evita que un error de config deje a gerencia sin /usuarios.
   if (isFullAccessRole(role)) return true;
   if (moduleAccessOverride) {
@@ -180,7 +180,7 @@ export function canAccessModule(
 
 /** Gerencia Nacional o Administrador — vistas globales / bypass de módulo. */
 export function isFullAccessRole(role: AppRole | null | undefined): boolean {
-  return role === "administrador" || role === "gerencia";
+  return role === "administrador" || role === "director" || role === "gerencia";
 }
 
 /** Solo Administrador puede crear o eliminar usuarios. */
@@ -195,12 +195,12 @@ export function canManageManualAdjustments(
   role: AppRole | null | undefined,
   isAdmin = false,
 ): boolean {
-  return role === "administrador" || (role === "gerencia" && isAdmin);
+  return role === "administrador" || ((role === "gerencia" || role === "director") && isAdmin);
 }
 
 /** Solo Gerencia Nacional puede descargar/exportar información. */
 export function canDownloadData(role: AppRole | null | undefined): boolean {
-  return role === "gerencia";
+  return role === "gerencia" || role === "director";
 }
 
 export function getModulesForRole(
@@ -236,6 +236,7 @@ export function canFilterSucursal(context: UserContext): boolean {
 
   switch (context.role) {
     case "administrador":
+    case "director":
     case "gerencia":
       return true;
     case "gerente_comercial":
@@ -263,6 +264,7 @@ export function canFilterUN(context: UserContext): boolean {
 
   switch (context.role) {
     case "administrador":
+    case "director":
     case "gerencia":
       return true;
     case "gerente_comercial":
@@ -284,6 +286,7 @@ export function getAccessibleSucursales(context: UserContext): string[] {
 
   switch (context.role) {
     case "administrador":
+    case "director":
     case "gerencia":
       return [];
     case "gerente_comercial":
@@ -305,6 +308,7 @@ export function getAccessibleUN(context: UserContext): string[] {
 
   switch (context.role) {
     case "administrador":
+    case "director":
     case "gerencia":
       return [];
     case "gerente_comercial":
@@ -333,6 +337,7 @@ export function getAccessibleAsesores(context: UserContext): string[] {
 
   switch (context.role) {
     case "administrador":
+    case "director":
     case "gerencia":
       // Empty array means access to all asesores
       return [];

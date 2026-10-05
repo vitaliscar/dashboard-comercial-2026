@@ -91,7 +91,7 @@ export type Module = {
 };
 
 export type DemoRole =
-  "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+  "administrador" | "director" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 const modules: Module[] = [
   {
@@ -242,6 +242,7 @@ const modules: Module[] = [
 
 const DEMO_ROLE_LABELS: Record<DemoRole, string> = {
   administrador: "Administrador",
+  director: "Dirección",
   gerencia: "Gerencia",
   gerente_comercial: "Gerente comercial",
   coordinador: "Coordinador",
@@ -250,6 +251,7 @@ const DEMO_ROLE_LABELS: Record<DemoRole, string> = {
 
 const DEMO_DASHBOARD_PATHS: Record<DemoRole, string> = {
   administrador: "/gerencia-nacional",
+  director: "/gerencia-nacional",
   gerencia: "/gerencia-nacional",
   gerente_comercial: "/dashboard",
   coordinador: "/coordinador",
@@ -273,6 +275,7 @@ const DEMO_DASHBOARD_LABELS: Record<string, string> = {
 function roleInitials(role: DemoRole) {
   return {
     administrador: "AD",
+    director: "DI",
     gerencia: "GN",
     gerente_comercial: "GC",
     coordinador: "CO",
@@ -323,7 +326,7 @@ function RoleDashboardRoute({ path, role }: { path: string; role: DemoRole }) {
   if (path === "/sucursal" && role === "coordinador") return <SucursalPage />;
   if (
     path === "/gerencia-nacional" &&
-    (role === "gerencia" || role === "administrador")
+    (role === "gerencia" || role === "director" || role === "administrador")
   )
     return <GerenciaNacionalPage />;
   return <AccessDenied role={role} />;

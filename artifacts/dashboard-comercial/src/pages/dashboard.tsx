@@ -22,6 +22,7 @@ function getDashboardRoute(
 ): string | null {
   switch (role) {
     case "administrador":
+    case "director":
     case "gerencia":
       return "/gerencia-nacional";
     case "coordinador":

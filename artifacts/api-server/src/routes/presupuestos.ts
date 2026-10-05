@@ -122,6 +122,28 @@ function distribucionDeBody(input: unknown): DistribucionPresupuesto | null {
   };
 }
 
+function distribucionAprobada(contexto: Awaited<ReturnType<typeof contextoPresupuesto>>, crecimientoInicial: number, gestionBase = gestionConfigDePremisas(contexto.premisasBase)) {
+  const aprobada = contexto.premisasBase?.tipo === "participacion"
+    ? distribucionDeBody(contexto.premisasBase)
+    : null;
+  return aprobada ?? distribucionInicial(contexto.filas, crecimientoInicial, gestionBase.porcentajes, gestionBase.montos);
+}
+
+function aplicarPermisosDeRol(
+  role: string | null | undefined,
+  contexto: Awaited<ReturnType<typeof contextoPresupuesto>>,
+  enviada: DistribucionPresupuesto,
+  crecimientoInicial: number,
+): DistribucionPresupuesto {
+  if (role !== "director" && role !== "gerencia") return enviada;
+  const gestionBase = gestionConfigDePremisas(contexto.premisasBase);
+  const base = distribucionAprobada(contexto, crecimientoInicial, gestionBase);
+  if (role === "director") {
+    return { ...base, crecimientoAnualPct: enviada.crecimientoAnualPct };
+  }
+  return { ...enviada, crecimientoAnualPct: base.crecimientoAnualPct };
+}
+
 function unidadesAsignadas(session: SessionPayload) {
   return [...new Set(session.profile.unidadesNegocioIds?.length
     ? session.profile.unidadesNegocioIds
@@ -206,7 +228,7 @@ function aplicarAlcanceDistribucion(session: SessionPayload, filas: FilaBasePres
 // Roles que pueden ver o tocar este módulo (financiero) — coordinador/asesor nunca
 // deben leer presupuesto/facturación de toda la empresa. Debe coincidir con
 // MODULE_ACCESS["presupuestos"] en el frontend (src/lib/permissions.ts).
-const ALLOWED_ROLES = ["administrador", "gerencia", "gerente_comercial"];
+const ALLOWED_ROLES = ["administrador", "director", "gerencia", "gerente_comercial"];
 
 const ESCENARIOS = ["conservador", "base", "optimista"];
 
@@ -315,8 +337,9 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const distribucionSolicitada = Object.prototype.hasOwnProperty.call(req.body ?? {}, "distribucion");
     const distribucion = distribucionDeBody(req.body?.distribucion);
     if (distribucionSolicitada && !distribucion) { res.status(400).json({ message: "La distribución no es válida." }); return; }
+    if ((value.role === "director" || value.role === "gerencia") && !distribucion) { res.status(403).json({ message: "Dirección y Gerencia Nacional deben usar la propuesta por distribución." }); return; }
     if (value.role === "gerente_comercial" && !distribucion) { res.status(403).json({ message: "La gerencia comercial solo puede proponer la distribución de su unidad." }); return; }
-    if (value.role === "gerente_comercial" && !anioValido(baseAnio)) { res.status(400).json({ message: "El año base de la propuesta no es válido." }); return; }
+    if ((value.role === "gerente_comercial" || value.role === "director") && !anioValido(baseAnio)) { res.status(400).json({ message: "El año base de la propuesta no es válido." }); return; }
     if (value.role === "gerente_comercial" && (!descripcion || descripcion.length < 20 || descripcion.length > 2000)) {
       res.status(400).json({ message: "Incluye un plan comercial de al menos 20 caracteres y máximo 2.000." }); return;
     }
@@ -341,6 +364,11 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
           versionBaseId: contexto.versionBaseId,
           unidadSolicitanteIds: alcance.unidadIds,
         };
+      } else if (value.role === "director" && distribucion) {
+        const contexto = await contextoPresupuesto(tx, baseAnio, anio);
+        const crecimientoInicial = contexto.origen === "anio_anterior" ? 5 : 0;
+        const config = aplicarPermisosDeRol(value.role, contexto, distribucion, crecimientoInicial);
+        snapshot = { tipo: "participacion", ...config, versionBaseId: contexto.versionBaseId };
       }
       return tx.query(
       `INSERT INTO presupuestos_versiones (anio, nombre, escenario, estado, descripcion, premisas, creado_por)
@@ -386,6 +414,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const distribucionSolicitada = Object.prototype.hasOwnProperty.call(req.body ?? {}, "distribucion");
     const distribucion = distribucionDeBody(req.body?.distribucion);
     if (distribucionSolicitada && !distribucion) { res.status(400).json({ message: "La distribución no es válida." }); return; }
+    if ((value.role === "director" || value.role === "gerencia") && !distribucion) { res.status(403).json({ message: "Dirección y Gerencia Nacional deben usar la propuesta por distribución." }); return; }
     const premisas = distribucion ? [] : premisasDeBody(req.body ?? {});
     if (!distribucion && !premisas) { res.status(400).json({ message: "Las premisas o la distribución no son válidas." }); return; }
     const result = await run(res, value, async (tx) => {
@@ -395,7 +424,9 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
       if (version.estado === "aprobado" || version.estado === "archivado") throw new Error("PRESUPUESTO_INVALIDO:No se puede regenerar una versión aprobada o archivada.");
       if (distribucion) {
         const contexto = await contextoPresupuesto(tx, anio, Number(version.anio));
-        const alcance = aplicarAlcanceDistribucion(value, contexto.filas, distribucion, gestionConfigDePremisas(contexto.premisasBase));
+        const crecimientoInicial = contexto.origen === "anio_anterior" ? 5 : 0;
+        const distribucionAutorizada = aplicarPermisosDeRol(value.role, contexto, distribucion, crecimientoInicial);
+        const alcance = aplicarAlcanceDistribucion(value, contexto.filas, distribucionAutorizada, gestionConfigDePremisas(contexto.premisasBase));
         const configCompleta = alcance.distribucion;
         // The currency amount is controlled by the latest approved snapshot. A client
         // may propose the rate, but cannot replace a previously fixed amount.
@@ -571,9 +602,12 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
       const contexto = await contextoPresupuesto(tx, baseAnio, targetAnio);
       const crecimientoInicial = contexto.origen === "anio_anterior" ? 5 : 0;
       const gestionPorUnidad = gestionConfigDePremisas(contexto.premisasBase);
-      const configuracionInicial = req.body?.distribucion === undefined
+      const configuracionSolicitada = req.body?.distribucion === undefined
         ? distribucionInicial(contexto.filas, crecimientoInicial, gestionPorUnidad.porcentajes, gestionPorUnidad.montos)
         : distribucionDeBody(req.body.distribucion);
+      const configuracionInicial = configuracionSolicitada
+        ? aplicarPermisosDeRol(value.role, contexto, configuracionSolicitada, crecimientoInicial)
+        : null;
       if (!configuracionInicial) throw new Error("PRESUPUESTO_INVALIDO:La distribución no es válida.");
       const configuracionConGestionFijada: DistribucionPresupuesto = {
         ...configuracionInicial,

@@ -162,7 +162,7 @@ const ROLES_USUARIO_CANONICAS: { [key: string]: string } = {
 
 const ROLES_USUARIO_VALIDOS = new Set(Object.values(ROLES_USUARIO_CANONICAS));
 
-export type AppRole = "administrador" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
+export type AppRole = "administrador" | "director" | "gerencia" | "gerente_comercial" | "coordinador" | "asesor";
 
 /**
  * Mapea la etiqueta de rol de la hoja Usuarios (8 valores) al enum app_role
