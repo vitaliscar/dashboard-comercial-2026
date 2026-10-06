@@ -680,7 +680,7 @@ function PresupuestoGerenciaPage() {
       <section aria-label="Resumen de meta anual" className="grid scroll-mt-24 gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3 lg:sticky lg:top-[76px] lg:z-10 lg:shadow-sm">
         <div><p className="text-xs text-muted-foreground">Meta base proyectada</p><p className="font-semibold tabular-nums">{data ? money(data.metaBase) : "Calculando…"}</p></div>
         <div><p className="text-xs text-muted-foreground">Meta propuesta</p><p className="font-semibold text-primary tabular-nums">{data ? money(data.metaTotalConGestion) : "Calculando…"}</p></div>
-        <div><p className="text-xs text-muted-foreground">Última meta aprobada · piso</p><p className="font-semibold tabular-nums">{ultimaMetaAprobada === null ? "Aún no hay aprobación" : money(ultimaMetaAprobada)}</p></div>
+        <div><p className="text-xs text-muted-foreground">Piso mínimo protegido</p><p className="font-semibold tabular-nums">{ultimaMetaAprobada !== null ? money(ultimaMetaAprobada) : data ? (data.metaMinima > 0 ? money(data.metaMinima) : "Sin piso definido") : "Cargando…"}</p></div>
       </section>
 
       <details className="rounded-xl border bg-card px-4 py-3">
