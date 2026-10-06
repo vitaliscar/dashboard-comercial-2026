@@ -910,7 +910,7 @@ function PresupuestoGerenciaPage() {
       {activeBudgetStage === 3 && <Card>
         {versionesError && <div className="px-6 pt-4"><QueryErrorNotice error={versionesErrorDetail} onRetry={() => void refetchVersiones()} fallback="No se pudieron cargar las versiones." /></div>}
         <details>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-5 [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-6 py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           <span className="font-semibold">Versiones guardadas {targetAnio}</span>
           <span className="text-sm text-muted-foreground">{versionesError ? "No disponible" : `${versiones?.length ?? 0} versiones`} · Ver historial</span>
         </summary>
