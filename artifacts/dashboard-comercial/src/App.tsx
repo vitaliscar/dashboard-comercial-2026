@@ -633,7 +633,7 @@ function DashboardApp() {
               className="size-10 rounded-xl object-contain"
             />
             <div className="min-w-0 flex-1">
-              <p className="font-display text-sm font-bold tracking-wide text-black">
+              <p className="font-display text-sm font-bold tracking-wide text-[color:var(--sidebar-brand-title)]">
                 DASHBOARD COMERCIAL
               </p>
             </div>

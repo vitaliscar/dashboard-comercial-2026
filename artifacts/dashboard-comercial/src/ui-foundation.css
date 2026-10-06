@@ -32,6 +32,7 @@
   --sidebar-accent: #f1f3f6;
   --sidebar-accent-foreground: #20242b;
   --sidebar-border: #e1e5eb;
+  --sidebar-brand-title: #000000;
   --success: #1d503b;
   --warning: #c37a2d;
   --danger: #b3483b;
@@ -424,8 +425,6 @@ body { color: #20242b; }
   background: #fff5f2;
 }
 .ccv-budget-page [data-slot="card"] button[data-slot="button"] { min-width: 150px; }
-.ccv-budget-unit-view > [data-slot="card"]:last-of-type { border-left: 4px solid #d9f078; }
-.ccv-budget-national-view > [data-slot="card"]:first-of-type { border-top: 3px solid #d9f078; }
 
 /* Role dashboards: keep each audience focused on its own next decision. */
 .ccv-role-dashboard { gap: 1.5rem; }

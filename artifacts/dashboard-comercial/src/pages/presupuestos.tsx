@@ -78,6 +78,7 @@ interface VersionRow {
   id: string;
   anio: number;
   nombre: string;
+  creadoPor?: string;
   escenario: string;
   estado: "borrador" | "propuesto" | "aprobado" | "archivado";
   createdAt: string;
@@ -153,6 +154,48 @@ function repartoEquitativo(count: number) {
   const base = Math.floor(10000 / count);
   const remainder = 10000 - base * count;
   return Array.from({ length: count }, (_, index) => (base + (index === count - 1 ? remainder : 0)) / 100);
+}
+
+interface BulkPercentageEntry {
+  key: string;
+  label: string;
+}
+
+function BulkPercentageEditor({
+  entries,
+  onApply,
+  title,
+}: {
+  entries: BulkPercentageEntry[];
+  onApply: (values: number[]) => void;
+  title: string;
+}) {
+  const [rawValues, setRawValues] = useState("");
+  const tokens = rawValues.trim() ? rawValues.trim().split(/[\t;\r\n]+/) : [];
+  const values = tokens.map((token) => Number(token.replace(/%/g, "").replace(",", ".").trim()));
+  const validNumbers = values.every((value) => Number.isFinite(value) && value >= 0 && value <= 100);
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const valid = entries.length > 0 && values.length === entries.length && validNumbers && Math.abs(total - 100) <= 0.011;
+  const message = !rawValues.trim()
+    ? ""
+    : values.length !== entries.length
+      ? `Se esperan ${entries.length} valores y se encontraron ${values.length}.`
+      : !validNumbers
+        ? "Cada valor debe ser un porcentaje entre 0 y 100."
+        : Math.abs(total - 100) > 0.011
+          ? `Los porcentajes suman ${total.toFixed(2)} %; deben sumar 100 %.`
+          : `Total: ${total.toFixed(2)} %.`;
+
+  return <details className="rounded-lg border border-dashed p-3">
+    <summary className="cursor-pointer text-sm font-medium">Pegar porcentajes en lote · {title}</summary>
+    <div className="mt-3 space-y-2">
+      <p className="text-xs text-muted-foreground">Pega una columna de Excel en el orden mostrado. Se aceptan saltos de línea, tabulaciones o punto y coma; los valores deben sumar 100 %.</p>
+      <ol className="grid list-inside list-decimal gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">{entries.map((entry) => <li key={entry.key}>{entry.label}</li>)}</ol>
+      <Textarea value={rawValues} onChange={(event) => setRawValues(event.target.value)} rows={Math.min(Math.max(entries.length, 2), 6)} aria-label={`Porcentajes para ${title}`} placeholder={"15,00 %\n25,00 %\n…"} />
+      {message && <p role="status" aria-live="polite" className={`text-xs ${valid ? "text-muted-foreground" : "text-destructive"}`}>{message}</p>}
+      <Button type="button" size="sm" variant="outline" disabled={!valid} onClick={() => { onApply(values); setRawValues(""); }}>Aplicar porcentajes</Button>
+    </div>
+  </details>;
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number) {
@@ -231,6 +274,7 @@ function PresupuestoGerenciaPage() {
     const meta = aprobada?.premisas?.metaTotalConGestion ?? aprobada?.premisas?.metaPropuesta;
     return meta == null ? null : Number(meta);
   }, [versiones]);
+  const ultimaVersionAprobada = versiones?.find((version) => version.estado === "aprobado");
   const propuestaGerenciaPendiente = role === "gerencia"
     ? versiones?.find((version) => version.estado === "propuesto" && version.creadorRol === "director" && version.premisas?.tipo === "participacion" && !versiones.some((child) => child.estado === "propuesto" && child.premisas?.versionPadreId === version.id))
     : undefined;
@@ -260,6 +304,14 @@ function PresupuestoGerenciaPage() {
 
   const aprobar = useMutation({
     mutationFn: (id: string) => api(`/presupuestos/versiones/${id}/aprobar`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["presupuestos", "versiones", targetAnio] }),
+  });
+
+  const reintentarGeneracion = useMutation({
+    mutationFn: (version: VersionRow) => api(`/presupuestos/versiones/${version.id}/generar`, {
+      method: "POST",
+      body: JSON.stringify({ anio: baseAnio, distribucion: version.premisas }),
+    }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["presupuestos", "versiones", targetAnio] }),
   });
 
@@ -351,6 +403,23 @@ function PresupuestoGerenciaPage() {
       sucursales: premisas.sucursales,
       meses: premisas.meses,
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const iniciarRevisionDesdeAprobada = (version: VersionRow) => {
+    const premisas = version.premisas;
+    if (version.estado !== "aprobado" || premisas?.tipo !== "participacion" || !premisas.unidades || !premisas.sucursales || !premisas.meses) return;
+    const snapshot: Distribucion = {
+      crecimientoAnualPct: Number(premisas.crecimientoAnualPct ?? 0),
+      unidades: premisas.unidades.map((item) => ({ ...item })),
+      sucursales: premisas.sucursales.map((item) => ({ ...item })),
+      meses: premisas.meses.map((item) => ({ ...item })),
+    };
+    setNombre(`Corrección de ${version.nombre}`.slice(0, 120));
+    setVersionPadreId(null);
+    setDistribucion(snapshot);
+    setDistribucionGuardada(snapshot);
+    setActiveBudgetStage(0);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -450,6 +519,16 @@ function PresupuestoGerenciaPage() {
           ))}
         </nav>
 
+        <details className="rounded-xl border bg-card px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold">Ayuda: cómo se distribuye y corrige el presupuesto</summary>
+          <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+            <p><strong className="text-foreground">Meta asignada:</strong> monto anual aprobado para tu unidad. No puedes cambiarlo desde esta vista.</p>
+            <p><strong className="text-foreground">Participación por sucursal:</strong> porcentaje de la meta anual de tu unidad asignado a cada sucursal; debe sumar 100 %.</p>
+            <p><strong className="text-foreground">Distribución mensual:</strong> porcentaje de la meta anual de tu unidad asignado a cada mes; debe sumar 100 %.</p>
+            <p><strong className="text-foreground">Corrección:</strong> parte de la última versión aprobada y crea una propuesta nueva. La versión vigente se mantiene hasta que Gerencia Nacional apruebe la corrección.</p>
+          </div>
+        </details>
+
         {activeBudgetStage === 0 && <Card id="unit-budget-summary" className="scroll-mt-28">
           <CardHeader><CardTitle>Meta aprobada para tu unidad</CardTitle><p className="text-sm text-muted-foreground">La meta anual está definida por Gerencia Nacional. En esta pantalla solo distribuyes ese monto por sucursal y por mes.</p></CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -484,7 +563,20 @@ function PresupuestoGerenciaPage() {
                     </span>
                   </div>
 
-                  {activeBudgetStage === 1 && <><div className="hidden overflow-auto sm:block">
+                  {activeBudgetStage === 1 && <><BulkPercentageEditor
+                      title={`sucursales de ${nombreUnidad}`}
+                      entries={sucursalesUnidad.map((sucursal) => ({ key: sucursal.sucursalId ?? "__sin_sucursal__", label: sucursal.nombre }))}
+                      onApply={(values) => setDistribucion((actual) => {
+                        if (!actual) return actual;
+                        const byBranch = new Map(sucursalesUnidad.map((sucursal, index) => [sucursal.sucursalId ?? "__sin_sucursal__", values[index]]));
+                        return { ...actual, sucursales: actual.sucursales.map((item) => {
+                          if (item.unidadNegocioId !== unidad.unidadNegocioId) return item;
+                          const value = byBranch.get(item.sucursalId ?? "__sin_sucursal__");
+                          return value === undefined ? item : { ...item, participacion: value };
+                        }) };
+                      })}
+                    />
+                    <div className="hidden overflow-auto sm:block">
                     <table className="w-full min-w-[640px] text-sm">
                       <thead><tr className="border-b text-left"><th className="p-2">Sucursal</th><th className="p-2 text-right">Participación</th><th className="p-2 text-right">Presupuesto anual</th></tr></thead>
                       <tbody>{sucursalesUnidad.map((sucursal) => (
@@ -505,6 +597,19 @@ function PresupuestoGerenciaPage() {
                   </div></>}
 
                   {activeBudgetStage === 2 && <div>
+                    <BulkPercentageEditor
+                      title={`meses de ${nombreUnidad}`}
+                      entries={mesesUnidad.map((item) => ({ key: String(item.mes), label: MESES[item.mes - 1] }))}
+                      onApply={(values) => setDistribucion((actual) => {
+                        if (!actual) return actual;
+                        const byMonth = new Map(mesesUnidad.map((item, index) => [item.mes, values[index]]));
+                        return { ...actual, meses: actual.meses.map((item) => {
+                          if (item.unidadNegocioId !== unidad.unidadNegocioId) return item;
+                          const value = byMonth.get(item.mes);
+                          return value === undefined ? item : { ...item, participacion: value };
+                        }) };
+                      })}
+                    />
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-semibold">Distribución mensual</h4><Button type="button" variant="outline" size="sm" onClick={() => setDistribucion((actual) => actual ? { ...actual, meses: actual.meses.map((item) => item.unidadNegocioId !== unidad.unidadNegocioId ? item : { ...item, participacion: repartoEquitativo(mesesUnidad.length)[mesesUnidad.findIndex((month) => month.mes === item.mes)] ?? item.participacion }) } : actual)} disabled={!mesesUnidad.length}>Repartir meses por igual</Button></div>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{mesesUnidad.map((item) => (
                       <label key={item.mes} className="text-sm"><span className="mb-1 block text-muted-foreground">{MESES[item.mes - 1]}</span><div className="flex items-center gap-2"><Input aria-label={`Participación ${MESES[item.mes - 1]} de ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={item.participacion} onChange={(event) => actualizarMes(unidad.unidadNegocioId, item.mes, Number(event.target.value))} className="text-right" /><span>%</span><span className="min-w-24 text-right tabular-nums">{money(metaUnidad * item.participacion / 100)}</span></div></label>
@@ -554,7 +659,7 @@ function PresupuestoGerenciaPage() {
       {proyeccion.isError && <QueryErrorNotice error={proyeccion.error} onRetry={() => void proyeccion.refetch()} fallback="No se pudo calcular el impacto del presupuesto." />}
 
       <nav aria-label="Etapas del presupuesto" className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-4 sm:p-4">
-        {(esDirector ? ["Define crecimiento", "Ajusta unidades y sucursales", "Revisa la meta", "Aprueba versión"] : ["Asigna pesos y gestión", "Distribuye sucursales", "Revisa impacto", "Aprueba versión"]
+        {(esDirector ? ["Define crecimiento", "Distribuye por sucursal", "Revisa detalle mensual", "Envía propuesta"] : ["Asigna pesos y gestión", "Distribuye por sucursal", "Revisa detalle mensual", "Guarda y revisa versiones"]
         ).map((etapa, index) => (
           <button key={etapa} type="button" aria-current={activeBudgetStage === index ? "step" : undefined} onClick={() => setActiveBudgetStage(index)} className={`flex items-center gap-2 rounded-lg p-2 text-left text-xs transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm ${activeBudgetStage === index ? "bg-primary/10 text-primary" : "text-foreground"}`}>
             <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono font-semibold text-primary">{index + 1}</span>
@@ -577,6 +682,17 @@ function PresupuestoGerenciaPage() {
         <div><p className="text-xs text-muted-foreground">Meta propuesta</p><p className="font-semibold text-primary tabular-nums">{data ? money(data.metaTotalConGestion) : "Calculando…"}</p></div>
         <div><p className="text-xs text-muted-foreground">Última meta aprobada · piso</p><p className="font-semibold tabular-nums">{ultimaMetaAprobada === null ? "Aún no hay aprobación" : money(ultimaMetaAprobada)}</p></div>
       </section>
+
+      <details className="rounded-xl border bg-card px-4 py-3">
+        <summary className="cursor-pointer text-sm font-semibold">Ayuda: términos y reglas del presupuesto</summary>
+        <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+          <p><strong className="text-foreground">Meta base:</strong> venta anual proyectada a partir del acumulado disponible del año anterior; sobre esta se aplica el crecimiento definido por Dirección.</p>
+          <p><strong className="text-foreground">Crecimiento anual:</strong> porcentaje que aumenta la meta base. La meta propuesta no puede quedar por debajo de la última meta aprobada.</p>
+          <p><strong className="text-foreground">Peso de unidad:</strong> parte porcentual de la meta anual que corresponde a una unidad de negocio.</p>
+          <p><strong className="text-foreground">Gestión Comercial:</strong> porcentaje que genera un monto adicional en la primera creación del presupuesto. Tras aprobarse, ese monto queda fijado en moneda.</p>
+          <p><strong className="text-foreground">Corrección de una aprobación:</strong> crea una nueva propuesta desde la versión vigente. La versión aprobada no se borra ni cambia hasta que se apruebe la nueva.</p>
+        </div>
+      </details>
 
       {activeBudgetStage === 0 && !esGerenteComercial && <Card id="budget-growth" className="scroll-mt-28">
         <CardHeader><CardTitle>Revisión de la meta anual</CardTitle></CardHeader>
@@ -696,8 +812,21 @@ function PresupuestoGerenciaPage() {
                 <div className="rounded-lg border bg-muted/30 p-3"><div className="text-xs uppercase tracking-wide text-muted-foreground">Sucursal con mayor peso</div><div className="mt-1 text-lg font-semibold tabular-nums">{topParticipacion.toFixed(2)} %</div></div>
               </div>
               {!esGerenteComercial && <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setDistribucion((actual) => actual ? { ...actual, sucursales: actual.sucursales.map((item) => item.unidadNegocioId !== idUnidadActiva ? item : { ...item, participacion: repartoEquitativo(participacionUnidad.length)[participacionUnidad.findIndex((target) => target.sucursalId === item.sucursalId)] ?? item.participacion }) } : actual)} disabled={!participacionUnidad.length}>Repartir sucursales por igual</Button>}
-              <div className="hidden overflow-auto rounded-lg border sm:block">
-                <table className="w-full min-w-[760px] text-sm">
+              <BulkPercentageEditor
+                title={`sucursales de ${nombreUnidad}`}
+                entries={participacionUnidad.map((sucursal) => ({ key: sucursal.sucursalId ?? "__sin_sucursal__", label: sucursalesCatalogo?.find((item) => item.id === sucursal.sucursalId)?.nombre ?? "Sucursal sin catálogo" }))}
+                onApply={(values) => setDistribucion((actual) => {
+                  if (!actual) return actual;
+                  const byBranch = new Map(participacionUnidad.map((sucursal, index) => [sucursal.sucursalId ?? "__sin_sucursal__", values[index]]));
+                  return { ...actual, sucursales: actual.sucursales.map((item) => {
+                    if (item.unidadNegocioId !== idUnidadActiva) return item;
+                    const value = byBranch.get(item.sucursalId ?? "__sin_sucursal__");
+                    return value === undefined ? item : { ...item, participacion: value };
+                  }) };
+                })}
+              />
+            <div className="hidden overflow-auto rounded-lg border sm:block">
+              <table className="w-full min-w-[760px] text-sm">
                   <thead className="sticky top-0 bg-muted/70 text-left"><tr className="border-b"><th className="p-3">Sucursal</th><th className="p-3 text-right">Base {baseAnio}</th><th className="p-3 text-right">Venta real {baseAnio}</th><th className="p-3 text-right">Participación</th><th className="p-3 text-right">Meta {targetAnio}</th><th className="p-3 text-right">Cambio vs base</th></tr></thead>
                   <tbody>
                     {sucursalesFiltradas.map((sucursal) => {
@@ -739,6 +868,19 @@ function PresupuestoGerenciaPage() {
             const totalMeses = sumaParticipacion(mesesUnidad);
             const metaUnidad = totalUnidad.get(unidad.unidadNegocioId ?? "__sin_unidad__") ?? 0;
             return <section key={`meses-${unidad.unidadNegocioId}`} className="rounded-lg border p-4">
+              <BulkPercentageEditor
+                title={`meses de ${nombreUnidad}`}
+                entries={mesesUnidad.map((item) => ({ key: String(item.mes), label: MESES[item.mes - 1] }))}
+                onApply={(values) => setDistribucion((actual) => {
+                  if (!actual) return actual;
+                  const byMonth = new Map(mesesUnidad.map((item, index) => [item.mes, values[index]]));
+                  return { ...actual, meses: actual.meses.map((item) => {
+                    if (item.unidadNegocioId !== unidad.unidadNegocioId) return item;
+                    const value = byMonth.get(item.mes);
+                    return value === undefined ? item : { ...item, participacion: value };
+                  }) };
+                })}
+              />
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Distribución mensual · {nombreUnidad}</h3><span className={Math.abs(totalMeses - 100) > 0.011 ? "text-destructive" : "text-muted-foreground"}>Total: {totalMeses.toFixed(2)} %</span><Button type="button" variant="outline" size="sm" onClick={() => setDistribucion((actual) => actual ? { ...actual, meses: actual.meses.map((item) => item.unidadNegocioId !== unidad.unidadNegocioId ? item : { ...item, participacion: repartoEquitativo(mesesUnidad.length)[mesesUnidad.findIndex((month) => month.mes === item.mes)] ?? item.participacion }) } : actual)} disabled={!mesesUnidad.length}>Repartir meses por igual</Button></div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{mesesUnidad.map((item) => <label key={item.mes} className="text-sm"><span className="mb-1 block text-muted-foreground">{MESES[item.mes - 1]}</span><div className="flex items-center gap-2"><Input aria-label={`Participación ${MESES[item.mes - 1]}`} type="number" min="0" max="100" step="0.01" value={item.participacion} onChange={(event) => actualizarMes(unidad.unidadNegocioId, item.mes, Number(event.target.value))} className="text-right" /><span>%</span><span className="min-w-24 text-right tabular-nums">{money(metaUnidad * item.participacion / 100)}</span></div></label>)}</div>
             </section>;
@@ -774,6 +916,7 @@ function PresupuestoGerenciaPage() {
               const proposalTotal = version.premisas?.metaTotalConGestion ?? version.premisas?.metaPropuesta;
               const needsCompletion = role === "gerencia" && version.estado === "propuesto" && version.creadorRol === "director" && version.premisas?.tipo === "participacion" && !versiones?.some((child) => child.estado === "propuesto" && child.premisas?.versionPadreId === version.id);
               const canApprove = !esGerenteComercial && version.estado === "propuesto" && version.premisas?.tipo !== "plan_comercial_unidad" && !(role === "gerencia" && version.creadorRol === "director");
+              const canResumeDraft = version.estado === "borrador" && version.premisas?.tipo === "participacion" && (role === "administrador" || version.creadoPor === profile?.id);
               return <article key={version.id} className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-start justify-between gap-3"><h3 className="font-semibold">{version.nombre}</h3><span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs">{version.premisas?.tipo === "plan_comercial_unidad" ? "Plan recibido" : ESTADO_LABEL[version.estado]}</span></div>
                 {proposalTotal != null && <p className="text-lg font-semibold tabular-nums">{money(Number(proposalTotal))}<span className="ml-2 text-xs font-normal text-muted-foreground">impacto anual</span></p>}
@@ -781,6 +924,8 @@ function PresupuestoGerenciaPage() {
                 {version.descripcion && <p className="text-sm text-muted-foreground">{version.descripcion}</p>}
                 <details><summary className="cursor-pointer text-sm font-medium text-primary">Ver impacto y distribución</summary><div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground"><p>Unidades: {version.premisas?.unidades?.length ?? version.premisas?.unidadSolicitanteIds?.length ?? 0}</p><p>Sucursales: {new Set(version.premisas?.sucursales?.map((item) => item.sucursalId).filter(Boolean)).size}</p><p>Meses: {new Set(version.premisas?.meses?.map((item) => item.mes)).size}</p><p>Meta: {proposalTotal == null ? "Pendiente" : money(Number(proposalTotal))}</p></div></details>
                 {needsCompletion && <Button size="sm" variant="outline" onClick={() => iniciarCompletarPropuesta(version)}>Completar mi nivel</Button>}
+                {canResumeDraft && <div className="space-y-1"><p className="text-xs text-muted-foreground">El borrador se guardó, pero su cálculo no terminó. Reintentar lo convierte en propuesta para revisión; no cambia la meta vigente.</p><Button size="sm" variant="outline" onClick={() => reintentarGeneracion.mutate(version)} disabled={reintentarGeneracion.isPending}>{reintentarGeneracion.isPending ? "Reintentando cálculo…" : "Reintentar cálculo del borrador"}</Button>{reintentarGeneracion.error && <p role="alert" className="text-xs text-destructive">{reintentarGeneracion.error.message}</p>}</div>}
+                {!esGerenteComercial && version.id === ultimaVersionAprobada?.id && version.premisas?.tipo === "participacion" && <Button size="sm" variant="outline" onClick={() => iniciarRevisionDesdeAprobada(version)}>Crear corrección</Button>}
                 {canApprove && <Button size="sm" onClick={() => setPendingBudgetAction({ kind: "approve", version })} disabled={aprobar.isPending}>{aprobar.isPending ? "Aprobando…" : "Aprobar"}</Button>}
               </article>;
             })}
@@ -809,12 +954,12 @@ function PresupuestoGerenciaPage() {
                       })()}
                     </td>
                     <td className="p-2">{new Date(version.createdAt).toLocaleDateString("es-VE")}</td>
-                    <td className="p-2 text-right">{role === "gerencia" && version.estado === "propuesto" && version.creadorRol === "director" && version.premisas?.tipo === "participacion" && (() => {
+                    <td className="p-2 text-right">{version.estado === "borrador" && version.premisas?.tipo === "participacion" && (role === "administrador" || version.creadoPor === profile?.id) && <div className="mb-2 text-left"><p className="mb-1 max-w-xs text-xs text-muted-foreground">Borrador guardado sin cálculo final. Reintentar lo enviará a revisión sin cambiar la meta vigente.</p><Button size="sm" variant="outline" onClick={() => reintentarGeneracion.mutate(version)} disabled={reintentarGeneracion.isPending}>{reintentarGeneracion.isPending ? "Reintentando…" : "Reintentar cálculo"}</Button>{reintentarGeneracion.error && <p role="alert" className="mt-1 text-xs text-destructive">{reintentarGeneracion.error.message}</p>}</div>}{role === "gerencia" && version.estado === "propuesto" && version.creadorRol === "director" && version.premisas?.tipo === "participacion" && (() => {
                       const hijaPendiente = versiones?.some((item) => item.estado === "propuesto" && item.premisas?.versionPadreId === version.id);
                       return hijaPendiente
                         ? <span className="text-xs text-muted-foreground">Revisión de Gerencia pendiente</span>
                         : <Button size="sm" variant="outline" onClick={() => iniciarCompletarPropuesta(version)}>Completar mi nivel</Button>;
-                    })()}{!esGerenteComercial && version.estado === "propuesto" && version.premisas?.tipo !== "plan_comercial_unidad" && !(role === "gerencia" && version.creadorRol === "director") && <Button size="sm" onClick={() => setPendingBudgetAction({ kind: "approve", version })} disabled={aprobar.isPending}>{aprobar.isPending ? "Aprobando…" : "Aprobar"}</Button>}</td>
+                    })()}{!esGerenteComercial && version.id === ultimaVersionAprobada?.id && version.premisas?.tipo === "participacion" && <Button size="sm" variant="outline" onClick={() => iniciarRevisionDesdeAprobada(version)}>Crear corrección</Button>}{!esGerenteComercial && version.estado === "propuesto" && version.premisas?.tipo !== "plan_comercial_unidad" && !(role === "gerencia" && version.creadorRol === "director") && <Button size="sm" onClick={() => setPendingBudgetAction({ kind: "approve", version })} disabled={aprobar.isPending}>{aprobar.isPending ? "Aprobando…" : "Aprobar"}</Button>}</td>
                   </tr>
                 ))}
                 {!versionesError && versiones?.length === 0 && <tr><td className="p-2 text-muted-foreground" colSpan={5}>Sin revisiones guardadas para {targetAnio}.</td></tr>}
