@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
 import { QueryErrorNotice } from "@/components/query-error-notice";
 import { money } from "@/lib/format";
@@ -99,6 +100,9 @@ export default function PresupuestoCoordinadorPage() {
   const [unitId, setUnitId] = useState("");
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [draft, setDraft] = useState<Record<string, number>>({});
+  const [bulkShares, setBulkShares] = useState("");
+  const [bulkSharesError, setBulkSharesError] = useState("");
+  const [bulkSharesApplied, setBulkSharesApplied] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
 
@@ -261,6 +265,38 @@ export default function PresupuestoCoordinadorPage() {
     }));
   };
 
+  const applyBulkShares = () => {
+    if (!currentRow) return;
+    const values = bulkShares
+      .split(/[\t\n;]+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => Number(value.replace(/%/g, "").replace(",", ".")));
+    if (values.length !== currentRow.asesores.length) {
+      setBulkSharesError(`Pega exactamente ${currentRow.asesores.length} porcentajes, en el mismo orden de los asesores.`);
+      setBulkSharesApplied(false);
+      return;
+    }
+    if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 100)) {
+      setBulkSharesError("Cada porcentaje debe ser un número entre 0 y 100.");
+      setBulkSharesApplied(false);
+      return;
+    }
+    const total = values.reduce((sum, value) => sum + value, 0);
+    if (Math.abs(total - 100) > 0.01) {
+      setBulkSharesError(`La suma debe ser 100 %. El valor pegado suma ${total.toFixed(2)} %.`);
+      setBulkSharesApplied(false);
+      return;
+    }
+    setDirty(true);
+    setDraft((previous) => ({
+      ...previous,
+      ...Object.fromEntries(currentRow.asesores.map((advisor, index) => [keyOf(currentRow, advisor.advisorId), values[index]!])),
+    }));
+    setBulkSharesError("");
+    setBulkSharesApplied(true);
+  };
+
   const discardChanges = () => {
     const next: Record<string, number> = {};
     (data?.rows ?? []).forEach((row) =>
@@ -387,6 +423,17 @@ export default function PresupuestoCoordinadorPage() {
                   }}>Repartir por igual</Button>}
                 </div>
               </div>
+
+              {currentRow.asesores.length > 0 && !currentRow.requiereAsignacionAsesores && <details className="rounded-lg border px-4 py-3">
+                <summary className="cursor-pointer text-sm font-medium">Pegar porcentajes en lote</summary>
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">Pega un porcentaje por asesor, en el orden de la lista, separado por filas o tabulaciones. Deben sumar 100 %.</p>
+                  <Textarea aria-label="Porcentajes de participación por asesor" value={bulkShares} onChange={(event) => { setBulkShares(event.target.value); setBulkSharesError(""); setBulkSharesApplied(false); }} placeholder={`Ejemplo: 40\n35\n25`} rows={4} />
+                  <Button type="button" size="sm" variant="outline" onClick={applyBulkShares}>Validar y aplicar</Button>
+                  {bulkSharesError && <p role="alert" className="text-sm text-destructive">{bulkSharesError}</p>}
+                  {bulkSharesApplied && <p role="status" aria-live="polite" className="text-sm text-success">Porcentajes aplicados. Revisa los montos y el alcance antes de guardar.</p>}
+                </div>
+              </details>}
 
               {currentRow.requiereAsignacionAsesores ? (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
