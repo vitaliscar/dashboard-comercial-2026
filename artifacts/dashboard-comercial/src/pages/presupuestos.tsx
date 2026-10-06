@@ -908,9 +908,13 @@ function PresupuestoGerenciaPage() {
       {aprobar.isSuccess && <p role="status" className="rounded-lg border border-success/30 bg-success/5 p-3 text-sm text-success">Presupuesto aprobado. La nueva versión ya está registrada.</p>}
 
       {activeBudgetStage === 3 && <Card>
-        <CardHeader><CardTitle>Versiones guardadas {targetAnio}</CardTitle></CardHeader>
+        {versionesError && <div className="px-6 pt-4"><QueryErrorNotice error={versionesErrorDetail} onRetry={() => void refetchVersiones()} fallback="No se pudieron cargar las versiones." /></div>}
+        <details>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-5 [&::-webkit-details-marker]:hidden">
+          <span className="font-semibold">Versiones guardadas {targetAnio}</span>
+          <span className="text-sm text-muted-foreground">{versionesError ? "No disponible" : `${versiones?.length ?? 0} versiones`} · Ver historial</span>
+        </summary>
         <CardContent>
-          {versionesError && <QueryErrorNotice error={versionesErrorDetail} onRetry={() => void refetchVersiones()} fallback="No se pudieron cargar las versiones." />}
           <div className="space-y-3 sm:hidden" aria-label={`Versiones de presupuesto ${targetAnio}`}>
             {(versiones ?? []).map((version) => {
               const proposalTotal = version.premisas?.metaTotalConGestion ?? version.premisas?.metaPropuesta;
@@ -967,6 +971,7 @@ function PresupuestoGerenciaPage() {
             </table>
           </div>
         </CardContent>
+        </details>
       </Card>}
 
       {activeBudgetStage === 2 && <Card id="budget-impact" className="scroll-mt-24">
