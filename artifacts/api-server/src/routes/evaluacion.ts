@@ -1,10 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { currentSession, withScopedTransaction } from "./auth";
+import { UUID_RE, agruparMarca, id, number, parseIdList, parseIntList, percentile, score, year, type MarcaRow } from "../lib/evaluacion-analytics";
 
 const router = Router();
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 /** Roster de 32 asesores activos confirmado por el usuario 2026-09-04 -- ver
  * la misma constante en ccv-main (Next.js) src/lib/actions/evaluacion.ts. */
 const CODIGOS_ASESOR_ACTIVOS = new Set([
@@ -48,77 +46,6 @@ type Queryable = {
     values?: unknown[],
   ) => Promise<{ rows: Record<string, unknown>[] }>;
 };
-type Point = { mes: number; venta: number; presupuesto: number };
-
-function year(value: unknown): number | null {
-  const parsed = Number(value ?? new Date().getUTCFullYear());
-  return Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2200
-    ? parsed
-    : null;
-}
-
-function id(value: unknown): string | null {
-  return typeof value === "string" && UUID_RE.test(value) ? value : null;
-}
-
-function number(value: unknown) {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function score(
-  puntos: Point[],
-  ticketPropio: number,
-  ticketPromedioGrupo: number,
-) {
-  const venta = puntos.reduce((total, point) => total + point.venta, 0);
-  const presupuesto = puntos.reduce(
-    (total, point) => total + point.presupuesto,
-    0,
-  );
-  const cumplimiento =
-    presupuesto > 0
-      ? Math.min(100, Math.max(0, (venta / presupuesto) * 100))
-      : 0;
-  const datos = puntos
-    .filter((point) => point.presupuesto > 0)
-    .sort((a, b) => a.mes - b.mes);
-  const tendencia =
-    datos.length < 2
-      ? 50
-      : Math.min(
-          100,
-          Math.max(
-            0,
-            50 +
-              (((datos.at(-1)!.venta / datos.at(-1)!.presupuesto) * 100 -
-                (datos[0].venta / datos[0].presupuesto) * 100) /
-                20) *
-                50,
-          ),
-        );
-  const ticket =
-    ticketPromedioGrupo <= 0
-      ? 50
-      : Math.min(100, Math.max(0, (ticketPropio / ticketPromedioGrupo) * 50));
-  const total = Math.round(cumplimiento * 0.5 + tendencia * 0.3 + ticket * 0.2);
-  return {
-    score: total,
-    cumplimiento,
-    tendencia,
-    ticket,
-    banda: total >= 90 ? "success" : total >= 50 ? "warning" : "danger",
-  };
-}
-
-function percentile(own: number, peers: number[]) {
-  return peers.length === 0
-    ? null
-    : Math.round(
-        (peers.filter((value) => value < own).length / peers.length) * 100,
-      );
-}
-
 function assignedBranches(session: Session) {
   return session.profile.sucursalesIds.length
     ? session.profile.sucursalesIds
@@ -570,33 +497,11 @@ router.get(
 // pg porque este app usa Express + pg en vez de Drizzle. El RLS de la
 // transacción (withScopedTransaction) ya decide qué filas ve cada rol; los
 // filtros de esta ruta son ad-hoc encima de eso, igual que en ccv-main.
-type MarcaRow = { marca: string; monto: number };
 type Hallazgo = {
   tipo: "good" | "bad" | "warn";
   titulo: string;
   texto: string;
 };
-
-function parseIntList(value: unknown): number[] {
-  if (typeof value !== "string" || !value) return [];
-  return value
-    .split(",")
-    .map(Number)
-    .filter((n) => Number.isInteger(n) && n >= 1 && n <= 12);
-}
-function parseIdList(value: unknown): string[] {
-  if (typeof value !== "string" || !value) return [];
-  return value.split(",").filter((v) => UUID_RE.test(v));
-}
-function agruparMarca(rows: { marca: string; monto: number }[]): MarcaRow[] {
-  const acc = new Map<string, number>();
-  rows.forEach((r) =>
-    acc.set(r.marca, (acc.get(r.marca) ?? 0) + number(r.monto)),
-  );
-  return [...acc.entries()]
-    .map(([marca, monto]) => ({ marca, monto }))
-    .sort((a, b) => b.monto - a.monto);
-}
 
 router.get(
   "/evaluacion/reporte",

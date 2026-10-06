@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import PresupuestoCoordinadorPage from "./presupuesto-coordinador";
+import { BulkPercentageEditor } from "@/components/budget/bulk-percentage-editor";
+import { MESES, descripcionMetaBase, repartoEquitativo, sumaParticipacion, validarDistribucion } from "@/lib/budget-calculations";
 
 interface ParticipacionUnidad {
   unidadNegocioId: string | null;
@@ -112,19 +114,6 @@ type PendingBudgetAction =
   | { kind: "save" }
   | { kind: "approve"; version: VersionRow };
 
-const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
-function descripcionMetaBase(data: ProyeccionData) {
-  const proyeccion = data.proyeccionVenta;
-  if (proyeccion.metodo === "proyeccion") {
-    return `${money(proyeccion.ventaAcumulada)} ÷ ${proyeccion.mesesConsiderados} × 12`;
-  }
-  if (proyeccion.metodo === "cierre") {
-    return `Venta de cierre ${proyeccion.anio}: ${money(proyeccion.ventaAcumulada)}`;
-  }
-  return `Sin venta registrada; se usa el presupuesto ${proyeccion.anio}`;
-}
-
 const ESTADO_LABEL: Record<VersionRow["estado"], string> = {
   borrador: "Borrador",
   propuesto: "Propuesto",
@@ -143,59 +132,6 @@ async function api(path: string, init?: RequestInit) {
     throw new Error(body?.message ?? "No se pudo completar la operación");
   }
   return r.json();
-}
-
-function sumaParticipacion(items: Array<{ participacion: number }>) {
-  return items.reduce((sum, item) => sum + Number(item.participacion || 0), 0);
-}
-
-function repartoEquitativo(count: number) {
-  if (count <= 0) return [];
-  const base = Math.floor(10000 / count);
-  const remainder = 10000 - base * count;
-  return Array.from({ length: count }, (_, index) => (base + (index === count - 1 ? remainder : 0)) / 100);
-}
-
-interface BulkPercentageEntry {
-  key: string;
-  label: string;
-}
-
-function BulkPercentageEditor({
-  entries,
-  onApply,
-  title,
-}: {
-  entries: BulkPercentageEntry[];
-  onApply: (values: number[]) => void;
-  title: string;
-}) {
-  const [rawValues, setRawValues] = useState("");
-  const tokens = rawValues.trim() ? rawValues.trim().split(/[\t;\r\n]+/) : [];
-  const values = tokens.map((token) => Number(token.replace(/%/g, "").replace(",", ".").trim()));
-  const validNumbers = values.every((value) => Number.isFinite(value) && value >= 0 && value <= 100);
-  const total = values.reduce((sum, value) => sum + value, 0);
-  const valid = entries.length > 0 && values.length === entries.length && validNumbers && Math.abs(total - 100) <= 0.011;
-  const message = !rawValues.trim()
-    ? ""
-    : values.length !== entries.length
-      ? `Se esperan ${entries.length} valores y se encontraron ${values.length}.`
-      : !validNumbers
-        ? "Cada valor debe ser un porcentaje entre 0 y 100."
-        : Math.abs(total - 100) > 0.011
-          ? `Los porcentajes suman ${total.toFixed(2)} %; deben sumar 100 %.`
-          : `Total: ${total.toFixed(2)} %.`;
-
-  return <details className="rounded-lg border border-dashed p-3">
-    <summary className="cursor-pointer text-sm font-medium">Pegar porcentajes en lote · {title}</summary>
-    <div className="mt-3 space-y-2">
-      <p className="text-xs text-muted-foreground">Pega una columna de Excel en el orden mostrado. Se aceptan saltos de línea, tabulaciones o punto y coma; los valores deben sumar 100 %.</p>
-      <ol className="grid list-inside list-decimal gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">{entries.map((entry) => <li key={entry.key}>{entry.label}</li>)}</ol>
-      <Textarea value={rawValues} onChange={(event) => setRawValues(event.target.value)} rows={Math.min(Math.max(entries.length, 2), 6)} aria-label={`Porcentajes para ${title}`} placeholder={"15,00 %\n25,00 %\n…"} />
-      {message && <p role="status" aria-live="polite" className={`text-xs ${valid ? "text-muted-foreground" : "text-destructive"}`}>{message}</p>}
-      <Button type="button" size="sm" variant="outline" disabled={!valid} onClick={() => { onApply(values); setRawValues(""); }}>Aplicar porcentajes</Button>
-    </div>
-  </details>;
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number) {
@@ -424,23 +360,7 @@ function PresupuestoGerenciaPage() {
   };
 
   const erroresLocales = useMemo(() => {
-    if (!distribucion) return [];
-    const errores: string[] = [];
-    if (!esGerenteComercial && Math.abs(sumaParticipacion(distribucion.unidades) - 100) > 0.011) errores.push("Los pesos base por unidad deben sumar 100 %.");
-    for (const unidad of unidadesVisibles) {
-      const sucursalesUnidad = distribucion.sucursales.filter((item) => item.unidadNegocioId === unidad.unidadNegocioId);
-      if (sucursalesUnidad.some((item) => item.participacion < 0 || item.participacion > 100) || Math.abs(sumaParticipacion(sucursalesUnidad) - 100) > 0.011) {
-        errores.push(`La participación de las sucursales de ${unidad.unidadNegocioId ?? "la unidad"} debe sumar 100 %.`);
-      }
-      const mesesUnidad = distribucion.meses.filter((item) => item.unidadNegocioId === unidad.unidadNegocioId);
-      if (mesesUnidad.some((item) => item.participacion < 0 || item.participacion > 100) || Math.abs(sumaParticipacion(mesesUnidad) - 100) > 0.011) {
-        errores.push(`La distribución mensual de ${unidad.unidadNegocioId ?? "la unidad"} debe sumar 100 %.`);
-      }
-      if (!esGerenteComercial && (unidad.gestionComercialPct < 0 || unidad.gestionComercialPct > 100)) {
-        errores.push("Cada porcentaje de Gestión Comercial debe estar entre 0 % y 100 %.");
-      }
-    }
-    return errores;
+    return validarDistribucion(distribucion, unidadesVisibles, esGerenteComercial);
   }, [distribucion, unidadesVisibles, esGerenteComercial]);
   const erroresVisibles = [...new Set([...(data?.errores ?? []), ...erroresLocales])];
   const configLista = !!data && erroresVisibles.length === 0;

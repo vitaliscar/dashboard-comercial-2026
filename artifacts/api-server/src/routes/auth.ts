@@ -7,6 +7,7 @@ const SESSION_COOKIE_NAME = "ccv_session";
 const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 const LOCK_MS = 15 * 60 * 1000;
+const MAX_RATE_LIMIT_KEYS = 10_000;
 const SESSION_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -21,28 +22,47 @@ export type Queryable = {
 };
 type TransactionClient = Queryable & { release: () => void };
 
-const failures = new Map<string, { count: number; lockedUntil: number }>();
+const failures = new Map<string, { count: number; lockedUntil: number; expiresAt: number }>();
+let nextFailureCleanupAt = 0;
 const dummyHash =
   process.env.AUTH_DUMMY_PASSWORD_HASH ??
   "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 function clientKey(req: Request, email: string) {
-  const forwarded = req.header("x-forwarded-for")?.split(",")[0]?.trim();
-  return `${email}|${forwarded ?? req.ip ?? "unknown"}`;
+  // Express uses the direct socket address unless a trusted proxy is configured.
+  // Never accept X-Forwarded-For directly: clients can forge it to rotate buckets.
+  return `${email}|${req.ip || req.socket.remoteAddress || "unknown"}`;
 }
 
 function checkRateLimit(key: string) {
+  pruneExpiredFailures();
   const entry = failures.get(key);
   if (!entry) return { limited: false };
   if (entry.lockedUntil > Date.now()) return { limited: true };
-  failures.delete(key);
+  if (entry.expiresAt <= Date.now()) failures.delete(key);
   return { limited: false };
 }
 
+function pruneExpiredFailures() {
+  const now = Date.now();
+  if (now < nextFailureCleanupAt) return;
+  nextFailureCleanupAt = now + 60_000;
+  for (const [key, entry] of failures) {
+    if (entry.expiresAt <= now) failures.delete(key);
+  }
+}
+
 function recordFailure(key: string) {
-  const current = failures.get(key) ?? { count: 0, lockedUntil: 0 };
+  pruneExpiredFailures();
+  const now = Date.now();
+  const current = failures.get(key) ?? { count: 0, lockedUntil: 0, expiresAt: now + LOCK_MS };
   current.count += 1;
-  if (current.count >= MAX_ATTEMPTS) current.lockedUntil = Date.now() + LOCK_MS;
+  current.expiresAt = now + LOCK_MS;
+  if (current.count >= MAX_ATTEMPTS) current.lockedUntil = current.expiresAt;
+  if (!failures.has(key) && failures.size >= MAX_RATE_LIMIT_KEYS) {
+    const oldestKey = failures.keys().next().value;
+    if (oldestKey) failures.delete(oldestKey);
+  }
   failures.set(key, current);
 }
 
@@ -114,8 +134,8 @@ export async function loadPayload(pool: Queryable, userId: string) {
     );
     mustChangePassword = Boolean(flag.rows[0]?.must_change_password);
   } catch {
-    // Columna aún no migrada en algún entorno.
-    mustChangePassword = false;
+    // Fail closed: auth controls cannot be skipped when the schema is behind.
+    throw new Error("No se pudo verificar el estado de cambio de contraseña.");
   }
 
   return {

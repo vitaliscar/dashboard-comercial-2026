@@ -2,12 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getCobranzas, getCobranzasComparison } from "@/lib/cobranzas-http";
-import { segmentarCobranzas } from "@/lib/analytics/cobranzas";
 import { KpiCard } from "@/components/kpi-card";
 import { Sparkline } from "@/components/ui/sparkline";
 import { StatusPill } from "@/components/status-pill";
 import { money } from "@/lib/format";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -76,6 +75,7 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 
 export default function CobranzasPage() {
   const [q, setQ] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("cliente") ?? "");
+  const [search, setSearch] = useState(q);
   const [page, setPage] = useState(0);
   const { session, role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
@@ -83,6 +83,11 @@ export default function CobranzasPage() {
   const selectedSucursales = filters.sucursales;
   const canPickSucursal = canPickSucursalFilter(role);
   const canView = canAccessModule(role, "cobranzas");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setSearch(q.trim()), 250);
+    return () => window.clearTimeout(timeout);
+  }, [q]);
 
   const { data: unidades } = useUnidades();
   const unitOptions = useMemo(() => {
@@ -104,8 +109,8 @@ export default function CobranzasPage() {
     setFilters({ sucursales: sucursalIds });
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["cobranzas", selectedUnidades, selectedSucursales],
-    queryFn: () => getCobranzas({ selectedUnidades, selectedSucursales }),
+    queryKey: ["cobranzas", selectedUnidades, selectedSucursales, search, page],
+    queryFn: () => getCobranzas({ selectedUnidades, selectedSucursales }, { search, page }),
     enabled: Boolean(session) && canView,
   });
 
@@ -117,7 +122,7 @@ export default function CobranzasPage() {
 
   const enriched = useMemo(() => {
     const today = new Date();
-    return (data ?? []).map((c) => {
+    return (data?.items ?? []).map((c) => {
       const days = Math.floor(
         (today.getTime() - new Date(c.fechaVencimiento).getTime()) / 86400000,
       );
@@ -129,43 +134,24 @@ export default function CobranzasPage() {
         unidadNegocio: c.unidadNegocio ?? "Sin Unidad",
       };
     });
-  }, [data]);
-
-  const filtered = useMemo(() => {
-    const s = q.toLowerCase();
-    return enriched.filter(
-      (r) =>
-        r.cliente.toLowerCase().includes(s) || (r.facturaNumero ?? "").toLowerCase().includes(s),
-    ).sort((a, b) => b.dias - a.dias || Number(b.saldo) - Number(a.saldo));
-  }, [enriched, q]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  }, [data?.items]);
+  const filteredCount = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
   const visiblePage = Math.min(page, pageCount - 1);
-  const visibleRows = filtered.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
+  const visibleRows = enriched;
+  const totals = data?.summary.totals ?? {};
 
-  const totals = useMemo(() => {
-    const t = {
-      vigente: 0,
-      "1-30 días": 0,
-      "31-60 días": 0,
-      "61-90 días": 0,
-      "+90 días": 0,
-    } as Record<string, number>;
-    enriched.forEach((r) => (t[r.cubo] = (t[r.cubo] ?? 0) + Number(r.saldo)));
-    return t;
-  }, [enriched]);
+  useEffect(() => {
+    if (data && page > pageCount - 1) setPage(pageCount - 1);
+  }, [data, page, pageCount]);
 
   const totalGeneral = Object.values(totals).reduce((a, b) => a + b, 0);
   const vencido = totalGeneral - (totals["Vigente"] ?? 0);
 
-  const segmentacion = useMemo(() => {
-    return segmentarCobranzas(
-      enriched.map((r) => ({
-        sucursal: r.sucursal,
-        unidadNegocio: r.unidadNegocio,
-        saldo: Number(r.saldo) || 0,
-      })),
-    );
-  }, [enriched]);
+  const segmentacion = useMemo(() => ({
+    porSucursal: (data?.summary.byBranch ?? []).map(({ nombre, total }) => ({ sucursal: nombre, total })),
+    porUnidad: (data?.summary.byUnit ?? []).map(({ nombre, total }) => ({ unidad: nombre, total })),
+  }), [data?.summary.byBranch, data?.summary.byUnit]);
 
   const chartData = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+90 días"].map((k) => ({
     cubo: k,
@@ -320,7 +306,7 @@ export default function CobranzasPage() {
         <KpiCard
           label="Total por cobrar"
           value={money(totalGeneral)}
-          hint={`${enriched.length} facturas`}
+          hint={`${data?.summary.count ?? 0} facturas`}
           accent="primary"
           icon={Wallet}
           featured
@@ -636,7 +622,7 @@ export default function CobranzasPage() {
                     Cargando…
                   </TableCell>
                 </TableRow>
-              ) : filtered.length === 0 ? (
+              ) : filteredCount === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={6} className="p-0">
                     <Empty>
@@ -680,7 +666,7 @@ export default function CobranzasPage() {
           </Table>
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
-          <span>{filtered.length === 0 ? "0 facturas" : `${visiblePage * PAGE_SIZE + 1}–${Math.min((visiblePage + 1) * PAGE_SIZE, filtered.length)} de ${filtered.length} facturas · vencidas primero`}</span>
+          <span>{filteredCount === 0 ? "0 facturas" : `${visiblePage * PAGE_SIZE + 1}–${Math.min((visiblePage + 1) * PAGE_SIZE, filteredCount)} de ${filteredCount} facturas · vencidas primero`}</span>
           <div className="flex gap-2"><Button size="sm" variant="outline" disabled={visiblePage === 0} onClick={() => setPage(visiblePage - 1)}>Anterior</Button><Button size="sm" variant="outline" disabled={visiblePage >= pageCount - 1} onClick={() => setPage(visiblePage + 1)}>Siguiente</Button></div>
         </div>
       </div>
