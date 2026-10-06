@@ -445,7 +445,7 @@ export default function PresupuestoCoordinadorPage() {
                 </div>
               ) : (
                 <>
-                <div className="hidden overflow-x-auto rounded-lg border sm:block">
+                <div className="hidden overflow-x-auto rounded-lg border xl:block">
                   <table className="w-full min-w-[760px] text-sm">
                     <thead>
                       <tr className="border-b bg-muted/30 text-left">
@@ -548,7 +548,7 @@ export default function PresupuestoCoordinadorPage() {
                     </tfoot>
                   </table>
                 </div>
-                <div className="space-y-3 sm:hidden" aria-label="Distribución del presupuesto por asesor">
+                <div className="space-y-3 xl:hidden" aria-label="Distribución del presupuesto por asesor">
                   <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3 text-sm">
                     <div><p className="text-xs text-muted-foreground">Venta base del grupo</p><p className="font-medium tabular-nums">{money(currentRow.asesores.reduce((sum, advisor) => sum + advisor.ventaBase, 0))}</p></div>
                     <div><p className="text-xs text-muted-foreground">Meta del período</p><p className="font-medium tabular-nums">{money(currentRow.monto)}</p></div>
