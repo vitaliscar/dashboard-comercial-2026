@@ -172,7 +172,7 @@ export const ReceivablesTable = memo(function ReceivablesTable({
                   </span>
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Sucursal: {r.sucursalVenta || "—"}</span>
+                  <span>Sucursal: {r.sucursalVenta || "–"}</span>
                   <span>Vencido: {r.diasVencidos ?? 0} días</span>
                 </div>
               </div>
@@ -206,7 +206,7 @@ export const ReceivablesTable = memo(function ReceivablesTable({
                 {pageRows.map((r, idx) => (
                   <TableRow key={r.id || `${r.cliente}-${idx}`}>
                     <TableCell className="font-medium text-muted-foreground">
-                      {r.sucursalVenta || "—"}
+                      {r.sucursalVenta || "–"}
                     </TableCell>
                     <TableCell className="font-medium">{r.cliente}</TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">

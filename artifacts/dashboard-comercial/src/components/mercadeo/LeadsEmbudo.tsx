@@ -17,7 +17,7 @@ const ESTATUS_COLOR: Record<string, string> = {
 
 /**
  * Embudo visual por Estatus BIS con ancho proporcional y tasas de conversión
- * entre etapas — más legible que un ranking horizontal para datos secuenciales.
+ * entre etapas – más legible que un ranking horizontal para datos secuenciales.
  */
 export function LeadsEmbudo({ data }: { data: { estatus: string; cantidad: number }[] }) {
   const etapas = useMemo(() => computeEmbudoConPct(data), [data]);

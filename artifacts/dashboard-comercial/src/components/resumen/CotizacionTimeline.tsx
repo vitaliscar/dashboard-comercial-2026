@@ -9,7 +9,7 @@ interface CotizacionTimelineProps {
 }
 
 /**
- * Línea de tiempo mensual del monto cotizado — sin ejes ni etiquetas de eje,
+ * Línea de tiempo mensual del monto cotizado – sin ejes ni etiquetas de eje,
  * solo la línea, un punto por mes y el monto como etiqueta directa arriba del
  * punto, en números enteros sin decimales y sin abreviar (k/M) vía `money`.
  * El mes que se está analizando (highlightMonths) brilla. El box "Margen
@@ -38,14 +38,14 @@ export function CotizacionTimeline({ data, highlightMonths = [] }: CotizacionTim
                     isHighlighted ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
-                  {hasMonto ? money(row.monto) : "—"}
+                  {hasMonto ? money(row.monto) : "–"}
                 </span>
               );
             })}
           </div>
 
           <div className="relative flex items-center gap-0.5">
-            {/* Línea horizontal de la línea de tiempo — sin marcas ni etiquetas de eje */}
+            {/* Línea horizontal de la línea de tiempo – sin marcas ni etiquetas de eje */}
             <div className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-px bg-border" />
             {data.map((row) => {
               const isHighlighted = highlightMonths.includes(row.mes);

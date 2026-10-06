@@ -113,7 +113,7 @@ export default function ResumenPage() {
   } = useUnidades();
 
   // Selector de unidad de negocio, vía el mismo chip row de FilterHeader que
-  // usa /gerencia-nacional (fila "Filtrar por unidad") — "Todas" mantiene el
+  // usa /gerencia-nacional (fila "Filtrar por unidad") – "Todas" mantiene el
   // layout anterior por tipo de métrica; una unidad específica cambia a la
   // vista por unidad que ya usa gerente_comercial (que además siempre llega
   // acá scopeado a 1 sola unidad vía RLS, sin depender de esta selección).
@@ -263,7 +263,7 @@ export default function ResumenPage() {
       totalCotizado += Number(c.montoTotal || 0);
     });
     // Facturado = Ventas_CCV + Ventas_Xibi + Ventas_Estrategicas de CumplimientoBase (presupuestos),
-    // no la suma transaccional de facturas — esa hoja no es la fuente de verdad para este KPI.
+    // no la suma transaccional de facturas – esa hoja no es la fuente de verdad para este KPI.
     // Excepción: para un asesor individual, `presupuestos` no tiene desglose por asesor (solo por
     // sucursal+U/N), así que la meta y el facturado salen de cumplimiento_asesores en su lugar.
     if (role === "asesor") {
@@ -358,7 +358,7 @@ export default function ResumenPage() {
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
 
-      // Variación vs. mes anterior — solo cuando el filtro es un único mes
+      // Variación vs. mes anterior – solo cuando el filtro es un único mes
       // (con "all" o varios meses seleccionados no hay un "mes anterior" claro).
       let variacionMesAnterior: number | null | undefined = undefined;
       let montoMesAnterior: number | undefined = undefined;
@@ -405,7 +405,7 @@ export default function ResumenPage() {
       });
     });
 
-    // 3. Facturado by category — fuente de verdad es CumplimientoBase (presupuestos):
+    // 3. Facturado by category – fuente de verdad es CumplimientoBase (presupuestos):
     // Ventas_CCV + Ventas_Xibi + Ventas_Estrategicas por U/N y mes. `facturas` (transaccional)
     // solo se usa para el detalle de top clientes, que no tiene esa segmentación en origen.
     // Para Servicios: facturas solo trae Xibi/Otra Empresa; el detalle CCV vive en `servicios`.
@@ -467,7 +467,7 @@ export default function ResumenPage() {
       let ventasEstrategicas = 0;
 
       if (role === "asesor") {
-        // cumplimiento_asesores no distingue Ventas_CCV/Xibi/Estratégicas — solo presupuesto y
+        // cumplimiento_asesores no distingue Ventas_CCV/Xibi/Estratégicas – solo presupuesto y
         // venta totales por U/N para este asesor.
         const filteredCa = rawData.cumplimientoAsesor.filter((c) => {
           const dbName = c.unidadNegocioId ? unitMap.get(c.unidadNegocioId) : "";
@@ -477,7 +477,7 @@ export default function ResumenPage() {
         monto = filteredCa.reduce((sum, c) => sum + Number(c.venta || 0), 0);
       } else {
         // Maturín/Machine Shop se cargan sólo en meses con movimiento real (ver
-        // excel-parser.ts debeExcluirCumplimiento) — cualquier fila que llega aquí
+        // excel-parser.ts debeExcluirCumplimiento) – cualquier fila que llega aquí
         // ya es válida, así que no se filtran por sucursal.
         const filteredPre = rawData.presupuestos.filter((p) => {
           const dbName = p.unidadNegocioId ? unitMap.get(p.unidadNegocioId) : "";
@@ -580,7 +580,7 @@ export default function ResumenPage() {
         .sort((a, b) => b.monto - a.monto)
         .slice(0, 5);
 
-      // Variación vs. mes anterior — mismo criterio que en Cotizaciones (solo
+      // Variación vs. mes anterior – mismo criterio que en Cotizaciones (solo
       // aplica cuando el filtro es un único mes).
       let variacionMesAnterior: number | null | undefined = undefined;
       let montoMesAnterior: number | undefined = undefined;

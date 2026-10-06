@@ -185,7 +185,7 @@ export default function MinutasPage() {
     });
   }, [minutasBase, responsableFilter, user?.id, estadoFilter, hoy]);
 
-  // Form state (solo edición — la creación vive en /minutas/nueva)
+  // Form state (solo edición – la creación vive en /minutas/nueva)
   const [form, setForm] = useState({
     fecha: new Date().toISOString().slice(0, 10),
     destinatarioId: "",
@@ -268,8 +268,8 @@ export default function MinutasPage() {
   });
 
   const sucursalNombre = (id?: string | null) =>
-    sucursales?.find((s) => s.id === id)?.nombre ?? "—";
-  const unidadNombre = (id?: string | null) => unidades?.find((u) => u.id === id)?.nombre ?? "—";
+    sucursales?.find((s) => s.id === id)?.nombre ?? "–";
+  const unidadNombre = (id?: string | null) => unidades?.find((u) => u.id === id)?.nombre ?? "–";
 
   const resumen = useMemo(() => {
     const rows = minutasBase;
@@ -318,7 +318,7 @@ export default function MinutasPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1 col-span-2">
                       <Label>Destinatario</Label>
-                      <Input value={editing?.destinatarioNombre ?? "—"} disabled readOnly />
+                      <Input value={editing?.destinatarioNombre ?? "–"} disabled readOnly />
                     </div>
                     {editing?.cliente && (
                       <div className="flex flex-col gap-1 col-span-2">
@@ -549,9 +549,9 @@ export default function MinutasPage() {
                           {m.fecha}
                         </TableCell>
                         <TableCell className="px-4 py-3 font-medium">
-                          {m.destinatarioNombre ?? "—"}
+                          {m.destinatarioNombre ?? "–"}
                         </TableCell>
-                        <TableCell className="px-4 py-3 font-medium">{m.cliente ?? "—"}</TableCell>
+                        <TableCell className="px-4 py-3 font-medium">{m.cliente ?? "–"}</TableCell>
                         <TableCell className="px-4 py-3 max-w-xs truncate" title={m.descripcion}>
                           {m.descripcion}
                         </TableCell>

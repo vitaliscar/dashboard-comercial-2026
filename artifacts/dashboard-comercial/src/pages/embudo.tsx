@@ -31,7 +31,7 @@ export default function EmbudoPage() {
       .sort((a, b) => b.amount - a.amount);
   }, [query.data?.cotizaciones, selectedMonths]);
   const totals = query.data?.totales;
-  const relation = (value: number, base: number) => base > 0 ? `${(value / base * 100).toFixed(1)} %` : "—";
+  const relation = (value: number, base: number) => base > 0 ? `${(value / base * 100).toFixed(1)} %` : "–";
   const saldoPendiente = (totals?.facturado ?? 0) - (totals?.cobrado ?? 0);
 
   return <div className="ccv-funnel-page flex flex-col gap-6">

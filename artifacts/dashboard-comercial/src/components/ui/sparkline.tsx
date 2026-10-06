@@ -55,7 +55,7 @@ export const Sparkline = memo(function Sparkline({
             isAnimationActive={false}
           >
             {/* Solo el último punto: en 28-32px de alto no cabe una etiqueta
-                por punto sin superponerse — ver docstring de este componente. */}
+                por punto sin superponerse – ver docstring de este componente. */}
             {showLastValue && (
               <LabelList
                 dataKey="valor"

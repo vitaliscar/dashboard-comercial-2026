@@ -26,7 +26,7 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
   highlightMonths = [],
 }: {
   data: MonthlyRow[];
-  /** Meses (abreviados, ej. "Jul") a resaltar — el resto se atenúa. Vacío = todos iguales. */
+  /** Meses (abreviados, ej. "Jul") a resaltar – el resto se atenúa. Vacío = todos iguales. */
   highlightMonths?: string[];
 }) {
   const chartAnimation = useChartAnimation();

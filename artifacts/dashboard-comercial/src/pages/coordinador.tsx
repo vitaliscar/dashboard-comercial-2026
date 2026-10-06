@@ -140,17 +140,17 @@ export default function CoordinadorPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <KpiCard
           label={filters.meses === "all" ? "Facturado del año" : "Facturado del período"}
-          value={yearLoading || yearError ? "—" : money(sales)}
+          value={yearLoading || yearError ? "–" : money(sales)}
           hint="CCV, Xibi y estratégicas"
         />
         <KpiCard
           label={filters.meses === "all" ? "Meta del año" : "Meta del período"}
-          value={yearLoading || yearError ? "—" : money(budget)}
+          value={yearLoading || yearError ? "–" : money(budget)}
           hint={yearLoading || yearError ? "Sin datos disponibles" : `${budget ? ((sales / budget) * 100).toFixed(1) : "0.0"}% cumplimiento`}
         />
         <KpiCard
           label="Asesores con cuota"
-          value={yearLoading || yearError ? "—" : String(
+          value={yearLoading || yearError ? "–" : String(
             (scorecard.data?.asesores ?? []).filter((advisor) => Number(advisor.presupuesto) > 0).length,
           )}
           hint="En tus sucursales asignadas"

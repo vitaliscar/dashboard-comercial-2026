@@ -26,7 +26,7 @@ function getCumplimientoColor(pct: number): "success" | "warning" | "danger" {
 }
 
 /**
- * Versión anterior al rediseño "por unidad" — ver CotizacionesSectionLegacy.
+ * Versión anterior al rediseño "por unidad" – ver CotizacionesSectionLegacy.
  */
 export function FacturadoSectionLegacy({
   datos,
@@ -38,7 +38,7 @@ export function FacturadoSectionLegacy({
 
   // Se muestran siempre las 5 unidades (aunque una no haya facturado nada
   // este mes) para que el grid no se reacomode como si solo existieran las
-  // que sí tuvieron movimiento — la unidad sin datos queda visible con su
+  // que sí tuvieron movimiento – la unidad sin datos queda visible con su
   // tabla vacía y un mensaje explicando por qué.
   const totalFacturado = datos.reduce((sum, d) => sum + d.monto, 0);
 
@@ -52,7 +52,7 @@ export function FacturadoSectionLegacy({
         </span>
       </div>
 
-      {/* Business unit cards (con filtro de tipo cliente + margen por unidad) —
+      {/* Business unit cards (con filtro de tipo cliente + margen por unidad) –
           auto-fit: si faltan unidades activas las tarjetas se reparten el
           ancho completo en vez de dejar una columna vacía. */}
       <div
@@ -122,19 +122,19 @@ export function FacturadoSectionLegacy({
                 ))}
               </div>
 
-              {/* Margin — % fijo de referencia por unidad, no costo real medido;
+              {/* Margin – % fijo de referencia por unidad, no costo real medido;
                   color muted + title explícito para no leerse como logro real
                   (mismo criterio aplicado en FacturadoSection no-legacy). */}
               <div className="bg-card rounded-lg border border-border p-3 flex items-center justify-between gap-1">
                 <p
                   className="text-xs text-muted-foreground whitespace-nowrap"
-                  title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio — no es un cálculo de costo real."
+                  title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio – no es un cálculo de costo real."
                 >
                   Margen Est.
                 </p>
                 <p
                   className="text-xs font-bold text-muted-foreground tabular-nums"
-                  title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio — no es un cálculo de costo real."
+                  title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio – no es un cálculo de costo real."
                 >
                   {money(unidad.margenMonto)}
                 </p>

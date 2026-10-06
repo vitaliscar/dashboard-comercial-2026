@@ -24,7 +24,7 @@ export type CompanyMonthlyRow = {
 type Props = {
   data: CompanyMonthlyRow[];
   title?: string;
-  /** Meses (abreviados, ej. "Jul") a resaltar — el resto se atenúa. */
+  /** Meses (abreviados, ej. "Jul") a resaltar – el resto se atenúa. */
   highlightMonths?: string[];
 };
 
@@ -83,7 +83,7 @@ function renderCustomDot(
 }
 
 /**
- * Líneas apiladas (stackId compartido) por compañía — muestra el total
+ * Líneas apiladas (stackId compartido) por compañía – muestra el total
  * mensual (altura acumulada) y la composición CCV/Xibi/Estratégicas a la vez,
  * sin duplicar el donut de "Facturación por Compañía" que ya está arriba (ese
  * es el agregado anual; esto es la evolución mes a mes).

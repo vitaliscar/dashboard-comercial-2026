@@ -204,7 +204,7 @@ export function KpiCard({
           >
             {value}
           </span>
-          {/* Cuando hay gauge, el anillo ya muestra este mismo porcentaje —
+          {/* Cuando hay gauge, el anillo ya muestra este mismo porcentaje –
               repetirlo como subvalor inline dice el mismo dato dos veces en
               un solo vistazo. */}
           {subvalue && subvalueAlign === "inline" && !(progress !== undefined && progressVariant === "gauge") && (
@@ -286,7 +286,7 @@ export function KpiCard({
         </div>
       )}
 
-      {/* Progress bar — 2px with glow */}
+      {/* Progress bar – 2px with glow */}
       {progress !== undefined && progressVariant === "linear" && (
         <div className="mt-3 h-[2px] w-full bg-foreground/8 rounded-full overflow-hidden">
           <div

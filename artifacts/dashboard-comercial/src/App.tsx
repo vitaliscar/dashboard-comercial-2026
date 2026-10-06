@@ -428,7 +428,7 @@ function DashboardApp() {
   const wasMenuOpen = useRef(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // "Administración" (Usuarios/Ajustes-manuales/Carga) es el grupo menos
-  // usado — colapsado por defecto reduce los 16 módulos planos que gerencia
+  // usado – colapsado por defecto reduce los 16 módulos planos que gerencia
   // ve de una sola vez (viola la Ley de Hick sin esto). Se auto-expande si
   // la ruta activa cae dentro, para no esconder dónde está el usuario.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
@@ -455,7 +455,7 @@ function DashboardApp() {
     },
   });
   // La campana antes siempre decía "No hay nuevas notificaciones" sin
-  // importar el estado real — un afiche falso que entrena a desconfiar de
+  // importar el estado real – un afiche falso que entrena a desconfiar de
   // toda señal futura. Ahora refleja el conteo real de alertas abiertas.
   const { data: openAlertsCount = 0 } = useQuery({
     queryKey: ["alertas", "open-count"],

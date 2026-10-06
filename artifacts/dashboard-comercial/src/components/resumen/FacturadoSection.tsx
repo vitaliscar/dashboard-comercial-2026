@@ -155,20 +155,20 @@ export function FacturadoSection({
                     ))}
                   </div>
 
-                  {/* Margin — mismo alto (h-14) que la línea de tiempo de Cotizaciones,
+                  {/* Margin – mismo alto (h-14) que la línea de tiempo de Cotizaciones,
                       para calzar en la misma fila del grid de summary.
-                      Es un % fijo de referencia por unidad (no costo real medido) —
+                      Es un % fijo de referencia por unidad (no costo real medido) –
                       color muted + title explícito para no leerse como logro real. */}
                   <div className="bg-card rounded-lg border border-border px-3 h-14 flex items-center justify-between gap-1">
                     <p
                       className="text-xs text-muted-foreground whitespace-nowrap"
-                      title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio — no es un cálculo de costo real."
+                      title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio – no es un cálculo de costo real."
                     >
                       Margen Est.
                     </p>
                     <p
                       className="text-xs font-bold text-muted-foreground tabular-nums"
-                      title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio — no es un cálculo de costo real."
+                      title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio – no es un cálculo de costo real."
                     >
                       {money(unidad.margenMonto)}
                     </p>

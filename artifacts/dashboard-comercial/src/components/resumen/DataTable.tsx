@@ -24,7 +24,7 @@ interface Column {
   width?: string;
   align?: "left" | "right";
   sortable?: boolean;
-  /** Nombre del campo en la fila con el valor del período anterior — si se
+  /** Nombre del campo en la fila con el valor del período anterior – si se
    * provee, se pinta una flecha ▲▼ junto al valor mostrando el delta. */
   deltaKey?: string;
 }

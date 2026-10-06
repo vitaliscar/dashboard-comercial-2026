@@ -17,13 +17,13 @@ import { useAuth } from "@/hooks/use-auth";
  */
 function SharedFiltersInner({ children }: { children: ReactNode }) {
   const { role } = useAuth();
-  // Estado inicial determinístico (sin "mes actual") — debe coincidir entre
+  // Estado inicial determinístico (sin "mes actual") – debe coincidir entre
   // SSR y la primera pintada del cliente. Ver defaultFilters().
   const [filters, setFiltersState] = useState<SharedFilters>(() => defaultFilters());
 
   // Después del montaje (solo cliente): si hay filtros guardados, aplicarlos.
   // Si es la primera visita (sin nada guardado), recién aquí se calcula el mes
-  // actual con el reloj del navegador — nunca durante SSR/la primera pintada.
+  // actual con el reloj del navegador – nunca durante SSR/la primera pintada.
   useEffect(() => {
     const hasStored =
       typeof window !== "undefined" &&

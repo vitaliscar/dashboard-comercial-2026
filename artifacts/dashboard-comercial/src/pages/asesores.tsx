@@ -402,11 +402,11 @@ export default function AsesoresPage() {
                                 {money(item.venta)}
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground">
-                                {isCasa ? "—" : money(item.meta)}
+                                {isCasa ? "–" : money(item.meta)}
                               </TableCell>
                               <TableCell className="py-2.5">
                                 {isCasa ? (
-                                  <div className="text-center text-xs text-muted-foreground">—</div>
+                                  <div className="text-center text-xs text-muted-foreground">–</div>
                                 ) : (
                                   <div className="flex flex-col gap-1">
                                     <div className="flex justify-between items-center text-[11px]">
@@ -488,7 +488,7 @@ export default function AsesoresPage() {
                 <div className="flex flex-col gap-6 mt-4">
                   <div className="bg-muted/20 border border-border p-4 rounded-lg">
                     <h4 className="text-xs font-bold mb-3 text-foreground uppercase tracking-wider">
-                      Tendencia Mensual ({anio}) — Venta vs Meta
+                      Tendencia Mensual ({anio}) – Venta vs Meta
                     </h4>
                     <ChartContainer config={{}} className="aspect-auto h-52 w-full">
                       <ComposedChart

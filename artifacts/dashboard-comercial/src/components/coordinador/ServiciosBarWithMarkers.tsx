@@ -47,7 +47,7 @@ export const ServiciosBarWithMarkers = memo(function ServiciosBarWithMarkers({
         <CardTitle className="font-display font-semibold">Ventas Mensuales Servicios</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Legend swatches differ in shape (tick vs. bar) — ChartLegendContent only renders
+        {/* Legend swatches differ in shape (tick vs. bar) – ChartLegendContent only renders
             uniform square swatches, so a custom legend preserves that visual distinction. */}
         <div className="mb-4 flex items-center justify-center gap-4 text-center text-[10px] font-bold">
           <span className="inline-flex items-center gap-2 text-muted-foreground">

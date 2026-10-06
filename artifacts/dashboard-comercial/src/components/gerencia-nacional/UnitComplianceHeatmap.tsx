@@ -40,7 +40,7 @@ function CellValue({
         aria-label={`${label}: sin datos`}
         title={`${label}: sin datos para este período`}
       >
-        —
+        –
       </span>
     );
   }

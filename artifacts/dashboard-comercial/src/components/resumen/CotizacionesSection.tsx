@@ -14,7 +14,7 @@ interface CotizacionesSectionProps {
   /** Muestra el % de variación vs. el mes anterior y la línea de tiempo mensual
    * en cada tarjeta (gerente_comercial). */
   showVariacionMesAnterior?: boolean;
-  /** Meses (abreviados) a resaltar en la línea de tiempo — el mes que se analiza. */
+  /** Meses (abreviados) a resaltar en la línea de tiempo – el mes que se analiza. */
   highlightMonths?: string[];
   /** Mantiene visibles unidades sin movimiento para la vista consolidada. */
   preserveEmptyUnits?: boolean;
@@ -53,7 +53,7 @@ export function CotizacionesSection({
             </span>
           </div>
 
-          {/* Business unit summary cards — auto-fit (no columnas fijas): con pocas
+          {/* Business unit summary cards – auto-fit (no columnas fijas): con pocas
               unidades activas (ej. un gerente comercial con una sola unidad),
               la tarjeta llena el ancho disponible en vez de quedar confinada a
               1/5 de la fila con espacio vacío a la derecha. */}

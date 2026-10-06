@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/chart";
 
 // Los tonos "calm" (chart-calm-*) son translúcidos y dos de ellos comparten el
-// mismo hue (155°, solo cambia la opacidad) — casi indistinguibles en un
+// mismo hue (155°, solo cambia la opacidad) – casi indistinguibles en un
 // donut. Los chart-1..5 son opacos y con hues más separados entre sí.
 const DONUT_COLOR_VARS = [
   "var(--color-chart-1)",
@@ -60,7 +60,7 @@ type Props = {
   title?: string;
   /** Unit IDs selected via the top unit-filter chips; others dim without being removed. */
   selectedIds?: string[];
-  /** Radio interno/externo de la dona como % del contenedor (no px — así
+  /** Radio interno/externo de la dona como % del contenedor (no px – así
    * escala solo con el tamaño real del card y con el zoom del navegador,
    * en vez de quedar fijo y desbordarse o verse chico). El default calza
    * en cards angostas (2-3 por fila); subir el % cuando el card ocupa

@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Bloque de shimmer (ver @utility skeleton en styles.css) — gradiente
+ * Bloque de shimmer (ver @utility skeleton en styles.css) – gradiente
  * animado, no el animate-pulse genérico de shadcn/ui/skeleton.tsx. Extraído
  * de resumen/page.tsx para reusar en cualquier tabla/página con isLoading.
  */
@@ -10,7 +10,7 @@ export function SkeletonBox({ className, style }: { className?: string; style?: 
   return <div className={cn("skeleton rounded", className)} style={style} />;
 }
 
-/** Fila de tabla con N celdas de shimmer — mismo grid que la fila real. */
+/** Fila de tabla con N celdas de shimmer – mismo grid que la fila real. */
 export function SkeletonTableRow({
   columns,
   colSpan,

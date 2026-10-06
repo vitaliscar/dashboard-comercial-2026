@@ -368,7 +368,7 @@ export default function CobranzasPage() {
           <div>
             <h4 className="font-display font-semibold text-sm">Tendencia Semanal</h4>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Esta es la primera carga registrada — la comparación semanal estará disponible después
+              Esta es la primera carga registrada – la comparación semanal estará disponible después
               de la próxima actualización.
             </p>
           </div>
@@ -647,7 +647,7 @@ export default function CobranzasPage() {
                   >
                     <TableCell className="px-4 py-3 font-medium">{r.cliente}</TableCell>
                     <TableCell className="px-4 py-3 text-muted-foreground">
-                      {r.facturaNumero ?? "—"}
+                      {r.facturaNumero ?? "–"}
                     </TableCell>
                     <TableCell className="px-4 py-3 tabular-nums text-muted-foreground">
                       {r.fechaVencimiento}

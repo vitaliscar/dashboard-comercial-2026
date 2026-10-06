@@ -152,22 +152,22 @@ export default function SucursalPage() {
       <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#294b3b] bg-[#294b3b] text-[#f5f3ed] sm:grid-cols-4" aria-label={`Resultados comerciales para ${periodLabel}`}>
         <div className="bg-[#18352b] p-4 sm:p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Facturado</p>
-          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "—" : money(totals.facturado)}</strong>
+          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "–" : money(totals.facturado)}</strong>
         </div>
         <div className="bg-[#18352b] p-4 sm:p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Meta del período</p>
-          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "—" : money(totals.meta)}</strong>
+          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "–" : money(totals.meta)}</strong>
         </div>
         <div className="bg-[#18352b] p-4 sm:p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">Cumplimiento</p>
-          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "—" : pct(totals.meta > 0 ? (totals.facturado / totals.meta) * 100 : 0, 1)}</strong>
+          <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">{query.isLoading ? "–" : pct(totals.meta > 0 ? (totals.facturado / totals.meta) * 100 : 0, 1)}</strong>
         </div>
         <div className="bg-[#18352b] p-4 sm:p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b9c6b7]">
             {totals.meta <= 0 ? "Meta no asignada" : aboveTarget ? "Sobre meta" : "Falta para meta"}
           </p>
           <strong className="mt-2 block font-display text-xl font-semibold tabular-nums sm:text-2xl">
-            {query.isLoading ? "—" : totals.meta <= 0 ? "—" : money(gap)}
+            {query.isLoading ? "–" : totals.meta <= 0 ? "–" : money(gap)}
           </strong>
         </div>
       </section>
@@ -244,7 +244,7 @@ export default function SucursalPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
         <div>
           <span className="text-xs font-semibold text-foreground">Ventas perdidas</span>
-          <span className="ml-2 font-mono text-sm font-semibold tabular-nums text-danger">{query.isLoading ? "—" : money(lost)}</span>
+          <span className="ml-2 font-mono text-sm font-semibold tabular-nums text-danger">{query.isLoading ? "–" : money(lost)}</span>
           <span className="ml-2 text-xs text-muted-foreground">en {query.data?.perdidas.cantidad ?? 0} oportunidades registradas</span>
         </div>
         <Button variant="outline" size="sm" onClick={() => setLocation("/resumen")}>Abrir detalle comercial</Button>

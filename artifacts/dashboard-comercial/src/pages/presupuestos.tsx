@@ -388,7 +388,7 @@ function PresupuestoGerenciaPage() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-muted/40 p-3 text-sm">
-          <dt className="text-muted-foreground">Meta que se revisa</dt><dd className="text-right font-semibold tabular-nums">{metaConfirmacion === null ? "—" : money(metaConfirmacion)}</dd>
+          <dt className="text-muted-foreground">Meta que se revisa</dt><dd className="text-right font-semibold tabular-nums">{metaConfirmacion === null ? "–" : money(metaConfirmacion)}</dd>
           <dt className="text-muted-foreground">Unidades</dt><dd className="text-right tabular-nums">{pendingBudgetAction?.kind === "approve" ? pendingBudgetAction.version.premisas?.unidades?.length ?? pendingBudgetAction.version.premisas?.unidadSolicitanteIds?.length ?? 0 : unidadesVisibles.length}</dd>
           <dt className="text-muted-foreground">Sucursales</dt><dd className="text-right tabular-nums">{pendingBudgetAction?.kind === "approve" ? new Set(pendingBudgetAction.version.premisas?.sucursales?.map((item) => item.sucursalId).filter(Boolean)).size : sucursalesAfectadas}</dd>
           <dt className="text-muted-foreground">Meses incluidos</dt><dd className="text-right tabular-nums">{pendingBudgetAction?.kind === "approve" ? new Set(pendingBudgetAction.version.premisas?.meses?.map((item) => item.mes)).size : mesesAfectados}</dd>
@@ -680,7 +680,7 @@ function PresupuestoGerenciaPage() {
                     </tr>
                   );
                 })}
-                <tr className="font-semibold"><td className="p-2">Total</td><td className={`p-2 text-right ${Math.abs(sumaParticipacion(distribucion?.unidades ?? []) - 100) > 0.011 ? "text-destructive" : "text-primary"}`}>{sumaParticipacion(distribucion?.unidades ?? []).toFixed(2)} %</td><td className="p-2 text-right">{money(data?.metaPropuesta ?? 0)}</td><td className="p-2 text-right text-muted-foreground">—</td><td className="p-2 text-right">{money(data?.montoGestionComercialTotal ?? 0)}</td><td className="p-2 text-right">{money(data?.metaTotalConGestion ?? 0)}</td></tr>
+                <tr className="font-semibold"><td className="p-2">Total</td><td className={`p-2 text-right ${Math.abs(sumaParticipacion(distribucion?.unidades ?? []) - 100) > 0.011 ? "text-destructive" : "text-primary"}`}>{sumaParticipacion(distribucion?.unidades ?? []).toFixed(2)} %</td><td className="p-2 text-right">{money(data?.metaPropuesta ?? 0)}</td><td className="p-2 text-right text-muted-foreground">–</td><td className="p-2 text-right">{money(data?.montoGestionComercialTotal ?? 0)}</td><td className="p-2 text-right">{money(data?.metaTotalConGestion ?? 0)}</td></tr>
               </tbody>
             </table>
           </div>

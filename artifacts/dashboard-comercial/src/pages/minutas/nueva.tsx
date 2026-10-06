@@ -202,8 +202,8 @@ export default function NuevaMinutaPage() {
   });
 
   const sucursalNombre = (id?: string | null) =>
-    sucursales?.find((s) => s.id === id)?.nombre ?? "—";
-  const unidadNombre = (id?: string | null) => unidades?.find((u) => u.id === id)?.nombre ?? "—";
+    sucursales?.find((s) => s.id === id)?.nombre ?? "–";
+  const unidadNombre = (id?: string | null) => unidades?.find((u) => u.id === id)?.nombre ?? "–";
 
   const severidadVariant = (s: "alta" | "media" | "baja") =>
     s === "alta" ? "destructive" : s === "media" ? "secondary" : "outline";
@@ -297,7 +297,7 @@ export default function NuevaMinutaPage() {
               <div className="flex flex-col gap-1 col-span-2">
                 <Label>Cliente (opcional)</Label>
                 {draft.bloqueado ? (
-                  <Input value={draft.cliente || "—"} disabled readOnly />
+                  <Input value={draft.cliente || "–"} disabled readOnly />
                 ) : (
                   <Select
                     items={[

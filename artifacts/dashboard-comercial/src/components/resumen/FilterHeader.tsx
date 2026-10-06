@@ -79,7 +79,7 @@ export function FilterHeader({
   const { role, profile } = useAuth();
   // No usar new Date() en el estado inicial: SSR y la primera pintada del
   // cliente deben coincidir (hydration). Si defaultMes no llegó todavía,
-  // "all" es un placeholder determinístico — el useEffect de abajo lo
+  // "all" es un placeholder determinístico – el useEffect de abajo lo
   // corrige apenas defaultMes esté disponible.
   const [selectedMonths, setSelectedMonths] = useState<number[] | "all">(defaultMes ?? "all");
   const [anio, setAnio] = useState(defaultAnio);
@@ -259,7 +259,7 @@ export function FilterHeader({
           </Select>
         </Field>
 
-        {/* Sucursal — multi-select */}
+        {/* Sucursal – multi-select */}
         {sucursalMulti && resolvedSucursalOptions.length > 0 && (
           <Field orientation="horizontal" className="w-auto gap-2">
             <FieldLabel className={FILTER_LABEL_CLASS}>Sucursal</FieldLabel>
@@ -296,7 +296,7 @@ export function FilterHeader({
           </Field>
         )}
 
-        {/* Sucursal — single-select */}
+        {/* Sucursal – single-select */}
         {!sucursalMulti && resolvedSucursalOptions.length > 0 && (
           <Field orientation="horizontal" className="w-auto gap-2">
             <FieldLabel className={FILTER_LABEL_CLASS}>Sucursal</FieldLabel>
@@ -333,18 +333,18 @@ export function FilterHeader({
       {/* ── Row 2: Unit chips ────────────────────────────────────────── */}
       {/* Con 1 sola unidad asignada (gerente comercial de una sola unidad,
           p.ej. Repuestos, Servicios o Lub/Filtros) no hay nada entre qué
-          navegar, así que el filtro no aporta — solo se muestra con 2+. */}
+          navegar, así que el filtro no aporta – solo se muestra con 2+. */}
       {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
         <div className="ccv-unit-bar bg-card border border-t-0 border-border rounded-b-xl px-4 py-3 flex items-center gap-4 flex-wrap">
           <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
-          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto" aria-label="Unidades de negocio">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5" aria-label="Unidades de negocio">
             <Button
               type="button"
               variant={selectedUnits.length === 0 ? "default" : "outline"}
               size="sm"
               onClick={handleSelectAllUnits}
               className={cn(
-                "h-auto shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
+                "min-h-[44px] shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
                 selectedUnits.length === 0
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "text-muted-foreground border-border hover:bg-accent",
@@ -365,7 +365,7 @@ export function FilterHeader({
                     pressed ? selectedUnits.filter((id) => id !== opt.value) : [...selectedUnits, opt.value],
                   )}
                   className={cn(
-                    "h-auto shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
+                    "min-h-[44px] shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
                     pressed
                       ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
                       : "border-border text-muted-foreground hover:bg-accent",

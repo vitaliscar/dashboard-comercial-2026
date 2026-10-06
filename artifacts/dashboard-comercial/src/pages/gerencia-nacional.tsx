@@ -67,7 +67,7 @@ export default function GerenciaNacionalPage() {
   );
 
   // Un solo fetch por año (meses=all trae todo lo disponible hasta el mes
-  // actual) — el filtrado por mes/sucursal/unidad ocurre en memoria abajo,
+  // actual) – el filtrado por mes/sucursal/unidad ocurre en memoria abajo,
   // así que cambiar esos filtros no dispara un nuevo round-trip.
   const { data: resumen, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["gerencia-nacional-resumen", anio],
@@ -290,7 +290,7 @@ export default function GerenciaNacionalPage() {
           </div>
           <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
             {kpis.totalPresupuesto <= 0
-              ? "—"
+              ? "–"
               : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}
           </div>
         </div>

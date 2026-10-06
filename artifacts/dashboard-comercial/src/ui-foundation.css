@@ -1348,3 +1348,74 @@ body { color: #20242b; }
 @media (prefers-reduced-motion: reduce) {
   .ccv-login-brand { animation: none !important; }
 }
+
+/* Anti-Slop: AA contrast and thumb-sized controls on the compact dashboard. */
+:root {
+  --muted-foreground: #626e7a;
+  --warning: #99550e;
+  --warning-foreground: #ffffff;
+  --accent-gold: #99550e;
+  --ochre: #99550e;
+}
+
+.ccv-sidebar :is(button, a, [role="button"]):focus-visible {
+  outline: 2px solid #e8c78b;
+  outline-offset: 3px;
+}
+
+.ccv-topbar :is(button, a, [role="button"]):focus-visible,
+.ccv-content :is(button, a, select, input, textarea, [role="button"], [role="combobox"]):focus-visible {
+  outline: 2px solid #1d503b;
+  outline-offset: 3px;
+}
+
+.ccv-skip-link:focus-visible {
+  outline: 2px solid #e8c78b;
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .ccv-skip-link {
+    min-height: 44px;
+  }
+
+  .ccv-login :is(button, [role="button"], input, select, textarea) {
+    min-height: 44px;
+  }
+
+  .ccv-shell :is(button, [role="button"], [role="combobox"], input, select, textarea) {
+    min-height: 44px;
+  }
+
+  .ccv-sidebar .ccv-nav-group {
+    min-height: 44px;
+  }
+
+  .ccv-topbar :is(button, a[href]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .ccv-filter-bar :is(button, [role="combobox"]) {
+    min-height: 44px;
+  }
+
+  .ccv-unit-bar {
+    align-items: stretch;
+  }
+
+  .ccv-unit-bar > span:first-child {
+    flex-basis: 100%;
+  }
+
+  .ccv-unit-bar > div[aria-label="Unidades de negocio"] {
+    width: 100%;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .ccv-unit-bar > div[aria-label="Unidades de negocio"] > button {
+    min-height: 44px;
+  }
+}

@@ -41,7 +41,7 @@ export function SegmentedToggle<T extends string>({ value, onChange, options }: 
       <ToggleGroup
         value={[value]}
         onValueChange={(v) => {
-          // A single-select segmented control always keeps exactly one option active —
+          // A single-select segmented control always keeps exactly one option active –
           // ignore the toggle-off click that would otherwise empty the selection.
           if (v.length > 0) onChange(v[0] as T);
         }}

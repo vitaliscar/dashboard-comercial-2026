@@ -56,7 +56,7 @@ export default function Cliente360Page() {
             const key = clientKey(item.cliente);
             const receivable = receivablesByClient.get(key);
             const invoice = invoicesByClient.get(key);
-            return <tr key={key} className="border-b border-border/60"><th scope="row" className="p-3 text-left font-medium">{item.cliente}</th><td className="p-3 text-right tabular-nums">{money(item.monto)}</td><td className="p-3 text-right tabular-nums">{money(Number(receivable?.saldo ?? 0))}</td><td className="p-3">{invoice?.fecha ? new Date(`${invoice.fecha}T00:00:00`).toLocaleDateString("es-VE") : "—"}</td></tr>;
+            return <tr key={key} className="border-b border-border/60"><th scope="row" className="p-3 text-left font-medium">{item.cliente}</th><td className="p-3 text-right tabular-nums">{money(item.monto)}</td><td className="p-3 text-right tabular-nums">{money(Number(receivable?.saldo ?? 0))}</td><td className="p-3">{invoice?.fecha ? new Date(`${invoice.fecha}T00:00:00`).toLocaleDateString("es-VE") : "–"}</td></tr>;
           })}
           {visibleClients.length === 0 && <tr><td className="p-6 text-center text-muted-foreground" colSpan={4}>{search ? "No hay coincidencias para esa búsqueda." : "No hay clientes para estos filtros."}</td></tr>}</tbody>
         </table>
