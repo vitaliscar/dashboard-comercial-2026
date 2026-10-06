@@ -576,7 +576,7 @@ function PresupuestoGerenciaPage() {
                         }) };
                       })}
                     />
-                    <div className="hidden overflow-auto sm:block">
+                    <div className="hidden overflow-auto xl:block">
                     <table className="w-full min-w-[640px] text-sm">
                       <thead><tr className="border-b text-left"><th className="p-2">Sucursal</th><th className="p-2 text-right">Participación</th><th className="p-2 text-right">Presupuesto anual</th></tr></thead>
                       <tbody>{sucursalesUnidad.map((sucursal) => (
@@ -588,7 +588,7 @@ function PresupuestoGerenciaPage() {
                       ))}</tbody>
                     </table>
                   </div>
-                  <div className="space-y-2 sm:hidden" aria-label={`Asignación por sucursal de ${nombreUnidad}`}>
+                  <div className="space-y-2 xl:hidden" aria-label={`Asignación por sucursal de ${nombreUnidad}`}>
                     {sucursalesUnidad.map((sucursal) => <div key={sucursal.sucursalId ?? sucursal.nombre} className="grid grid-cols-2 gap-3 rounded-lg border p-3 text-sm">
                       <p className="col-span-2 font-medium">{sucursal.nombre}</p>
                       <label className="text-xs text-muted-foreground">Participación (%)<Input aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={sucursal.participacion} onChange={(event) => actualizarSucursal(unidad.unidadNegocioId, sucursal.sucursalId, Number(event.target.value))} className="mt-1 text-right" /></label>
@@ -740,7 +740,7 @@ function PresupuestoGerenciaPage() {
           <Button type="button" variant="outline" size="sm" className="mt-2 w-fit" onClick={() => setDistribucion((actual) => actual ? { ...actual, unidades: actual.unidades.map((unidad, index, unidades) => ({ ...unidad, participacion: repartoEquitativo(unidades.length)[index] ?? 0 })) } : actual)} disabled={!distribucion?.unidades.length}>Repartir peso de unidades por igual</Button>
         </CardHeader>
         <CardContent>
-          <div className="hidden overflow-auto sm:block">
+          <div className="hidden overflow-auto xl:block">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left"><th className="p-2">Unidad de negocio</th><th className="p-2 text-right">Peso de unidad (%)</th><th className="p-2 text-right">Meta base</th><th className="p-2 text-right">Gestión Comercial (%)</th><th className="p-2 text-right">Monto de gestión comercial</th><th className="p-2 text-right">Total asignado</th></tr></thead>
               <tbody>
@@ -764,7 +764,7 @@ function PresupuestoGerenciaPage() {
               </tbody>
             </table>
           </div>
-          <div className="space-y-2 sm:hidden" aria-label="Participación por unidad de negocio">
+          <div className="space-y-2 xl:hidden" aria-label="Participación por unidad de negocio">
             {distribucion?.unidades.map((unidad) => {
               const info = unidades?.find((item) => item.id === unidad.unidadNegocioId);
               const nombreUnidad = info ? unidadLabelInfo(info.nombre).label : "Unidad";
@@ -825,7 +825,7 @@ function PresupuestoGerenciaPage() {
                   }) };
                 })}
               />
-            <div className="hidden overflow-auto rounded-lg border sm:block">
+            <div className="hidden overflow-auto rounded-lg border xl:block">
               <table className="w-full min-w-[760px] text-sm">
                   <thead className="sticky top-0 bg-muted/70 text-left"><tr className="border-b"><th className="p-3">Sucursal</th><th className="p-3 text-right">Base {baseAnio}</th><th className="p-3 text-right">Venta real {baseAnio}</th><th className="p-3 text-right">Participación</th><th className="p-3 text-right">Meta {targetAnio}</th><th className="p-3 text-right">Cambio vs base</th></tr></thead>
                   <tbody>
@@ -845,7 +845,7 @@ function PresupuestoGerenciaPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="space-y-2 sm:hidden" aria-label={`Participación de sucursales de ${nombreUnidad}`}>
+              <div className="space-y-2 xl:hidden" aria-label={`Participación de sucursales de ${nombreUnidad}`}>
                 {sucursalesFiltradas.map((sucursal) => {
                   const variacion = sucursal.base > 0 ? (sucursal.meta / sucursal.base - 1) * 100 : null;
                   return <section key={`${sucursal.unidadNegocioId}:${sucursal.sucursalId}`} className="grid grid-cols-2 gap-3 rounded-lg border p-3 text-sm">
@@ -915,7 +915,7 @@ function PresupuestoGerenciaPage() {
           <span className="text-sm text-muted-foreground">{versionesError ? "No disponible" : `${versiones?.length ?? 0} versiones`} · Ver historial</span>
         </summary>
         <CardContent>
-          <div className="space-y-3 sm:hidden" aria-label={`Versiones de presupuesto ${targetAnio}`}>
+          <div className="space-y-3 xl:hidden" aria-label={`Versiones de presupuesto ${targetAnio}`}>
             {(versiones ?? []).map((version) => {
               const proposalTotal = version.premisas?.metaTotalConGestion ?? version.premisas?.metaPropuesta;
               const needsCompletion = role === "gerencia" && version.estado === "propuesto" && version.creadorRol === "director" && version.premisas?.tipo === "participacion" && !versiones?.some((child) => child.estado === "propuesto" && child.premisas?.versionPadreId === version.id);
@@ -935,7 +935,7 @@ function PresupuestoGerenciaPage() {
             })}
             {!versionesError && versiones?.length === 0 && <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">Sin revisiones guardadas para {targetAnio}.</p>}
           </div>
-          <div className="hidden overflow-auto sm:block">
+          <div className="hidden overflow-auto xl:block">
             <table className="w-full min-w-[760px] text-sm">
               <thead><tr className="border-b text-left"><th className="p-2">Nombre</th><th className="p-2">Estado</th><th className="p-2">Meta anual propuesta</th><th className="p-2">Creado</th><th className="p-2" /></tr></thead>
               <tbody>
@@ -979,7 +979,7 @@ function PresupuestoGerenciaPage() {
         <CardContent>
           <details>
             <summary className="mb-3 cursor-pointer text-sm font-medium text-primary">Ver detalle de {rows.length} asignaciones</summary>
-          <div className="hidden max-h-96 overflow-auto sm:block">
+          <div className="hidden max-h-96 overflow-auto xl:block">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left"><th className="p-2">Mes</th><th className="p-2">Unidad</th><th className="p-2">Sucursal</th><th className="p-2 text-right">Base</th><th className="p-2 text-right">Real</th><th className="p-2 text-right">Meta propuesta</th></tr></thead>
               <tbody>
@@ -991,7 +991,7 @@ function PresupuestoGerenciaPage() {
               </tbody>
             </table>
           </div>
-          <div className="max-h-96 space-y-2 overflow-auto sm:hidden" aria-label="Detalle mensual de presupuesto">
+          <div className="max-h-96 space-y-2 overflow-auto xl:hidden" aria-label="Detalle mensual de presupuesto">
             {rows.map((row, index) => <article key={`${row.mes}-${row.unidadNegocioId}-${row.sucursalId}-${index}`} className="space-y-2 rounded-lg border p-3 text-sm">
               <div className="flex justify-between gap-3"><div><h3 className="font-medium">{row.sucursal ?? "Sin sucursal"}</h3><p className="text-xs text-muted-foreground">{row.unidad ?? "Sin unidad"} · {MESES[row.mes - 1] ?? row.mes}</p></div><p className="font-semibold tabular-nums">{money(Number(row.sugerido))}</p></div>
               <div className="grid grid-cols-2 gap-2 border-t pt-2 text-xs"><p className="text-muted-foreground">Base: <span className="text-foreground tabular-nums">{money(Number(row.basePresupuesto))}</span></p><p className="text-right text-muted-foreground">Real: <span className="text-foreground tabular-nums">{money(Number(row.realBase))}</span></p></div>
