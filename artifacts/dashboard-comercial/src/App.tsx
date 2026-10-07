@@ -24,10 +24,6 @@ import {
 } from "lucide-react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import {
-  getHealthCheckQueryKey,
-  useHealthCheck,
-} from "@workspace/api-client-react";
 import type { UnidadKey } from "./lib/unidad-http";
 import { useAuth } from "./hooks/use-auth";
 import { useSucursales, useUnidades } from "./hooks/use-catalogos";
@@ -40,6 +36,10 @@ import {
 import { unidadLabelInfo } from "./lib/unidad-labels";
 import { AuthForm } from "./components/auth-form";
 import { ProtectedShell } from "./components/protected-shell";
+import {
+  ErrorBoundary,
+  type ErrorFallbackProps,
+} from "./components/error-boundary";
 import { getAlertas } from "./lib/alertas-http";
 
 // Code-splitting por ruta: cada rol solo descarga las páginas a las que
@@ -272,15 +272,31 @@ const DEMO_DASHBOARD_LABELS: Record<string, string> = {
   "/asesor": "Mi Panel",
 };
 
-function roleInitials(role: DemoRole) {
-  return {
-    administrador: "AD",
-    director: "DI",
-    gerencia: "GN",
-    gerente_comercial: "GC",
-    coordinador: "CO",
-    asesor: "AS",
-  }[role];
+function RouteLoadFailure({ error }: ErrorFallbackProps) {
+  return (
+    <section
+      className="mx-auto flex min-h-[40vh] max-w-xl flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card p-8 text-center"
+      role="alert"
+    >
+      <h2 className="font-display text-xl font-semibold">
+        No se pudo abrir este módulo
+      </h2>
+      <p className="text-sm text-muted-foreground">
+        La versión abierta quedó desactualizada. Recarga para cargar el módulo
+        actual.
+      </p>
+      {import.meta.env.DEV && (
+        <p className="text-xs text-muted-foreground">{error.message}</p>
+      )}
+      <button
+        type="button"
+        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+        onClick={() => window.location.reload()}
+      >
+        Recargar módulo
+      </button>
+    </section>
+  );
 }
 
 function AccessDenied({ role }: { role: DemoRole }) {
@@ -447,13 +463,6 @@ function DashboardApp() {
   const { data: sucursales } = useSucursales();
   const { filters } = useSharedFilters();
   const isLiveSession = !authLoading && Boolean(authSession && authRole);
-  const apiHealth = useHealthCheck({
-    query: {
-      queryKey: getHealthCheckQueryKey(),
-      refetchInterval: 30_000,
-      retry: 1,
-    },
-  });
   // La campana antes siempre decía "No hay nuevas notificaciones" sin
   // importar el estado real – un afiche falso que entrena a desconfiar de
   // toda señal futura. Ahora refleja el conteo real de alertas abiertas.
@@ -820,27 +829,6 @@ function DashboardApp() {
                 </span>
               )}
             </Link>
-            <span
-              title={
-                apiHealth.isSuccess ? "API conectada" : "API no disponible"
-              }
-              className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-2 text-[10px] font-semibold sm:flex ${apiHealth.isSuccess ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-400" : apiHealth.isError ? "border-rose-400/20 bg-rose-400/10 text-rose-400" : "border-border bg-card text-muted-foreground"}`}
-            >
-              <span
-                className={`size-1.5 rounded-full ${apiHealth.isSuccess ? "bg-emerald-400" : apiHealth.isError ? "bg-rose-400" : "bg-muted-foreground"}`}
-              />
-              {apiHealth.isSuccess
-                ? "API online"
-                : apiHealth.isError
-                  ? "API offline"
-                  : "Conectando API"}
-            </span>
-            <div
-              title={`Sesión de ${DEMO_ROLE_LABELS[role]}`}
-              className="flex size-10 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground"
-            >
-              {roleInitials(role)}
-            </div>
           </header>
           <div className="ccv-content mx-auto max-w-[1600px] p-4 sm:p-7">
             {paletteOpen && (
@@ -854,6 +842,10 @@ function DashboardApp() {
                 />
               </Suspense>
             )}
+            <ErrorBoundary
+              resetKey={location}
+              FallbackComponent={RouteLoadFailure}
+            >
             <Suspense
               fallback={
                 <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
@@ -951,6 +943,7 @@ function DashboardApp() {
                 </Route>
               </Switch>
             </Suspense>
+            </ErrorBoundary>
           </div>
         </main>
         </div>
