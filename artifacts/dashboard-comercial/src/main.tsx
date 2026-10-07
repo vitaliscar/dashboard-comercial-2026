@@ -8,6 +8,23 @@ import { SharedFiltersProvider } from './hooks/shared-filters-provider';
 import './styles.css';
 import './ui-foundation.css';
 
+const preloadRecoveryKey = 'ccv-vite-preload-recovery-at';
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+
+  try {
+    const lastRecoveryAt = Number(
+      sessionStorage.getItem(preloadRecoveryKey) ?? 0,
+    );
+    if (Date.now() - lastRecoveryAt < 15_000) return;
+
+    sessionStorage.setItem(preloadRecoveryKey, String(Date.now()));
+    window.location.reload();
+  } catch {
+    // The route error boundary provides a manual recovery if storage is blocked.
+  }
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
