@@ -111,8 +111,28 @@ export default function presupuestosAsesoresRouter() {
     return { session, branches };
   }
 
+  async function budgetReader(req: Request, res: Response) {
+    const session = await currentSession(req);
+    if (!session) {
+      res.status(401).json({ message: "Sesión no válida." });
+      return null;
+    }
+    const role = session.role ?? "";
+    const canReadAll = ["administrador", "director", "gerencia"].includes(role);
+    if (role !== "coordinador" && !canReadAll) {
+      res.status(403).json({ message: "No tienes permisos para ver estos presupuestos." });
+      return null;
+    }
+    const branches = canReadAll ? [] : allowedBranches(session);
+    if (!canReadAll && !branches.length) {
+      res.status(403).json({ message: "Tu perfil no tiene sucursales asignadas." });
+      return null;
+    }
+    return { session, branches, canReadAll };
+  }
+
   router.get("/presupuestos/asesores", async (req, res) => {
-    const auth = await coordinator(req, res);
+    const auth = await budgetReader(req, res);
     if (!auth) return;
     const year = Number(req.query.anio ?? new Date().getFullYear());
     const requestedBranch = req.query.sucursalId;
@@ -120,17 +140,56 @@ export default function presupuestosAsesoresRouter() {
       res.status(400).json({ message: "El año no es válido." });
       return;
     }
-    if (
-      requestedBranch !== undefined &&
-      (typeof requestedBranch !== "string" ||
-        !UUID_RE.test(requestedBranch) ||
-        !auth.branches.includes(requestedBranch))
-    ) {
+    if (requestedBranch !== undefined && (typeof requestedBranch !== "string" || !UUID_RE.test(requestedBranch))) {
+      res.status(403).json({ message: "La sucursal solicitada no es válida." });
+      return;
+    }
+
+    let readableBranches = auth.branches;
+    if (auth.canReadAll) {
+      const branchResult = await run(res, auth.session, async (tx) => {
+        const result = await tx.query("SELECT id::text AS id FROM sucursales ORDER BY nombre");
+        return result.rows.map((row) => String(row["id"]));
+      });
+      if (!branchResult) return;
+      readableBranches = branchResult;
+    }
+    if (typeof requestedBranch === "string" && !readableBranches.includes(requestedBranch)) {
       res.status(403).json({ message: "No tienes acceso a esa sucursal." });
       return;
     }
-    const branches = requestedBranch ? [requestedBranch] : auth.branches;
+    const branches = requestedBranch ? [requestedBranch] : readableBranches;
     const result = await run(res, auth.session, async (tx) => {
+      const branchAdvisorsQuery = auth.canReadAll
+        ? tx.query(
+          `WITH assigned_branches AS (
+             SELECT profile_id, sucursal_id FROM profile_sucursales
+             UNION
+             SELECT p.id, p.sucursal_id FROM profiles p
+             WHERE p.sucursal_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM profile_sucursales ps WHERE ps.profile_id = p.id)
+           ), branch_budget_units AS (
+             SELECT DISTINCT branch.profile_id, branch.sucursal_id, budget.unidad_negocio_id
+             FROM assigned_branches branch
+             JOIN presupuestos budget ON budget.sucursal_id = branch.sucursal_id
+               AND budget.unidad_negocio_id IS NOT NULL
+           )
+           SELECT DISTINCT p.id AS "advisorId", advisor_unit.sucursal_id AS "sucursalId",
+                  advisor_unit.unidad_negocio_id AS "unidadNegocioId", p.nombre_completo AS asesor
+           FROM branch_budget_units advisor_unit
+           JOIN profiles p ON p.id = advisor_unit.profile_id
+           JOIN users u ON u.id = p.id AND u.is_active = true
+           JOIN user_roles ur ON ur.user_id = p.id AND ur.role = 'asesor'
+           WHERE advisor_unit.sucursal_id = ANY($1::uuid[])
+             AND can_read_row(advisor_unit.sucursal_id, advisor_unit.unidad_negocio_id, p.id)`,
+          [branches],
+        )
+        : tx.query(
+          `SELECT asesor_id AS "advisorId", sucursal_id AS "sucursalId",
+                  unidad_negocio_id AS "unidadNegocioId", asesor
+           FROM coordinator_branch_unit_advisors($1::uuid[])`,
+          [branches],
+        );
       const [budgets, history, saved, branchAdvisors] = await Promise.all([
         tx.query(
           `SELECT p.anio, p.mes, p.sucursal_id AS "sucursalId", s.nombre AS sucursal,
@@ -160,12 +219,7 @@ export default function presupuestosAsesoresRouter() {
            FROM presupuestos_asesores WHERE anio = $1 AND sucursal_id = ANY($2::uuid[])`,
           [year, branches],
         ),
-        tx.query(
-          `SELECT asesor_id AS "advisorId", sucursal_id AS "sucursalId",
-                  unidad_negocio_id AS "unidadNegocioId", asesor
-           FROM coordinator_branch_unit_advisors($1::uuid[])`,
-          [branches],
-        ),
+        branchAdvisorsQuery,
       ]);
 
       const savedByKey = new Map(
