@@ -62,9 +62,6 @@ import {
   Trash2,
   Pencil,
   ClipboardList,
-  CircleDashed,
-  CircleDot,
-  CircleCheck,
   Loader2,
   ChevronDown,
   ChevronRight,
@@ -76,7 +73,6 @@ import {
 import { useLocation } from "wouter";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
@@ -130,7 +126,7 @@ function KpiFilterButton({
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={`rounded-lg text-left transition ${activo ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:opacity-80"}`}
+      className="ccv-commitment-status-button"
     >
       {children}
     </button>
@@ -384,55 +380,33 @@ export default function MinutasPage() {
         }
       />
 
-      <div className="ccv-commitment-kpis grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="ccv-commitment-status-bar" role="group" aria-label="Filtrar compromisos por estado">
         <KpiFilterButton activo={estadoFilter === "all"} onClick={() => setEstadoFilter("all")}>
-          <KpiCard label="Total" value={String(resumen.total)} icon={ClipboardList} />
-        </KpiFilterButton>
-        <KpiFilterButton
-          activo={estadoFilter === "pendiente"}
-          onClick={() => setEstadoFilter((f) => (f === "pendiente" ? "all" : "pendiente"))}
-        >
-          <KpiCard
-            label="Pendientes"
-            value={String(resumen.pendientes)}
-            icon={CircleDashed}
-            accent="warning"
-          />
-        </KpiFilterButton>
-        <KpiFilterButton
-          activo={estadoFilter === "en_proceso"}
-          onClick={() => setEstadoFilter((f) => (f === "en_proceso" ? "all" : "en_proceso"))}
-        >
-          <KpiCard
-            label="En proceso"
-            value={String(resumen.enProceso)}
-            icon={CircleDot}
-            accent="primary"
-          />
+          <span>Todos</span><strong>{resumen.total}</strong>
         </KpiFilterButton>
         <KpiFilterButton
           activo={estadoFilter === "vencida"}
           onClick={() => setEstadoFilter((f) => (f === "vencida" ? "all" : "vencida"))}
         >
-          <KpiCard
-            label="Vencidas"
-            value={String(resumen.vencidas)}
-            icon={AlertTriangle}
-            accent={resumen.vencidas > 0 ? "danger" : "success"}
-            hint="Fecha límite pasada, sin cumplir"
-          />
+          <span>Vencidas</span><strong>{resumen.vencidas}</strong>
+        </KpiFilterButton>
+        <KpiFilterButton
+          activo={estadoFilter === "pendiente"}
+          onClick={() => setEstadoFilter((f) => (f === "pendiente" ? "all" : "pendiente"))}
+        >
+          <span>Pendientes</span><strong>{resumen.pendientes}</strong>
+        </KpiFilterButton>
+        <KpiFilterButton
+          activo={estadoFilter === "en_proceso"}
+          onClick={() => setEstadoFilter((f) => (f === "en_proceso" ? "all" : "en_proceso"))}
+        >
+          <span>En proceso</span><strong>{resumen.enProceso}</strong>
         </KpiFilterButton>
         <KpiFilterButton
           activo={estadoFilter === "cumplido"}
           onClick={() => setEstadoFilter((f) => (f === "cumplido" ? "all" : "cumplido"))}
         >
-          <KpiCard
-            label="Cumplimiento"
-            value={`${resumen.cumplimiento.toFixed(0)}%`}
-            icon={CircleCheck}
-            accent="success"
-            hint={`${resumen.cumplidas} cumplidas`}
-          />
+          <span>Cumplidas · {resumen.cumplimiento.toFixed(0)}%</span><strong>{resumen.cumplidas}</strong>
         </KpiFilterButton>
       </div>
 
