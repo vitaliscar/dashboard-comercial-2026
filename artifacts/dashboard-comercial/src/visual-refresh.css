@@ -228,6 +228,9 @@
 .ccv-topbar button, .ccv-topbar > a { border-color: #dce3df !important; background: #fff !important; color: #405149 !important; }
 .ccv-topbar button:hover, .ccv-topbar > a:hover { border-color: #7e9c8b !important; color: #1c4d3d !important; }
 .ccv-content { max-width: 1680px; }
+.ccv-filter-shell { background: #f7f8f8 !important; border-color: #dce3df !important; }
+.ccv-filter-bar { min-height: 58px; gap: .65rem 1.1rem !important; padding: .6rem .85rem !important; border-color: #dce3df !important; border-radius: 9px !important; background: #fff !important; box-shadow: none !important; }
+.ccv-filter-bar :is(button, [role="combobox"]) { border-radius: 6px !important; }
 .ccv-page-header { border-color: #dce3df !important; }
 .ccv-page-header > div:first-child > p:first-child { color: #58736a !important; }
 .ccv-page-header h1 { color: #1d2725 !important; font-family: var(--font-display) !important; font-weight: 650 !important; }
@@ -266,9 +269,9 @@
 .ccv-alert-filters,
 .ccv-collections-filter,
 .ccv-evaluation-filters {
-  border-color: #d8dce0 !important;
-  border-radius: 5px !important;
-  background: #fffefa !important;
+  border-color: #dce3df !important;
+  border-radius: 9px !important;
+  background: #fff !important;
   box-shadow: none !important;
 }
 .ccv-client-toolbar button,
@@ -433,8 +436,8 @@
 .ccv-national-dashboard #branch-priority-title { color: #24364f !important; }
 .ccv-summary-details { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
 .ccv-summary-details > summary::after { color: #294f83 !important; }
-.ccv-unit-bar { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
-.ccv-unit-bar button, .ccv-unit-bar [role="button"] { border-radius: 3px !important; }
+.ccv-unit-bar { border-color: #dce3df !important; border-radius: 0 0 9px 9px !important; background: #fff !important; }
+.ccv-unit-bar button, .ccv-unit-bar [role="button"] { border-radius: 6px !important; }
 .ccv-admin-page > section,
 .ccv-admin-page article,
 .ccv-admin-denied { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; box-shadow: none !important; }
