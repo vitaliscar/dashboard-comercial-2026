@@ -530,6 +530,16 @@
 .ccv-collections-ledger [data-slot="table-container"] { max-height: min(52vh, 34rem) !important; }
 .ccv-collections-ledger thead { background: #213750 !important; }
 .ccv-collections-aging-chart .recharts-cartesian-axis-tick-value { fill: #526172; }
+.ccv-advisors-overview { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(290px, .8fr); overflow: hidden; border: 1px solid #d8dce0; border-radius: 5px; background: #fffefa; }
+.ccv-advisors-overview-primary { display: flex; min-height: 220px; flex-direction: column; align-items: flex-start; padding: clamp(1.4rem, 2.5vw, 2.3rem); background: #182b45; }
+.ccv-advisors-overview-primary p { color: #dce4ed; font-size: .74rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.ccv-advisors-overview-primary strong { margin-top: .7rem; color: #fffefa; font: 650 clamp(2.2rem, 3.5vw, 3.7rem)/1 var(--font-kpi); letter-spacing: -.055em; overflow-wrap: anywhere; }
+.ccv-advisors-overview-primary span { margin-top: auto; color: #c5d2df; font-size: .8rem; }
+.ccv-advisors-overview-details { display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); margin: 0; padding: .5rem 1.4rem; }
+.ccv-advisors-overview-details > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #e3e6e7; }
+.ccv-advisors-overview-details > div:last-child { border-bottom: 0; }
+.ccv-advisors-overview-details dt { color: #626d78; font-size: .78rem; }
+.ccv-advisors-overview-details dd { color: #213750; font: 650 clamp(.95rem, 1.4vw, 1.3rem)/1.2 var(--font-kpi); text-align: right; white-space: nowrap; }
 .ccv-alert-list { grid-template-columns: minmax(0, 1fr) !important; gap: .6rem !important; }
 .ccv-alert-card { padding: 1rem 1.3rem !important; border-color: #dce0e3 !important; border-radius: 3px !important; }
 .ccv-alert-card h3 { color: #213750 !important; font-size: 1rem !important; }
@@ -544,6 +554,9 @@
 .ccv-role-advisor > section[aria-label="Tu avance frente a la meta"] { border-color: #24364f !important; }
 @media (max-width: 760px) {
   .ccv-unit-overview { grid-template-columns: 1fr; }
+  .ccv-advisors-overview { grid-template-columns: 1fr; }
+  .ccv-advisors-overview-primary { min-height: 175px; }
+  .ccv-advisors-overview-details > div { min-height: 60px; }
   .ccv-unit-overview-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 1fr; border-top: 1px solid #d8dce0; border-left: 0; }
   .ccv-unit-overview-aside article + article { border-top: 0; border-left: 1px solid #d8dce0; }
   .ccv-national-dashboard > .ccv-national-performance { grid-template-columns: 1fr; }
