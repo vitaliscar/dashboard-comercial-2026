@@ -7,6 +7,7 @@ import { SharedFiltersProvider } from './hooks/shared-filters-provider';
 
 import './styles.css';
 import './ui-foundation.css';
+import './visual-refresh.css';
 
 const preloadRecoveryKey = 'ccv-vite-preload-recovery-at';
 window.addEventListener('vite:preloadError', (event) => {
