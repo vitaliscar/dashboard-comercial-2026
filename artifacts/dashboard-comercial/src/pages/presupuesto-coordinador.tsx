@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PercentageInput } from "@/components/budget/percentage-input";
+import { BudgetMixEditor } from "@/components/budget/budget-mix-editor";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
 import { QueryErrorNotice } from "@/components/query-error-notice";
@@ -624,6 +625,7 @@ export default function PresupuestoCoordinadorPage() {
           </AlertDialog>
         </CardContent>
       </Card>
+      <BudgetMixEditor year={year} />
     </div>
   );
 }

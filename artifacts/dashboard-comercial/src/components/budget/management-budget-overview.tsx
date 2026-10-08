@@ -170,7 +170,7 @@ export function ManagementBudgetOverview({
 
           <div className="rounded-lg border border-dashed p-4 text-sm" role="note">
             <h3 className="font-medium">Distribución por marca o premisa</h3>
-            <p className="mt-1 text-muted-foreground">El modelo actual guarda crecimiento y distribución por unidad, sucursal y mes. No tiene registros persistidos de presupuesto por marca o premisa para mostrar aquí; los mixes de ventas no se presentan como metas presupuestarias.</p>
+            <p className="mt-1 text-muted-foreground">El mix de cada nivel se guarda ligado a su versión y al monto que reparte. Las versiones aprobadas antes de habilitar este detalle permanecen sin mix; no se reconstruyen como metas usando ventas históricas.</p>
           </div>
         </>}
       </CardContent>

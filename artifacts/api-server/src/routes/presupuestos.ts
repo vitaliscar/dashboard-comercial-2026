@@ -605,6 +605,59 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         `SELECT COALESCE(SUM(l.monto), 0)::numeric AS total FROM presupuestos_versiones_lineas l WHERE l.version_id = $1::uuid`,
         [req.params.id],
       );
+      const mixPendiente = await tx.query(
+        `WITH unit_targets AS (
+           SELECT l.unidad_negocio_id, u.nombre, SUM(l.monto)::numeric AS monto
+           FROM presupuestos_versiones_lineas l
+           JOIN unidades_negocio u ON u.id = l.unidad_negocio_id
+           WHERE l.version_id = $1::uuid
+           GROUP BY l.unidad_negocio_id, u.nombre
+           HAVING SUM(l.monto) > 0
+         ), unit_mix AS (
+           SELECT unidad_negocio_id, COUNT(DISTINCT item_key) AS items,
+                  SUM(participacion)::numeric AS participacion, SUM(monto)::numeric AS monto
+           FROM presupuestos_mix WHERE version_id = $1::uuid AND nivel = 'unidad'
+           GROUP BY unidad_negocio_id
+         ), branch_targets AS (
+           SELECT l.unidad_negocio_id, u.nombre, l.sucursal_id, l.mes, SUM(l.monto)::numeric AS monto
+           FROM presupuestos_versiones_lineas l
+           JOIN unidades_negocio u ON u.id = l.unidad_negocio_id
+           WHERE l.version_id = $1::uuid
+           GROUP BY l.unidad_negocio_id, u.nombre, l.sucursal_id, l.mes
+           HAVING SUM(l.monto) > 0
+         ), branch_mix AS (
+           SELECT unidad_negocio_id, sucursal_id, mes, COUNT(DISTINCT item_key) AS items,
+                  SUM(participacion)::numeric AS participacion, SUM(monto)::numeric AS monto
+           FROM presupuestos_mix WHERE version_id = $1::uuid AND nivel = 'sucursal_mes'
+           GROUP BY unidad_negocio_id, sucursal_id, mes
+         ), missing AS (
+           SELECT 1 FROM unit_targets t LEFT JOIN unit_mix m USING (unidad_negocio_id)
+           WHERE COALESCE(m.items, 0) <> CASE
+             WHEN lower(t.nombre) LIKE '%repuesto%' THEN 3
+             WHEN lower(t.nombre) LIKE '%lub%' OR lower(t.nombre) LIKE '%filtro%' THEN 2
+             WHEN lower(t.nombre) LIKE '%servicio%' THEN 2
+             WHEN lower(t.nombre) LIKE '%equipo%' THEN 4
+             WHEN lower(t.nombre) LIKE '%alquiler%' THEN 3 ELSE 0 END
+             OR abs(COALESCE(m.participacion, 0) - 100) > 0.00001
+             OR abs(COALESCE(m.monto, 0) - t.monto) > 0.01
+           UNION ALL
+           SELECT 1 FROM branch_targets t LEFT JOIN branch_mix m
+             ON m.unidad_negocio_id = t.unidad_negocio_id AND m.sucursal_id IS NOT DISTINCT FROM t.sucursal_id AND m.mes = t.mes
+           WHERE COALESCE(m.items, 0) <> CASE
+             WHEN lower(t.nombre) LIKE '%repuesto%' THEN 3
+             WHEN lower(t.nombre) LIKE '%lub%' OR lower(t.nombre) LIKE '%filtro%' THEN 2
+             WHEN lower(t.nombre) LIKE '%servicio%' THEN 2
+             WHEN lower(t.nombre) LIKE '%equipo%' THEN 4
+             WHEN lower(t.nombre) LIKE '%alquiler%' THEN 3 ELSE 0 END
+             OR abs(COALESCE(m.participacion, 0) - 100) > 0.00001
+             OR abs(COALESCE(m.monto, 0) - t.monto) > 0.01
+         )
+         SELECT COUNT(*)::int AS pendientes FROM missing`,
+        [req.params.id],
+      );
+      if (Number(mixPendiente.rows[0]?.pendientes ?? 0) > 0) {
+        throw new Error(`PRESUPUESTO_INVALIDO:No se puede aprobar. Completa el mix por unidad y sucursal/mes en ${mixPendiente.rows[0].pendientes} asignación(es); cada reparto debe sumar 100 % y cuadrar con su monto padre.`);
+      }
       const totalAprobadoVersiones = await tx.query(
         `SELECT COALESCE(SUM(l.monto), 0)::numeric AS total
          FROM presupuestos_versiones v JOIN presupuestos_versiones_lineas l ON l.version_id = v.id

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import PresupuestoCoordinadorPage from "./presupuesto-coordinador";
 import { ManagementBudgetOverview } from "@/components/budget/management-budget-overview";
+import { BudgetMixEditor } from "@/components/budget/budget-mix-editor";
 import { PercentageInput } from "@/components/budget/percentage-input";
 import { BulkPercentageEditor } from "@/components/budget/bulk-percentage-editor";
 import { MESES, descripcionMetaBase, repartoEquitativo, sumaParticipacion, validarDistribucion } from "@/lib/budget-calculations";
@@ -921,7 +922,11 @@ function PresupuestoGerenciaPage() {
           </details>
         </CardContent>
       </Card>}
-      {activeBudgetStage === 4 && puedeVerVistaGeneral && <ManagementBudgetOverview year={targetAnio} versions={versiones ?? []} units={(unidades ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} branches={(sucursalesCatalogo ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} />}
+      {activeBudgetStage === 3 && esGerenteComercial && <BudgetMixEditor year={targetAnio} />}
+      {activeBudgetStage === 4 && puedeVerVistaGeneral && <>
+        <BudgetMixEditor year={targetAnio} versions={(versiones ?? []).map(version => ({ id: version.id, nombre: version.nombre, estado: version.estado }))} />
+        <ManagementBudgetOverview year={targetAnio} versions={versiones ?? []} units={(unidades ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} branches={(sucursalesCatalogo ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} />
+      </>}
       {confirmDialog}
     </div>
   );
