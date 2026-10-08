@@ -339,6 +339,44 @@
 .ccv-evaluation-detail :is(section, .ccv-evaluation-chart) { border-color: #dddfda !important; border-radius: 5px !important; box-shadow: none !important; }
 .ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div { border-color: #dddfda !important; border-radius: 5px !important; box-shadow: none !important; }
 .ccv-national-dashboard > section[aria-label="Resultado comercial del período"] > div:nth-child(3) { border-color: #ccdae9 !important; background: #eaf1f8 !important; }
+.ccv-national-dashboard section[aria-labelledby="unit-compliance-title"],
+.ccv-national-dashboard section[aria-labelledby="branch-priority-title"] { border-color: #dddfda !important; border-radius: 5px !important; box-shadow: none !important; }
+.ccv-national-dashboard section[aria-labelledby="unit-compliance-title"] > header,
+.ccv-national-dashboard section[aria-labelledby="branch-priority-title"] > header { background: #f4f5f4 !important; }
+.ccv-national-dashboard #unit-compliance-title,
+.ccv-national-dashboard #branch-priority-title { color: #24364f !important; }
+.ccv-summary-details { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
+.ccv-summary-details > summary::after { color: #294f83 !important; }
+.ccv-unit-bar { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
+.ccv-unit-bar button, .ccv-unit-bar [role="button"] { border-radius: 3px !important; }
+.ccv-admin-page > section,
+.ccv-admin-page article,
+.ccv-admin-denied { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; box-shadow: none !important; }
+.ccv-admin-form > h3 { color: #24364f !important; }
+.ccv-admin-form label { color: #425062 !important; }
+.ccv-admin-form [data-slot="combobox-chips"] { border-color: #c9d0d4 !important; border-radius: 3px !important; }
+.ccv-admin-table thead, .ccv-advisors-ranking thead { background: #24364f !important; }
+.ccv-admin-table th, .ccv-advisors-ranking th { color: #f8f9fb !important; }
+.ccv-admin-table tbody tr:hover, .ccv-advisors-ranking tbody tr:hover { background: #f2f5f7 !important; }
+.ccv-evaluation-table thead,
+.ccv-evaluation-advisors thead,
+.ccv-evaluation-detail thead { background: #eceff1 !important; }
+.ccv-evaluation-table th,
+.ccv-evaluation-advisors th,
+.ccv-evaluation-detail th { color: #425062 !important; }
+.ccv-advisors-page [role="dialog"] { border-color: #dddfda !important; border-radius: 5px !important; }
+.ccv-commitment-recipient,
+.ccv-commitment-editor,
+.ccv-commitment-alerts { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
+.ccv-commitment-recipient { background: #f5f6f7 !important; }
+.ccv-alert-card { border-radius: 5px !important; box-shadow: none !important; }
+.ccv-alert-card[data-severity="alta"][data-state="abierta"] { background: #fff3ee !important; }
+.ccv-alert-card[data-state="resuelta"] { background: #f2f5f4 !important; }
+.ccv-funnel-kpi { border-color: #dddfda !important; border-radius: 5px !important; box-shadow: none !important; }
+.ccv-funnel-kpi > p:nth-child(2) { color: #24364f !important; }
+.ccv-funnel-kpi.is-primary > p:nth-child(2) { color: #f4ba69 !important; }
+.ccv-aging-buckets > div { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
+.ccv-collections-page .card-elevated { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
 
 @media (max-width: 1023px) {
   .ccv-login-studio { display: block; }
