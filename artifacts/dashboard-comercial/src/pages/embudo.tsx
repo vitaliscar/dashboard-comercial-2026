@@ -51,6 +51,7 @@ export default function EmbudoPage() {
       <p className="ccv-funnel-explainer rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         Los totales vienen de registros agregados distintos; la base no atribuye cada factura o cobro a una cotización específica. Los porcentajes muestran relación entre montos y no una tasa de conversión.
       </p>
+      <div className="ccv-funnel-analysis">
       <section className="card-elevated p-5 sm:p-6" aria-labelledby="embudo-etapas-title" data-testid="embudo-stage-chart">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -86,6 +87,7 @@ export default function EmbudoPage() {
           </table>
         </div>
       </section>
+      </div>
     </>}
   </div>;
 }

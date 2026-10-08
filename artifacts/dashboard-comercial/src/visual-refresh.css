@@ -463,11 +463,57 @@
 .ccv-national-performance-details > div:last-child { border-bottom: 0; }
 .ccv-national-performance-details dt { color: #5e6976; font-size: .78rem; font-weight: 650; }
 .ccv-national-performance-details dd { color: #213750; font: 650 clamp(1rem, 1.5vw, 1.35rem)/1 var(--font-kpi); text-align: right; }
+
+/* Client portfolio: show concentration before the full ledger. */
+.ccv-client-overview {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  overflow: hidden;
+  border: 1px solid #d8dce0;
+  border-radius: 5px;
+  background: #fffefa;
+}
+.ccv-client-overview-total {
+  display: flex;
+  min-height: 285px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(1.4rem, 2.5vw, 2.4rem);
+  background: #edf1f6;
+}
+.ccv-client-overview-total > p { color: #36557f; font-size: .73rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.ccv-client-overview-total > strong { max-width: 100%; margin-top: 1rem; color: #203956; font: 650 clamp(2rem, 3.4vw, 3.4rem)/1 var(--font-kpi); letter-spacing: -.05em; overflow-wrap: anywhere; }
+.ccv-client-overview-total > span { margin-top: .8rem; color: #586675; font-size: .82rem; }
+.ccv-client-overview-leaders { padding: 1.4rem clamp(1.3rem, 2.2vw, 2rem); }
+.ccv-client-overview-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; padding-bottom: .8rem; border-bottom: 1px solid #e7e8e5; }
+.ccv-client-overview-heading h2 { color: #213750; font-size: 1rem; font-weight: 750; }
+.ccv-client-overview-heading span { color: #66727c; font-size: .73rem; }
+.ccv-client-overview-leaders ol { display: grid; gap: .75rem; margin-top: 1rem; }
+.ccv-client-overview-leaders li > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: .82rem; }
+.ccv-client-overview-leaders li > div:first-child > span { min-width: 0; overflow: hidden; color: #314052; text-overflow: ellipsis; white-space: nowrap; }
+.ccv-client-overview-leaders li strong { color: #294f83; font-size: .78rem; font-weight: 750; white-space: nowrap; }
+.ccv-client-overview-bar { height: 4px; margin-top: .28rem; overflow: hidden; background: #e8edf1; }
+.ccv-client-overview-bar > span { display: block; height: 100%; background: #c7793d; }
+.ccv-client-overview-empty { padding-block: 2rem; color: #66727c; font-size: .82rem; }
+
+/* Triage reads as a queue; the funnel pairs chart and evidence. */
+.ccv-alert-list { grid-template-columns: minmax(0, 1fr) !important; gap: .6rem !important; }
+.ccv-alert-card { padding: 1rem 1.3rem !important; border-color: #dce0e3 !important; border-radius: 3px !important; }
+.ccv-alert-card h3 { color: #213750 !important; font-size: 1rem !important; }
+.ccv-alert-card[data-state="resuelta"] { opacity: .82; }
+.ccv-funnel-analysis { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: stretch; gap: 1rem; }
+.ccv-funnel-analysis > section { min-width: 0; height: 100%; border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; box-shadow: none !important; }
+.ccv-funnel-analysis > section:last-child { overflow-x: auto; }
+.ccv-funnel-analysis > section:last-child table { min-width: 500px; }
 @media (max-width: 760px) {
   .ccv-national-dashboard > .ccv-national-performance { grid-template-columns: 1fr; }
   .ccv-national-dashboard > .ccv-national-performance > .ccv-national-performance-primary { min-height: 180px; }
   .ccv-national-performance-details { padding-block: .25rem; }
   .ccv-national-performance-details > div { min-height: 58px; }
+  .ccv-client-overview { grid-template-columns: 1fr; }
+  .ccv-client-overview-total { min-height: 180px; }
+  .ccv-funnel-analysis { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1023px) {

@@ -36,6 +36,9 @@ export default function Cliente360Page() {
   const invoicesByClient = useMemo(() => new Map((data.data?.facturas ?? []).map((row) => [clientKey(row.cliente), row])), [data.data?.facturas]);
   const receivablesByClient = useMemo(() => new Map((data.data?.cobranzas ?? []).map((row) => [clientKey(row.cliente), row])), [data.data?.cobranzas]);
   const filteredClients = useMemo(() => clients.filter((row) => row.cliente.toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es"))), [clients, search]);
+  const visibleAmount = filteredClients.reduce((sum, item) => sum + item.monto, 0);
+  const positiveAmount = filteredClients.reduce((sum, item) => sum + Math.max(0, item.monto), 0);
+  const leadingClients = filteredClients.filter((item) => item.monto > 0).slice(0, 5);
   const pageCount = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE));
   const visiblePage = Math.min(page, pageCount - 1);
   const visibleClients = filteredClients.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
@@ -48,6 +51,22 @@ export default function Cliente360Page() {
       <input id="cliente-search" type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Buscar cliente por nombre" className="ml-auto h-10 w-full max-w-xs rounded-lg border border-border bg-background px-3 text-sm" />
     </div>
     {data.isLoading ? <p className="text-sm text-muted-foreground">Cargando clientes…</p> : data.isError ? <QueryErrorNotice error={data.error} onRetry={() => void data.refetch()} fallback="No se pudieron cargar los clientes." /> : <>
+      <section className="ccv-client-overview" aria-label="Resumen de la cartera visible">
+        <div className="ccv-client-overview-total">
+          <p>{SOURCE_LABEL[fuente]} · alcance actual</p>
+          <strong className="tabular-nums">{money(visibleAmount)}</strong>
+          <span>{filteredClients.length} {filteredClients.length === 1 ? "cliente" : "clientes"}{search ? " en la búsqueda" : " en el período"}</span>
+        </div>
+        <div className="ccv-client-overview-leaders">
+          <div className="ccv-client-overview-heading"><h2>Cinco principales clientes</h2><span>Del monto positivo</span></div>
+          {leadingClients.length === 0 ? <p className="ccv-client-overview-empty">No hay montos positivos para mostrar.</p> : <ol>
+            {leadingClients.map((item) => <li key={clientKey(item.cliente)}>
+              <div><span title={item.cliente}>{item.cliente}</span><strong className="tabular-nums">{positiveAmount > 0 ? `${(item.monto / positiveAmount * 100).toFixed(1)} %` : "0 %"}</strong></div>
+              <div className="ccv-client-overview-bar" aria-hidden="true"><span style={{ width: `${leadingClients[0]?.monto ? item.monto / leadingClients[0].monto * 100 : 0}%` }} /></div>
+            </li>)}
+          </ol>}
+        </div>
+      </section>
       <div className="ccv-client-table overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <caption className="sr-only">Clientes ordenados por monto {SOURCE_LABEL[fuente].toLocaleLowerCase("es")}</caption>
