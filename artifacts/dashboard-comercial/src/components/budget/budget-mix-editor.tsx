@@ -32,7 +32,10 @@ export function BudgetMixEditor({ year, versions = [] }: { year: number; version
   const query = useQuery({ queryKey: ["presupuestos", "mix", year, selectedVersionId], queryFn: () => request<MixData>(`/api/presupuestos/mix?anio=${year}${selectedVersionId ? `&versionId=${encodeURIComponent(selectedVersionId)}` : ""}`) });
   const data = query.data;
   const editableLevels = data?.editableLevels ?? [];
-  const levels = [...new Set([...editableLevels, ...(data?.scopes ?? []).map(scope => scope.nivel)])];
+  const levels = useMemo(() => {
+    const available = new Set([...(data?.editableLevels ?? []), ...(data?.scopes ?? []).map(scope => scope.nivel)]);
+    return ["unidad", "sucursal_mes", "asesor_mes"].filter(value => available.has(value));
+  }, [data]);
   const [level, setLevel] = useState("");
   const [selectedKey, setSelectedKey] = useState("");
   const [draft, setDraft] = useState<Record<string, number>>({});

@@ -123,7 +123,17 @@ export default function presupuestosMixRouter() {
           : session.role === "gerencia" && selected.estado === "propuesto" && String(selected.creadoPor) === session.user.id ? ["unidad"]
           : session.role === "gerente_comercial" && selected.estado === "propuesto" ? ["sucursal_mes"]
           : session.role === "coordinador" && selected.estado === "aprobado" ? ["asesor_mes"] : [];
-        return { versionId: String(selected.id), estado: String(selected.estado), scopes: [...units, ...branchScopes, ...advisorScopes].map(addSalesReference), records: records.rows, editableLevels };
+        const visibleScopes = session.role === "coordinador"
+          ? [...branchScopes, ...advisorScopes]
+          : [...units, ...branchScopes, ...advisorScopes];
+        const identity = (row: { nivel: string; unidadId: string; sucursalId?: string | null; mes?: number | null; asesorId?: string | null }) =>
+          [row.nivel, row.unidadId, row.sucursalId ?? "", Number(row.mes ?? 0), row.asesorId ?? ""].join(":");
+        const readableScopes = new Set(visibleScopes.map(identity));
+        const visibleRecords = records.rows.filter(row => readableScopes.has(identity({
+          nivel: String(row.nivel), unidadId: String(row.unidadId), sucursalId: row.sucursalId == null ? "" : String(row.sucursalId),
+          mes: row.mes == null ? 0 : Number(row.mes), asesorId: row.asesorId == null ? "" : String(row.asesorId),
+        })));
+        return { versionId: String(selected.id), estado: String(selected.estado), scopes: visibleScopes.map(addSalesReference), records: visibleRecords, editableLevels };
       });
       res.json({ anio: year, ...result });
     } catch (error) {

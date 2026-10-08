@@ -584,7 +584,7 @@ function PresupuestoGerenciaPage() {
 
       <nav aria-label="Etapas del presupuesto" className={`grid gap-2 rounded-xl border border-border bg-card p-3 sm:p-4 ${puedeVerVistaGeneral ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
         {(esDirector ? ["Define crecimiento", "Distribuye por sucursal", "Revisa detalle mensual", "Envía propuesta"] : ["Asigna pesos y gestión", "Distribuye por sucursal", "Revisa detalle mensual", "Guarda y revisa versiones"])
-          .concat(puedeVerVistaGeneral ? ["Vista general"] : [])
+          .concat(puedeVerVistaGeneral ? ["Mapa completo"] : [])
           .map((etapa, index) => (
           <button key={etapa} type="button" aria-current={activeBudgetStage === index ? "step" : undefined} onClick={() => setActiveBudgetStage(index)} className={`flex items-center gap-2 rounded-lg p-2 text-left text-xs transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm ${activeBudgetStage === index ? "bg-primary/10 text-primary" : "text-foreground"}`}>
             <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono font-semibold text-primary">{index + 1}</span>
@@ -607,6 +607,11 @@ function PresupuestoGerenciaPage() {
         <div><p className="text-xs text-muted-foreground">Meta propuesta</p><p className="font-semibold text-primary tabular-nums">{data ? money(data.metaTotalConGestion) : "Calculando…"}</p></div>
         <div><p className="text-xs text-muted-foreground">Piso mínimo protegido</p><p className="font-semibold tabular-nums">{ultimaMetaAprobada !== null ? money(ultimaMetaAprobada) : data ? (data.metaMinima > 0 ? money(data.metaMinima) : "Sin piso definido") : "Cargando…"}</p></div>
       </section>
+
+      {puedeVerVistaGeneral && activeBudgetStage !== 4 && <button type="button" className="ccv-budget-explore-link" onClick={() => setActiveBudgetStage(4)}>
+        <span><strong>Explorar el presupuesto completo</strong><small>Unidades, sucursales, meses, asesores y marcas o premisas guardadas.</small></span>
+        <span aria-hidden="true">Ver mapa →</span>
+      </button>}
 
       <details className="rounded-xl border bg-card px-4 py-3">
         <summary className="cursor-pointer text-sm font-semibold">Ayuda: términos y reglas del presupuesto</summary>
@@ -924,8 +929,8 @@ function PresupuestoGerenciaPage() {
       </Card>}
       {activeBudgetStage === 3 && esGerenteComercial && <BudgetMixEditor year={targetAnio} />}
       {activeBudgetStage === 4 && puedeVerVistaGeneral && <>
-        <BudgetMixEditor year={targetAnio} versions={(versiones ?? []).map(version => ({ id: version.id, nombre: version.nombre, estado: version.estado }))} />
         <ManagementBudgetOverview year={targetAnio} versions={versiones ?? []} units={(unidades ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} branches={(sucursalesCatalogo ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} />
+        <BudgetMixEditor year={targetAnio} versions={(versiones ?? []).map(version => ({ id: version.id, nombre: version.nombre, estado: version.estado }))} />
       </>}
       {confirmDialog}
     </div>
