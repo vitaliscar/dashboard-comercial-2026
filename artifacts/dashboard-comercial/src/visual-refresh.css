@@ -259,8 +259,8 @@
 .ccv-client-toolbar button[aria-pressed="true"],
 .ccv-commitment-filters button[aria-pressed="true"],
 .ccv-evaluation-filters button[aria-pressed="true"] {
-  border-color: #294f83 !important;
-  background: #294f83 !important;
+  border-color: #1c4d3d !important;
+  background: #1c4d3d !important;
   color: #ffffff !important;
   box-shadow: none !important;
 }
