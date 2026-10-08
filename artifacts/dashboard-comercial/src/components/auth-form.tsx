@@ -72,7 +72,7 @@ export function AuthForm() {
           <div className="ccv-login-intro">
             <span className="ccv-login-overline">DASHBOARD COMERCIAL <span aria-hidden="true">/</span> ACCESO</span>
             <h1 id="login-title">Iniciar sesión<span aria-hidden="true">.</span></h1>
-            <p>Tu información comercial, en un solo lugar.</p>
+            <p>Ventas, metas y cartera con el alcance de tu equipo.</p>
           </div>
 
           <form onSubmit={handleLogin} className="ccv-login-form-new" aria-busy={loading}>
