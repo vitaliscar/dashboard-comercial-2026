@@ -231,6 +231,18 @@
 .ccv-page-header { border-color: #dadbd5 !important; }
 .ccv-page-header > div:first-child > p:first-child { color: #a14b35 !important; }
 .ccv-page-header h1 { color: #182331 !important; font-family: var(--font-kpi) !important; font-weight: 600 !important; }
+.ccv-page-header {
+  position: relative;
+  align-items: end;
+  gap: 1rem 2rem;
+  margin-bottom: 1.5rem;
+  padding: .85rem 0 1.5rem 1.2rem;
+  border-bottom: 1px solid #d9dcd9 !important;
+}
+.ccv-page-header::before { position: absolute; top: .85rem; bottom: 1.5rem; left: 0; width: 3px; background: #c7793d; content: ""; }
+.ccv-page-header > div:first-child > p:first-child { margin-bottom: .45rem; }
+.ccv-page-header h1 { font-size: clamp(2rem, 3vw, 2.85rem) !important; line-height: 1.06 !important; }
+.ccv-page-header > div:first-child > p:last-child { max-width: 58ch; margin-top: .55rem; color: #586675 !important; line-height: 1.5; }
 .ccv-shell .card-elevated, .ccv-shell .bg-card, .ccv-shell [data-slot="card"] { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; box-shadow: 0 2px 5px rgb(22 35 49 / 3%) !important; }
 .ccv-shell table thead tr, .ccv-shell table thead { background: #eceff1 !important; }
 .ccv-shell table th { color: #425062 !important; font-size: .77rem !important; font-weight: 700 !important; letter-spacing: .015em !important; }
@@ -272,6 +284,31 @@
 
 /* Budget: editable cells retain a warm cue; decisions use the blue system. */
 .ccv-budget-page > section[aria-label="Etapas del presupuesto"] { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
+.ccv-budget-page > nav[aria-label="Etapas del presupuesto"] {
+  display: flex !important;
+  gap: 0 !important;
+  overflow-x: auto;
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid #cfd5dc !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  scrollbar-width: thin;
+}
+.ccv-budget-page > nav[aria-label="Etapas del presupuesto"] > button {
+  position: relative;
+  min-width: max-content;
+  min-height: 3.5rem;
+  padding: .75rem 1.15rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #596777 !important;
+}
+.ccv-budget-page > nav[aria-label="Etapas del presupuesto"] > button:hover { background: #eceff3 !important; color: #263a55 !important; }
+.ccv-budget-page > nav[aria-label="Etapas del presupuesto"] > button[aria-current="step"] { color: #294f83 !important; font-weight: 750; }
+.ccv-budget-page > nav[aria-label="Etapas del presupuesto"] > button[aria-current="step"]::after { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; background: #294f83; content: ""; }
+.ccv-budget-page > nav[aria-label="Etapas del presupuesto"] > button > span:first-child { border-radius: 2px !important; background: #e5eaf1 !important; color: #294f83 !important; }
 .ccv-budget-page > section[aria-label="Etapas del presupuesto"] > div { border-color: #e4e4e0 !important; color: #405064 !important; }
 .ccv-budget-page > section[aria-label="Etapas del presupuesto"] > div > span:first-child { border-color: #bfd0e3 !important; border-radius: 3px !important; background: #e9f0f8 !important; color: #294f83 !important; }
 .ccv-budget-page section.rounded-xl.border,
@@ -377,6 +414,61 @@
 .ccv-funnel-kpi.is-primary > p:nth-child(2) { color: #f4ba69 !important; }
 .ccv-aging-buckets > div { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
 .ccv-collections-page .card-elevated { border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; }
+
+/* National dashboard: one readable result instead of four equivalent cards. */
+.ccv-national-dashboard > .ccv-national-performance {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(270px, .75fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #d7dce0;
+  border-radius: 5px;
+  background: #fffefa;
+}
+.ccv-national-dashboard > .ccv-national-performance > .ccv-national-performance-primary {
+  display: flex;
+  min-height: 210px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(1.35rem, 2.3vw, 2rem);
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #182b45 !important;
+  box-shadow: none !important;
+}
+.ccv-national-performance-label {
+  color: #dce4ed;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.ccv-national-performance-primary > strong {
+  margin-top: .65rem;
+  color: #fffefa;
+  font: 600 clamp(2.3rem, 4.5vw, 4.5rem)/1 var(--font-kpi);
+  letter-spacing: -.06em;
+}
+.ccv-national-performance-track {
+  width: min(100%, 580px);
+  height: 6px;
+  margin-top: auto;
+  overflow: hidden;
+  background: #3c526d;
+}
+.ccv-national-performance-track > span { display: block; height: 100%; background: #f2ac42; }
+.ccv-national-performance-caption { margin-top: .6rem; color: #e3e9ef; font-size: .82rem; }
+.ccv-national-performance-details { display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); margin: 0; padding: .6rem 1.5rem; }
+.ccv-national-performance-details > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #e7e6e1; }
+.ccv-national-performance-details > div:last-child { border-bottom: 0; }
+.ccv-national-performance-details dt { color: #5e6976; font-size: .78rem; font-weight: 650; }
+.ccv-national-performance-details dd { color: #213750; font: 650 clamp(1rem, 1.5vw, 1.35rem)/1 var(--font-kpi); text-align: right; }
+@media (max-width: 760px) {
+  .ccv-national-dashboard > .ccv-national-performance { grid-template-columns: 1fr; }
+  .ccv-national-dashboard > .ccv-national-performance > .ccv-national-performance-primary { min-height: 180px; }
+  .ccv-national-performance-details { padding-block: .25rem; }
+  .ccv-national-performance-details > div { min-height: 58px; }
+}
 
 @media (max-width: 1023px) {
   .ccv-login-studio { display: block; }

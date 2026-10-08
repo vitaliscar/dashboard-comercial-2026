@@ -264,36 +264,30 @@ export default function GerenciaNacionalPage() {
         showAllMonths
       />
 
-      <section
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4 section-enter section-enter-1"
-        aria-label="Resultado comercial del período"
-      >
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Facturado</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{money(kpis.totalFacturado)}</div>
-        </div>
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Meta</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{money(kpis.totalPresupuesto)}</div>
-        </div>
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cumplimiento</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{pct(kpis.cumplimiento, 1)}</div>
-        </div>
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {kpis.totalPresupuesto <= 0
-              ? "Meta no asignada"
-              : kpis.totalFacturado >= kpis.totalPresupuesto
-                ? "Sobre meta"
-                : "Falta para meta"}
+      <section className="ccv-national-performance section-enter section-enter-1" aria-label="Resultado comercial del período">
+        <div className="ccv-national-performance-primary">
+          <p className="ccv-national-performance-label">Facturado en el período</p>
+          <strong className="tabular-nums">{money(kpis.totalFacturado)}</strong>
+          <div
+            className="ccv-national-performance-track"
+            role="progressbar"
+            aria-label="Cumplimiento de la meta comercial"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, Math.max(0, Number.isFinite(kpis.cumplimiento) ? kpis.cumplimiento : 0))}
+          >
+            <span style={{ width: `${Math.min(100, Math.max(0, Number.isFinite(kpis.cumplimiento) ? kpis.cumplimiento : 0))}%` }} />
           </div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
-            {kpis.totalPresupuesto <= 0
-              ? "–"
-              : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}
-          </div>
+          <p className="ccv-national-performance-caption">{pct(kpis.cumplimiento, 1)} de la meta del período</p>
         </div>
+        <dl className="ccv-national-performance-details">
+          <div><dt>Meta del período</dt><dd className="tabular-nums">{money(kpis.totalPresupuesto)}</dd></div>
+          <div><dt>Cumplimiento</dt><dd className="tabular-nums">{pct(kpis.cumplimiento, 1)}</dd></div>
+          <div>
+            <dt>{kpis.totalPresupuesto <= 0 ? "Meta no asignada" : kpis.totalFacturado >= kpis.totalPresupuesto ? "Sobre meta" : "Falta para meta"}</dt>
+            <dd className="tabular-nums">{kpis.totalPresupuesto <= 0 ? "–" : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}</dd>
+          </div>
+        </dl>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]" aria-label="Gráficos generales del período">
