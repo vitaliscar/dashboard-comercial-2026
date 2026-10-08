@@ -11,8 +11,8 @@ import { diasVencidosDesde, getAllMonthsCap, getHighlightMonthLabels } from "@/l
 import { MESES } from "@/lib/format";
 import { getMonthlySalesProjection } from "@/lib/business-days";
 import { getUnidadData, type UnidadData, type UnidadKey } from "@/lib/unidad-http";
-import { PageHeader } from "@/components/page-header";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
 import { MarcasMonthlyChart, type MonthlyMarcaRow } from "@/components/lubfiltros/MarcasMonthlyChart";
@@ -596,15 +596,22 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
   };
 
   if (isLoading && !data) {
-    return <div className="p-6 text-sm text-muted-foreground">Cargando datos reales de {copy.title}…</div>;
+    return <div aria-label={`Cargando ${copy.title}`}><PageSkeleton kpis={2} blocks={[{ cols: 1, height: 240 }, { cols: 2, height: 280 }]} /></div>;
   }
   if (error) {
     return <div className="p-6 text-sm text-destructive">{error instanceof Error ? error.message : "No se pudo cargar la unidad."}</div>;
   }
 
   return (
-    <div className="ccv-unit-page flex flex-col gap-6" data-unit={unitKey}>
-      <PageHeader eyebrow="Unidad de Negocio" title={copy.title} description={copy.description} />
+    <div className="ccv-unit-page" data-unit={unitKey}>
+      <header className="ccv-unit-heading">
+        <div>
+          <p className="ccv-unit-heading-context">Unidad de negocio <span aria-hidden="true">/</span> Resultado comercial</p>
+          <h1>{copy.title}</h1>
+          <p className="ccv-unit-heading-description">{copy.description}</p>
+        </div>
+        <span className="ccv-unit-heading-period">{anio} · {getHighlightMonthLabels(meses).join(", ") || "Año completo"}</span>
+      </header>
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={isFullAccessRole(role) || role === "gerente_comercial" ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
@@ -615,7 +622,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
 
       <section className="ccv-unit-overview" aria-label="Resultado comercial de la unidad">
         <div className="ccv-unit-overview-main">
-          <p className="ccv-unit-overview-label">Ventas consolidadas</p>
+          <p className="ccv-unit-overview-label">Facturación del período</p>
           <div className="ccv-unit-overview-result">
             <strong>{money(sales)}</strong>
             <span>{target > 0 ? `${compliance.toLocaleString("es-VE", { maximumFractionDigits: 1 })}% de la meta` : "Sin meta asignada"}</span>
@@ -644,6 +651,14 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
       </section>
 
       <section className="flex flex-col gap-3 section-enter section-enter-1">
+        <SectionTitle title="Evolución mensual" description={`Venta real vs. presupuesto, año a la fecha · ${getHighlightMonthLabels(meses).join(", ") || "todos los meses"} en revisión.`} />
+        <div className={unitKey === "lubfiltros" ? "grid gap-4 xl:grid-cols-2" : ""}>
+          <GlobalMonthlyCombo data={monthly} highlightMonths={getHighlightMonthLabels(meses)} />
+          {unitKey === "lubfiltros" && <MarcasMonthlyChart data={monthlyBrandLines} highlightMonths={getHighlightMonthLabels(meses)} />}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
         <SectionTitle title="Desempeño por sucursal" description="Facturación por compañía y cumplimiento de las sucursales." />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
           <div className="lg:col-span-2">
@@ -666,14 +681,6 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
           <div className="lg:col-span-4">
             <SucursalPerformanceChart data={performance} />
           </div>
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3 section-enter section-enter-2">
-        <SectionTitle title="Evolución mensual" description={`Venta real vs. presupuesto, año a la fecha · ${getHighlightMonthLabels(meses).join(", ") || "todos los meses"} en revisión.`} />
-        <div className={unitKey === "lubfiltros" ? "grid gap-4 xl:grid-cols-2" : ""}>
-          <GlobalMonthlyCombo data={monthly} highlightMonths={getHighlightMonthLabels(meses)} />
-          {unitKey === "lubfiltros" && <MarcasMonthlyChart data={monthlyBrandLines} highlightMonths={getHighlightMonthLabels(meses)} />}
         </div>
       </section>
 
