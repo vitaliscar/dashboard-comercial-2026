@@ -319,6 +319,16 @@
 .ccv-budget-page input[type="number"] { border-color: #dfc992 !important; background: #fff4d8 !important; color: #253348 !important; }
 .ccv-budget-page input[type="number"]:focus { border-color: #b7762f !important; background: #fff9eb !important; }
 .ccv-budget-page label:has(input[type="number"]) { border-color: #e2dfd6 !important; border-radius: 4px !important; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] { gap: 0 !important; overflow: hidden; padding: 0 !important; border-color: #d6dce0 !important; border-radius: 5px !important; background: #fffefa !important; box-shadow: none !important; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div { display: flex; min-height: 96px; flex-direction: column; justify-content: center; gap: .4rem; padding: 1.1rem 1.5rem; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div + div { border-left: 1px solid #e0e3e6; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div:nth-child(2) { background: #182b45; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div:nth-child(2) p { color: #e2ebf3 !important; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div > p:first-child { font-size: .72rem; font-weight: 700; letter-spacing: .03em; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div > p:last-child { color: #213750; font: 650 clamp(1.15rem, 1.8vw, 1.8rem)/1.1 var(--font-kpi); letter-spacing: -.035em; overflow-wrap: anywhere; }
+.ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div:nth-child(2) > p:last-child { color: #fffefa !important; }
+#unit-budget-summary section { border-left: 3px solid #294f83 !important; background: #f4f6f8 !important; }
+#unit-budget-summary section > p:nth-child(2) { color: #213750; font-family: var(--font-kpi); letter-spacing: -.03em; }
 
 /* Decision panels retain emphasis without using the previous green/lime pair. */
 .ccv-role-dashboard > section[aria-label^="Resultados comerciales"],
@@ -568,6 +578,8 @@
   .ccv-commitment-status-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ccv-commitment-status-button { border-bottom: 1px solid #e2e5e7; }
   .ccv-commitment-status-button:last-child { grid-column: 1 / -1; border-bottom: 0; }
+  .ccv-budget-national-view > section[aria-label="Resumen de meta anual"] { grid-template-columns: 1fr !important; }
+  .ccv-budget-national-view > section[aria-label="Resumen de meta anual"] > div + div { border-top: 1px solid #e0e3e6; border-left: 0; }
   .ccv-unit-overview-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 1fr; border-top: 1px solid #d8dce0; border-left: 0; }
   .ccv-unit-overview-aside article + article { border-top: 0; border-left: 1px solid #d8dce0; }
   .ccv-national-dashboard > .ccv-national-performance { grid-template-columns: 1fr; }
