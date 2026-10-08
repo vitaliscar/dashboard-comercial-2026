@@ -1,6 +1,6 @@
 import { isFullAccessRole } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Boxes, Building2, Search, TrendingUp } from "lucide-react";
+import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart } from "recharts";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
@@ -11,10 +11,8 @@ import { diasVencidosDesde, getAllMonthsCap, getHighlightMonthLabels } from "@/l
 import { MESES } from "@/lib/format";
 import { getMonthlySalesProjection } from "@/lib/business-days";
 import { getUnidadData, type UnidadData, type UnidadKey } from "@/lib/unidad-http";
-import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
-import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
 import { MarcasMonthlyChart, type MonthlyMarcaRow } from "@/components/lubfiltros/MarcasMonthlyChart";
@@ -31,24 +29,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 const UNIT_COPY: Record<UnidadKey, { title: string; description: string }> = {
   repuestos: {
-    title: "Dashboard Comercial - Repuestos",
-    description: "Cumplimiento, ventas netas por marca y cuentas por cobrar de Repuestos.",
+    title: "Repuestos",
+    description: "Ventas netas por marca, cumplimiento y cartera de Repuestos.",
   },
   lubfiltros: {
-    title: "Dashboard Comercial - Lubricantes y Filtros",
-    description: "Ventas por marca, inventario disponible y cumplimiento de Lubricantes/Filtros.",
+    title: "Lubricantes y filtros",
+    description: "Venta de lubricantes y filtros por separado, marcas e inventario disponible.",
   },
   servicios: {
-    title: "Dashboard Comercial - Servicios",
-    description: "Talleres, CSA, servicios internos, estratégicos y cumplimiento de Servicios.",
+    title: "Servicios",
+    description: "Actividad de talleres y CSA, servicios internos y cumplimiento comercial.",
   },
   equipos: {
-    title: "Dashboard Comercial - Equipos",
-    description: "Participación por marca, inventario, ventas perdidas y cartera de Equipos.",
+    title: "Equipos",
+    description: "Ventas por marca, inventario, oportunidades perdidas y cartera.",
   },
   alquiler: {
-    title: "Dashboard Comercial - Alquiler",
-    description: "Facturación, cumplimiento presupuestario y cuentas por cobrar de Alquiler.",
+    title: "Alquiler",
+    description: "Facturación, cumplimiento de la meta y cuentas por cobrar.",
   },
 };
 
@@ -605,7 +603,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-unit-page flex flex-col gap-6" data-unit={unitKey}>
       <PageHeader eyebrow="Unidad de Negocio" title={copy.title} description={copy.description} />
       <FilterHeader
         onApplyFilters={handleApplyFilters}
@@ -615,41 +613,39 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         showAllMonths
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Ventas consolidadas"
-          value={money(sales)}
-          accent="ochre"
-          icon={TrendingUp}
-          projection={projection ? { value: money(projection.projectedSales), tone: projection.tone } : undefined}
-        />
-        <KpiCard
-          label="Presupuesto"
-          value={money(target)}
-          accent="primary"
-          icon={BarChart3}
-          hint="Meta oficial de la unidad y período seleccionado"
-        />
-        <KpiCard
-          label="Cotizado neto"
-          value={money(num(data?.cotizado.montoTotal))}
-          accent="success"
-          icon={Boxes}
-          hint={`${num(data?.cotizado.cantidad)} cotizaciones · fuente HTTP`}
-        />
-        <KpiCard
-          label="Cuentas por cobrar"
-          value={money((data?.cobranzas ?? []).reduce((sum, row) => sum + num(row.saldo), 0))}
-          accent="warning"
-          icon={Building2}
-          hint={`${data?.cobranzas.length ?? 0} saldos pendientes`}
-        />
-      </div>
+      <section className="ccv-unit-overview" aria-label="Resultado comercial de la unidad">
+        <div className="ccv-unit-overview-main">
+          <p className="ccv-unit-overview-label">Ventas consolidadas</p>
+          <div className="ccv-unit-overview-result">
+            <strong>{money(sales)}</strong>
+            <span>{target > 0 ? `${compliance.toLocaleString("es-VE", { maximumFractionDigits: 1 })}% de la meta` : "Sin meta asignada"}</span>
+          </div>
+          <div className="ccv-unit-overview-track" role="progressbar" aria-label="Cumplimiento de la meta" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, compliance))}>
+            <span style={{ width: `${Math.min(100, Math.max(0, compliance))}%` }} />
+          </div>
+          <div className="ccv-unit-overview-meta">
+            <div><span>Meta del período</span><strong>{money(target)}</strong></div>
+            <div><span>Falta para la meta</span><strong>{money(Math.max(0, target - sales))}</strong></div>
+            {projection && <div><span>Proyección de cierre</span><strong>{money(projection.projectedSales)}</strong></div>}
+          </div>
+        </div>
+        <div className="ccv-unit-overview-aside">
+          <article>
+            <p>Cotizado neto</p>
+            <strong>{money(num(data?.cotizado.montoTotal))}</strong>
+            <span>{num(data?.cotizado.cantidad)} cotizaciones</span>
+          </article>
+          <article>
+            <p>Cuentas por cobrar</p>
+            <strong>{money((data?.cobranzas ?? []).reduce((sum, row) => sum + num(row.saldo), 0))}</strong>
+            <span>{data?.cobranzas.length ?? 0} saldos pendientes</span>
+          </article>
+        </div>
+      </section>
 
       <section className="flex flex-col gap-3 section-enter section-enter-1">
-        <SectionTitle title="Desempeño por sucursal" description="Cumplimiento general, facturación por compañía y detalle de alcance." />
+        <SectionTitle title="Desempeño por sucursal" description="Facturación por compañía y cumplimiento de las sucursales." />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
-          <ComplianceGauge title="Cumplimiento general" subtitle={data?.unit.nombre ?? copy.title} pct={compliance} facturado={sales} presupuesto={target} />
           <div className="lg:col-span-2">
             <div className="flex h-full flex-col rounded-xl border bg-card p-4 card-elevated">
               <p className="font-display font-semibold">Facturación por compañía</p>
@@ -667,7 +663,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
               )}
             </div>
           </div>
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-4">
             <SucursalPerformanceChart data={performance} />
           </div>
         </div>

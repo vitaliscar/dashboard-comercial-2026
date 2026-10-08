@@ -24,7 +24,7 @@ import {
   Layers,
   Shield,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
+import { BarChart, Bar, Cell, XAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
 import {
   Table,
   TableHeader,
@@ -52,11 +52,12 @@ const BUCKET_ORDER = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+9
 const PAGE_SIZE = 50;
 const BUCKET_BAR_CLASS: Record<string, string> = {
   Vigente: "bg-success",
-  "1-30 días": "bg-muted-foreground",
+  "1-30 días": "bg-primary",
   "31-60 días": "bg-warning",
   "61-90 días": "bg-warning",
   "+90 días": "bg-danger",
 };
+const BUCKET_CHART_COLORS = ["#397e65", "#3b75a6", "#d3a047", "#c7793d", "#b9483c"];
 
 function bucket(days: number) {
   if (days <= 0) return "Vigente";
@@ -182,7 +183,7 @@ export default function CobranzasPage() {
         <PageHeader
           eyebrow="Cartera"
           title="Cobranzas"
-           description="Saldo pendiente, antigüedad de deuda y concentración del riesgo en tu alcance."
+          description="Saldo pendiente, antigüedad de deuda y concentración del riesgo en tu alcance."
         />
         <PageSkeleton
           kpis={2}
@@ -216,7 +217,7 @@ export default function CobranzasPage() {
       <PageHeader
         eyebrow="Cartera · Consulta"
         title="Cobranzas"
-         description="Cuentas por cobrar, análisis de tendencia y riesgo"
+        description="Saldo pendiente, antigüedad de deuda y concentración del riesgo en tu alcance."
       />
 
       {unitOptions.length > 0 && (
@@ -261,7 +262,7 @@ export default function CobranzasPage() {
       )}
 
       {canPickSucursal && sucursalOptions.length > 1 && (
-        <div className="bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
+        <div className="ccv-collections-filter bg-card border border-border shadow-sm rounded-md px-4 py-2.5 flex items-center gap-4 flex-wrap">
           <span className="text-[11px] font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
             Filtrar por sucursal:
           </span>
@@ -353,17 +354,17 @@ export default function CobranzasPage() {
 
       {/* TENDENCIA SEMANAL */}
       {compLoading ? (
-        <div className="card-elevated flex min-h-24 items-center gap-3 p-5">
+        <div className="ccv-collections-trend card-elevated flex min-h-24 items-center gap-3 p-5">
           <SkeletonBox className="h-8 w-full" />
           <span className="sr-only">Cargando tendencia semanal…</span>
         </div>
       ) : compError ? (
-        <div className="card-elevated flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
+        <div className="ccv-collections-trend card-elevated flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
           <p className="text-sm text-destructive">{compErrorDetail instanceof Error ? compErrorDetail.message : "No se pudo cargar la comparación semanal."}</p>
           <Button type="button" variant="outline" size="sm" onClick={() => void refetchComparison()}>Reintentar</Button>
         </div>
       ) : !compData?.tieneHistorico ? (
-        <div className="card-elevated p-5 bg-primary/5 ring-1 ring-primary/15 flex items-start gap-3">
+        <div className="ccv-collections-trend card-elevated p-5 bg-primary/5 ring-1 ring-primary/15 flex items-start gap-3">
           <AlertCircle className="size-5 text-primary shrink-0 mt-0.5" />
           <div>
             <h4 className="font-display font-semibold text-sm">Tendencia Semanal</h4>
@@ -374,7 +375,7 @@ export default function CobranzasPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="ccv-collections-trend grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-1 flex flex-col justify-between">
             <KpiCard
               label="Tendencia semanal de vencido"
@@ -452,7 +453,7 @@ export default function CobranzasPage() {
       )}
 
       {/* SEGMENTACIÓN (SUCURSAL Y UNIDAD DE NEGOCIO) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="ccv-collections-segmentation grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card-elevated p-5">
           <h3 className="font-display font-semibold text-sm mb-3 flex items-center gap-2">
             <Building2 className="size-4 text-primary" />
@@ -531,7 +532,7 @@ export default function CobranzasPage() {
       {/* GRÁFICO DE ANTIGÜEDAD DE SALDOS */}
       <div
         className={cn(
-          "card-elevated p-5",
+          "ccv-collections-aging-chart card-elevated p-5",
           isFiltroActivo && "ring-1 ring-primary/40 border-primary/40",
         )}
       >
@@ -560,9 +561,9 @@ export default function CobranzasPage() {
               />
               <Bar
                 dataKey="monto"
-                fill={isFiltroActivo ? "var(--color-ochre)" : "var(--color-primary)"}
                 radius={[4, 4, 0, 0]}
               >
+                {chartData.map((item, index) => <Cell key={item.cubo} fill={BUCKET_CHART_COLORS[index]} />)}
                 <LabelList
                   dataKey="monto"
                   position="top"
@@ -578,9 +579,9 @@ export default function CobranzasPage() {
       </div>
 
       {/* TABLA DE DETALLE */}
-      <div className="card-elevated overflow-hidden">
+      <div className="ccv-collections-ledger card-elevated overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-          <h3 className="font-display font-semibold">Detalle de cuentas por cobrar</h3>
+          <h3 className="font-display font-semibold">Facturas pendientes</h3>
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input

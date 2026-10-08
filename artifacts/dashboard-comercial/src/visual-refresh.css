@@ -498,6 +498,38 @@
 .ccv-client-overview-empty { padding-block: 2rem; color: #66727c; font-size: .82rem; }
 
 /* Triage reads as a queue; the funnel pairs chart and evidence. */
+.ccv-unit-page { --unit-accent: #2d6b9a; }
+.ccv-unit-page[data-unit="repuestos"] { --unit-accent: #ae5c31; }
+.ccv-unit-page[data-unit="lubfiltros"] { --unit-accent: #31737e; }
+.ccv-unit-page[data-unit="servicios"] { --unit-accent: #7a619e; }
+.ccv-unit-page[data-unit="equipos"] { --unit-accent: #365b9c; }
+.ccv-unit-page[data-unit="alquiler"] { --unit-accent: #91733d; }
+.ccv-unit-page .ccv-page-header { border-top: 3px solid var(--unit-accent) !important; }
+.ccv-unit-overview { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(250px, .45fr); border: 1px solid #d8dce0; border-radius: 5px; overflow: hidden; background: #fffefa; }
+.ccv-unit-overview-main { padding: clamp(1.5rem, 2.5vw, 2.4rem); }
+.ccv-unit-overview-label, .ccv-unit-overview-aside p { color: #5b6675; font-size: .73rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.ccv-unit-overview-result { display: flex; align-items: baseline; flex-wrap: wrap; gap: .65rem 1.3rem; margin-top: .6rem; }
+.ccv-unit-overview-result strong { color: #20364f; font: 650 clamp(2.2rem, 3.5vw, 3.7rem)/1 var(--font-kpi); letter-spacing: -.055em; overflow-wrap: anywhere; }
+.ccv-unit-overview-result span { color: var(--unit-accent); font-size: .9rem; font-weight: 750; white-space: nowrap; }
+.ccv-unit-overview-track { height: 7px; margin-top: 1.65rem; background: #e8ebec; }
+.ccv-unit-overview-track > span { display: block; height: 100%; background: var(--unit-accent); }
+.ccv-unit-overview-meta { display: flex; flex-wrap: wrap; gap: 1rem clamp(1.5rem, 3vw, 3rem); margin-top: 1.25rem; }
+.ccv-unit-overview-meta > div { display: grid; gap: .3rem; }
+.ccv-unit-overview-meta span { color: #69737c; font-size: .72rem; }
+.ccv-unit-overview-meta strong { color: #26384e; font: 650 1.05rem/1.2 var(--font-kpi); }
+.ccv-unit-overview-aside { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); border-left: 1px solid #d8dce0; }
+.ccv-unit-overview-aside article { display: flex; flex-direction: column; justify-content: center; gap: .3rem; padding: 1.2rem 1.5rem; }
+.ccv-unit-overview-aside article + article { border-top: 1px solid #d8dce0; }
+.ccv-unit-overview-aside strong { color: #26384e; font: 650 clamp(1.3rem, 1.8vw, 1.8rem)/1.15 var(--font-kpi); overflow-wrap: anywhere; }
+.ccv-unit-overview-aside span { color: #69737c; font-size: .72rem; }
+.ccv-unit-page section .card-elevated { border-color: #d8dce0 !important; border-radius: 5px !important; }
+.ccv-collections-ledger { order: 1; }
+.ccv-collections-trend { order: 2; }
+.ccv-collections-segmentation { order: 3; }
+.ccv-collections-aging-chart { order: 4; }
+.ccv-collections-ledger [data-slot="table-container"] { max-height: min(52vh, 34rem) !important; }
+.ccv-collections-ledger thead { background: #213750 !important; }
+.ccv-collections-aging-chart .recharts-cartesian-axis-tick-value { fill: #526172; }
 .ccv-alert-list { grid-template-columns: minmax(0, 1fr) !important; gap: .6rem !important; }
 .ccv-alert-card { padding: 1rem 1.3rem !important; border-color: #dce0e3 !important; border-radius: 3px !important; }
 .ccv-alert-card h3 { color: #213750 !important; font-size: 1rem !important; }
@@ -506,7 +538,14 @@
 .ccv-funnel-analysis > section { min-width: 0; height: 100%; border-color: #dddfda !important; border-radius: 5px !important; background: #fffefa !important; box-shadow: none !important; }
 .ccv-funnel-analysis > section:last-child { overflow-x: auto; }
 .ccv-funnel-analysis > section:last-child table { min-width: 500px; }
+.ccv-role-coordinator > div.grid.gap-5 { order: 1; }
+.ccv-role-coordinator > section[data-testid="chart-coordinador-year"] { order: 2; height: min(34rem, 52vh); min-height: 300px; }
+.ccv-role-branch > section[aria-label^="Resultados comerciales"],
+.ccv-role-advisor > section[aria-label="Tu avance frente a la meta"] { border-color: #24364f !important; }
 @media (max-width: 760px) {
+  .ccv-unit-overview { grid-template-columns: 1fr; }
+  .ccv-unit-overview-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 1fr; border-top: 1px solid #d8dce0; border-left: 0; }
+  .ccv-unit-overview-aside article + article { border-top: 0; border-left: 1px solid #d8dce0; }
   .ccv-national-dashboard > .ccv-national-performance { grid-template-columns: 1fr; }
   .ccv-national-dashboard > .ccv-national-performance > .ccv-national-performance-primary { min-height: 180px; }
   .ccv-national-performance-details { padding-block: .25rem; }
@@ -514,6 +553,10 @@
   .ccv-client-overview { grid-template-columns: 1fr; }
   .ccv-client-overview-total { min-height: 180px; }
   .ccv-funnel-analysis { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .ccv-unit-overview-aside { grid-template-columns: 1fr; grid-template-rows: repeat(2, auto); }
+  .ccv-unit-overview-aside article + article { border-top: 1px solid #d8dce0; border-left: 0; }
 }
 
 @media (max-width: 1023px) {
