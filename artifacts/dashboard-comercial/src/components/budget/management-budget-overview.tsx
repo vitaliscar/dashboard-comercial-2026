@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QueryErrorNotice } from "@/components/query-error-notice";
-import { money } from "@/lib/format";
+import { budgetMoney as money } from "@/components/budget/format";
 
 type AdvisorAllocation = {
   advisorId: string;

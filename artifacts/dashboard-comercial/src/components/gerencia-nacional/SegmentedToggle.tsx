@@ -39,6 +39,7 @@ export function SegmentedToggle<T extends string>({ value, onChange, options }: 
         />
       )}
       <ToggleGroup
+        aria-label="Modo de visualización"
         value={[value]}
         onValueChange={(v) => {
           // A single-select segmented control always keeps exactly one option active –

@@ -10,18 +10,20 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Package,
   Receipt,
   Search,
   Settings,
   ShieldAlert,
+  Sun,
   Target,
   Truck,
   UserCheck,
   Users,
   Wrench,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { UnidadKey } from "./lib/unidad-http";
@@ -35,12 +37,14 @@ import {
 } from "./lib/permissions";
 import { unidadLabelInfo } from "./lib/unidad-labels";
 import { AuthForm } from "./components/auth-form";
+import { CookieConsentBanner } from "./components/cookie-consent";
 import { ProtectedShell } from "./components/protected-shell";
 import {
   ErrorBoundary,
   type ErrorFallbackProps,
 } from "./components/error-boundary";
-import { getAlertas } from "./lib/alertas-http";
+import { getOpenAlertCount } from "./lib/alertas-http";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Code-splitting por ruta: cada rol solo descarga las páginas a las que
 // tiene acceso (ver ROLE_MODULE_ACCESS), en vez de las 16 en el bundle
@@ -443,6 +447,18 @@ function DashboardApp() {
   const sidebarRef = useRef<HTMLElement>(null);
   const wasMenuOpen = useRef(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const saved = window.localStorage.getItem("ccv-theme");
+      return saved
+        ? saved === "dark"
+        : window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+    } catch {
+      return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+    }
+  });
   // "Administración" (Usuarios/Ajustes-manuales/Carga) es el grupo menos
   // usado – colapsado por defecto reduce los 16 módulos planos que gerencia
   // ve de una sola vez (viola la Ley de Hick sin esto). Se auto-expande si
@@ -459,24 +475,35 @@ function DashboardApp() {
     loading: authLoading,
     signOut,
   } = useAuth();
-  const { data: units, isLoading: unitsLoading } = useUnidades();
-  const { data: sucursales } = useSucursales();
-  const { filters } = useSharedFilters();
   const isLiveSession = !authLoading && Boolean(authSession && authRole);
+  const { data: units, isLoading: unitsLoading } = useUnidades(isLiveSession);
+  const { data: sucursales } = useSucursales(isLiveSession);
+  const { filters } = useSharedFilters();
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    try {
+      window.localStorage.setItem("ccv-theme", darkMode ? "dark" : "light");
+    } catch {
+      // El cambio de tema sigue aplicándose aunque el navegador bloquee almacenamiento.
+    }
+  }, [darkMode]);
   // La campana antes siempre decía "No hay nuevas notificaciones" sin
   // importar el estado real – un afiche falso que entrena a desconfiar de
   // toda señal futura. Ahora refleja el conteo real de alertas abiertas.
   const { data: openAlertsCount = 0 } = useQuery({
     queryKey: ["alertas", "open-count"],
-    queryFn: async () =>
-      (await getAlertas()).filter((a) => a.estado === "abierta").length,
+    queryFn: getOpenAlertCount,
     enabled: isLiveSession,
     refetchInterval: 60_000,
   });
   const current =
     modules.find((item) => location === item.path) ??
     modules.find((item) => item.path === "/dashboard")!;
-  const currentLabel = DEMO_DASHBOARD_LABELS[location] ?? current.label;
+  const currentLabel = LIVE_UNIT_KEYS[location]
+    ? "Desempeño por unidad"
+    : location === "/minutas/nueva"
+      ? "Minutas"
+      : DEMO_DASHBOARD_LABELS[location] ?? current.label;
   const groups = useMemo(
     () => [...new Set(modules.map((item) => item.group))],
     [],
@@ -550,6 +577,57 @@ function DashboardApp() {
       if (event.key === "Escape") {
         setPaletteOpen(false);
         setMenuOpen(false);
+        setShortcutsOpen(false);
+        return;
+      }
+      const target = event.target;
+      const isEditing = target instanceof HTMLElement && (
+        target.isContentEditable ||
+        Boolean(target.closest("input, textarea, select, [contenteditable='true'], [role='textbox'], [cmdk-input]"))
+      );
+      if (isEditing || (target instanceof HTMLElement && target.closest('[role="dialog"]')) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === "?") {
+        event.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+      if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+      if (event.key.toLowerCase() === "j" || event.key.toLowerCase() === "k") {
+        const activeElement = document.activeElement;
+        if (!(activeElement instanceof HTMLElement)) return;
+        const direction = event.key.toLowerCase() === "j" ? 1 : -1;
+        const table = activeElement.closest("table") ??
+          Array.from(document.querySelectorAll<HTMLTableElement>("table")).find(
+            (candidate) => candidate.getClientRects().length > 0,
+          );
+        if (!table) return;
+        const rows = Array.from(table.querySelectorAll("tbody tr")).map((row) => ({
+          row,
+          actions: Array.from(row.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], [tabindex="0"]',
+          )).filter((element) => element.getClientRects().length > 0),
+        })).filter((entry) => entry.actions.length > 0);
+        if (rows.length === 0) return;
+        const activeRowIndex = rows.findIndex((entry) => entry.row.contains(activeElement));
+        const nextRowIndex = activeRowIndex < 0
+          ? direction > 0 ? 0 : rows.length - 1
+          : activeRowIndex + direction;
+        const nextRow = rows[nextRowIndex];
+        if (!nextRow) return;
+        const activeActionIndex = activeRowIndex < 0
+          ? direction > 0 ? 0 : nextRow.actions.length - 1
+          : rows[activeRowIndex]!.actions.findIndex((element) => element === activeElement || element.contains(activeElement));
+        const targetAction = nextRow.actions[
+          Math.min(Math.max(activeActionIndex, 0), nextRow.actions.length - 1)
+        ];
+        if (targetAction) {
+          event.preventDefault();
+          targetAction.focus();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyboard);
@@ -586,7 +664,7 @@ function DashboardApp() {
     );
   }
   if (!isLiveSession || !authRole) {
-    return <AuthForm />;
+    return <><AuthForm /><CookieConsentBanner /></>;
   }
   const role = authRole;
   return (
@@ -633,9 +711,9 @@ function DashboardApp() {
               first.focus();
             }
           }}
-          className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out motion-reduce:transition-none lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
+          className={`ccv-sidebar fixed inset-y-0 left-0 z-40 flex flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out motion-reduce:transition-none lg:transition-none lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
         >
-          <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-5">
+          <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
             <img
               src={`${import.meta.env.BASE_URL}Logo_CCV.png`}
               alt="CCV"
@@ -762,9 +840,9 @@ function DashboardApp() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="ccv-main min-h-screen lg:pl-[248px]"
+          className="ccv-main min-h-screen"
         >
-          <header className="ccv-topbar sticky top-0 z-20 flex h-[72px] items-center gap-4 border-b border-border bg-background/90 px-4 backdrop-blur-xl sm:px-6">
+          <header className="ccv-topbar sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur-xl sm:px-5">
             <button
               ref={menuTriggerRef}
               type="button"
@@ -778,23 +856,17 @@ function DashboardApp() {
             </button>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">
-                {current.group}
+                {location === "/minutas/nueva" ? "Gestión comercial" : current.group}
               </p>
               <p className="ccv-current-title truncate text-sm font-semibold text-foreground sm:text-base">
                 {currentLabel}
               </p>
             </div>
-            <span
-              className="ccv-role-context hidden md:inline-flex"
-              title={roleContextLabel}
-            >
-              {roleContextLabel}
-            </span>
             <button
               ref={searchButtonRef}
               type="button"
               aria-label="Abrir buscador de módulos"
-              aria-keyshortcuts="Control+K Meta+K"
+              aria-keyshortcuts="F Control+K Meta+K"
               onClick={() => setPaletteOpen(true)}
               className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 sm:flex"
             >
@@ -808,10 +880,21 @@ function DashboardApp() {
               ref={mobileSearchButtonRef}
               type="button"
               aria-label="Abrir buscador de módulos"
+              aria-keyshortcuts="F Control+K Meta+K"
               onClick={() => setPaletteOpen(true)}
               className="flex size-11 items-center justify-center rounded-xl border border-border bg-card sm:hidden"
             >
               <Search size={17} />
+            </button>
+            <button
+              type="button"
+              aria-label={darkMode ? "Activar tema claro" : "Activar tema oscuro"}
+              aria-pressed={darkMode}
+              title={darkMode ? "Tema claro" : "Tema oscuro"}
+              onClick={() => setDarkMode((current) => !current)}
+              className="flex size-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <Link
               href="/alertas"
@@ -830,7 +913,7 @@ function DashboardApp() {
               )}
             </Link>
           </header>
-          <div className="ccv-content mx-auto max-w-[1600px] p-4 sm:p-7">
+          <div className="ccv-content mx-auto max-w-[1600px] p-4 sm:p-6">
             {paletteOpen && (
               <Suspense fallback={null}>
                 <CommandPalette
@@ -842,6 +925,22 @@ function DashboardApp() {
                 />
               </Suspense>
             )}
+            <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Atajos de teclado</DialogTitle>
+                  <DialogDescription>Navegación y búsqueda disponibles en la aplicación.</DialogDescription>
+                </DialogHeader>
+                <dl className="ccv-shortcut-list">
+                  <div><dt>J / K</dt><dd>Ir a la acción de la fila siguiente / anterior; desde el inicio, a la primera / última</dd></div>
+                  <div><dt>F</dt><dd>Abrir el buscador de módulos</dd></div>
+                  <div><dt>Ctrl / ⌘ + K</dt><dd>Abrir el buscador de módulos</dd></div>
+                  <div><dt>Enter</dt><dd>Activar la fila o el control enfocado</dd></div>
+                  <div><dt>Esc</dt><dd>Cerrar el diálogo, panel o menú abierto</dd></div>
+                  <div><dt>?</dt><dd>Mostrar esta ayuda</dd></div>
+                </dl>
+              </DialogContent>
+            </Dialog>
             <ErrorBoundary
               resetKey={location}
               FallbackComponent={RouteLoadFailure}
@@ -947,6 +1046,7 @@ function DashboardApp() {
           </div>
         </main>
         </div>
+        <CookieConsentBanner />
       </div>
     </ProtectedShell>
   );

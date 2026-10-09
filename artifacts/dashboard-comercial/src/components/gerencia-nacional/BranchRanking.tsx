@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { ArrowUpRight, Building2 } from "lucide-react";
+import { ArrowUpRight, Building2 } from "@/components/icons";
 import { money, statusFromPct90 } from "@/lib/format";
 import type { BranchSummaryRow } from "./BranchSummaryTable";
 

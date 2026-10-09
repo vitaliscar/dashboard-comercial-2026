@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { money } from "@/lib/format";
+import { budgetMoney as money } from "@/components/budget/format";
 import { QueryErrorNotice } from "@/components/query-error-notice";
 
 type Scope = { nivel: string; unidadId: string; unidad: string; sucursalId: string; sucursal: string; mes: number; asesorId: string; asesor: string; monto: number; sugerencias?: Array<{ itemKey: string; participacion: number }> };

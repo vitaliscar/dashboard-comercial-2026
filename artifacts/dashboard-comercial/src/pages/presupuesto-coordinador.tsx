@@ -7,7 +7,7 @@ import { BudgetMixEditor } from "@/components/budget/budget-mix-editor";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
 import { QueryErrorNotice } from "@/components/query-error-notice";
-import { money } from "@/lib/format";
+import { budgetMoney as money } from "@/components/budget/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -310,7 +310,7 @@ export default function PresupuestoCoordinadorPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="ccv-budget-page ccv-budget-coordinator-view space-y-6">
       <PageHeader
         eyebrow="Planeación de sucursal"
         title={`Presupuesto por asesor ${year}`}

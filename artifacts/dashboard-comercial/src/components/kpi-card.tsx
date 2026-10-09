@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { TrendingDown, TrendingUp, HelpCircle, type LucideIcon } from "lucide-react";
+import { TrendingDown, TrendingUp, HelpCircle, type LucideIcon } from "@/components/icons";
 import { Sparkline } from "@/components/ui/sparkline";
 
 export interface KpiCardProps {
@@ -18,7 +18,6 @@ export interface KpiCardProps {
   subvalueAlign?: "inline" | "below";
   tooltip?: string;
   progress?: number;
-  progressVariant?: "linear" | "gauge";
   sparklineData?: number[];
   sparklineHeight?: number;
   sparklineLabel?: string;
@@ -33,50 +32,6 @@ export interface KpiCardProps {
     tone: "success" | "warning" | "danger";
     label?: string;
   };
-}
-
-const ACCENT_STROKE: Record<string, string> = {
-  primary: "var(--color-primary)",
-  success: "var(--color-success)",
-  warning: "var(--color-warning)",
-  danger: "var(--color-danger)",
-  ochre: "var(--color-ochre)",
-};
-
-function RadialGauge({ progress, accent }: { progress: number; accent: string }) {
-  const pct = Math.min(Math.max(progress, 0), 100);
-  const radius = 22;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - pct / 100);
-  return (
-    <div className="relative size-12 shrink-0">
-      <svg viewBox="0 0 56 56" className="size-12 -rotate-90">
-        <circle
-          cx={28}
-          cy={28}
-          r={radius}
-          fill="none"
-          stroke="var(--color-border)"
-          strokeWidth={4}
-        />
-        <circle
-          cx={28}
-          cy={28}
-          r={radius}
-          fill="none"
-          stroke={ACCENT_STROKE[accent]}
-          strokeWidth={4}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          className="transition-[stroke-dashoffset] duration-700 ease-out"
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold tabular-nums">
-        {Math.round(pct)}%
-      </span>
-    </div>
-  );
 }
 
 const ACCENT_RING: Record<string, string> = {
@@ -103,14 +58,6 @@ const ACCENT_PROGRESS: Record<string, string> = {
   ochre: "bg-ochre",
 };
 
-const ACCENT_GLOW: Record<string, string> = {
-  primary: "shadow-[0_0_6px_oklch(0.72_0.09_230/0.5)]",
-  success: "shadow-[0_0_6px_oklch(0.62_0.16_155/0.5)]",
-  warning: "shadow-[0_0_6px_oklch(0.75_0.15_80/0.5)]",
-  danger: "shadow-[0_0_6px_oklch(0.62_0.22_25/0.5)]",
-  ochre: "shadow-[0_0_6px_oklch(0.75_0.15_80/0.5)]",
-};
-
 export function KpiCard({
   label,
   value,
@@ -126,7 +73,6 @@ export function KpiCard({
   subvalueAlign = "below",
   tooltip,
   progress,
-  progressVariant = "linear",
   sparklineData,
   sparklineHeight = 28,
   sparklineLabel,
@@ -181,7 +127,7 @@ export function KpiCard({
             </TooltipProvider>
           )}
         </div>
-        {Icon && !(progress !== undefined && progressVariant === "gauge") && (
+        {Icon && (
           <Icon
             className={cn(
               "size-3.5 shrink-0",
@@ -207,7 +153,7 @@ export function KpiCard({
           {/* Cuando hay gauge, el anillo ya muestra este mismo porcentaje –
               repetirlo como subvalor inline dice el mismo dato dos veces en
               un solo vistazo. */}
-          {subvalue && subvalueAlign === "inline" && !(progress !== undefined && progressVariant === "gauge") && (
+          {subvalue && subvalueAlign === "inline" && (
             <span className={cn("font-bold tabular-nums text-sm align-baseline", subvalueClassName)}>
               {subvalue}
               {subvalueLabel && (
@@ -223,9 +169,6 @@ export function KpiCard({
             </span>
           )}
         </div>
-        {progress !== undefined && progressVariant === "gauge" && (
-          <RadialGauge progress={progress} accent={accent} />
-        )}
       </div>
 
       {/* Sparkline */}
@@ -286,19 +229,15 @@ export function KpiCard({
         </div>
       )}
 
-      {/* Progress bar – 2px with glow */}
-      {progress !== undefined && progressVariant === "linear" && (
-        <div className="mt-3 h-[2px] w-full bg-foreground/8 rounded-full overflow-hidden">
+      {/* Progress uses one linear scale; drawing is clamped, accessible text preserves the real value. */}
+      {progress !== undefined && (
+        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, progress))} aria-valuetext={`${progress.toFixed(1)}%`}>
           <div
             className={cn(
-              "h-full rounded-full transition-transform duration-600",
+              "h-full rounded-full transition-[width] duration-300",
               ACCENT_PROGRESS[accent],
-              ACCENT_GLOW[accent],
             )}
-            style={{
-              width: `${Math.min(Math.max(progress, 0), 100)}%`,
-              transformOrigin: "left",
-            }}
+            style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
           />
         </div>
       )}

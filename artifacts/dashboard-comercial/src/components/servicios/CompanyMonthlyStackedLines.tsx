@@ -7,10 +7,8 @@ import {
   YAxis,
   Tooltip,
   Legend,
-  LabelList,
 } from "recharts";
 import { money } from "@/lib/format";
-import { createLastPointLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 
@@ -112,9 +110,9 @@ export const CompanyMonthlyStackedLines = memo(function CompanyMonthlyStackedLin
             Sin datos por compañía
           </div>
         ) : (
-          <div className="min-h-[280px] w-full flex-1">
+          <div className="h-[248px] min-h-0 w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <AreaChart data={data} margin={{ top: 8, right: 10, left: 10, bottom: 0 }}>
                 <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" fontSize={11} />
                 <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
                 <Tooltip
@@ -144,15 +142,6 @@ export const CompanyMonthlyStackedLines = memo(function CompanyMonthlyStackedLin
                     dot={renderDot}
                     {...chartAnimation}
                   >
-                    <LabelList
-                      dataKey={key}
-                      content={createLastPointLabel(
-                        data.length,
-                        (v) => money(v),
-                        COMPANY_COLORS[key],
-                        lane,
-                      )}
-                    />
                   </Area>
                 ),
                 )}

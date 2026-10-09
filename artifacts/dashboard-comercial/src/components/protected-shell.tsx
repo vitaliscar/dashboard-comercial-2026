@@ -13,7 +13,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "@/components/icons";
 import { FirstLoginPasswordDialog } from "@/components/first-login-password-dialog";
 
 /** Inactividad máxima antes de preguntar si mantener la sesión. */

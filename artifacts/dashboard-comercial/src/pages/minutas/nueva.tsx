@@ -28,7 +28,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { QueryErrorNotice } from "@/components/query-error-notice";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
-import { ArrowLeft, AlertTriangle, Plus, Trash2, Lock } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Plus, Trash2, Lock } from "@/components/icons";
 
 type Compromiso = {
   key: string;
@@ -232,7 +232,7 @@ export default function NuevaMinutaPage() {
 
       <div className="ccv-commitment-recipient card-elevated p-5 grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1 col-span-2">
-          <Label>Destinatario</Label>
+          <Label htmlFor="minuta-destinatario">Destinatario</Label>
           <Select
             items={destinatarios?.map((d) => ({
               value: d.id,
@@ -241,7 +241,7 @@ export default function NuevaMinutaPage() {
             value={destinatarioId}
             onValueChange={(v) => handleSelectDestinatario(v ?? "")}
           >
-            <SelectTrigger>
+            <SelectTrigger id="minuta-destinatario" aria-label="Destinatario">
               <SelectValue placeholder="Seleccionar destinatario..." />
             </SelectTrigger>
             <SelectContent>
@@ -255,12 +255,12 @@ export default function NuevaMinutaPage() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label>Fecha de la minuta</Label>
-          <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <Label htmlFor="minuta-fecha">Fecha de la minuta</Label>
+          <Input id="minuta-fecha" aria-label="Fecha de la minuta" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1">
-          <Label>Sucursal del destinatario</Label>
-          <Input value={sucursalNombre(sucursalDestinatario)} disabled readOnly />
+          <Label htmlFor="minuta-sucursal">Sucursal del destinatario</Label>
+          <Input id="minuta-sucursal" aria-label="Sucursal del destinatario" value={sucursalNombre(sucursalDestinatario)} disabled readOnly />
         </div>
       </div>
 
@@ -295,9 +295,9 @@ export default function NuevaMinutaPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1 col-span-2">
-                <Label>Cliente (opcional)</Label>
+                <Label htmlFor="compromiso-cliente">Cliente (opcional)</Label>
                 {draft.bloqueado ? (
-                  <Input value={draft.cliente || "–"} disabled readOnly />
+                  <Input id="compromiso-cliente" aria-label="Cliente (opcional)" value={draft.cliente || "–"} disabled readOnly />
                 ) : (
                   <Select
                     items={[
@@ -307,7 +307,7 @@ export default function NuevaMinutaPage() {
                     value={draft.cliente}
                     onValueChange={(v) => setDraft((d) => ({ ...d, cliente: v ?? "" }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="compromiso-cliente" aria-label="Cliente (opcional)">
                       <SelectValue placeholder="Seleccionar cliente..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -329,16 +329,16 @@ export default function NuevaMinutaPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <Label>Unidad de negocio</Label>
+                <Label htmlFor="compromiso-unidad">Unidad de negocio</Label>
                 {draft.bloqueado ? (
-                  <Input value={unidadNombre(draft.unidadNegocioId)} disabled readOnly />
+                  <Input id="compromiso-unidad" aria-label="Unidad de negocio" value={unidadNombre(draft.unidadNegocioId)} disabled readOnly />
                 ) : (
                   <Select
                     items={unidades?.map((u) => ({ value: u.id, label: u.nombre }))}
                     value={draft.unidadNegocioId ?? ""}
                     onValueChange={(v) => setDraft((d) => ({ ...d, unidadNegocioId: v || null }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="compromiso-unidad" aria-label="Unidad de negocio">
                       <SelectValue placeholder="Seleccionar unidad..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -352,8 +352,10 @@ export default function NuevaMinutaPage() {
                 )}
               </div>
               <div className="flex flex-col gap-1">
-                <Label>Fecha límite</Label>
+                <Label htmlFor="compromiso-fecha-limite">Fecha límite</Label>
                 <Input
+                  id="compromiso-fecha-limite"
+                  aria-label="Fecha límite"
                   type="date"
                   value={draft.fechaLimite}
                   onChange={(e) => setDraft((d) => ({ ...d, fechaLimite: e.target.value }))}
@@ -361,8 +363,10 @@ export default function NuevaMinutaPage() {
               </div>
 
               <div className="flex flex-col gap-1 col-span-2">
-                <Label>Descripción del compromiso *</Label>
+                <Label htmlFor="compromiso-descripcion">Descripción del compromiso *</Label>
                 <Textarea
+                  id="compromiso-descripcion"
+                  aria-label="Descripción del compromiso"
                   rows={4}
                   value={draft.descripcion}
                   onChange={(e) => setDraft((d) => ({ ...d, descripcion: e.target.value }))}

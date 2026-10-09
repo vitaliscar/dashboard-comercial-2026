@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect, useCallback, type CSSProperties } from "react";
+import { useMemo, useEffect, useCallback } from "react";
 import { SkeletonBox } from "@/components/ui/skeleton-box";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { PageHeader } from "@/components/page-header";
@@ -19,7 +19,7 @@ import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { canFilterSucursal, getAccessibleSucursales } from "@/lib/permissions";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
 import { getResumenData } from "@/lib/api-data";
-import { AlertCircle, Shield } from "lucide-react";
+import { AlertCircle, Shield } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
   getDateRangesForMonths,
@@ -31,49 +31,35 @@ import { getMonthlySalesProjection } from "@/lib/business-days";
 
 function ResumenSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      {/* Filter header */}
-      <div className="bg-card rounded-lg border border-border p-4">
-        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 items-start sm:items-end">
-          {[140, 120, 200].map((w) => (
-            <div key={w} className="flex flex-col gap-2">
-              <SkeletonBox className="h-3 w-10" />
-              <SkeletonBox className="h-9" style={{ width: w } as CSSProperties} />
-            </div>
-          ))}
-          <SkeletonBox className="h-9 w-28 sm:self-end" />
-        </div>
+    <div className="ccv-resumen-page flex flex-col gap-4" role="status" aria-busy="true" aria-label="Cargando resumen comercial">
+      <div className="flex flex-col gap-2 border-b border-border pb-3">
+        <SkeletonBox className="h-3 w-28" />
+        <SkeletonBox className="h-7 w-60 max-w-full" />
       </div>
 
-      {/* KPI strip */}
-      <div className="card-elevated grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y divide-border lg:divide-y-0 lg:divide-x">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="p-5 flex flex-col gap-3">
-            <SkeletonBox className="h-3 w-28" />
-            <SkeletonBox className="h-8 w-40" />
-            <SkeletonBox className="h-3 w-20" />
-          </div>
+      <div className="ccv-filter-bar flex flex-wrap items-center gap-3 rounded-md border border-border bg-card p-3" aria-hidden="true">
+        {[32, 24, 38].map((width, index) => (
+          <SkeletonBox key={index} className="h-9" style={{ width: `${width * 3}px` }} />
         ))}
+        <SkeletonBox className="ml-auto h-9 w-24" />
       </div>
 
-      {/* Section skeletons */}
-      {[0, 1, 2].map((s) => (
-        <div key={s} className="flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <SkeletonBox className="h-4 w-36" />
-            <SkeletonBox className="h-3 w-24" />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
-            {[0, 1, 2, 3, 4].map((c) => (
-              <div key={c} className="card-elevated p-4 flex flex-col gap-3">
-                <div className="flex justify-between">
-                  <SkeletonBox className="h-2.5 w-16" />
-                  <SkeletonBox className="h-2.5 w-8" />
-                </div>
-                <SkeletonBox className="h-6 w-28" />
-                <SkeletonBox className="h-1 w-full" />
-              </div>
-            ))}
+      <section className="ccv-summary-kpis" aria-hidden="true">
+        {[0, 1, 2, 3].map((item) => (
+          <div key={item} className="ccv-summary-kpi"><SkeletonBox className="h-3 w-24" /><SkeletonBox className="mt-2 h-7 w-36 max-w-full" /><SkeletonBox className="mt-2 h-3 w-28 max-w-full" /></div>
+        ))}
+      </section>
+
+      <div className="ccv-resumen-analytics-grid" aria-hidden="true">
+        <section className="ccv-revenue-chart-panel"><SkeletonBox className="h-4 w-40" /><SkeletonBox className="ccv-resumen-skeleton-chart mt-4 w-full" /></section>
+        <section className="overflow-hidden rounded-md border border-border bg-card p-4"><SkeletonBox className="h-5 w-48" />{[0, 1, 2, 3].map((item) => <SkeletonBox key={item} className="mt-5 h-9 w-full" />)}</section>
+      </div>
+
+      {[0, 1].map((section) => (
+        <div key={section} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+          <SkeletonBox className="h-5 w-48" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((item) => <SkeletonBox key={item} className="h-20 w-full" />)}
           </div>
         </div>
       ))}
@@ -144,6 +130,19 @@ export default function ResumenPage() {
     return sucursales.find((s) => s.nombre === filters.sucursal)?.id;
   }, [sharedFilters.sucursales, filters.sucursal, sucursales]);
 
+  const coordinatorProfileMissing =
+    !authLoading && role === "coordinador" && !profile?.sucursal_id;
+  const coordinatorScopeReady =
+    role !== "coordinador" ||
+    Boolean(
+      profile?.sucursal_id &&
+      sucursales &&
+      unidades &&
+      !isSucLoading &&
+      !isUnLoading &&
+      selectedSucursalId === profile.sucursal_id,
+    );
+
   // Restrict sucursales selection based on role permissions
   const sucursalesVisibles = useMemo(() => {
     if (!sucursales || !role) return [];
@@ -210,8 +209,11 @@ export default function ResumenPage() {
         anio: filters.anio,
         meses: filters.meses === "all" ? "all" : filters.meses.join(","),
         sucursalId: selectedSucursalId,
-      }),
-    enabled: !!unidades && !!sucursales,
+    }),
+    enabled: !authLoading && !!role && coordinatorScopeReady,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const resumenData = useMemo<ResumenData | null>(() => {
@@ -709,7 +711,10 @@ export default function ResumenPage() {
   }, [sharedFilters, setSharedFilters, currentMonth]);
 
   const isDataLoadingCombined =
-    isSucLoading || isUnLoading || (isDataLoading && !!unidades && !!sucursales);
+    isSucLoading ||
+    isUnLoading ||
+    (isDataLoading && !!unidades && !!sucursales) ||
+    (role === "coordinador" && !coordinatorProfileMissing && !coordinatorScopeReady);
   const hasError = isSucError || isUnError || isDataError;
   const firstError = sucError || unError || dataError;
   const facturadoProjection = resumenData
@@ -741,6 +746,18 @@ export default function ResumenPage() {
     );
   }
 
+  if (coordinatorProfileMissing) {
+    return (
+      <section className="card-elevated mx-auto my-12 flex max-w-xl flex-col items-center gap-4 p-8 text-center" role="alert">
+        <Shield className="size-10 text-muted-foreground" />
+        <h2 className="font-display text-xl font-bold">Sucursal sin asignar</h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Tu perfil de coordinación no tiene una sucursal asignada. Contacta al administrador para completar tu perfil.
+        </p>
+      </section>
+    );
+  }
+
   if (hasError) {
     return (
       <div className="card-elevated p-8 max-w-xl mx-auto my-12 text-center flex flex-col items-center gap-4">
@@ -763,21 +780,10 @@ export default function ResumenPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ccv-resumen-page flex flex-col gap-4">
       <PageHeader
-        eyebrow="Analytics / Comercial"
+        eyebrow="Comercial"
         title="Resumen comercial"
-        description={
-          selectedUnidadUi
-            ? `Cotizaciones, facturación y ventas perdidas · ${selectedUnidadUi}.`
-            : "Cotizaciones, facturación y ventas perdidas · consolidado por unidad de negocio."
-        }
-        className="border-b border-border pb-4"
-        action={
-          <div className="flex gap-4 text-[10px] font-mono text-muted-foreground">
-            <span className="text-primary">Moneda: USD</span>
-          </div>
-        }
       />
 
       {/* Mismo FilterHeader (con fila de chips "Filtrar por unidad") que usa
@@ -814,11 +820,12 @@ export default function ResumenPage() {
         }
         ventasPerdidas={resumenData.kpis.ventasPerdidas}
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
+        unitRows={resumenData.facturado}
       />
 
       {isSingleUnitView ? (
         <details className="ccv-summary-details">
-          <summary>Explorar desglose por unidad, sucursal y cliente</summary>
+          <summary>Explorar cotizaciones, clientes y ventas perdidas</summary>
           <div className="ccv-summary-detail-content">
             <CotizacionesSection
               part="detail"
@@ -842,7 +849,7 @@ export default function ResumenPage() {
         </details>
       ) : (
         <details className="ccv-summary-details">
-          <summary>Ver desglose por unidad, sucursal y cliente</summary>
+          <summary>Explorar cotizaciones, clientes y ventas perdidas</summary>
           <div className="ccv-summary-detail-content">
           <CotizacionesSectionLegacy
             datos={resumenData.cotizaciones}

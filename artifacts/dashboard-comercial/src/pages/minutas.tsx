@@ -69,7 +69,7 @@ import {
   AlertTriangle,
   Send,
   CheckCircle,
-} from "lucide-react";
+} from "@/components/icons";
 import { useLocation } from "wouter";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -313,18 +313,20 @@ export default function MinutasPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1 col-span-2">
-                      <Label>Destinatario</Label>
-                      <Input value={editing?.destinatarioNombre ?? "–"} disabled readOnly />
+                      <Label htmlFor="minuta-edit-destinatario">Destinatario</Label>
+                      <Input id="minuta-edit-destinatario" aria-label="Destinatario" value={editing?.destinatarioNombre ?? "–"} disabled readOnly />
                     </div>
                     {editing?.cliente && (
                       <div className="flex flex-col gap-1 col-span-2">
-                        <Label>Cliente</Label>
-                        <Input value={editing.cliente} disabled readOnly />
+                        <Label htmlFor="minuta-edit-cliente">Cliente</Label>
+                        <Input id="minuta-edit-cliente" aria-label="Cliente" value={editing.cliente} disabled readOnly />
                       </div>
                     )}
                     <div className="flex flex-col gap-1 col-span-2">
-                      <Label>Descripción del compromiso</Label>
+                      <Label htmlFor="minuta-edit-descripcion">Descripción del compromiso</Label>
                       <Textarea
+                        id="minuta-edit-descripcion"
+                        aria-label="Descripción del compromiso"
                         rows={3}
                         value={form.descripcion}
                         onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
@@ -332,15 +334,17 @@ export default function MinutasPage() {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <Label>Fecha límite</Label>
+                      <Label htmlFor="minuta-edit-fecha-limite">Fecha límite</Label>
                       <Input
+                        id="minuta-edit-fecha-limite"
+                        aria-label="Fecha límite"
                         type="date"
                         value={form.fechaLimite}
                         onChange={(e) => setForm({ ...form, fechaLimite: e.target.value })}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <Label>Estado</Label>
+                      <Label htmlFor="minuta-edit-estado">Estado</Label>
                       <Select
                         items={[
                           { value: "pendiente", label: estadoLabel("pendiente") },
@@ -350,7 +354,7 @@ export default function MinutasPage() {
                         value={form.estado}
                         onValueChange={(v) => setForm({ ...form, estado: v as MinutaEstado })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="minuta-edit-estado" aria-label="Estado">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -410,7 +414,7 @@ export default function MinutasPage() {
         </KpiFilterButton>
       </div>
 
-      <div className="ccv-commitment-filters flex flex-wrap items-center gap-2" aria-label="Filtrar compromisos por responsable">
+      <div className="ccv-commitment-filters flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar compromisos por responsable">
         <span className="mr-1 text-sm text-muted-foreground">Mostrar:</span>
         <Button type="button" size="sm" variant={responsableFilter === "alcance" ? "default" : "outline"} aria-pressed={responsableFilter === "alcance"} onClick={() => setResponsableFilter("alcance")}>Todo mi alcance</Button>
         <Button type="button" size="sm" variant={responsableFilter === "mias" ? "default" : "outline"} aria-pressed={responsableFilter === "mias"} disabled={!user?.id} onClick={() => setResponsableFilter("mias")}>Mis compromisos</Button>
@@ -511,13 +515,29 @@ export default function MinutasPage() {
                       <TableRow
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => setExpandedRowId(isExpanded ? null : m.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape" && isExpanded) {
+                            event.stopPropagation();
+                            setExpandedRowId(null);
+                          }
+                        }}
                       >
                         <TableCell className="px-2 text-center text-muted-foreground">
-                          {isExpanded ? (
-                            <ChevronDown className="size-4 inline" />
-                          ) : (
-                            <ChevronRight className="size-4 inline" />
-                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`${isExpanded ? "Ocultar" : "Mostrar"} detalles de la minuta de ${m.destinatarioNombre ?? "este destinatario"}`}
+                            aria-expanded={isExpanded}
+                            aria-controls={isExpanded ? `minuta-detail-${m.id}` : undefined}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setExpandedRowId(isExpanded ? null : m.id);
+                            }}
+                            className="size-8"
+                          >
+                            {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                          </Button>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">
                           {m.fecha}
@@ -577,7 +597,7 @@ export default function MinutasPage() {
                       </TableRow>
 
                       {isExpanded && (
-                        <TableRow className="bg-muted/20 hover:bg-muted/20">
+                        <TableRow id={`minuta-detail-${m.id}`} className="bg-muted/20 hover:bg-muted/20">
                           <TableCell colSpan={9} className="p-4 border-b border-border">
                             <div className="flex flex-col gap-4 max-w-3xl">
                               <div>
@@ -687,10 +707,11 @@ export default function MinutasPage() {
 
                                 {isDestinatario && (
                                   <div className="flex flex-col gap-2 mt-3 bg-background border border-border rounded-md p-3">
-                                    <Label className="text-xs font-semibold">
+                                    <Label htmlFor={`comentario-${m.id}`} className="text-xs font-semibold">
                                       Agregar comentario
                                     </Label>
                                     <Textarea
+                                      id={`comentario-${m.id}`}
                                       rows={2}
                                       placeholder="Escribe una respuesta o actualización..."
                                       value={comentarioTexto[m.id] ?? ""}

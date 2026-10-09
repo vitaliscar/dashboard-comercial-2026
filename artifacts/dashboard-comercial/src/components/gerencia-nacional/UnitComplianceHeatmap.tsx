@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { Grid2X2 } from "lucide-react";
+import { Grid2X2 } from "@/components/icons";
 import { abbreviateSucursal, money, pct, statusFromPct90 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { BranchSummaryRow } from "./BranchSummaryTable";
@@ -32,7 +32,7 @@ function CellValue({
   label: string;
   onClick?: () => void;
 }) {
-  if (!value || (value.meta <= 0 && value.facturado <= 0)) {
+  if (!value || (value.meta === 0 && value.facturado === 0)) {
     return (
       <span
         role="img"
@@ -42,6 +42,21 @@ function CellValue({
       >
         –
       </span>
+    );
+  }
+
+  if (value.facturado < 0) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={!onClick}
+        className="flex min-h-9 w-full items-center justify-center rounded-md border border-danger/30 bg-danger/5 px-2 font-mono text-xs font-semibold tabular-nums text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground"
+        aria-label={`${label}: ajuste negativo ${money(value.facturado)}${value.meta > 0 ? ` de ${money(value.meta)} de meta` : ", sin meta asignada"}`}
+        title={`${label}: ajuste negativo ${money(value.facturado)}${value.meta > 0 ? ` frente a ${money(value.meta)} de meta` : " · sin meta"}`}
+      >
+        Ajuste {money(value.facturado)}
+      </button>
     );
   }
 
@@ -143,7 +158,7 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium" aria-label="Leyenda de cumplimiento">
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium" role="group" aria-label="Leyenda de cumplimiento">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-success">
             <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
             En meta ≥90%

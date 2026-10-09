@@ -45,7 +45,7 @@ import {
   Eye,
   AlertTriangle,
   ClipboardList,
-} from "lucide-react";
+} from "@/components/icons";
 import { resolverAsesor, VENTAS_CASA, normalizarNombre } from "@/lib/asesores-catalogo";
 import {
   consolidarAsesores,
@@ -438,7 +438,7 @@ export default function AsesoresPage() {
       )}
 
       <Dialog open={!!selectedAdvisor} onOpenChange={(open) => !open && setSelectedAdvisor(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="ccv-detail-peek max-h-[85vh] overflow-y-auto">
           {selectedAdvisor && (
             <>
               <DialogHeader>

@@ -23,7 +23,7 @@ import {
   Building2,
   Layers,
   Shield,
-} from "lucide-react";
+} from "@/components/icons";
 import { BarChart, Bar, Cell, XAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
 import {
   Table,
@@ -40,7 +40,7 @@ import {
   EmptyDescription,
   EmptyMedia,
 } from "@/components/ui/empty";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -230,6 +230,7 @@ export default function CobranzasPage() {
               type="button"
               variant={selectedUnidades.length === 0 ? "default" : "outline"}
               size="sm"
+              aria-pressed={selectedUnidades.length === 0}
               onClick={handleSelectAllUnits}
               className={cn(
                 "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
@@ -241,6 +242,7 @@ export default function CobranzasPage() {
               Todas
             </Button>
             <ToggleGroup
+              aria-label="Filtrar cobranzas por unidad de negocio"
               multiple
               value={selectedUnidades}
               onValueChange={handleUnitSelectionChange}
@@ -271,6 +273,7 @@ export default function CobranzasPage() {
               type="button"
               variant={selectedSucursales.length === 0 ? "default" : "outline"}
               size="sm"
+              aria-pressed={selectedSucursales.length === 0}
               onClick={handleSelectAllSucursales}
               className={cn(
                 "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
@@ -282,6 +285,7 @@ export default function CobranzasPage() {
               Todas
             </Button>
             <ToggleGroup
+              aria-label="Filtrar cobranzas por sucursal"
               multiple
               value={selectedSucursales}
               onValueChange={handleSucursalSelectionChange}
@@ -319,7 +323,6 @@ export default function CobranzasPage() {
           accent="warning"
           icon={AlertCircle}
           progress={totalGeneral > 0 ? (vencido / totalGeneral) * 100 : 0}
-          progressVariant="gauge"
         />
       </div>
 
@@ -587,12 +590,13 @@ export default function CobranzasPage() {
             <Input
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(0); }}
+              aria-label="Buscar cliente o factura"
               placeholder="Buscar cliente o factura…"
               className="pl-8 h-9"
             />
           </div>
         </div>
-        <div className="[&_[data-slot=table-container]]:max-h-[26rem] [&_[data-slot=table-container]]:overflow-y-auto">
+        <div className="[&_[data-slot=table-container]]:max-h-[26rem] [&_[data-slot=table-container]]:overflow-x-auto [&_[data-slot=table-container]]:overflow-y-auto">
           <Table className="text-sm">
             <TableHeader className="bg-primary [&_tr]:border-b-0 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">

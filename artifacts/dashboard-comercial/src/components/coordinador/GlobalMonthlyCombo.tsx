@@ -1,7 +1,6 @@
 import { memo } from "react";
-import { ComposedChart, Bar, Cell, Line, LabelList, XAxis, YAxis } from "recharts";
+import { ComposedChart, Bar, Cell, Line, XAxis, YAxis } from "recharts";
 import { money } from "@/lib/format";
-import { createChartLabel, createLastPointLabel } from "@/lib/chart-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -31,22 +30,19 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
 }) {
   const chartAnimation = useChartAnimation();
   const hasHighlight = highlightMonths.length > 0;
-  const chartData = data.map((row) => {
-    const cumplimiento = row.presupuesto > 0 ? (row.venta / row.presupuesto) * 100 : 0;
-    return { ...row, cumplimiento };
-  });
+  const chartData = data;
 
   return (
-    // ChartContainer tiene h-[360px] fijo → ResponsiveContainer siempre
-    // mide un alto concreto y Recharts no tira "width(-1) height(-1)".
+    // ChartContainer conserva una altura explícita para que ResponsiveContainer
+    // calcule el SVG correctamente y la gráfica no domine el móvil.
     <Card className="ring-0 card-elevated">
       <CardHeader>
         <CardTitle className="font-display font-semibold">
-          Presupuesto vs Cumplimiento Mensual Global
+          Venta y presupuesto mensual
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[360px] w-full">
+        <ChartContainer config={chartConfig} className="h-[280px] w-full sm:h-[310px]">
           <ComposedChart data={chartData} margin={{ top: 24, right: 8, left: 8, bottom: 0 }}>
             <XAxis
               dataKey="mes"
@@ -58,7 +54,17 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
             <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent formatter={(value) => money(Number(value))} />}
+              content={
+                <ChartTooltipContent
+                  formatter={(value) => money(Number(value))}
+                  labelFormatter={(label, payload) => {
+                    const row = payload?.[0]?.payload as MonthlyRow | undefined;
+                    if (!row) return label;
+                    const rate = row.presupuesto > 0 ? (row.venta / row.presupuesto) * 100 : null;
+                    return `${row.mes} · ${rate === null ? "Sin meta" : `${rate.toLocaleString("es-VE", { maximumFractionDigits: 1 })}% de meta`}`;
+                  }}
+                />
+              }
             />
             <ChartLegend verticalAlign="top" content={<ChartLegendContent />} />
             <Bar
@@ -76,24 +82,6 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
                     opacity={highlightMonths.includes(row.mes) ? 1 : 0.35}
                   />
                 ))}
-              <LabelList
-                dataKey="venta"
-                content={createChartLabel({
-                  formatter: (v) => money(v),
-                  fill: "var(--color-foreground)",
-                  dy: -8,
-                })}
-              />
-              <LabelList
-                dataKey="cumplimiento"
-                content={createChartLabel({
-                  formatter: (v) => `${v.toFixed(0)}%`,
-                  fill: "var(--color-foreground)",
-                  fontSize: 9,
-                  minSegmentHeight: 32,
-                  skipEmpty: false,
-                })}
-              />
             </Bar>
             <Line
               type="monotone"
@@ -103,17 +91,7 @@ export const GlobalMonthlyCombo = memo(function GlobalMonthlyCombo({
               strokeWidth={2.5}
               dot={{ r: 4, fill: "var(--color-card)", strokeWidth: 2 }}
               {...chartAnimation}
-            >
-              <LabelList
-                dataKey="presupuesto"
-                content={createChartLabel({
-                  formatter: (v) => money(v),
-                  fill: "var(--color-chart-2)",
-                  dy: 14,
-                  fontSize: 9,
-                })}
-              />
-            </Line>
+            />
           </ComposedChart>
         </ChartContainer>
       </CardContent>

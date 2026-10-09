@@ -1,5 +1,13 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import {
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,7 +31,7 @@ import {
   EmptyDescription,
   EmptyMedia,
 } from "@/components/ui/empty";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck } from "@/components/icons";
 import {
   Pagination,
   PaginationContent,
@@ -65,30 +73,57 @@ export const ReceivablesTable = memo(function ReceivablesTable({
   const [sucursalFiltro, setSucursalFiltro] = useState("all");
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    return rows
-      .filter((r) => {
-        const matchesUnit = unidadFiltro === "all" || !r.unidadId || r.unidadId === unidadFiltro;
-        const matchesSucursal =
-          sucursalFiltro === "all" ||
-          !r.sucursalVenta ||
-          r.sucursalVenta.toLowerCase() === sucursalFiltro.toLowerCase();
-        return matchesUnit && matchesSucursal;
-      })
-      .sort((a, b) => b.total - a.total);
-  }, [rows, unidadFiltro, sucursalFiltro]);
+  const tableColumns = useMemo<ColumnDef<ReceivableRow>[]>(
+    () => [
+      {
+        id: "unidadFiltro",
+        accessorKey: "unidadId",
+        filterFn: (row, _columnId, value) =>
+          value === "all" || !row.original.unidadId || row.original.unidadId === value,
+      },
+      {
+        id: "sucursalFiltro",
+        accessorKey: "sucursalVenta",
+        filterFn: (row, _columnId, value) =>
+          value === "all" ||
+          !row.original.sucursalVenta ||
+          row.original.sucursalVenta.toLowerCase() === String(value).toLowerCase(),
+      },
+      { accessorKey: "total", sortingFn: "basic" },
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns: tableColumns,
+    state: {
+      columnFilters: [
+        { id: "unidadFiltro", value: unidadFiltro },
+        { id: "sucursalFiltro", value: sucursalFiltro },
+      ],
+      sorting: [{ id: "total", desc: true }],
+      pagination: { pageIndex: page - 1, pageSize: PAGE_SIZE },
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+
+  const filtered = table.getFilteredRowModel().rows.map((row) => row.original);
 
   const grandTotal = useMemo(() => {
     return filtered.reduce((sum, r) => sum + (r.total || 0), 0);
   }, [filtered]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageCount = Math.max(1, table.getPageCount());
 
   useEffect(() => {
     setPage(1);
   }, [unidadFiltro, sucursalFiltro]);
 
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageRows = table.getRowModel().rows.map((row) => row.original);
 
   return (
     <div className="card-elevated overflow-hidden">
@@ -111,6 +146,7 @@ export const ReceivablesTable = memo(function ReceivablesTable({
             >
               <SelectTrigger
                 id="sucursal-venta-filter"
+                aria-label="Filtrar cuentas por sucursal de venta"
                 className="h-9 w-[180px] bg-background border border-input text-sm font-semibold"
               >
                 <SelectValue placeholder="Sucursal Venta" />
@@ -131,7 +167,7 @@ export const ReceivablesTable = memo(function ReceivablesTable({
               value={unidadFiltro}
               onValueChange={(v) => setUnidadFiltro(v ?? "all")}
             >
-              <SelectTrigger className="h-9 w-[180px] bg-background border border-input text-sm font-semibold">
+              <SelectTrigger aria-label="Filtrar cuentas por unidad de negocio" className="h-9 w-[180px] bg-background border border-input text-sm font-semibold">
                 <SelectValue placeholder="Unidad de negocio" />
               </SelectTrigger>
               <SelectContent>

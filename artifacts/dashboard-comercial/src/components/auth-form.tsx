@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "@/components/icons";
 import { useAuth } from "@/hooks/use-auth";
 
 export function AuthForm() {

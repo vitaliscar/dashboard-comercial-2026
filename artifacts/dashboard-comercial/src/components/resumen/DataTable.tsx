@@ -4,7 +4,13 @@ import { Input } from "@/components/ui/input";
 import { useState, useMemo, memo } from "react";
 import { cn, exportCSV } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowUpDown, ArrowUp, ArrowDown, Download, Search } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Download, Search } from "@/components/icons";
+import {
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 import {
   Table,
   TableHeader,
@@ -14,7 +20,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyTitle, EmptyMedia } from "@/components/ui/empty";
-import { Inbox } from "lucide-react";
+import { Inbox } from "@/components/icons";
 
 interface Column {
   key: string;
@@ -112,20 +118,32 @@ export const DataTable = memo(function DataTable({
     );
   }, [data, search, columns]);
 
-  const sortedData = useMemo(() => {
-    if (!sortKey || !sortDir) return filteredData;
-    return [...filteredData].sort((a, b) => {
-      const aVal = getRawValue(a[sortKey]);
-      const bVal = getRawValue(b[sortKey]);
-      let cmp = 0;
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        cmp = aVal - bVal;
-      } else {
-        cmp = String(aVal).localeCompare(String(bVal), "es");
-      }
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [filteredData, sortKey, sortDir]);
+  const tableColumns = useMemo<ColumnDef<Record<string, unknown>>[]>(
+    () =>
+      columns.map((column) => ({
+        accessorKey: column.key,
+        sortingFn: (rowA, rowB, columnId) => {
+          const aVal = getRawValue(rowA.original[columnId]);
+          const bVal = getRawValue(rowB.original[columnId]);
+          if (typeof aVal === "number" && typeof bVal === "number") {
+            return aVal - bVal;
+          }
+          return String(aVal).localeCompare(String(bVal), "es");
+        },
+      })),
+    [columns],
+  );
+
+  const table = useReactTable({
+    data: filteredData,
+    columns: tableColumns,
+    state: {
+      sorting: sortKey && sortDir ? [{ id: sortKey, desc: sortDir === "desc" }] : [],
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedData = table.getRowModel().rows.map((row) => row.original);
 
   const displayData = expanded ? sortedData : sortedData.slice(0, maxRows);
 
@@ -171,6 +189,8 @@ export const DataTable = memo(function DataTable({
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                type="search"
+                aria-label={searchPlaceholder === "Buscar..." ? "Buscar en la tabla" : searchPlaceholder}
                 placeholder={searchPlaceholder}
                 className="pl-7.5 h-6.5 text-[11px] bg-background border-border/40"
               />

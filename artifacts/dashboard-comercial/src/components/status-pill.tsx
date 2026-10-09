@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 type Kind = "success" | "warning" | "danger" | "neutral";

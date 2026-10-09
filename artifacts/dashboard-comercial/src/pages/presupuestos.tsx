@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
-import { money } from "@/lib/format";
+import { budgetMoney as money } from "@/components/budget/format";
 import { useAuth } from "@/hooks/use-auth";
 import { Textarea } from "@/components/ui/textarea";
 import {

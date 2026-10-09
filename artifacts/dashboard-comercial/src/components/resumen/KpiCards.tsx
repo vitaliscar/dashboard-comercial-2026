@@ -1,14 +1,7 @@
 import { money, MESES } from "@/lib/format";
-import { Goal, TrendingDown, XOctagon } from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import type { FacturadoMetrica } from "@/lib/resumen-types";
+import { UnitPerformance } from "@/components/resumen/UnitPerformance";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface KpiCardsProps {
   cotizado: number;
@@ -23,6 +16,7 @@ interface KpiCardsProps {
   ventasPerdidas: number;
   ventasPerdidasPorcentaje: number;
   facturadoProjection?: { value: string; tone: "success" | "warning" | "danger" };
+  unitRows: FacturadoMetrica[];
 }
 
 const compactMoney = (value: number) => {
@@ -44,77 +38,82 @@ export function KpiCards({
   ventasPerdidas,
   ventasPerdidasPorcentaje,
   facturadoProjection,
+  unitRows,
 }: KpiCardsProps) {
   const gap = Math.max(0, metaMes - facturado);
   const reached = metaMes > 0 && cumplimientoMetaPorcentaje >= 100;
-  const trend = facturadoMensual ?? [];
   const data = MESES.map((month, index) => ({
     month: month.slice(0, 3),
-    facturado: trend[index] ?? 0,
-    meta: metaMensual?.[index] ?? 0,
+    facturado: facturadoMensual?.[index] ?? null,
+    meta: metaMensual?.[index] ?? null,
   }));
 
   return (
-    <section className="ccv-revenue-panel" aria-label="Desempeño de facturación">
-      <div className="ccv-revenue-main">
-        <div className="ccv-revenue-heading">
-          <div>
-            <p className="ccv-revenue-eyebrow">RESULTADO COMERCIAL · {periodoLabel}</p>
-            <h2>Facturado en el período</h2>
-          </div>
-          <span className={`ccv-revenue-status ${reached ? "is-reached" : ""}`}>
-            <span aria-hidden="true" />
-            {metaMes <= 0 ? "Sin meta" : reached ? "Meta alcanzada" : "En curso"}
-          </span>
-        </div>
-
-        <div className="ccv-revenue-value-row">
+    <>
+      <section className="ccv-summary-kpis" aria-label="Indicadores del período">
+        <article className="ccv-summary-kpi">
+          <span>Facturado</span>
           <strong>{money(facturado)}</strong>
-          <span className="ccv-revenue-attainment">{metaMes > 0 ? <>{cumplimientoMetaPorcentaje.toFixed(1)}% <small>de la meta</small></> : "Sin meta configurada"}</span>
-        </div>
+          <small>{periodoLabel}</small>
+        </article>
+        <article className="ccv-summary-kpi">
+          <span>Meta y cumplimiento</span>
+          <strong>{money(metaMes)}</strong>
+          <small>
+            {metaMes > 0 ? `${cumplimientoMetaPorcentaje.toFixed(1)}% · ${reached ? `superada por ${money(facturado - metaMes)}` : `faltan ${money(gap)}`}` : "Sin meta configurada"}
+          </small>
+          {facturadoProjection && <small className={`ccv-summary-projection tone-${facturadoProjection.tone}`}>Proyección: {facturadoProjection.value}</small>}
+        </article>
+        <article className="ccv-summary-kpi">
+          <span>Cotizado</span>
+          <strong>{money(cotizado)}</strong>
+          <small>Facturado: {facturadoVsCotizadoPorcentaje.toFixed(1)}% del cotizado</small>
+        </article>
+        <article className="ccv-summary-kpi ccv-summary-kpi-lost">
+          <span>Ventas perdidas</span>
+          <strong>{money(ventasPerdidas)}</strong>
+          <small>{ventasPerdidasPorcentaje.toFixed(1)}% de lo cotizado</small>
+        </article>
+      </section>
 
-        <p className="ccv-revenue-chart-title">Evolución mensual · {anio}</p>
+      <div className="ccv-resumen-analytics-grid">
+      <section className="ccv-revenue-chart-panel" aria-labelledby="revenue-chart-title">
+        <header className="ccv-summary-panel-heading">
+          <div>
+            <h2 id="revenue-chart-title">Evolución mensual</h2>
+            <p>Facturación y meta por mes · {anio}</p>
+          </div>
+        <div className="ccv-revenue-chart-key" role="group" aria-label="Leyenda del gráfico">
+            <span><i className="is-sales" /> Facturado</span>
+            <span><i className="is-target" /> Meta</span>
+          </div>
+        </header>
         <div className="ccv-revenue-chart" role="img" aria-label={`Facturación y meta mensual de enero a diciembre de ${anio}`}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2d7950" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#2d7950" stopOpacity={0.015} />
+                  <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.16} />
+                  <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} stroke="#e0e9e0" strokeDasharray="3 5" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#747c72", fontSize: 11 }} tickMargin={10} />
-              <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: "#747c72", fontSize: 10 }} tickFormatter={compactMoney} />
+              <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 5" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} tickMargin={9} />
+              <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} tickFormatter={compactMoney} />
               <Tooltip
-                cursor={{ stroke: "#aab4a8", strokeDasharray: "3 4" }}
-                contentStyle={{ border: "1px solid #dce4dd", borderRadius: 8, background: "#ffffff", fontSize: 12 }}
-                formatter={(value, name) => [money(Number(value)), name === "meta" ? "Meta mensual" : "Facturado"]}
+                cursor={{ stroke: "#98a2b3", strokeDasharray: "3 4" }}
+                contentStyle={{ border: "1px solid var(--color-border)", borderRadius: 7, background: "var(--color-card)", color: "var(--color-foreground)", fontSize: 12 }}
+                formatter={(value, name) => [value == null ? "Sin dato" : money(Number(value)), name === "meta" ? "Meta" : "Facturado"]}
                 labelFormatter={(label) => `${label} ${anio}`}
               />
-              <Area type="monotone" dataKey="facturado" stroke="#2d7950" strokeWidth={2.5} fill="url(#revenueFill)" activeDot={{ r: 5, fill: "#2d7950", stroke: "#ffffff", strokeWidth: 2 }} />
-              <Area type="monotone" dataKey="meta" stroke="var(--color-chart-2)" strokeWidth={1.5} strokeDasharray="5 4" fill="none" activeDot={false} />
+              <Area type="monotone" dataKey="facturado" stroke="var(--color-chart-1)" strokeWidth={2.5} fill="url(#revenueFill)" connectNulls={false} activeDot={{ r: 4, fill: "var(--color-chart-1)", stroke: "#fff", strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="meta" stroke="var(--color-chart-2)" strokeWidth={1.75} strokeDasharray="5 4" fill="none" connectNulls={false} activeDot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="ccv-revenue-chart-key"><span><i /> Facturación</span><span><i /> Meta mensual</span></div>
+      </section>
+      <UnitPerformance rows={unitRows} />
       </div>
-
-      <aside className="ccv-revenue-aside" aria-label="Indicadores del período">
-        <div className="ccv-revenue-target">
-          <div><Goal aria-hidden="true" /><span>Meta del período</span></div>
-          <strong>{money(metaMes)}</strong>
-          <p>{reached ? `Superada por ${money(facturado - metaMes)}` : `Faltan ${money(gap)} para alcanzarla`}</p>
-          <div className="ccv-revenue-progress" role="progressbar" aria-label="Cumplimiento de meta" aria-valuenow={Math.round(cumplimientoMetaPorcentaje)} aria-valuemin={0} aria-valuemax={100}>
-            <span style={{ width: `${Math.min(cumplimientoMetaPorcentaje, 100)}%` }} />
-          </div>
-          {facturadoProjection && <small className={`ccv-revenue-projection tone-${facturadoProjection.tone}`}>Proyección cierre <b>{facturadoProjection.value}</b></small>}
-        </div>
-        <div className="ccv-revenue-secondary">
-          <div><span>Total cotizado</span><strong>{money(cotizado)}</strong><small>Facturación: {facturadoVsCotizadoPorcentaje.toFixed(1)}% del cotizado</small></div>
-          <div className="ccv-revenue-lost"><span><TrendingDown aria-hidden="true" /> Ventas perdidas</span><strong>{money(ventasPerdidas)}</strong><small><XOctagon aria-hidden="true" /> {ventasPerdidasPorcentaje.toFixed(1)}% de lo cotizado</small></div>
-        </div>
-      </aside>
-    </section>
+    </>
   );
 }
