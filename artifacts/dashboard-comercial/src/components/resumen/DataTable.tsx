@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, memo } from "react";
 import { cn, exportCSV } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ArrowUpDown, ArrowUp, ArrowDown, Download, Search } from "@/components/icons";
 import {
   getCoreRowModel,
@@ -313,22 +312,12 @@ export const DataTable = memo(function DataTable({
                             {idx + 1}
                           </span>
                         ) : col.tooltip ? (
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <span className="truncate block cursor-help hover:text-foreground transition-colors" />
-                              }
-                            >
-                              {val}
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="top"
-                              align="start"
-                              className="max-w-[200px] text-[10px] leading-relaxed font-sans"
-                            >
-                              {String(row[col.key] ?? "")}
-                            </TooltipContent>
-                          </Tooltip>
+                          <span
+                            title={String(row[col.key] ?? "")}
+                            className="block truncate cursor-help hover:text-foreground transition-colors"
+                          >
+                            {val}
+                          </span>
                         ) : (
                           <span
                             className={cn(

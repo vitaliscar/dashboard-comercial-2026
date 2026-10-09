@@ -20,7 +20,7 @@ const UNIT_COLORS: Record<UnidadNegocio, string> = {
 };
 
 export function UnitPerformance({ rows = [] }: UnitPerformanceProps) {
-  const visibleRows = rows.filter((row) => row.monto > 0 || (row.presupuestoTotal ?? 0) > 0);
+  const visibleRows = rows;
 
   return (
     <section
@@ -51,71 +51,71 @@ export function UnitPerformance({ rows = [] }: UnitPerformanceProps) {
           No hay facturación ni metas para este período con los filtros actuales.
         </p>
       ) : (
-        <ul className="divide-y divide-border border-t border-border" aria-label="Unidades de negocio">
-          {visibleRows.map((row) => {
-            const target = row.presupuestoTotal ?? 0;
-            const rate = Number.isFinite(row.cumplimiento) ? row.cumplimiento : 0;
-            const status = statusFor(rate);
+        <div className="overflow-x-auto border-t border-border">
+          <ul
+            className="grid divide-x divide-border"
+            style={{
+              gridTemplateColumns: `repeat(${visibleRows.length}, minmax(0, 1fr))`,
+              minWidth: visibleRows.length > 1 ? `${visibleRows.length * 170}px` : undefined,
+            }}
+            aria-label="Unidades de negocio"
+          >
+            {visibleRows.map((row) => {
+              const target = row.presupuestoTotal ?? 0;
+              const rate = Number.isFinite(row.cumplimiento) ? row.cumplimiento : 0;
+              const status = statusFor(rate);
 
-            return (
-              <li
-                key={row.unidad}
-                className="grid grid-cols-2 gap-x-3 gap-y-3 px-4 py-3 sm:px-5"
-              >
-                <div className="col-span-2 min-w-0 sm:col-span-1">
-                  <div className="flex min-w-0 items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold text-foreground">{row.unidad}</span>
-                    <span className={`shrink-0 font-mono text-xs font-semibold tabular-nums sm:hidden ${target > 0 ? status.text : "text-muted-foreground"}`}>
-                      {target > 0 ? `${rate.toFixed(1)}%` : "Sin meta"}
-                    </span>
-                  </div>
-                  {target > 0 ? (
-                    <div
-                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
-                      role="progressbar"
-                      aria-label={`Cumplimiento de ${row.unidad}`}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.min(Math.max(rate, 0), 100)}
-                      aria-valuetext={`${rate.toFixed(1)}% de la meta. ${status.label}.`}
-                    >
-                      <div
-                        className="h-full rounded-full transition-[width] duration-300"
-                        style={{
-                          width: `${Math.min(Math.max(rate, 0), 100)}%`,
-                          backgroundColor: UNIT_COLORS[row.unidad],
-                        }}
-                      />
+              return (
+                <li key={row.unidad} className="flex min-w-0 flex-col gap-3 px-3 py-3 sm:px-4">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="truncate text-xs font-semibold text-foreground">{row.unidad}</span>
+                      <span className={`shrink-0 font-mono text-xs font-semibold tabular-nums ${target > 0 ? status.text : "text-muted-foreground"}`}>
+                        {target > 0 ? `${rate.toFixed(1)}%` : "Sin meta"}
+                      </span>
                     </div>
-                  ) : (
-                    <p className="mt-1 text-xs text-muted-foreground">Sin meta configurada</p>
-                  )}
-                </div>
+                    {target > 0 ? (
+                      <div
+                        className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+                        role="progressbar"
+                        aria-label={`Cumplimiento de ${row.unidad}`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.min(Math.max(rate, 0), 100)}
+                        aria-valuetext={`${rate.toFixed(1)}% de la meta. ${status.label}.`}
+                      >
+                        <div
+                          className="h-full rounded-full transition-[width] duration-300"
+                          style={{
+                            width: `${Math.min(Math.max(rate, 0), 100)}%`,
+                            backgroundColor: UNIT_COLORS[row.unidad],
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">Sin meta configurada</p>
+                    )}
+                  </div>
 
-                <div className="min-w-0">
-                  <span className="block text-[10px] text-muted-foreground">Facturado</span>
-                  <strong className="font-mono text-sm font-semibold tabular-nums text-foreground">
-                    {money(row.monto)}
-                  </strong>
-                </div>
-
-                <div className="min-w-0">
-                  <span className="block text-[10px] text-muted-foreground">Meta</span>
-                  <strong className="font-mono text-sm font-medium tabular-nums text-foreground">
-                    {target > 0 ? money(target) : "—"}
-                  </strong>
-                </div>
-
-                <div className="hidden sm:block">
-                  <span className="block text-[10px] text-muted-foreground">Avance</span>
-                  <strong className={`font-mono text-sm font-semibold tabular-nums ${target > 0 ? status.text : "text-muted-foreground"}`}>
-                    {target > 0 ? `${rate.toFixed(1)}%` : "—"}
-                  </strong>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                  <div className="grid min-w-0 grid-cols-2 gap-2">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] text-muted-foreground">Facturado</span>
+                      <strong className="block truncate font-mono text-[15px] font-semibold tabular-nums text-foreground" title={money(row.monto)}>
+                        {money(row.monto)}
+                      </strong>
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] text-muted-foreground">Meta</span>
+                      <strong className="block truncate font-mono text-[15px] font-semibold tabular-nums text-success" title={target > 0 ? money(target) : "Sin meta"}>
+                        {target > 0 ? money(target) : "—"}
+                      </strong>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </section>
   );

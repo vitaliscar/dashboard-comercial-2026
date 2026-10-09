@@ -824,9 +824,7 @@ export default function ResumenPage() {
       />
 
       {isSingleUnitView ? (
-        <details className="ccv-summary-details">
-          <summary>Explorar cotizaciones, clientes y ventas perdidas</summary>
-          <div className="ccv-summary-detail-content">
+        <section className="ccv-summary-details ccv-summary-detail-content" aria-label="Cotizaciones, clientes y ventas perdidas">
             <CotizacionesSection
               part="detail"
               datos={resumenData.cotizaciones}
@@ -845,12 +843,9 @@ export default function ResumenPage() {
               hideSucursalColumn={role === "coordinador" || role === "asesor"}
               showVariacionMesAnterior
             />
-          </div>
-        </details>
+        </section>
       ) : (
-        <details className="ccv-summary-details">
-          <summary>Explorar cotizaciones, clientes y ventas perdidas</summary>
-          <div className="ccv-summary-detail-content">
+        <section className="ccv-summary-details ccv-summary-detail-content" aria-label="Cotizaciones, clientes y ventas perdidas">
           <CotizacionesSectionLegacy
             datos={resumenData.cotizaciones}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
@@ -865,8 +860,7 @@ export default function ResumenPage() {
             datos={resumenData.ventasPerdidas}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
           />
-          </div>
-        </details>
+        </section>
       )}
     </div>
   );

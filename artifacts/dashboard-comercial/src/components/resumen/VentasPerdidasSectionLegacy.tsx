@@ -94,7 +94,7 @@ export function VentasPerdidasSectionLegacy({
                 key: "monto",
                 label: "Monto",
                 format: "currency" as const,
-                width: "w-[85px]",
+                width: "w-[140px]",
                 align: "right" as const,
               },
             ]}
@@ -111,12 +111,12 @@ export function VentasPerdidasSectionLegacy({
           </p>
           <DataTable
             columns={[
-              { key: "razon", label: "Razón", format: "text" },
+              { key: "razon", label: "Razón", format: "text", tooltip: true },
               {
                 key: "monto",
                 label: "Monto",
                 format: "currency",
-                width: "w-[85px]",
+                width: "w-[140px]",
                 align: "right",
               },
               {
