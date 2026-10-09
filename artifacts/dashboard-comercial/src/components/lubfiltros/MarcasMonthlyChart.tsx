@@ -24,7 +24,7 @@ export type MonthlyMarcaRow = {
 type Props = {
   data: MonthlyMarcaRow[];
   title?: string;
-  /** Meses (abreviados, ej. "Jul") a resaltar — el resto se atenúa. */
+  /** Meses (abreviados, ej. "Jul") a resaltar – el resto se atenúa. */
   highlightMonths?: string[];
 };
 

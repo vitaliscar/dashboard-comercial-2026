@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import '@fontsource-variable/inter';
 
 import App from './App';
 import { AuthProvider } from './hooks/use-auth';
@@ -7,6 +8,7 @@ import { SharedFiltersProvider } from './hooks/shared-filters-provider';
 
 import './styles.css';
 import './ui-foundation.css';
+import './visual-refresh.css';
 
 const preloadRecoveryKey = 'ccv-vite-preload-recovery-at';
 window.addEventListener('vite:preloadError', (event) => {

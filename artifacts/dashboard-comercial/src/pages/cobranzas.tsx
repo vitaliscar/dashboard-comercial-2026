@@ -2,12 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getCobranzas, getCobranzasComparison } from "@/lib/cobranzas-http";
-import { segmentarCobranzas } from "@/lib/analytics/cobranzas";
 import { KpiCard } from "@/components/kpi-card";
 import { Sparkline } from "@/components/ui/sparkline";
 import { StatusPill } from "@/components/status-pill";
 import { money } from "@/lib/format";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,8 +23,8 @@ import {
   Building2,
   Layers,
   Shield,
-} from "lucide-react";
-import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
+} from "@/components/icons";
+import { BarChart, Bar, Cell, XAxis, ResponsiveContainer, Tooltip, LabelList } from "recharts";
 import {
   Table,
   TableHeader,
@@ -41,7 +40,7 @@ import {
   EmptyDescription,
   EmptyMedia,
 } from "@/components/ui/empty";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -53,11 +52,12 @@ const BUCKET_ORDER = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+9
 const PAGE_SIZE = 50;
 const BUCKET_BAR_CLASS: Record<string, string> = {
   Vigente: "bg-success",
-  "1-30 días": "bg-muted-foreground",
+  "1-30 días": "bg-primary",
   "31-60 días": "bg-warning",
   "61-90 días": "bg-warning",
   "+90 días": "bg-danger",
 };
+const BUCKET_CHART_COLORS = ["#397e65", "#3b75a6", "#d3a047", "#c7793d", "#b9483c"];
 
 function bucket(days: number) {
   if (days <= 0) return "Vigente";
@@ -76,6 +76,7 @@ function bucketKind(b: string): "success" | "warning" | "danger" | "neutral" {
 
 export default function CobranzasPage() {
   const [q, setQ] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("cliente") ?? "");
+  const [search, setSearch] = useState(q);
   const [page, setPage] = useState(0);
   const { session, role } = useAuth();
   const { filters, setFilters } = useSharedFilters();
@@ -83,6 +84,11 @@ export default function CobranzasPage() {
   const selectedSucursales = filters.sucursales;
   const canPickSucursal = canPickSucursalFilter(role);
   const canView = canAccessModule(role, "cobranzas");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setSearch(q.trim()), 250);
+    return () => window.clearTimeout(timeout);
+  }, [q]);
 
   const { data: unidades } = useUnidades();
   const unitOptions = useMemo(() => {
@@ -104,8 +110,8 @@ export default function CobranzasPage() {
     setFilters({ sucursales: sucursalIds });
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["cobranzas", selectedUnidades, selectedSucursales],
-    queryFn: () => getCobranzas({ selectedUnidades, selectedSucursales }),
+    queryKey: ["cobranzas", selectedUnidades, selectedSucursales, search, page],
+    queryFn: () => getCobranzas({ selectedUnidades, selectedSucursales }, { search, page }),
     enabled: Boolean(session) && canView,
   });
 
@@ -117,7 +123,7 @@ export default function CobranzasPage() {
 
   const enriched = useMemo(() => {
     const today = new Date();
-    return (data ?? []).map((c) => {
+    return (data?.items ?? []).map((c) => {
       const days = Math.floor(
         (today.getTime() - new Date(c.fechaVencimiento).getTime()) / 86400000,
       );
@@ -129,43 +135,24 @@ export default function CobranzasPage() {
         unidadNegocio: c.unidadNegocio ?? "Sin Unidad",
       };
     });
-  }, [data]);
-
-  const filtered = useMemo(() => {
-    const s = q.toLowerCase();
-    return enriched.filter(
-      (r) =>
-        r.cliente.toLowerCase().includes(s) || (r.facturaNumero ?? "").toLowerCase().includes(s),
-    ).sort((a, b) => b.dias - a.dias || Number(b.saldo) - Number(a.saldo));
-  }, [enriched, q]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  }, [data?.items]);
+  const filteredCount = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
   const visiblePage = Math.min(page, pageCount - 1);
-  const visibleRows = filtered.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE);
+  const visibleRows = enriched;
+  const totals = data?.summary.totals ?? {};
 
-  const totals = useMemo(() => {
-    const t = {
-      vigente: 0,
-      "1-30 días": 0,
-      "31-60 días": 0,
-      "61-90 días": 0,
-      "+90 días": 0,
-    } as Record<string, number>;
-    enriched.forEach((r) => (t[r.cubo] = (t[r.cubo] ?? 0) + Number(r.saldo)));
-    return t;
-  }, [enriched]);
+  useEffect(() => {
+    if (data && page > pageCount - 1) setPage(pageCount - 1);
+  }, [data, page, pageCount]);
 
   const totalGeneral = Object.values(totals).reduce((a, b) => a + b, 0);
   const vencido = totalGeneral - (totals["Vigente"] ?? 0);
 
-  const segmentacion = useMemo(() => {
-    return segmentarCobranzas(
-      enriched.map((r) => ({
-        sucursal: r.sucursal,
-        unidadNegocio: r.unidadNegocio,
-        saldo: Number(r.saldo) || 0,
-      })),
-    );
-  }, [enriched]);
+  const segmentacion = useMemo(() => ({
+    porSucursal: (data?.summary.byBranch ?? []).map(({ nombre, total }) => ({ sucursal: nombre, total })),
+    porUnidad: (data?.summary.byUnit ?? []).map(({ nombre, total }) => ({ unidad: nombre, total })),
+  }), [data?.summary.byBranch, data?.summary.byUnit]);
 
   const chartData = ["Vigente", "1-30 días", "31-60 días", "61-90 días", "+90 días"].map((k) => ({
     cubo: k,
@@ -196,7 +183,7 @@ export default function CobranzasPage() {
         <PageHeader
           eyebrow="Cartera"
           title="Cobranzas"
-           description="Cuentas por cobrar, análisis de tendencia y riesgo"
+          description="Saldo pendiente, antigüedad de deuda y concentración del riesgo en tu alcance."
         />
         <PageSkeleton
           kpis={2}
@@ -243,6 +230,7 @@ export default function CobranzasPage() {
               type="button"
               variant={selectedUnidades.length === 0 ? "default" : "outline"}
               size="sm"
+              aria-pressed={selectedUnidades.length === 0}
               onClick={handleSelectAllUnits}
               className={cn(
                 "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
@@ -254,6 +242,7 @@ export default function CobranzasPage() {
               Todas
             </Button>
             <ToggleGroup
+              aria-label="Filtrar cobranzas por unidad de negocio"
               multiple
               value={selectedUnidades}
               onValueChange={handleUnitSelectionChange}
@@ -284,6 +273,7 @@ export default function CobranzasPage() {
               type="button"
               variant={selectedSucursales.length === 0 ? "default" : "outline"}
               size="sm"
+              aria-pressed={selectedSucursales.length === 0}
               onClick={handleSelectAllSucursales}
               className={cn(
                 "h-auto rounded-full px-3.5 py-1 text-xs font-semibold",
@@ -295,6 +285,7 @@ export default function CobranzasPage() {
               Todas
             </Button>
             <ToggleGroup
+              aria-label="Filtrar cobranzas por sucursal"
               multiple
               value={selectedSucursales}
               onValueChange={handleSucursalSelectionChange}
@@ -320,7 +311,7 @@ export default function CobranzasPage() {
         <KpiCard
           label="Total por cobrar"
           value={money(totalGeneral)}
-          hint={`${enriched.length} facturas`}
+          hint={`${data?.summary.count ?? 0} facturas`}
           accent="primary"
           icon={Wallet}
           featured
@@ -332,7 +323,6 @@ export default function CobranzasPage() {
           accent="warning"
           icon={AlertCircle}
           progress={totalGeneral > 0 ? (vencido / totalGeneral) * 100 : 0}
-          progressVariant="gauge"
         />
       </div>
 
@@ -367,28 +357,28 @@ export default function CobranzasPage() {
 
       {/* TENDENCIA SEMANAL */}
       {compLoading ? (
-        <div className="card-elevated flex min-h-24 items-center gap-3 p-5">
+        <div className="ccv-collections-trend card-elevated flex min-h-24 items-center gap-3 p-5">
           <SkeletonBox className="h-8 w-full" />
           <span className="sr-only">Cargando tendencia semanal…</span>
         </div>
       ) : compError ? (
-        <div className="card-elevated flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
+        <div className="ccv-collections-trend card-elevated flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
           <p className="text-sm text-destructive">{compErrorDetail instanceof Error ? compErrorDetail.message : "No se pudo cargar la comparación semanal."}</p>
           <Button type="button" variant="outline" size="sm" onClick={() => void refetchComparison()}>Reintentar</Button>
         </div>
       ) : !compData?.tieneHistorico ? (
-        <div className="card-elevated p-5 bg-primary/5 ring-1 ring-primary/15 flex items-start gap-3">
+        <div className="ccv-collections-trend card-elevated p-5 bg-primary/5 ring-1 ring-primary/15 flex items-start gap-3">
           <AlertCircle className="size-5 text-primary shrink-0 mt-0.5" />
           <div>
             <h4 className="font-display font-semibold text-sm">Tendencia Semanal</h4>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Esta es la primera carga registrada — la comparación semanal estará disponible después
+              Esta es la primera carga registrada – la comparación semanal estará disponible después
               de la próxima actualización.
             </p>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="ccv-collections-trend grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-1 flex flex-col justify-between">
             <KpiCard
               label="Tendencia semanal de vencido"
@@ -466,7 +456,7 @@ export default function CobranzasPage() {
       )}
 
       {/* SEGMENTACIÓN (SUCURSAL Y UNIDAD DE NEGOCIO) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="ccv-collections-segmentation grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card-elevated p-5">
           <h3 className="font-display font-semibold text-sm mb-3 flex items-center gap-2">
             <Building2 className="size-4 text-primary" />
@@ -545,7 +535,7 @@ export default function CobranzasPage() {
       {/* GRÁFICO DE ANTIGÜEDAD DE SALDOS */}
       <div
         className={cn(
-          "card-elevated p-5",
+          "ccv-collections-aging-chart card-elevated p-5",
           isFiltroActivo && "ring-1 ring-primary/40 border-primary/40",
         )}
       >
@@ -574,9 +564,9 @@ export default function CobranzasPage() {
               />
               <Bar
                 dataKey="monto"
-                fill={isFiltroActivo ? "var(--color-ochre)" : "var(--color-primary)"}
                 radius={[4, 4, 0, 0]}
               >
+                {chartData.map((item, index) => <Cell key={item.cubo} fill={BUCKET_CHART_COLORS[index]} />)}
                 <LabelList
                   dataKey="monto"
                   position="top"
@@ -592,20 +582,21 @@ export default function CobranzasPage() {
       </div>
 
       {/* TABLA DE DETALLE */}
-      <div className="card-elevated overflow-hidden">
+      <div className="ccv-collections-ledger card-elevated overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-          <h3 className="font-display font-semibold">Detalle de cuentas por cobrar</h3>
+          <h3 className="font-display font-semibold">Facturas pendientes</h3>
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(0); }}
+              aria-label="Buscar cliente o factura"
               placeholder="Buscar cliente o factura…"
               className="pl-8 h-9"
             />
           </div>
         </div>
-        <div className="[&_[data-slot=table-container]]:max-h-[26rem] [&_[data-slot=table-container]]:overflow-y-auto">
+        <div className="[&_[data-slot=table-container]]:max-h-[26rem] [&_[data-slot=table-container]]:overflow-x-auto [&_[data-slot=table-container]]:overflow-y-auto">
           <Table className="text-sm">
             <TableHeader className="bg-primary [&_tr]:border-b-0 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">
@@ -636,7 +627,7 @@ export default function CobranzasPage() {
                     Cargando…
                   </TableCell>
                 </TableRow>
-              ) : filtered.length === 0 ? (
+              ) : filteredCount === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={6} className="p-0">
                     <Empty>
@@ -661,7 +652,7 @@ export default function CobranzasPage() {
                   >
                     <TableCell className="px-4 py-3 font-medium">{r.cliente}</TableCell>
                     <TableCell className="px-4 py-3 text-muted-foreground">
-                      {r.facturaNumero ?? "—"}
+                      {r.facturaNumero ?? "–"}
                     </TableCell>
                     <TableCell className="px-4 py-3 tabular-nums text-muted-foreground">
                       {r.fechaVencimiento}
@@ -680,7 +671,7 @@ export default function CobranzasPage() {
           </Table>
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
-          <span>{filtered.length === 0 ? "0 facturas" : `${visiblePage * PAGE_SIZE + 1}–${Math.min((visiblePage + 1) * PAGE_SIZE, filtered.length)} de ${filtered.length} facturas · vencidas primero`}</span>
+          <span>{filteredCount === 0 ? "0 facturas" : `${visiblePage * PAGE_SIZE + 1}–${Math.min((visiblePage + 1) * PAGE_SIZE, filteredCount)} de ${filteredCount} facturas · vencidas primero`}</span>
           <div className="flex gap-2"><Button size="sm" variant="outline" disabled={visiblePage === 0} onClick={() => setPage(visiblePage - 1)}>Anterior</Button><Button size="sm" variant="outline" disabled={visiblePage >= pageCount - 1} onClick={() => setPage(visiblePage + 1)}>Siguiente</Button></div>
         </div>
       </div>

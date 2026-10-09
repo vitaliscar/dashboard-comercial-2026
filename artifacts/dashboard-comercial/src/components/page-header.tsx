@@ -15,7 +15,7 @@ export function PageHeader({ eyebrow, title, description, action, className }: P
       className={cn("ccv-page-header flex flex-wrap justify-between items-end gap-3 border-b border-border/70 pb-5", className)}
     >
       <div className="min-w-0">
-        <p className="text-[9px] font-mono font-bold tracking-[0.18em] text-primary uppercase mb-1.5">
+        <p className="mb-1.5 text-xs font-semibold tracking-wide text-primary uppercase">
           {eyebrow}
         </p>
         <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">

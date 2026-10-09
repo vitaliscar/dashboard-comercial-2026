@@ -1,8 +1,7 @@
 import { isFullAccessRole } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Boxes, Building2, Search, TrendingUp } from "lucide-react";
+import { Search } from "@/components/icons";
 import { useMemo, useState } from "react";
-import { Cell, Pie, PieChart } from "recharts";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales } from "@/hooks/use-catalogos";
@@ -11,44 +10,36 @@ import { diasVencidosDesde, getAllMonthsCap, getHighlightMonthLabels } from "@/l
 import { MESES } from "@/lib/format";
 import { getMonthlySalesProjection } from "@/lib/business-days";
 import { getUnidadData, type UnidadData, type UnidadKey } from "@/lib/unidad-http";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/page-header";
 import { FilterHeader, type FilterState } from "@/components/resumen/FilterHeader";
-import { ComplianceGauge } from "@/components/gerencia-nacional/ComplianceGauge";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import { GlobalMonthlyCombo } from "@/components/coordinador/GlobalMonthlyCombo";
 import { MarcasMonthlyChart, type MonthlyMarcaRow } from "@/components/lubfiltros/MarcasMonthlyChart";
 import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const UNIT_COPY: Record<UnidadKey, { title: string; description: string }> = {
   repuestos: {
-    title: "Dashboard Comercial - Repuestos",
-    description: "Cumplimiento, ventas netas por marca y cuentas por cobrar de Repuestos.",
+    title: "Repuestos",
+    description: "Ventas netas por marca, cumplimiento y cartera de Repuestos.",
   },
   lubfiltros: {
-    title: "Dashboard Comercial - Lubricantes y Filtros",
-    description: "Ventas por marca, inventario disponible y cumplimiento de Lubricantes/Filtros.",
+    title: "Lubricantes y filtros",
+    description: "Venta de lubricantes y filtros por separado, marcas e inventario disponible.",
   },
   servicios: {
-    title: "Dashboard Comercial - Servicios",
-    description: "Talleres, CSA, servicios internos, estratégicos y cumplimiento de Servicios.",
+    title: "Servicios",
+    description: "Actividad de talleres y CSA, servicios internos y cumplimiento comercial.",
   },
   equipos: {
-    title: "Dashboard Comercial - Equipos",
-    description: "Participación por marca, inventario, ventas perdidas y cartera de Equipos.",
+    title: "Equipos",
+    description: "Ventas por marca, inventario, oportunidades perdidas y cartera.",
   },
   alquiler: {
-    title: "Dashboard Comercial - Alquiler",
-    description: "Facturación, cumplimiento presupuestario y cuentas por cobrar de Alquiler.",
+    title: "Alquiler",
+    description: "Facturación, cumplimiento de la meta y cuentas por cobrar.",
   },
 };
 
@@ -62,7 +53,7 @@ const BRAND_CHART_COLORS = [
   "var(--color-chart-5)",
 ];
 
-function BrandShareDonut({
+function BrandShareBars({
   data,
   total,
   hasNegativeAmounts,
@@ -71,59 +62,28 @@ function BrandShareDonut({
   total: number;
   hasNegativeAmounts: boolean;
 }) {
-  const chartConfig = useMemo(
-    () =>
-      data.reduce<ChartConfig>((config, brand, index) => {
-        config[brand.marca] = {
-          label: brand.marca,
-          color: BRAND_CHART_COLORS[index % BRAND_CHART_COLORS.length],
-        };
-        return config;
-      }, {}),
-    [data],
-  );
-
   return (
-    <div className="min-w-0 rounded-xl bg-muted/35 p-3">
+    <div className="ccv-unit-brand-share min-w-0 rounded-lg border bg-card p-4">
       <h3 className="text-sm font-semibold">Participación por marca</h3>
-      <div className="relative mx-auto mt-1 w-full max-w-[320px]">
-        <ChartContainer config={chartConfig} className="aspect-square min-h-[230px] max-h-[320px] w-full">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="monto"
-              nameKey="marca"
-              innerRadius="62%"
-              outerRadius="86%"
-              paddingAngle={2}
-              stroke="var(--color-card)"
-              strokeWidth={2}
-            >
-              {data.map((brand, index) => (
-                <Cell
-                  key={brand.marca}
-                  fill={BRAND_CHART_COLORS[index % BRAND_CHART_COLORS.length]}
-                />
-              ))}
-            </Pie>
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  nameKey="marca"
-                  formatter={(value) => money(Number(value))}
-                />
-              }
-            />
-          </PieChart>
-        </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[10px] text-muted-foreground">Ventas positivas</span>
-          <strong className="font-mono text-sm tabular-nums">{money(total)}</strong>
-        </div>
-      </div>
+      <p className="mt-1 text-xs text-muted-foreground">Ventas positivas · {money(total)}</p>
+      <ul className="mt-4 max-h-72 space-y-3 overflow-y-auto" aria-label="Participación por marca">
+        {data.map((brand, index) => {
+          const share = total > 0 ? brand.monto / total * 100 : 0;
+          const color = BRAND_CHART_COLORS[index % BRAND_CHART_COLORS.length];
+          return <li key={brand.marca}>
+            <div className="flex items-baseline justify-between gap-3 text-xs">
+              <span className="min-w-0 truncate font-medium" title={brand.marca}>{brand.marca}</span>
+              <span className="shrink-0 font-mono tabular-nums">{money(brand.monto)} <span className="text-muted-foreground">{share.toFixed(1)}%</span></span>
+            </div>
+            <div className="ccv-brand-share-track mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`${brand.marca} de ventas positivas`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={share} aria-valuetext={`${share.toFixed(1)}%, ${money(brand.monto)}`}>
+              <span className="block h-full rounded-full" style={{ width: `${share}%`, backgroundColor: color }} />
+            </div>
+          </li>;
+        })}
+      </ul>
       {hasNegativeAmounts && (
-        <p className="px-1 text-center text-[11px] leading-4 text-muted-foreground">
-          Los montos netos negativos se muestran como ajustes y no forman parte de la dona.
+        <p className="mt-3 text-xs leading-4 text-muted-foreground">
+          Los montos netos negativos se muestran como ajustes y no forman parte de las participaciones.
         </p>
       )}
     </div>
@@ -229,6 +189,7 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
       .filter(([, amount]) => amount > 0)
       .sort((a, b) => b[1] - a[1]);
   }, [data.inventario]);
+  const maxInventory = inventory[0]?.[1] ?? 0;
 
   const inventarioPorSucursal = useMemo(() => {
     const map = new Map<string, { tipo: string; sucursal: string; monto: number }>();
@@ -302,14 +263,19 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
       <section className="grid gap-4 lg:grid-cols-2 section-enter section-enter-3">
         <div className="rounded-xl border bg-card p-4 card-elevated">
           <SectionTitle title="Inventario por tipo" description="Disponible y tránsito desde el snapshot de inventario." />
-          <div className="mt-4 space-y-3">
+          <div className="ccv-unit-inventory-list mt-4 space-y-3">
             {inventory.length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay inventario para el alcance seleccionado.</p>
             ) : (
               inventory.map(([name, amount]) => (
-                <div key={name} className="flex items-center justify-between border-b pb-2 text-sm last:border-0">
-                  <span>{name}</span>
-                  <span className="font-mono tabular-nums">{money(amount)}</span>
+                <div key={name} className="ccv-unit-inventory-row border-b pb-2 text-sm last:border-0">
+                  <div className="flex min-w-0 items-center justify-between gap-3">
+                    <span className="truncate">{name}</span>
+                    <span className="shrink-0 font-mono tabular-nums">{money(amount)}</span>
+                  </div>
+                  <div className="ccv-unit-inventory-track mt-2" aria-hidden="true">
+                    <span style={{ width: `${maxInventory > 0 ? Math.min(100, Math.max(0, amount / maxInventory * 100)) : 0}%` }} />
+                  </div>
                 </div>
               ))
             )}
@@ -438,7 +404,7 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
             )}
           </div>
           {brandShare.chartData.length > 0 && (
-            <BrandShareDonut
+            <BrandShareBars
               data={brandShare.chartData}
               total={brandShare.total}
               hasNegativeAmounts={brandShare.hasNegativeAmounts}
@@ -598,15 +564,22 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
   };
 
   if (isLoading && !data) {
-    return <div className="p-6 text-sm text-muted-foreground">Cargando datos reales de {copy.title}…</div>;
+    return <div role="status" aria-label={`Cargando ${copy.title}`}><PageSkeleton kpis={2} blocks={[{ cols: 1, height: 240 }, { cols: 2, height: 280 }]} /></div>;
   }
   if (error) {
-    return <div className="p-6 text-sm text-destructive">{error instanceof Error ? error.message : "No se pudo cargar la unidad."}</div>;
+    return <div role="alert" className="ccv-unit-error p-6 text-sm text-destructive">{error instanceof Error ? error.message : "No se pudo cargar la unidad."}</div>;
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Unidad de Negocio" title={copy.title} description={copy.description} />
+    <div className="ccv-unit-page" data-unit={unitKey}>
+      <header className="ccv-unit-heading">
+        <div>
+          <p className="ccv-unit-heading-context">Unidad de negocio <span aria-hidden="true">/</span> Resultado comercial</p>
+          <h1>{copy.title}</h1>
+          <p className="ccv-unit-heading-description">{copy.description}</p>
+        </div>
+        <span className="ccv-unit-heading-period">{anio} · {getHighlightMonthLabels(meses).join(", ") || "Año completo"}</span>
+      </header>
       <FilterHeader
         onApplyFilters={handleApplyFilters}
         sucursalOptions={isFullAccessRole(role) || role === "gerente_comercial" ? sucursales?.map((item) => ({ value: item.id, label: item.nombre })) : undefined}
@@ -615,69 +588,53 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         showAllMonths
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Ventas consolidadas"
-          value={money(sales)}
-          accent="ochre"
-          icon={TrendingUp}
-          projection={projection ? { value: money(projection.projectedSales), tone: projection.tone } : undefined}
-        />
-        <KpiCard
-          label="Presupuesto"
-          value={money(target)}
-          accent="primary"
-          icon={BarChart3}
-          hint="Meta oficial de la unidad y período seleccionado"
-        />
-        <KpiCard
-          label="Cotizado neto"
-          value={money(num(data?.cotizado.montoTotal))}
-          accent="success"
-          icon={Boxes}
-          hint={`${num(data?.cotizado.cantidad)} cotizaciones · fuente HTTP`}
-        />
-        <KpiCard
-          label="Cuentas por cobrar"
-          value={money((data?.cobranzas ?? []).reduce((sum, row) => sum + num(row.saldo), 0))}
-          accent="warning"
-          icon={Building2}
-          hint={`${data?.cobranzas.length ?? 0} saldos pendientes`}
-        />
-      </div>
-
-      <section className="flex flex-col gap-3 section-enter section-enter-1">
-        <SectionTitle title="Desempeño por sucursal" description="Cumplimiento general, facturación por compañía y detalle de alcance." />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
-          <ComplianceGauge title="Cumplimiento general" subtitle={data?.unit.nombre ?? copy.title} pct={compliance} facturado={sales} presupuesto={target} />
-          <div className="lg:col-span-2">
-            <div className="flex h-full flex-col rounded-xl border bg-card p-4 card-elevated">
-              <p className="font-display font-semibold">Facturación por compañía</p>
-              <div className="mt-4 space-y-3">
-                {companies.length === 0 ? <p className="text-sm text-muted-foreground">Sin ventas en el período.</p> : companies.map((item) => (
-                  <div key={item.label} className="flex justify-between gap-3 text-sm">
-                    <span>{item.label}</span><span className="font-mono tabular-nums">{money(item.facturado)}</span>
-                  </div>
-                ))}
-              </div>
-              {companies.length > 0 && (
-                <div className="mt-2 min-h-[180px] flex-1">
-                  <UnitDonut data={companies} title="" innerRadius="38%" outerRadius="62%" />
-                </div>
-              )}
-            </div>
+      <section className="ccv-unit-overview" aria-label="Resultado comercial de la unidad">
+        <div className="ccv-unit-overview-main">
+          <p className="ccv-unit-overview-label">Facturación del período</p>
+          <div className="ccv-unit-overview-result">
+            <strong>{money(sales)}</strong>
+            <span>{target > 0 ? `${compliance.toLocaleString("es-VE", { maximumFractionDigits: 1 })}% de la meta` : "Sin meta asignada"}</span>
           </div>
-          <div className="lg:col-span-3">
-            <SucursalPerformanceChart data={performance} />
+          <div className="ccv-unit-overview-track" role="progressbar" aria-label="Cumplimiento de la meta" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, compliance))} aria-valuetext={`${compliance.toLocaleString("es-VE", { maximumFractionDigits: 1 })}% de la meta`}>
+            <span style={{ width: `${Math.min(100, Math.max(0, compliance))}%` }} />
           </div>
+          <div className="ccv-unit-overview-meta">
+            <div><span>Meta del período</span><strong>{money(target)}</strong></div>
+            <div><span>Falta para la meta</span><strong>{money(Math.max(0, target - sales))}</strong></div>
+            {projection && <div><span>Proyección de cierre</span><strong>{money(projection.projectedSales)}</strong></div>}
+          </div>
+        </div>
+        <div className="ccv-unit-overview-aside">
+          <article>
+            <p>Cotizado neto</p>
+            <strong>{money(num(data?.cotizado.montoTotal))}</strong>
+            <span>{num(data?.cotizado.cantidad)} cotizaciones</span>
+          </article>
+          <article>
+            <p>Cuentas por cobrar</p>
+            <strong>{money((data?.cobranzas ?? []).reduce((sum, row) => sum + num(row.saldo), 0))}</strong>
+            <span>{data?.cobranzas.length ?? 0} saldos pendientes</span>
+          </article>
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 section-enter section-enter-2">
+      <section className="flex flex-col gap-3 section-enter section-enter-1">
         <SectionTitle title="Evolución mensual" description={`Venta real vs. presupuesto, año a la fecha · ${getHighlightMonthLabels(meses).join(", ") || "todos los meses"} en revisión.`} />
         <div className={unitKey === "lubfiltros" ? "grid gap-4 xl:grid-cols-2" : ""}>
           <GlobalMonthlyCombo data={monthly} highlightMonths={getHighlightMonthLabels(meses)} />
           {unitKey === "lubfiltros" && <MarcasMonthlyChart data={monthlyBrandLines} highlightMonths={getHighlightMonthLabels(meses)} />}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3 section-enter section-enter-2">
+        <SectionTitle title="Desempeño por sucursal" description="Facturación por compañía y cumplimiento de las sucursales." />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
+          <div className="lg:col-span-2">
+            <UnitDonut data={companies} title="Facturación por compañía" />
+          </div>
+          <div className="lg:col-span-4">
+            <SucursalPerformanceChart data={performance} />
+          </div>
         </div>
       </section>
 
@@ -688,7 +645,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
           <SectionTitle title="Cuentas por cobrar" description={`Saldos pendientes de ${data?.unit.nombre ?? copy.title}.`} />
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cliente…" className="h-9 pl-8" />
+            <Input aria-label="Buscar cliente" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cliente…" className="h-9 pl-8" />
           </div>
         </div>
         <ReceivablesTable

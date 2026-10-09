@@ -9,7 +9,7 @@ interface VentasPerdidasSectionLegacyProps {
 }
 
 /**
- * Versión anterior al rediseño "por unidad" — ver CotizacionesSectionLegacy.
+ * Versión anterior al rediseño "por unidad" – ver CotizacionesSectionLegacy.
  */
 export function VentasPerdidasSectionLegacy({
   datos,
@@ -55,7 +55,7 @@ export function VentasPerdidasSectionLegacy({
         </span>
       </div>
 
-      {/* Unit summary cards — auto-fit: si faltan unidades activas las
+      {/* Unit summary cards – auto-fit: si faltan unidades activas las
           tarjetas se reparten el ancho completo en vez de dejar una columna
           vacía. */}
       <div

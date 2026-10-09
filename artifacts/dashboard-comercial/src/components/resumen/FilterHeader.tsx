@@ -10,13 +10,12 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronDown } from "@/components/icons";
 import { useAuth } from "@/hooks/use-auth";
 import { canPickSucursalFilter } from "@/lib/permissions";
 
 const FILTER_LABEL_CLASS =
-  "text-[10px] font-mono font-bold text-muted-foreground tracking-[0.12em] uppercase whitespace-nowrap";
+  "text-xs font-semibold text-muted-foreground tracking-wide whitespace-nowrap";
 
 const MESES = [
   "Enero",
@@ -79,7 +78,7 @@ export function FilterHeader({
   const { role, profile } = useAuth();
   // No usar new Date() en el estado inicial: SSR y la primera pintada del
   // cliente deben coincidir (hydration). Si defaultMes no llegó todavía,
-  // "all" es un placeholder determinístico — el useEffect de abajo lo
+  // "all" es un placeholder determinístico – el useEffect de abajo lo
   // corrige apenas defaultMes esté disponible.
   const [selectedMonths, setSelectedMonths] = useState<number[] | "all">(defaultMes ?? "all");
   const [anio, setAnio] = useState(defaultAnio);
@@ -191,14 +190,14 @@ export function FilterHeader({
         : `${selectedMonths.length} meses`;
 
   return (
-    <div className="ccv-filter-shell sticky top-[72px] z-10 mb-5 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background pt-3 pb-1 border-b border-border/40">
+    <div className="ccv-filter-shell sticky top-14 z-10 mb-4 w-full bg-background/95 pt-2 pb-1 backdrop-blur">
       {/* ── Row 1: Filter bar ───────────────────────────────────────── */}
-      <div className="ccv-filter-bar bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-4 flex-wrap">
+      <div className="ccv-filter-bar flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
         {/* Meses */}
         <Field orientation="horizontal" className="w-auto gap-2">
           <FieldLabel className={FILTER_LABEL_CLASS}>Meses</FieldLabel>
           <Popover>
-            <PopoverTrigger className="h-8 w-[140px] flex items-center justify-between px-3 text-sm font-semibold bg-input-background border border-border hover:bg-accent transition-colors rounded text-foreground">
+            <PopoverTrigger aria-label="Filtrar por meses" className="h-9 w-[140px] flex items-center justify-between px-3 text-sm font-semibold bg-input-background border border-border hover:bg-accent transition-colors rounded text-foreground">
               <span className="truncate">{mesLabel}</span>
               <ChevronDown className="shrink-0 ml-2 text-muted-foreground" />
             </PopoverTrigger>
@@ -246,7 +245,7 @@ export function FilterHeader({
         <Field orientation="horizontal" className="w-auto gap-2">
           <FieldLabel className={FILTER_LABEL_CLASS}>Año</FieldLabel>
           <Select value={String(anio)} onValueChange={(value) => value && setAnio(parseInt(value))}>
-            <SelectTrigger className="h-8 w-[90px] bg-input-background border border-border text-sm font-semibold text-foreground">
+            <SelectTrigger aria-label="Filtrar por año" className="h-9 w-[90px] bg-input-background border border-border text-sm font-semibold text-foreground">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
@@ -259,12 +258,12 @@ export function FilterHeader({
           </Select>
         </Field>
 
-        {/* Sucursal — multi-select */}
+        {/* Sucursal – multi-select */}
         {sucursalMulti && resolvedSucursalOptions.length > 0 && (
           <Field orientation="horizontal" className="w-auto gap-2">
             <FieldLabel className={FILTER_LABEL_CLASS}>Sucursal</FieldLabel>
             <Popover>
-              <PopoverTrigger className="h-8 w-[160px] flex items-center justify-between px-3 text-sm font-semibold bg-input-background border border-border hover:bg-accent transition-colors rounded text-foreground">
+              <PopoverTrigger aria-label="Filtrar por sucursal" className="h-9 w-[160px] flex items-center justify-between px-3 text-sm font-semibold bg-input-background border border-border hover:bg-accent transition-colors rounded text-foreground">
                 <span className="truncate">{sucursalLabel}</span>
                 <ChevronDown className="shrink-0 ml-2 text-muted-foreground" />
               </PopoverTrigger>
@@ -296,7 +295,7 @@ export function FilterHeader({
           </Field>
         )}
 
-        {/* Sucursal — single-select */}
+        {/* Sucursal – single-select */}
         {!sucursalMulti && resolvedSucursalOptions.length > 0 && (
           <Field orientation="horizontal" className="w-auto gap-2">
             <FieldLabel className={FILTER_LABEL_CLASS}>Sucursal</FieldLabel>
@@ -306,7 +305,7 @@ export function FilterHeader({
               onValueChange={(v) => setSucursal(v ?? "")}
               disabled={resolvedSucursalOptions.length === 1}
             >
-              <SelectTrigger className="h-8 w-[150px] bg-input-background border border-border text-sm font-semibold text-foreground">
+              <SelectTrigger aria-label="Filtrar por sucursal" className="h-9 w-[150px] bg-input-background border border-border text-sm font-semibold text-foreground">
                 <SelectValue placeholder="Todas" />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
@@ -321,63 +320,66 @@ export function FilterHeader({
           </Field>
         )}
 
+      {/* Con 1 sola unidad asignada (gerente comercial de una sola unidad,
+          p.ej. Repuestos, Servicios o Lub/Filtros) no hay nada entre qué
+          navegar, así que el filtro no aporta – solo se muestra con 2+. */}
+      {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
+        <div className="ccv-filter-units flex min-w-0 items-center gap-2">
+          <FieldLabel className={FILTER_LABEL_CLASS}>Unidad</FieldLabel>
+          <Popover>
+            <PopoverTrigger aria-label="Filtrar por unidad" className="ccv-filter-unit-trigger flex h-9 items-center gap-2 rounded-md border border-border bg-input-background px-3 text-sm font-semibold text-foreground hover:bg-accent">
+              <span className="truncate">
+                {selectedUnits.length === 0
+                  ? "Todas"
+                  : selectedUnits.length === 1
+                    ? resolvedUnitOptions.find((unit) => unit.value === selectedUnits[0])?.label ?? "1 unidad"
+                    : `${selectedUnits.length} unidades`}
+              </span>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[220px] p-0 bg-popover border-border">
+              <div role="group" aria-label="Seleccionar unidades" className="grid gap-1 p-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-pressed={selectedUnits.length === 0}
+                  onClick={handleSelectAllUnits}
+                  className="justify-start font-semibold"
+                >
+                  Todas las unidades
+                </Button>
+                {resolvedUnitOptions.map((opt) => {
+                  const pressed = selectedUnits.includes(opt.value);
+                  return (
+                    <Button
+                      key={`${opt.value}-${opt.label}`}
+                      type="button"
+                      variant="ghost"
+                      aria-pressed={pressed}
+                      onClick={() => applyUnitSelection(
+                        pressed ? selectedUnits.filter((id) => id !== opt.value) : [...selectedUnits, opt.value],
+                      )}
+                      className="justify-start"
+                    >
+                      <span aria-hidden="true" className="w-4 text-primary">{pressed ? "✓" : ""}</span>
+                      {opt.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
         {/* Apply button */}
         <Button
           onClick={handleApply}
-          className="h-8 px-4 text-xs font-bold tracking-wide w-full sm:w-auto sm:ml-auto bg-primary text-primary-foreground hover:bg-primary/90 transition-[opacity,transform] duration-150 ease-out active:scale-[0.98]"
+          className="ml-auto h-9 w-full px-4 text-xs font-semibold sm:w-auto"
         >
           Aplicar filtros
         </Button>
       </div>
-
-      {/* ── Row 2: Unit chips ────────────────────────────────────────── */}
-      {/* Con 1 sola unidad asignada (gerente comercial de una sola unidad,
-          p.ej. Repuestos, Servicios o Lub/Filtros) no hay nada entre qué
-          navegar, así que el filtro no aporta — solo se muestra con 2+. */}
-      {resolvedUnitOptions && resolvedUnitOptions.length > 1 && (
-        <div className="ccv-unit-bar bg-card border border-t-0 border-border rounded-b-xl px-4 py-3 flex items-center gap-4 flex-wrap">
-          <span className={FILTER_LABEL_CLASS}>Filtrar por unidad:</span>
-          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto" aria-label="Unidades de negocio">
-            <Button
-              type="button"
-              variant={selectedUnits.length === 0 ? "default" : "outline"}
-              size="sm"
-              onClick={handleSelectAllUnits}
-              className={cn(
-                "h-auto shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
-                selectedUnits.length === 0
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "text-muted-foreground border-border hover:bg-accent",
-              )}
-            >
-              Todas
-            </Button>
-            {resolvedUnitOptions.map((opt) => {
-              const pressed = selectedUnits.includes(opt.value);
-              return (
-                <Button
-                  key={`${opt.value}-${opt.label}`}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-pressed={pressed}
-                  onClick={() => applyUnitSelection(
-                    pressed ? selectedUnits.filter((id) => id !== opt.value) : [...selectedUnits, opt.value],
-                  )}
-                  className={cn(
-                    "h-auto shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
-                    pressed
-                      ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
-                      : "border-border text-muted-foreground hover:bg-accent",
-                  )}
-                >
-                  {opt.label}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

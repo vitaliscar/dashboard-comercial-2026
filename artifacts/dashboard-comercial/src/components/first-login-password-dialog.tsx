@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "@/components/icons";
 
 type Mode = "choose" | "change";
 
@@ -93,7 +93,7 @@ export function FirstLoginPasswordDialog({ open, onResolved }: FirstLoginPasswor
         if (!next) return;
       }}
     >
-      <DialogContent className="sm:max-w-md" showCloseButton={false}>
+      <DialogContent className="ccv-password-dialog sm:max-w-md" aria-busy={busy} showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-display">
             <KeyRound className="size-5 text-primary" />
@@ -107,7 +107,7 @@ export function FirstLoginPasswordDialog({ open, onResolved }: FirstLoginPasswor
 
         {mode === "choose" ? (
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            {error && <p className="text-sm text-destructive w-full text-left">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive w-full text-left">{error}</p>}
             <Button type="button" onClick={() => setMode("change")} disabled={busy} className="w-full">
               Cambiar clave
             </Button>
@@ -123,13 +123,22 @@ export function FirstLoginPasswordDialog({ open, onResolved }: FirstLoginPasswor
             </Button>
           </DialogFooter>
         ) : (
-          <div className="flex flex-col gap-4">
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleChange();
+            }}
+          >
             <div className="flex flex-col gap-2">
               <Label htmlFor="new-password">Nueva contraseña</Label>
               <Input
                 id="new-password"
                 type="password"
                 autoComplete="new-password"
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={128}
+                required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 disabled={busy}
@@ -141,14 +150,17 @@ export function FirstLoginPasswordDialog({ open, onResolved }: FirstLoginPasswor
                 id="confirm-password"
                 type="password"
                 autoComplete="new-password"
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={128}
+                required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={busy}
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <DialogFooter className="flex-col gap-2 sm:flex-col">
-              <Button type="button" onClick={handleChange} disabled={busy} className="w-full">
+              <Button type="submit" disabled={busy} className="w-full">
                 {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                 Guardar nueva clave
               </Button>
@@ -165,7 +177,7 @@ export function FirstLoginPasswordDialog({ open, onResolved }: FirstLoginPasswor
                 Volver
               </Button>
             </DialogFooter>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>

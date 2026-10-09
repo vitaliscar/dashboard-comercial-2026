@@ -2,7 +2,7 @@
 
 import { KpiCard } from "@/components/kpi-card";
 import { money } from "@/lib/format";
-import { Users, UserCheck, Percent, DollarSign, FileText } from "lucide-react";
+import { Users, UserCheck, Percent, DollarSign, FileText } from "@/components/icons";
 import type { LeadsResumen } from "@/lib/analytics/clientes-potenciales";
 
 /**

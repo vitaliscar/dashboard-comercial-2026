@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
 import { unidadLabelInfo } from "@/lib/unidad-labels";
-import { money } from "@/lib/format";
+import { budgetMoney as money } from "@/components/budget/format";
 import { useAuth } from "@/hooks/use-auth";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -21,6 +21,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import PresupuestoCoordinadorPage from "./presupuesto-coordinador";
+import { ManagementBudgetOverview } from "@/components/budget/management-budget-overview";
+import { BudgetMixEditor } from "@/components/budget/budget-mix-editor";
+import { PercentageInput } from "@/components/budget/percentage-input";
+import { BulkPercentageEditor } from "@/components/budget/bulk-percentage-editor";
+import { MESES, descripcionMetaBase, repartoEquitativo, sumaParticipacion, validarDistribucion } from "@/lib/budget-calculations";
 
 interface ParticipacionUnidad {
   unidadNegocioId: string | null;
@@ -112,19 +117,6 @@ type PendingBudgetAction =
   | { kind: "save" }
   | { kind: "approve"; version: VersionRow };
 
-const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
-function descripcionMetaBase(data: ProyeccionData) {
-  const proyeccion = data.proyeccionVenta;
-  if (proyeccion.metodo === "proyeccion") {
-    return `${money(proyeccion.ventaAcumulada)} ÷ ${proyeccion.mesesConsiderados} × 12`;
-  }
-  if (proyeccion.metodo === "cierre") {
-    return `Venta de cierre ${proyeccion.anio}: ${money(proyeccion.ventaAcumulada)}`;
-  }
-  return `Sin venta registrada; se usa el presupuesto ${proyeccion.anio}`;
-}
-
 const ESTADO_LABEL: Record<VersionRow["estado"], string> = {
   borrador: "Borrador",
   propuesto: "Propuesto",
@@ -145,59 +137,6 @@ async function api(path: string, init?: RequestInit) {
   return r.json();
 }
 
-function sumaParticipacion(items: Array<{ participacion: number }>) {
-  return items.reduce((sum, item) => sum + Number(item.participacion || 0), 0);
-}
-
-function repartoEquitativo(count: number) {
-  if (count <= 0) return [];
-  const base = Math.floor(10000 / count);
-  const remainder = 10000 - base * count;
-  return Array.from({ length: count }, (_, index) => (base + (index === count - 1 ? remainder : 0)) / 100);
-}
-
-interface BulkPercentageEntry {
-  key: string;
-  label: string;
-}
-
-function BulkPercentageEditor({
-  entries,
-  onApply,
-  title,
-}: {
-  entries: BulkPercentageEntry[];
-  onApply: (values: number[]) => void;
-  title: string;
-}) {
-  const [rawValues, setRawValues] = useState("");
-  const tokens = rawValues.trim() ? rawValues.trim().split(/[\t;\r\n]+/) : [];
-  const values = tokens.map((token) => Number(token.replace(/%/g, "").replace(",", ".").trim()));
-  const validNumbers = values.every((value) => Number.isFinite(value) && value >= 0 && value <= 100);
-  const total = values.reduce((sum, value) => sum + value, 0);
-  const valid = entries.length > 0 && values.length === entries.length && validNumbers && Math.abs(total - 100) <= 0.011;
-  const message = !rawValues.trim()
-    ? ""
-    : values.length !== entries.length
-      ? `Se esperan ${entries.length} valores y se encontraron ${values.length}.`
-      : !validNumbers
-        ? "Cada valor debe ser un porcentaje entre 0 y 100."
-        : Math.abs(total - 100) > 0.011
-          ? `Los porcentajes suman ${total.toFixed(2)} %; deben sumar 100 %.`
-          : `Total: ${total.toFixed(2)} %.`;
-
-  return <details className="rounded-lg border border-dashed p-3">
-    <summary className="cursor-pointer text-sm font-medium">Pegar porcentajes en lote · {title}</summary>
-    <div className="mt-3 space-y-2">
-      <p className="text-xs text-muted-foreground">Pega una columna de Excel en el orden mostrado. Se aceptan saltos de línea, tabulaciones o punto y coma; los valores deben sumar 100 %.</p>
-      <ol className="grid list-inside list-decimal gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">{entries.map((entry) => <li key={entry.key}>{entry.label}</li>)}</ol>
-      <Textarea value={rawValues} onChange={(event) => setRawValues(event.target.value)} rows={Math.min(Math.max(entries.length, 2), 6)} aria-label={`Porcentajes para ${title}`} placeholder={"15,00 %\n25,00 %\n…"} />
-      {message && <p role="status" aria-live="polite" className={`text-xs ${valid ? "text-muted-foreground" : "text-destructive"}`}>{message}</p>}
-      <Button type="button" size="sm" variant="outline" disabled={!valid} onClick={() => { onApply(values); setRawValues(""); }}>Aplicar porcentajes</Button>
-    </div>
-  </details>;
-}
-
 function useDebouncedValue<T>(value: T, delayMs: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -214,6 +153,7 @@ function PresupuestoGerenciaPage() {
   const { role, profile } = useAuth();
   const esGerenteComercial = role === "gerente_comercial";
   const esDirector = role === "director";
+  const puedeVerVistaGeneral = ["administrador", "director", "gerencia"].includes(role ?? "");
   const puedeEditarDistribucionAnual = true;
   const puedeEditarCrecimiento = esDirector || role === "administrador";
   const unidadesAsignadas = profile?.unidades_negocio_ids?.length
@@ -239,9 +179,9 @@ function PresupuestoGerenciaPage() {
     previousBudgetStage.current = activeBudgetStage;
     const stageId = esGerenteComercial
       ? ["unit-budget-summary", "unit-budget-stage-1", "unit-budget-stage-2", "unit-budget-submit"][activeBudgetStage]
-      : ["budget-growth", "budget-branches", "budget-impact", "budget-review"][activeBudgetStage];
+      : ["budget-growth", "budget-branches", "budget-impact", "budget-review", ...(puedeVerVistaGeneral ? ["budget-overview"] : [])][activeBudgetStage];
     document.getElementById(stageId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [activeBudgetStage, esGerenteComercial]);
+  }, [activeBudgetStage, esGerenteComercial, puedeVerVistaGeneral]);
 
   const proyeccion = useQuery<ProyeccionData>({
     queryKey: ["presupuestos", "distribucion", targetAnio, versionPadreId, JSON.stringify(distribucionProyectada)],
@@ -424,23 +364,7 @@ function PresupuestoGerenciaPage() {
   };
 
   const erroresLocales = useMemo(() => {
-    if (!distribucion) return [];
-    const errores: string[] = [];
-    if (!esGerenteComercial && Math.abs(sumaParticipacion(distribucion.unidades) - 100) > 0.011) errores.push("Los pesos base por unidad deben sumar 100 %.");
-    for (const unidad of unidadesVisibles) {
-      const sucursalesUnidad = distribucion.sucursales.filter((item) => item.unidadNegocioId === unidad.unidadNegocioId);
-      if (sucursalesUnidad.some((item) => item.participacion < 0 || item.participacion > 100) || Math.abs(sumaParticipacion(sucursalesUnidad) - 100) > 0.011) {
-        errores.push(`La participación de las sucursales de ${unidad.unidadNegocioId ?? "la unidad"} debe sumar 100 %.`);
-      }
-      const mesesUnidad = distribucion.meses.filter((item) => item.unidadNegocioId === unidad.unidadNegocioId);
-      if (mesesUnidad.some((item) => item.participacion < 0 || item.participacion > 100) || Math.abs(sumaParticipacion(mesesUnidad) - 100) > 0.011) {
-        errores.push(`La distribución mensual de ${unidad.unidadNegocioId ?? "la unidad"} debe sumar 100 %.`);
-      }
-      if (!esGerenteComercial && (unidad.gestionComercialPct < 0 || unidad.gestionComercialPct > 100)) {
-        errores.push("Cada porcentaje de Gestión Comercial debe estar entre 0 % y 100 %.");
-      }
-    }
-    return errores;
+    return validarDistribucion(distribucion, unidadesVisibles, esGerenteComercial);
   }, [distribucion, unidadesVisibles, esGerenteComercial]);
   const erroresVisibles = [...new Set([...(data?.errores ?? []), ...erroresLocales])];
   const configLista = !!data && erroresVisibles.length === 0;
@@ -468,7 +392,7 @@ function PresupuestoGerenciaPage() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-muted/40 p-3 text-sm">
-          <dt className="text-muted-foreground">Meta que se revisa</dt><dd className="text-right font-semibold tabular-nums">{metaConfirmacion === null ? "—" : money(metaConfirmacion)}</dd>
+          <dt className="text-muted-foreground">Meta que se revisa</dt><dd className="text-right font-semibold tabular-nums">{metaConfirmacion === null ? "–" : money(metaConfirmacion)}</dd>
           <dt className="text-muted-foreground">Unidades</dt><dd className="text-right tabular-nums">{pendingBudgetAction?.kind === "approve" ? pendingBudgetAction.version.premisas?.unidades?.length ?? pendingBudgetAction.version.premisas?.unidadSolicitanteIds?.length ?? 0 : unidadesVisibles.length}</dd>
           <dt className="text-muted-foreground">Sucursales</dt><dd className="text-right tabular-nums">{pendingBudgetAction?.kind === "approve" ? new Set(pendingBudgetAction.version.premisas?.sucursales?.map((item) => item.sucursalId).filter(Boolean)).size : sucursalesAfectadas}</dd>
           <dt className="text-muted-foreground">Meses incluidos</dt><dd className="text-right tabular-nums">{pendingBudgetAction?.kind === "approve" ? new Set(pendingBudgetAction.version.premisas?.meses?.map((item) => item.mes)).size : mesesAfectados}</dd>
@@ -582,7 +506,7 @@ function PresupuestoGerenciaPage() {
                       <tbody>{sucursalesUnidad.map((sucursal) => (
                         <tr key={sucursal.sucursalId ?? sucursal.nombre} className="border-b last:border-0">
                           <td className="p-2">{sucursal.nombre}</td>
-                          <td className="w-44 p-2"><div className="flex items-center gap-2"><Input aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={sucursal.participacion} onChange={(event) => actualizarSucursal(unidad.unidadNegocioId, sucursal.sucursalId, Number(event.target.value))} className="text-right" /><span>%</span></div></td>
+                          <td className="w-44 p-2"><div className="flex items-center gap-2"><PercentageInput aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} value={sucursal.participacion} onValueChange={(value) => actualizarSucursal(unidad.unidadNegocioId, sucursal.sucursalId, value)} className="text-right" /><span>%</span></div></td>
                           <td className="p-2 text-right tabular-nums">{money(metaUnidad * sucursal.participacion / 100)}</td>
                         </tr>
                       ))}</tbody>
@@ -591,7 +515,7 @@ function PresupuestoGerenciaPage() {
                   <div className="space-y-2 xl:hidden" aria-label={`Asignación por sucursal de ${nombreUnidad}`}>
                     {sucursalesUnidad.map((sucursal) => <div key={sucursal.sucursalId ?? sucursal.nombre} className="grid grid-cols-2 gap-3 rounded-lg border p-3 text-sm">
                       <p className="col-span-2 font-medium">{sucursal.nombre}</p>
-                      <label className="text-xs text-muted-foreground">Participación (%)<Input aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={sucursal.participacion} onChange={(event) => actualizarSucursal(unidad.unidadNegocioId, sucursal.sucursalId, Number(event.target.value))} className="mt-1 text-right" /></label>
+                      <label className="text-xs text-muted-foreground">Participación (%)<PercentageInput aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} value={sucursal.participacion} onValueChange={(value) => actualizarSucursal(unidad.unidadNegocioId, sucursal.sucursalId, value)} className="mt-1 text-right" /></label>
                       <div className="text-right"><p className="text-xs text-muted-foreground">Presupuesto anual</p><p className="mt-2 font-medium tabular-nums">{money(metaUnidad * sucursal.participacion / 100)}</p></div>
                     </div>)}
                   </div></>}
@@ -612,7 +536,7 @@ function PresupuestoGerenciaPage() {
                     />
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-semibold">Distribución mensual</h4><Button type="button" variant="outline" size="sm" onClick={() => setDistribucion((actual) => actual ? { ...actual, meses: actual.meses.map((item) => item.unidadNegocioId !== unidad.unidadNegocioId ? item : { ...item, participacion: repartoEquitativo(mesesUnidad.length)[mesesUnidad.findIndex((month) => month.mes === item.mes)] ?? item.participacion }) } : actual)} disabled={!mesesUnidad.length}>Repartir meses por igual</Button></div>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{mesesUnidad.map((item) => (
-                      <label key={item.mes} className="text-sm"><span className="mb-1 block text-muted-foreground">{MESES[item.mes - 1]}</span><div className="flex items-center gap-2"><Input aria-label={`Participación ${MESES[item.mes - 1]} de ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={item.participacion} onChange={(event) => actualizarMes(unidad.unidadNegocioId, item.mes, Number(event.target.value))} className="text-right" /><span>%</span><span className="min-w-24 text-right tabular-nums">{money(metaUnidad * item.participacion / 100)}</span></div></label>
+                      <label key={item.mes} className="text-sm"><span className="mb-1 block text-muted-foreground">{MESES[item.mes - 1]}</span><div className="flex items-center gap-2"><PercentageInput aria-label={`Participación ${MESES[item.mes - 1]} de ${nombreUnidad}`} value={item.participacion} onValueChange={(value) => actualizarMes(unidad.unidadNegocioId, item.mes, value)} className="text-right" /><span>%</span><span className="min-w-24 text-right tabular-nums">{money(metaUnidad * item.participacion / 100)}</span></div></label>
                     ))}</div>
                   </div>}
                 </section>
@@ -658,9 +582,10 @@ function PresupuestoGerenciaPage() {
       {calculoPendiente && !proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Recalculando el impacto de los cambios…</p>}
       {proyeccion.isError && <QueryErrorNotice error={proyeccion.error} onRetry={() => void proyeccion.refetch()} fallback="No se pudo calcular el impacto del presupuesto." />}
 
-      <nav aria-label="Etapas del presupuesto" className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-4 sm:p-4">
-        {(esDirector ? ["Define crecimiento", "Distribuye por sucursal", "Revisa detalle mensual", "Envía propuesta"] : ["Asigna pesos y gestión", "Distribuye por sucursal", "Revisa detalle mensual", "Guarda y revisa versiones"]
-        ).map((etapa, index) => (
+      <nav aria-label="Etapas del presupuesto" className={`grid gap-2 rounded-xl border border-border bg-card p-3 sm:p-4 ${puedeVerVistaGeneral ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
+        {(esDirector ? ["Define crecimiento", "Distribuye por sucursal", "Revisa detalle mensual", "Envía propuesta"] : ["Asigna pesos y gestión", "Distribuye por sucursal", "Revisa detalle mensual", "Guarda y revisa versiones"])
+          .concat(puedeVerVistaGeneral ? ["Mapa completo"] : [])
+          .map((etapa, index) => (
           <button key={etapa} type="button" aria-current={activeBudgetStage === index ? "step" : undefined} onClick={() => setActiveBudgetStage(index)} className={`flex items-center gap-2 rounded-lg p-2 text-left text-xs transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm ${activeBudgetStage === index ? "bg-primary/10 text-primary" : "text-foreground"}`}>
             <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono font-semibold text-primary">{index + 1}</span>
             <span className="font-medium">{etapa}</span>
@@ -683,6 +608,11 @@ function PresupuestoGerenciaPage() {
         <div><p className="text-xs text-muted-foreground">Piso mínimo protegido</p><p className="font-semibold tabular-nums">{ultimaMetaAprobada !== null ? money(ultimaMetaAprobada) : data ? (data.metaMinima > 0 ? money(data.metaMinima) : "Sin piso definido") : "Cargando…"}</p></div>
       </section>
 
+      {puedeVerVistaGeneral && activeBudgetStage !== 4 && <button type="button" className="ccv-budget-explore-link" onClick={() => setActiveBudgetStage(4)}>
+        <span><strong>Explorar el presupuesto completo</strong><small>Unidades, sucursales, meses, asesores y marcas o premisas guardadas.</small></span>
+        <span aria-hidden="true">Ver mapa →</span>
+      </button>}
+
       <details className="rounded-xl border bg-card px-4 py-3">
         <summary className="cursor-pointer text-sm font-semibold">Ayuda: términos y reglas del presupuesto</summary>
         <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
@@ -704,15 +634,11 @@ function PresupuestoGerenciaPage() {
           </div>
           <div>
             <label htmlFor="crecimiento-anual" className="mb-1 block text-sm text-muted-foreground">Aumento anual (%)</label>
-            <Input
+            <PercentageInput
               id="crecimiento-anual"
-              type="number"
-              min="0"
-              max="500"
-              step="0.1"
               value={distribucion?.crecimientoAnualPct ?? 0}
               disabled={!puedeEditarCrecimiento}
-              onChange={(event) => actualizarCrecimiento(Number(event.target.value))}
+              onValueChange={actualizarCrecimiento}
             />
             {!puedeEditarCrecimiento && <p className="mt-1 text-xs text-muted-foreground">El crecimiento anual lo define Dirección.</p>}
           </div>
@@ -752,15 +678,15 @@ function PresupuestoGerenciaPage() {
                   return (
                     <tr key={unidad.unidadNegocioId ?? "sin-unidad"} className="border-b">
                       <td className="p-2 font-medium">{nombreUnidad}</td>
-                      <td className="w-36 p-2"><Input aria-label={`Peso de unidad ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={unidad.participacion} onChange={(event) => actualizarUnidad(unidad.unidadNegocioId, Number(event.target.value))} className="text-right" /></td>
+                      <td className="w-36 p-2"><PercentageInput aria-label={`Peso de unidad ${nombreUnidad}`} value={unidad.participacion} onValueChange={(value) => actualizarUnidad(unidad.unidadNegocioId, value)} className="text-right" /></td>
                       <td className="p-2 text-right tabular-nums">{money(total?.metaBase ?? 0)}</td>
-                      <td className="w-32 p-2"><Input aria-label={`Porcentaje de gestión comercial ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={unidad.gestionComercialPct} disabled={montoFijado} onChange={(event) => actualizarGestionComercial(unidad.unidadNegocioId, Number(event.target.value))} className="text-right" /></td>
+                      <td className="w-32 p-2"><PercentageInput aria-label={`Porcentaje de gestión comercial ${nombreUnidad}`} value={unidad.gestionComercialPct} disabled={montoFijado} onValueChange={(value) => actualizarGestionComercial(unidad.unidadNegocioId, value)} className="text-right" /></td>
                       <td className="p-2 text-right tabular-nums">{money(unidad.gestionComercialMonto ?? total?.gestionComercialMonto ?? 0)}{montoFijado && <span className="ml-1 text-xs text-muted-foreground">fijo</span>}</td>
                       <td className="p-2 text-right font-medium tabular-nums">{money(total?.metaTotal ?? totalUnidad.get(unidad.unidadNegocioId ?? "__sin_unidad__") ?? 0)}</td>
                     </tr>
                   );
                 })}
-                <tr className="font-semibold"><td className="p-2">Total</td><td className={`p-2 text-right ${Math.abs(sumaParticipacion(distribucion?.unidades ?? []) - 100) > 0.011 ? "text-destructive" : "text-primary"}`}>{sumaParticipacion(distribucion?.unidades ?? []).toFixed(2)} %</td><td className="p-2 text-right">{money(data?.metaPropuesta ?? 0)}</td><td className="p-2 text-right text-muted-foreground">—</td><td className="p-2 text-right">{money(data?.montoGestionComercialTotal ?? 0)}</td><td className="p-2 text-right">{money(data?.metaTotalConGestion ?? 0)}</td></tr>
+                <tr className="font-semibold"><td className="p-2">Total</td><td className={`p-2 text-right ${Math.abs(sumaParticipacion(distribucion?.unidades ?? []) - 100) > 0.011 ? "text-destructive" : "text-primary"}`}>{sumaParticipacion(distribucion?.unidades ?? []).toFixed(2)} %</td><td className="p-2 text-right">{money(data?.metaPropuesta ?? 0)}</td><td className="p-2 text-right text-muted-foreground">–</td><td className="p-2 text-right">{money(data?.montoGestionComercialTotal ?? 0)}</td><td className="p-2 text-right">{money(data?.metaTotalConGestion ?? 0)}</td></tr>
               </tbody>
             </table>
           </div>
@@ -773,9 +699,9 @@ function PresupuestoGerenciaPage() {
               return <section key={unidad.unidadNegocioId ?? "sin-unidad"} className="space-y-3 rounded-lg border p-3">
                 <h3 className="font-semibold">{nombreUnidad}</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <label className="text-xs text-muted-foreground">Peso de unidad (%)<Input aria-label={`Peso de unidad ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={unidad.participacion} onChange={(event) => actualizarUnidad(unidad.unidadNegocioId, Number(event.target.value))} className="mt-1 text-right" /></label>
+                  <label className="text-xs text-muted-foreground">Peso de unidad (%)<PercentageInput aria-label={`Peso de unidad ${nombreUnidad}`} value={unidad.participacion} onValueChange={(value) => actualizarUnidad(unidad.unidadNegocioId, value)} className="mt-1 text-right" /></label>
                   <div className="text-right"><p className="text-xs text-muted-foreground">Meta base</p><p className="mt-2 tabular-nums">{money(total?.metaBase ?? 0)}</p></div>
-                  <label className="text-xs text-muted-foreground">Gestión Comercial (%)<Input aria-label={`Porcentaje de Gestión Comercial ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={unidad.gestionComercialPct} disabled={montoFijado} onChange={(event) => actualizarGestionComercial(unidad.unidadNegocioId, Number(event.target.value))} className="mt-1 text-right" /></label>
+                  <label className="text-xs text-muted-foreground">Gestión Comercial (%)<PercentageInput aria-label={`Porcentaje de Gestión Comercial ${nombreUnidad}`} value={unidad.gestionComercialPct} disabled={montoFijado} onValueChange={(value) => actualizarGestionComercial(unidad.unidadNegocioId, value)} className="mt-1 text-right" /></label>
                   <div className="text-right"><p className="text-xs text-muted-foreground">Monto de gestión{montoFijado ? " · fijo" : ""}</p><p className="mt-2 tabular-nums">{money(unidad.gestionComercialMonto ?? total?.gestionComercialMonto ?? 0)}</p></div>
                 </div>
                 <div className="flex justify-between border-t pt-2 text-sm"><span>Total asignado</span><strong className="tabular-nums">{money(total?.metaTotal ?? totalUnidad.get(unidad.unidadNegocioId ?? "__sin_unidad__") ?? 0)}</strong></div>
@@ -835,7 +761,7 @@ function PresupuestoGerenciaPage() {
                         <td className="p-3 font-medium">{sucursal.nombre}</td>
                         <td className="p-3 text-right tabular-nums">{money(sucursal.base)}</td>
                         <td className="p-3 text-right tabular-nums">{money(sucursal.real)}</td>
-                        <td className="w-48 p-3"><div className="flex items-center gap-3"><Input aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={sucursal.participacion} onChange={(event) => actualizarSucursal(sucursal.unidadNegocioId, sucursal.sucursalId, Number(event.target.value))} className="text-right" /><span className="text-muted-foreground">%</span></div></td>
+                        <td className="w-48 p-3"><div className="flex items-center gap-3"><PercentageInput aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} value={sucursal.participacion} onValueChange={(value) => actualizarSucursal(sucursal.unidadNegocioId, sucursal.sucursalId, value)} className="text-right" /><span className="text-muted-foreground">%</span></div></td>
                         <td className="p-3 text-right font-medium tabular-nums">{money(sucursal.meta)}</td>
                         <td className={`p-3 text-right tabular-nums ${variacion !== null && variacion > 0 ? "text-primary" : "text-muted-foreground"}`}>{variacion === null ? "Nueva" : `${variacion >= 0 ? "+" : ""}${variacion.toFixed(1)} %`}</td>
                       </tr>;
@@ -852,7 +778,7 @@ function PresupuestoGerenciaPage() {
                     <h3 className="col-span-2 font-medium">{sucursal.nombre}</h3>
                     <div><p className="text-xs text-muted-foreground">Base {baseAnio}</p><p className="tabular-nums">{money(sucursal.base)}</p></div>
                     <div className="text-right"><p className="text-xs text-muted-foreground">Venta real {baseAnio}</p><p className="tabular-nums">{money(sucursal.real)}</p></div>
-                    <label className="text-xs text-muted-foreground">Participación (%)<Input aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} type="number" min="0" max="100" step="0.01" value={sucursal.participacion} onChange={(event) => actualizarSucursal(sucursal.unidadNegocioId, sucursal.sucursalId, Number(event.target.value))} className="mt-1 text-right" /></label>
+                    <label className="text-xs text-muted-foreground">Participación (%)<PercentageInput aria-label={`Participación ${sucursal.nombre} en ${nombreUnidad}`} value={sucursal.participacion} onValueChange={(value) => actualizarSucursal(sucursal.unidadNegocioId, sucursal.sucursalId, value)} className="mt-1 text-right" /></label>
                     <div className="text-right"><p className="text-xs text-muted-foreground">Meta {targetAnio}</p><p className="mt-2 font-semibold tabular-nums">{money(sucursal.meta)}</p><p className="text-xs text-muted-foreground">{variacion === null ? "Sucursal nueva" : `${variacion >= 0 ? "+" : ""}${variacion.toFixed(1)} % vs. base`}</p></div>
                   </section>;
                 })}
@@ -882,7 +808,7 @@ function PresupuestoGerenciaPage() {
                 })}
               />
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Distribución mensual · {nombreUnidad}</h3><span className={Math.abs(totalMeses - 100) > 0.011 ? "text-destructive" : "text-muted-foreground"}>Total: {totalMeses.toFixed(2)} %</span><Button type="button" variant="outline" size="sm" onClick={() => setDistribucion((actual) => actual ? { ...actual, meses: actual.meses.map((item) => item.unidadNegocioId !== unidad.unidadNegocioId ? item : { ...item, participacion: repartoEquitativo(mesesUnidad.length)[mesesUnidad.findIndex((month) => month.mes === item.mes)] ?? item.participacion }) } : actual)} disabled={!mesesUnidad.length}>Repartir meses por igual</Button></div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{mesesUnidad.map((item) => <label key={item.mes} className="text-sm"><span className="mb-1 block text-muted-foreground">{MESES[item.mes - 1]}</span><div className="flex items-center gap-2"><Input aria-label={`Participación ${MESES[item.mes - 1]}`} type="number" min="0" max="100" step="0.01" value={item.participacion} onChange={(event) => actualizarMes(unidad.unidadNegocioId, item.mes, Number(event.target.value))} className="text-right" /><span>%</span><span className="min-w-24 text-right tabular-nums">{money(metaUnidad * item.participacion / 100)}</span></div></label>)}</div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{mesesUnidad.map((item) => <label key={item.mes} className="text-sm"><span className="mb-1 block text-muted-foreground">{MESES[item.mes - 1]}</span><div className="flex items-center gap-2"><PercentageInput aria-label={`Participación ${MESES[item.mes - 1]}`} value={item.participacion} onValueChange={(value) => actualizarMes(unidad.unidadNegocioId, item.mes, value)} className="text-right" /><span>%</span><span className="min-w-24 text-right tabular-nums">{money(metaUnidad * item.participacion / 100)}</span></div></label>)}</div>
             </section>;
           })}
         </CardContent>
@@ -1001,6 +927,11 @@ function PresupuestoGerenciaPage() {
           </details>
         </CardContent>
       </Card>}
+      {activeBudgetStage === 3 && esGerenteComercial && <BudgetMixEditor year={targetAnio} />}
+      {activeBudgetStage === 4 && puedeVerVistaGeneral && <>
+        <ManagementBudgetOverview year={targetAnio} versions={versiones ?? []} units={(unidades ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} branches={(sucursalesCatalogo ?? []).map((item) => ({ id: item.id, nombre: item.nombre }))} />
+        <BudgetMixEditor year={targetAnio} versions={(versiones ?? []).map(version => ({ id: version.id, nombre: version.nombre, estado: version.estado }))} />
+      </>}
       {confirmDialog}
     </div>
   );

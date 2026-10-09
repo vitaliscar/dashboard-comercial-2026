@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "@/components/icons";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { getAlertas, resolverAlerta } from "@/lib/alertas-http";
@@ -63,14 +63,14 @@ export default function AlertasPage() {
       <PageHeader eyebrow="Gestión · Seguimiento" title="Alertas" description="Prioriza riesgos por impacto y antigüedad. Cada alerta refleja datos dentro de tu alcance." />
       <div className="ccv-alert-priority flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
         <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prioridad inmediata</p><p className="mt-1 font-display text-2xl font-semibold">{highCount}<span className="ml-2 text-sm font-normal text-muted-foreground">abiertas de severidad alta</span></p></div>
-        <div className="flex flex-wrap gap-2" aria-label="Filtrar alertas por estado">
-          {([["abierta", "Abiertas"], ["resuelta", "Resueltas"], ["todas", "Todas"]] as const).map(([value, label]) => <Button key={value} size="sm" variant={estado === value ? "default" : "outline"} aria-pressed={estado === value} onClick={() => setEstado(value)}>{label}</Button>)}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar alertas por estado">
+          {([["abierta", "Abiertas"], ["resuelta", "Resueltas"], ["todas", "Todas"]] as const).map(([value, label]) => <Button key={value} size="sm" className="min-h-11 sm:min-h-9" variant={estado === value ? "default" : "outline"} aria-pressed={estado === value} onClick={() => setEstado(value)}>{label}</Button>)}
         </div>
       </div>
       <div className="ccv-alert-filters flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
-        <label className="min-w-40 flex-1 text-sm"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Tipo de alerta</span><select value={tipo} onChange={(event) => setTipo(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="todas">Todos los tipos</option>{tiposDisponibles.map((item) => <option key={item} value={item}>{TYPE_LABELS[item] ?? item}</option>)}</select></label>
-        <label className="min-w-40 flex-1 text-sm"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Severidad</span><select value={severidad} onChange={(event) => setSeveridad(event.target.value as typeof severidad)} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="todas">Todas</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></label>
-        <span className="pb-2 text-xs text-muted-foreground" aria-live="polite">{visibles.length} {visibles.length === 1 ? "alerta" : "alertas"}</span>
+        <label className="w-full text-sm sm:min-w-40 sm:flex-1"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Tipo de alerta</span><select value={tipo} onChange={(event) => setTipo(event.target.value)} className="h-11 w-full rounded-lg border border-input bg-background px-3 sm:h-10"><option value="todas">Todos los tipos</option>{tiposDisponibles.map((item) => <option key={item} value={item}>{TYPE_LABELS[item] ?? item}</option>)}</select></label>
+        <label className="w-full text-sm sm:min-w-40 sm:flex-1"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Severidad</span><select value={severidad} onChange={(event) => setSeveridad(event.target.value as typeof severidad)} className="h-11 w-full rounded-lg border border-input bg-background px-3 sm:h-10"><option value="todas">Todas</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></label>
+        <span className="pb-2 text-xs text-muted-foreground" role="status" aria-live="polite">{visibles.length} {visibles.length === 1 ? "alerta" : "alertas"}</span>
       </div>
       {query.isLoading ? <p className="text-sm text-muted-foreground">Reconciliando alertas…</p> : query.isError ? <QueryErrorNotice error={query.error} onRetry={() => void query.refetch()} fallback="No se pudieron reconciliar las alertas." /> : visibles.length === 0 ? <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">No hay alertas que coincidan con estos filtros.</p> :
         <div className="ccv-alert-list grid gap-3">{visibles.map((alerta) => {
@@ -83,9 +83,9 @@ export default function AlertasPage() {
               {alerta.contexto?.monto != null && <p className="mt-2 font-mono text-sm font-semibold tabular-nums">{money(alerta.contexto.monto)}</p>}
               {alerta.contexto?.accion && <p className="mt-3 border-t border-border pt-3 text-sm font-medium text-primary">Siguiente acción · {alerta.contexto.accion}</p>}
               <p className="mt-3 text-xs text-muted-foreground">Detectada {new Date(alerta.createdAt).toLocaleString("es-VE")} · {alerta.estado === "abierta" ? ageLabel : `${alerta.resueltaManualmente ? "Resuelta manualmente" : "Cerrada por conciliación"}${alerta.resueltaPor ? ` por ${alerta.resueltaPor}` : ""}${alerta.resueltaEn ? ` · ${new Date(alerta.resueltaEn).toLocaleString("es-VE")}` : ""}`}</p>
-            </div><div className="flex shrink-0 gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => openContext(alerta)}>{alerta.contexto?.cliente ? "Abrir cliente" : "Abrir módulo"}</Button>
-              {alerta.estado === "abierta" && role !== "asesor" && <Button size="sm" variant="outline" disabled={resolve.isPending} onClick={() => resolve.mutate(alerta.id)}><CheckCircle2 aria-hidden="true" className="mr-1 size-4" />Resolver</Button>}
+            </div><div className="flex min-w-0 flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" className="min-h-11 sm:min-h-9" onClick={() => openContext(alerta)}>{alerta.contexto?.cliente ? "Abrir cliente" : "Abrir módulo"}</Button>
+              {alerta.estado === "abierta" && role !== "asesor" && <Button size="sm" variant="outline" className="min-h-11 sm:min-h-9" disabled={resolve.isPending} onClick={() => resolve.mutate(alerta.id)}><CheckCircle2 aria-hidden="true" className="mr-1 size-4" />Resolver</Button>}
             </div></div>
           </article>;
         })}</div>}

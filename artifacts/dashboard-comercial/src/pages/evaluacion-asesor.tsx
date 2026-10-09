@@ -20,12 +20,12 @@ export default function EvaluacionAsesorPage() {
   const chart = data.puntos.map((point) => ({ mes: MONTHS[point.mes - 1] ?? `M${point.mes}`, cumplimiento: point.presupuesto ? Math.round((point.venta / point.presupuesto) * 1000) / 10 : null }));
   return <div className="ccv-evaluation-detail ccv-evaluation-advisor flex flex-col gap-6">
     <PageHeader eyebrow="Evaluación de Desempeño" title={data.asesor} description={`Año ${anio}`} />
-    <div className="ccv-evaluation-kpis grid gap-4 md:grid-cols-4">
+    <div className="ccv-evaluation-kpis grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
       <KpiCard label="Score de desempeño" value={String(data.score.score)} accent={data.score.banda} hint="Cumplimiento 50%, tendencia 30% y ticket 20%; sin referencia de pares, el ticket usa valor neutral." />
       <KpiCard label="Cumplimiento" value={pct(data.score.cumplimiento, 1)} />
       <KpiCard label="Tendencia" value={pct(data.score.tendencia, 0)} />
       <KpiCard label="Ticket promedio propio" value={money(data.ticketPropio)} hint="Componente de ticket del score de desempeño." />
     </div>
-    <section className="rounded-lg border bg-card p-5"><h3 className="mb-4 font-semibold">Evolución mensual de cumplimiento</h3><ResponsiveContainer width="100%" height={280}><LineChart data={chart}><XAxis dataKey="mes" /><YAxis /><Tooltip formatter={(value) => value == null ? "Sin datos" : `${value}%`} /><Line type="monotone" dataKey="cumplimiento" stroke="var(--color-chart-1)" strokeWidth={2} connectNulls /></LineChart></ResponsiveContainer></section>
+    <section className="ccv-evaluation-chart" aria-label="Evolución mensual de cumplimiento"><h3>Evolución mensual de cumplimiento</h3><ResponsiveContainer width="100%" height="100%"><LineChart data={chart} accessibilityLayer><XAxis dataKey="mes" /><YAxis unit="%" width={42} /><Tooltip formatter={(value) => value == null ? "Sin datos" : `${value}%`} /><Line type="monotone" dataKey="cumplimiento" name="Cumplimiento" stroke="var(--color-chart-1)" strokeWidth={2} connectNulls /></LineChart></ResponsiveContainer></section>
   </div>;
 }

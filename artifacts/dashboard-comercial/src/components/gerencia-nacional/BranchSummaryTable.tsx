@@ -16,7 +16,7 @@ import {
   EmptyDescription,
   EmptyMedia,
 } from "@/components/ui/empty";
-import { Building2 } from "lucide-react";
+import { Building2 } from "@/components/icons";
 
 export type BranchSummaryRow = {
   id: string;

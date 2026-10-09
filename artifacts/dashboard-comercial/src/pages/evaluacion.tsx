@@ -1,6 +1,6 @@
 import { isFullAccessRole } from "@/lib/permissions";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +17,9 @@ import {
 import { money, pct } from "@/lib/format";
 
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const periodoLabel = (meses: number[]) => meses.length
+  ? meses.map((mes) => MESES[mes - 1] ?? `Mes ${mes}`).join(", ")
+  : "año completo";
 
 /**
  * Página unificada de Evaluación de Desempeño -- port de ccv-main (Next.js)
@@ -50,27 +53,24 @@ export default function EvaluacionPage() {
     queryFn: () => getGestionAsesores(filtros),
     enabled: puedeVerGestionAsesores,
   });
-
-  // Se genera una vez por montaje/combinación de filtros y se queda fija en
-  // pantalla; cada exportación futura (si se agrega) generaría una nueva.
-  const analisis = useQuery({
-    queryKey: ["evaluacion-analisis-narrativo", filtros, reporte.data?.tipo],
-    queryFn: () => {
-      const r = reporte.data!;
-      return getAnalisisNarrativo({
-        anio: r.anio,
-        meses: r.meses,
-        cumplimientoGeneral: r.cumplimientoGeneral,
-        totalVenta: r.totalVenta,
-        totalMeta: r.totalMeta,
-        ranking: r.tipo === "sucursal" ? r.ranking : undefined,
-        hallazgos: r.hallazgos,
-      });
-    },
-    enabled: !!reporte.data,
-    staleTime: Infinity,
-    retry: 1,
-  });
+  const [analisisKey, setAnalisisKey] = useState<string | null>(null);
+  const analisis = useMutation({ mutationFn: getAnalisisNarrativo });
+  const filtrosKey = `${anio}|${meses.join(",")}|${sucursalIds.join(",")}|${unidadNegocioIds.join(",")}`;
+  const analisisActual = analisisKey === filtrosKey ? analisis.data : undefined;
+  const solicitarAnalisis = () => {
+    const r = reporte.data;
+    if (!r) return;
+    setAnalisisKey(filtrosKey);
+    analisis.mutate({
+      anio: r.anio,
+      meses: r.meses,
+      cumplimientoGeneral: r.cumplimientoGeneral,
+      totalVenta: r.totalVenta,
+      totalMeta: r.totalMeta,
+      ranking: r.tipo === "sucursal" ? r.ranking : undefined,
+      hallazgos: r.hallazgos,
+    });
+  };
 
   const toggle = (arr: number[], v: number) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const toggleId = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
@@ -173,20 +173,17 @@ export default function EvaluacionPage() {
 
       {reporte.data && (
         <div className="ccv-evaluation-narrative rounded-lg border bg-card p-5">
-          <h3 className="mb-3 text-sm font-semibold">Análisis narrativo</h3>
-          {analisis.isLoading ? (
-            <p className="text-sm text-muted-foreground">Generando análisis con IA…</p>
-          ) : analisis.isError ? (
-            <p className="text-sm text-destructive">
-              No se pudo generar el análisis narrativo ({(analisis.error as Error)?.message ?? "error desconocido"}).
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3 text-sm leading-relaxed text-foreground">
-              {(analisis.data ?? "").split(/\n{2,}/).map((parrafo, i) => (
-                <p key={i}>{parrafo}</p>
-              ))}
-            </div>
-          )}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold">Análisis narrativo</h3>
+            <button type="button" disabled={analisis.isPending} onClick={solicitarAnalisis} className="min-h-9 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
+              {analisis.isPending ? "Generando análisis…" : analisisActual ? "Actualizar análisis" : "Generar análisis"}
+            </button>
+          </div>
+          <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
+            Facturado: <strong className="tabular-nums">{money(reporte.data.totalVenta)}</strong> frente a una meta de <strong className="tabular-nums">{money(reporte.data.totalMeta)}</strong>; cumplimiento reportado: <strong>{pct(reporte.data.cumplimientoGeneral, 1)}</strong> para {periodoLabel(reporte.data.meses)} de {reporte.data.anio}.
+          </p>
+          {analisisKey === filtrosKey && analisis.isError && <p role="alert" className="text-sm text-destructive">No se pudo generar el análisis. Puedes intentarlo de nuevo.</p>}
+          {analisisActual && !analisis.isPending && <div className="flex flex-col gap-3 text-sm leading-relaxed text-foreground">{analisisActual.split(/\n{2,}/).map((parrafo, index) => <p key={index}>{parrafo}</p>)}</div>}
         </div>
       )}
 
@@ -200,7 +197,7 @@ export default function EvaluacionPage() {
 function HallazgoCard({ h }: { h: Hallazgo }) {
   const tone = h.tipo === "good" ? "border-emerald-500/30 bg-emerald-500/5" : h.tipo === "bad" ? "border-destructive/30 bg-destructive/5" : "border-amber-500/30 bg-amber-500/5";
   return (
-    <div className={`rounded-lg border p-4 ${tone}`}>
+    <div className={`ccv-evaluation-finding rounded-lg border p-4 ${tone}`}>
       <p className="text-sm font-semibold">{h.titulo}</p>
       <p className="mt-1 text-sm text-muted-foreground">{h.texto}</p>
     </div>
@@ -232,12 +229,12 @@ function MarcaBarCard({ titulo, filas }: { titulo: string; filas: MarcaMonto[] }
 function ReporteAsesor({ data }: { data: import("@/lib/evaluacion-http").ReporteAsesorPropio }) {
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="ccv-evaluation-report-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <KpiCard label="Cumplimiento" value={pct(data.cumplimientoGeneral, 1)} />
         <KpiCard label="Facturado" value={money(data.totalVenta)} />
         <KpiCard label="Meta" value={money(data.totalMeta)} />
       </div>
-      <div className="flex flex-col gap-3">
+      <div className="ccv-evaluation-findings">
         {data.hallazgos.map((h) => (
           <HallazgoCard key={h.titulo} h={h} />
         ))}
@@ -247,30 +244,49 @@ function ReporteAsesor({ data }: { data: import("@/lib/evaluacion-http").Reporte
 }
 
 function ReporteSucursal({ data }: { data: import("@/lib/evaluacion-http").ReporteSucursal }) {
+  const rankingMax = Math.max(1, ...data.ranking.flatMap((branch) => [branch.meta, branch.facturado]));
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="ccv-evaluation-report-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <KpiCard label="Cumplimiento general" value={pct(data.cumplimientoGeneral, 1)} />
         <KpiCard label="Facturado" value={money(data.totalVenta)} />
         <KpiCard label="Meta" value={money(data.totalMeta)} />
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="ccv-evaluation-findings">
         {data.hallazgos.map((h) => (
           <HallazgoCard key={h.titulo} h={h} />
         ))}
       </div>
 
+      <section className="ccv-evaluation-branch-chart" aria-label="Comparación de meta y facturación por sucursal">
+        <div className="ccv-evaluation-branch-chart-heading">
+          <div><h3>Meta y facturación por sucursal</h3><p>Comparación para el período seleccionado</p></div>
+          <div className="ccv-evaluation-chart-legend" aria-label="Leyenda"><span><i className="is-target" />Meta</span><span><i className="is-sales" />Facturado</span></div>
+        </div>
+        {data.ranking.length === 0 ? <p className="ccv-evaluation-message" role="status">Sin datos para estos filtros.</p> : <ol className="ccv-evaluation-branch-rows">
+          {data.ranking.map((branch) => <li key={branch.id}>
+            <div className="ccv-evaluation-branch-name" title={branch.label}>{branch.label}</div>
+            <div className="ccv-evaluation-branch-bars" role="img" aria-label={`${branch.label}. Meta ${money(branch.meta)}. Facturado ${money(branch.facturado)}.`}>
+              <div className="ccv-evaluation-branch-bar" aria-hidden="true"><span className="is-target" style={{ width: `${Math.max(0, branch.meta) / rankingMax * 100}%` }} /></div>
+              <div className="ccv-evaluation-branch-bar" aria-hidden="true"><span className="is-sales" style={{ width: `${Math.max(0, branch.facturado) / rankingMax * 100}%` }} /></div>
+            </div>
+            <div className="ccv-evaluation-branch-values"><span>Meta {money(branch.meta)}</span><span>Facturado {money(branch.facturado)}</span></div>
+          </li>)}
+        </ol>}
+      </section>
+
       <section className="rounded-lg border bg-card p-4">
         <h3 className="mb-3 text-sm font-semibold">Ranking por sucursal</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">Ranking de sucursales por meta, facturación y cumplimiento</caption>
             <thead>
               <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                <th className="py-2">Sucursal</th>
-                <th className="py-2 text-right">Meta</th>
-                <th className="py-2 text-right">Facturado</th>
-                <th className="py-2 text-right">Cumplimiento</th>
+                <th scope="col" className="py-2">Sucursal</th>
+                <th scope="col" className="py-2 text-right">Meta</th>
+                <th scope="col" className="py-2 text-right">Facturado</th>
+                <th scope="col" className="py-2 text-right">Cumplimiento</th>
               </tr>
             </thead>
             <tbody>
@@ -318,15 +334,16 @@ function GestionAsesoresSection({ query }: { query: ReturnType<typeof useQuery<i
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">Montos y score ponderado por asesor</caption>
             <thead>
               <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                <th className="py-2">Asesor</th>
-                <th className="py-2 text-right">Cotizado</th>
-                <th className="py-2 text-right">Facturado</th>
-                <th className="py-2 text-right">Perdido</th>
-                <th className="py-2 text-right">Facturado / cotizado</th>
-                <th className="py-2 text-right">Cumplimiento</th>
-                <th className="py-2 text-right">Score</th>
+                <th scope="col" className="py-2">Asesor</th>
+                <th scope="col" className="py-2 text-right">Cotizado</th>
+                <th scope="col" className="py-2 text-right">Facturado</th>
+                <th scope="col" className="py-2 text-right">Perdido</th>
+                <th scope="col" className="py-2 text-right">Facturado / cotizado</th>
+                <th scope="col" className="py-2 text-right">Cumplimiento</th>
+                <th scope="col" className="py-2 text-right">Score</th>
               </tr>
             </thead>
             <tbody>

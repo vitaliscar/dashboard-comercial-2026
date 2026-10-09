@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales, useUnidades } from "@/hooks/use-catalogos";
-import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { money, pct, statusFromPct } from "@/lib/format";
 import { createLastPointLabel } from "@/lib/chart-labels";
@@ -41,15 +40,12 @@ import {
 import { useChartAnimation } from "@/hooks/use-chart-animation";
 import {
   Shield,
-  TrendingUp,
-  Users,
   Award,
   TrendingDown,
-  CheckCircle2,
   Eye,
   AlertTriangle,
   ClipboardList,
-} from "lucide-react";
+} from "@/components/icons";
 import { resolverAsesor, VENTAS_CASA, normalizarNombre } from "@/lib/asesores-catalogo";
 import {
   consolidarAsesores,
@@ -292,37 +288,18 @@ export default function AsesoresPage() {
         </div>
       ) : kpis ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard
-              label="Facturado Asesores"
-              value={money(kpis.totalFacturadoAsesores)}
-              hint="Suma total de facturas de asesores canónicos"
-              icon={Award}
-            />
-            <KpiCard
-              label="Ventas Casa"
-              value={money(kpis.totalFacturadoVentasCasa)}
-              hint="Ventas no asignadas a asesores del catálogo"
-              icon={Users}
-            />
-            <KpiCard
-              label="Cumplimiento Promedio"
-              value={pct(kpis.cumplimientoPromedio)}
-              hint="Cumplimiento global sobre presupuesto asignado"
-              icon={TrendingUp}
-              trend={{
-                value: kpis.cumplimientoPromedio,
-                positive: kpis.cumplimientoPromedio >= 100,
-              }}
-              trendTone={kpis.cumplimientoPromedio >= 100 ? "success" : "danger"}
-            />
-            <KpiCard
-              label="Asesores sobre Meta"
-              value={`${kpis.asesoresSobreMeta} / ${kpis.totalAsesoresConMeta}`}
-              hint="Asesores que superaron el 100% de su cuota"
-              icon={CheckCircle2}
-            />
-          </div>
+          <section className="ccv-advisors-overview" aria-label="Resultado de asesores">
+            <div className="ccv-advisors-overview-primary">
+              <p>Facturado por asesores</p>
+              <strong>{money(kpis.totalFacturadoAsesores)}</strong>
+              <span>Facturas atribuidas a asesores del catálogo</span>
+            </div>
+            <dl className="ccv-advisors-overview-details">
+              <div><dt>Cumplimiento promedio</dt><dd>{pct(kpis.cumplimientoPromedio)}</dd></div>
+              <div><dt>Asesores sobre meta</dt><dd>{kpis.asesoresSobreMeta} / {kpis.totalAsesoresConMeta}</dd></div>
+              <div><dt>Ventas Casa</dt><dd>{money(kpis.totalFacturadoVentasCasa)}</dd></div>
+            </dl>
+          </section>
 
           <section className="ccv-advisors-ranking w-full mt-2" aria-labelledby="asesores-ranking-title">
             <h2 id="asesores-ranking-title" className="mb-3 font-display text-lg font-semibold">
@@ -402,11 +379,11 @@ export default function AsesoresPage() {
                                 {money(item.venta)}
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground">
-                                {isCasa ? "—" : money(item.meta)}
+                                {isCasa ? "–" : money(item.meta)}
                               </TableCell>
                               <TableCell className="py-2.5">
                                 {isCasa ? (
-                                  <div className="text-center text-xs text-muted-foreground">—</div>
+                                  <div className="text-center text-xs text-muted-foreground">–</div>
                                 ) : (
                                   <div className="flex flex-col gap-1">
                                     <div className="flex justify-between items-center text-[11px]">
@@ -461,7 +438,7 @@ export default function AsesoresPage() {
       )}
 
       <Dialog open={!!selectedAdvisor} onOpenChange={(open) => !open && setSelectedAdvisor(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="ccv-detail-peek max-h-[85vh] overflow-y-auto">
           {selectedAdvisor && (
             <>
               <DialogHeader>
@@ -488,7 +465,7 @@ export default function AsesoresPage() {
                 <div className="flex flex-col gap-6 mt-4">
                   <div className="bg-muted/20 border border-border p-4 rounded-lg">
                     <h4 className="text-xs font-bold mb-3 text-foreground uppercase tracking-wider">
-                      Tendencia Mensual ({anio}) — Venta vs Meta
+                      Tendencia Mensual ({anio}) – Venta vs Meta
                     </h4>
                     <ChartContainer config={{}} className="aspect-auto h-52 w-full">
                       <ComposedChart

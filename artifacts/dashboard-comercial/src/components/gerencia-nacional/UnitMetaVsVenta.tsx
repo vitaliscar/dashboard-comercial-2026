@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { Bar, Line, ComposedChart, XAxis, YAxis, Cell, LabelList } from "recharts";
+import { Bar, BarChart, XAxis, YAxis, Cell } from "recharts";
 import { money, pct as fmtPct, statusFromPct90 } from "@/lib/format";
 import { SegmentedToggle } from "./SegmentedToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +7,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   CHART_CATEGORY_AXIS,
   CHART_Y_AXIS_HIDDEN,
   type ChartConfig,
@@ -29,7 +27,6 @@ const ACCENT_VAR: Record<ReturnType<typeof statusFromPct90>, string> = {
 };
 
 const chartConfig = {
-  pct: { label: "Cumplimiento %", color: "var(--color-chart-1)" },
   facturado: { label: "Vendido", color: "var(--color-chart-1)" },
   meta: { label: "Meta", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
@@ -62,18 +59,63 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
         />
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
-          {mode === "pct" ? (
-            <ComposedChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
+        {mode === "abs" && (
+          <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" role="group" aria-label="Series del gráfico">
+            <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="size-2.5 rounded-sm" style={{ background: "var(--color-chart-1)" }} />Vendido</span>
+            <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="size-2.5 rounded-sm" style={{ background: "var(--color-chart-2)" }} />Meta</span>
+          </div>
+        )}
+        <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
+          <BarChart data={data} barGap={4} barCategoryGap="18%" margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
               <XAxis dataKey="label" {...CHART_CATEGORY_AXIS} />
-              <YAxis {...CHART_Y_AXIS_HIDDEN} />
+              <YAxis {...CHART_Y_AXIS_HIDDEN} domain={mode === "pct" ? [0, "dataMax + 15"] : [0, "dataMax"]} />
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent formatter={(value) => fmtPct(Number(value))} />}
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => (
+                      <div className="flex flex-1 items-center justify-between gap-3">
+                        <span className="text-muted-foreground">{name}</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {mode === "pct" ? fmtPct(Number(value)) : money(Number(value))}
+                        </span>
+                      </div>
+                    )}
+                  />
+                }
               />
-              <Bar
-                dataKey="pct"
-                name="Cumplimiento %"
+              {mode === "abs" && (
+                  <Bar
+                    dataKey="facturado"
+                    name="Vendido"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={28}
+                    {...chartAnimation}
+                  >
+                    {data.map((row) => {
+                      const selected = isSelected(row);
+                      return <Cell key={row.id} fill="var(--color-chart-1)" fillOpacity={selected ? 1 : 0.3} />;
+                    })}
+                  </Bar>
+              )}
+              {mode === "abs" && (
+                  <Bar
+                    dataKey="meta"
+                    name="Meta"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={28}
+                    {...chartAnimation}
+                  >
+                    {data.map((row) => {
+                      const selected = isSelected(row);
+                      return <Cell key={row.id} fill="var(--color-chart-2)" fillOpacity={selected ? 1 : 0.3} />;
+                    })}
+                  </Bar>
+              )}
+              {mode === "pct" && (
+                <Bar
+                  dataKey="pct"
+                  name="Cumplimiento %"
                 radius={[4, 4, 0, 0]}
                 barSize={36}
                 label={{
@@ -87,89 +129,11 @@ export const UnitMetaVsVenta = memo(function UnitMetaVsVenta({ data, selectedIds
               >
                 {data.map((row) => {
                   const selected = isSelected(row);
-                  return (
-                    <Cell
-                      key={row.id}
-                      fill={ACCENT_VAR[statusFromPct90(row.pct)]}
-                      fillOpacity={selected ? 1 : 0.3}
-                      stroke={
-                        selected && selectedIds.length > 0 ? "var(--color-foreground)" : undefined
-                      }
-                      strokeWidth={selected && selectedIds.length > 0 ? 2 : 0}
-                    />
-                  );
+                  return <Cell key={row.id} fill={ACCENT_VAR[statusFromPct90(row.pct)]} fillOpacity={selected ? 1 : 0.3} />;
                 })}
-              </Bar>
-            </ComposedChart>
-          ) : (
-            <ComposedChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
-              <XAxis dataKey="label" {...CHART_CATEGORY_AXIS} />
-              <YAxis {...CHART_Y_AXIS_HIDDEN} />
-              <ChartTooltip
-                cursor={false}
-                content={
-                  <ChartTooltipContent
-                    formatter={(value, name) => (
-                      <div className="flex flex-1 items-center justify-between gap-3">
-                        <span className="text-muted-foreground">{name}</span>
-                        <span className="font-mono font-semibold tabular-nums">
-                          {money(Number(value))}
-                        </span>
-                      </div>
-                    )}
-                  />
-                }
-              />
-              <ChartLegend verticalAlign="top" align="right" content={<ChartLegendContent />} />
-              <Bar
-                dataKey="facturado"
-                name="Vendido"
-                radius={[4, 4, 0, 0]}
-                barSize={36}
-                label={{
-                  position: "top",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  fill: "var(--color-foreground)",
-                  formatter: ((v: unknown) => money(Number(v))) as never,
-                }}
-                {...chartAnimation}
-              >
-                {data.map((row) => {
-                  const selected = isSelected(row);
-                  return (
-                    <Cell
-                      key={row.id}
-                      fill="var(--color-facturado)"
-                      fillOpacity={selected ? 1 : 0.3}
-                      stroke={
-                        selected && selectedIds.length > 0 ? "var(--color-foreground)" : undefined
-                      }
-                      strokeWidth={selected && selectedIds.length > 0 ? 2 : 0}
-                    />
-                  );
-                })}
-                <LabelList
-                  dataKey="pct"
-                  position="insideBottom"
-                  offset={6}
-                  fill="var(--color-primary-foreground)"
-                  fontSize={10}
-                  fontWeight={700}
-                  formatter={((v: unknown) => fmtPct(Number(v))) as never}
-                />
-              </Bar>
-              <Line
-                type="monotone"
-                dataKey="meta"
-                name="Meta"
-                stroke="var(--color-meta)"
-                strokeWidth={2.5}
-                dot={{ r: 4 }}
-                {...chartAnimation}
-              />
-            </ComposedChart>
-          )}
+                </Bar>
+              )}
+            </BarChart>
         </ChartContainer>
       </CardContent>
     </Card>

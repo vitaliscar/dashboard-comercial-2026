@@ -7,7 +7,7 @@ interface VentasPerdidasSectionProps {
   datos: VentasPerdidaMetrica[];
   hideSucursalColumn?: boolean;
   /** Muestra el % de variación vs. el mes anterior y el monto del mes anterior
-   * en cada tarjeta (gerente_comercial) — mismo patrón que Cotizaciones. */
+   * en cada tarjeta (gerente_comercial) – mismo patrón que Cotizaciones. */
   showVariacionMesAnterior?: boolean;
   /** Mantiene visibles unidades sin movimiento para la vista consolidada. */
   preserveEmptyUnits?: boolean;

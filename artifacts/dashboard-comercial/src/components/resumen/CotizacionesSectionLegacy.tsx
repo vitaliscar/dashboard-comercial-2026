@@ -9,7 +9,7 @@ interface CotizacionesSectionLegacyProps {
 }
 
 /**
- * Versión anterior al rediseño "por unidad" — secciones apiladas por tipo de
+ * Versión anterior al rediseño "por unidad" – secciones apiladas por tipo de
  * métrica (Cotizaciones/Facturado/Ventas perdidas), sin variación vs. mes
  * anterior ni línea de tiempo. Se mantiene para la vista de Gerencia Nacional
  * con "Todas las unidades" y para coordinador/asesor.
@@ -22,7 +22,7 @@ export function CotizacionesSectionLegacy({
 
   // Se muestran siempre las 5 unidades (aunque una no haya reportado nada este
   // mes) para que el grid no se reacomode como si solo existieran las que sí
-  // tuvieron movimiento — la unidad sin datos queda visible con su tabla
+  // tuvieron movimiento – la unidad sin datos queda visible con su tabla
   // vacía y un mensaje explicando por qué.
   const totalCotizado = datos.reduce((sum, d) => sum + d.monto, 0);
 
@@ -36,7 +36,7 @@ export function CotizacionesSectionLegacy({
         </span>
       </div>
 
-      {/* Business unit summary cards — auto-fit: si faltan unidades (ej. 4 de 5
+      {/* Business unit summary cards – auto-fit: si faltan unidades (ej. 4 de 5
           activas), las tarjetas se reparten el ancho completo en vez de dejar
           una columna vacía como pasaba con `grid-cols-5` fijo. */}
       <div

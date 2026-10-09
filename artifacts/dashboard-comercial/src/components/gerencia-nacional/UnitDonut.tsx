@@ -1,156 +1,91 @@
-import { memo, useMemo } from "react";
-import { PieChart, Pie, Cell } from "recharts";
+import { memo } from "react";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
-
-// Los tonos "calm" (chart-calm-*) son translúcidos y dos de ellos comparten el
-// mismo hue (155°, solo cambia la opacidad) — casi indistinguibles en un
-// donut. Los chart-1..5 son opacos y con hues más separados entre sí.
-const DONUT_COLOR_VARS = [
-  "var(--color-chart-1)",
-  "var(--color-chart-2)",
-  "var(--color-chart-4)",
-  "var(--color-chart-5)",
-  "var(--color-chart-3)",
-];
-
-const RADIAN = Math.PI / 180;
-
-type PieLabelProps = {
-  cx: number;
-  cy: number;
-  midAngle: number;
-  innerRadius: number;
-  outerRadius: number;
-  percent: number;
-};
-
-function renderSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: PieLabelProps) {
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="var(--color-foreground)"
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize={11}
-      fontWeight={700}
-    >
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  );
-}
-
-import { useChartAnimation } from "@/hooks/use-chart-animation";
 
 type Props = {
-  /** `id` is only needed by callers that support selection dimming (e.g. business-unit chips). */
+  /** `id` is used by callers that dim unselected business units. */
   data: { id?: string; label: string; facturado: number }[];
   title?: string;
-  /** Unit IDs selected via the top unit-filter chips; others dim without being removed. */
   selectedIds?: string[];
-  /** Radio interno/externo de la dona como % del contenedor (no px — así
-   * escala solo con el tamaño real del card y con el zoom del navegador,
-   * en vez de quedar fijo y desbordarse o verse chico). El default calza
-   * en cards angostas (2-3 por fila); subir el % cuando el card ocupa
-   * medio ancho o más y sobra espacio vacío alrededor de la dona. */
-  innerRadius?: string;
-  outerRadius?: string;
 };
 
+const UNIT_COLORS = [
+  "var(--unit-chart-servicios)",
+  "var(--unit-chart-repuestos)",
+  "var(--unit-chart-lubfiltros)",
+  "var(--unit-chart-equipos)",
+  "var(--unit-chart-alquiler)",
+];
+const COMPANY_COLORS = [
+  "var(--color-chart-calm-1)",
+  "var(--color-chart-calm-2)",
+  "var(--color-chart-calm-3)",
+];
+
+function colorFor(label: string, index: number) {
+  const normalized = label.toLocaleLowerCase();
+  if (normalized.includes("venequip") || normalized.includes("ccv")) return COMPANY_COLORS[0];
+  if (normalized.includes("xibi")) return COMPANY_COLORS[1];
+  if (normalized.includes("estratég") || normalized.includes("estrateg")) return COMPANY_COLORS[2];
+  if (normalized.includes("servicio")) return UNIT_COLORS[0];
+  if (normalized.includes("repuesto")) return UNIT_COLORS[1];
+  if (normalized.includes("lub") || normalized.includes("filtro")) return UNIT_COLORS[2];
+  if (normalized.includes("equipo")) return UNIT_COLORS[3];
+  if (normalized.includes("alquiler")) return UNIT_COLORS[4];
+  return UNIT_COLORS[index % UNIT_COLORS.length];
+}
+
+/** Labeled distribution bars keep the amount and share readable at every width. */
 export const UnitDonut = memo(function UnitDonut({
   data,
-  title = "De dónde vino la venta",
+  title = "Distribución por unidad",
   selectedIds = [],
-  innerRadius = "31%",
-  outerRadius = "56%",
 }: Props) {
-  const chartAnimation = useChartAnimation();
-  const chartConfig = useMemo(
-    () =>
-      data.reduce<ChartConfig>((config, row, i) => {
-        config[row.label] = {
-          label: row.label,
-          color: DONUT_COLOR_VARS[i % DONUT_COLOR_VARS.length],
-        };
-        return config;
-      }, {}),
-    [data],
-  );
+  const total = data.reduce((sum, row) => sum + Math.max(0, Number.isFinite(row.facturado) ? row.facturado : 0), 0);
 
   return (
-    <Card className="ring-0 card-elevated flex h-full flex-col">
-      <CardHeader>
-        <CardTitle className="font-display font-semibold">{title}</CardTitle>
+    <Card className="card-elevated flex h-full min-w-0 flex-col">
+      <CardHeader className="pb-2">
+        <CardTitle className="font-display text-sm font-semibold">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col items-center justify-center">
-        {/* aspect-square (no altura fija en px): el radio de la dona se calcula
-            como % de min(ancho, alto) del contenedor, así que con una altura
-            fija (ej. h-80) la dona no crece aunque el card se haga más ancho
-            (zoom out, grid con menos columnas). Con aspect-square el alto
-            escala junto con el ancho real de la card en todo momento. */}
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-square w-full max-h-[420px] min-h-[220px]"
-        >
-          <PieChart margin={{ top: 0, right: 0, bottom: 24, left: 0 }}>
-            <Pie
-              data={data}
-              dataKey="facturado"
-              nameKey="label"
-              cy="45%"
-              innerRadius={innerRadius}
-              outerRadius={outerRadius}
-              paddingAngle={2}
-              label={renderSliceLabel as never}
-              labelLine={false}
-              {...chartAnimation}
-            >
-              {data.map((row, i) => {
-                const isSelected =
-                  selectedIds.length === 0 || (!!row.id && selectedIds.includes(row.id));
-                return (
-                  <Cell
-                    key={row.id ?? row.label}
-                    fill={DONUT_COLOR_VARS[i % DONUT_COLOR_VARS.length]}
-                    fillOpacity={isSelected ? 1 : 0.3}
-                    stroke={
-                      isSelected && selectedIds.length > 0 ? "var(--color-foreground)" : undefined
-                    }
-                    strokeWidth={isSelected && selectedIds.length > 0 ? 2 : 0}
-                  />
-                );
-              })}
-            </Pie>
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  nameKey="label"
-                  formatter={(value, name) => (
-                    <div className="flex flex-1 items-center justify-between gap-3">
-                      <span className="text-muted-foreground">{name}</span>
-                      <span className="font-mono font-semibold tabular-nums">
-                        {money(Number(value))}
-                      </span>
-                    </div>
-                  )}
-                />
-              }
-            />
-            <ChartLegend content={<ChartLegendContent nameKey="label" />} />
-          </PieChart>
-        </ChartContainer>
+      <CardContent className="flex-1">
+        {data.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para el período.</p>
+        ) : (
+          <ul className="space-y-3" aria-label={title || "Distribución por categoría"}>
+            {data.map((row, index) => {
+              const amount = Number.isFinite(row.facturado) ? row.facturado : 0;
+              const share = total > 0 ? Math.max(0, amount) / total * 100 : 0;
+              const isSelected = selectedIds.length === 0 || (!!row.id && selectedIds.includes(row.id));
+              const color = colorFor(row.label, index);
+              return (
+                <li key={row.id ?? row.label} className="min-w-0" style={{ opacity: isSelected ? 1 : 0.48 }}>
+                  <div className="flex min-w-0 items-baseline justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2 truncate text-xs font-medium text-foreground">
+                      <span aria-hidden="true" className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: color }} />
+                      <span className="truncate">{row.label}</span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <strong className="font-mono text-xs font-semibold tabular-nums text-foreground">{money(amount)}</strong>
+                      <span className="ml-2 font-mono text-[11px] tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
+                    </span>
+                  </div>
+                  <div
+                    className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label={`${row.label} del total facturado`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={share}
+                    aria-valuetext={`${share.toFixed(1)}% del total, ${money(amount)}`}
+                  >
+                    <span className="block h-full rounded-full" style={{ width: `${share}%`, backgroundColor: color }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );

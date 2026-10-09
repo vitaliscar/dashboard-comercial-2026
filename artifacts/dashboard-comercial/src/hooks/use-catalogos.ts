@@ -15,16 +15,17 @@ import { unidadLabelInfo } from "@/lib/unidad-labels";
  * shape, así que la primera ruta en montar "ganaba" el caché para todas las
  * demás. Centralizar el select en un solo hook elimina ese bug latente.
  */
-function useCatalogos() {
+function useCatalogos(enabled = true) {
   return useQuery({
     queryKey: ["catalogos"],
     queryFn: getCatalogosData,
     staleTime: Infinity,
+    enabled,
   });
 }
 
-export function useSucursales() {
-  const query = useCatalogos();
+export function useSucursales(enabled = true) {
+  const query = useCatalogos(enabled);
   return { ...query, data: query.data?.sucursales };
 }
 
@@ -33,8 +34,8 @@ export function useSucursales() {
  * (San Cristóbal). queryKey distinta a propósito: si compartiera
  * ["sucursales"] contaminaría el caché del resto de las rutas.
  */
-export function useSucursalesMercadeo() {
-  const query = useCatalogos();
+export function useSucursalesMercadeo(enabled = true) {
+  const query = useCatalogos(enabled);
   return { ...query, data: query.data?.sucursales };
 }
 
@@ -43,8 +44,8 @@ export function useSucursalesMercadeo() {
  * Equipos, Alquiler (unidadLabelInfo().order) — no el orden alfabético que
  * devuelve la query de Postgres.
  */
-export function useUnidades() {
-  const query = useCatalogos();
+export function useUnidades(enabled = true) {
+  const query = useCatalogos(enabled);
   return {
     ...query,
     data: query.data?.unidades

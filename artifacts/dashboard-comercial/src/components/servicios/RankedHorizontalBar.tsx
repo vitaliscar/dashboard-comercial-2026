@@ -14,7 +14,7 @@ type Props = {
 };
 
 /**
- * Ranking horizontal genérico — mismo "job" (comparar magnitud entre pocas
+ * Ranking horizontal genérico – mismo "job" (comparar magnitud entre pocas
  * categorías con nombres largos) usado por tipo de servicio y servicios
  * estratégicos. Un solo componente evita 3 copias casi idénticas del mismo
  * BarChart vertical con distintas props.

@@ -162,12 +162,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     signOut: async () => {
       clearSharedFilters();
-      clearCacheOnIdentityChange(null);
       await requestAuth("/logout", { method: "POST" }).catch(() => {});
       setSession(null);
       setProfile(null);
       setRole(null);
       setMustChangePassword(false);
+      // Let the shell commit `role=null` first, which disables authenticated
+      // catalog queries before clearing active query observers.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      clearCacheOnIdentityChange(null);
     },
     refresh: async () => {
       await loadFromMe();

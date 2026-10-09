@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { PercentageInput } from "@/components/budget/percentage-input";
+import { BudgetMixEditor } from "@/components/budget/budget-mix-editor";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
 import { QueryErrorNotice } from "@/components/query-error-notice";
-import { money } from "@/lib/format";
+import { budgetMoney as money } from "@/components/budget/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -309,7 +310,7 @@ export default function PresupuestoCoordinadorPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="ccv-budget-page ccv-budget-coordinator-view space-y-6">
       <PageHeader
         eyebrow="Planeación de sucursal"
         title={`Presupuesto por asesor ${year}`}
@@ -488,20 +489,10 @@ export default function PresupuestoCoordinadorPage() {
                             </td>
                             <td className="w-48 p-3">
                               <div className="flex items-center gap-2">
-                                <Input
+                                <PercentageInput
                                   aria-label={`Participación de ${advisor.advisor}`}
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
                                   value={Number.isFinite(share) ? share : 0}
-                                  onChange={(event) =>
-                                    updateShare(
-                                      currentRow,
-                                      advisor,
-                                      Number(event.target.value),
-                                    )
-                                  }
+                                  onValueChange={(value) => updateShare(currentRow, advisor, value)}
                                   className="text-right tabular-nums"
                                 />
                                 <span>%</span>
@@ -558,7 +549,7 @@ export default function PresupuestoCoordinadorPage() {
                     return <section key={advisor.advisorId} className="rounded-lg border p-3">
                       <div className="flex items-start justify-between gap-3"><div><h3 className="font-medium">{advisor.advisor}</h3>{advisor.codigoAsesor && <p className="text-xs text-muted-foreground">{advisor.codigoAsesor}</p>}</div><p className="text-right text-sm font-semibold tabular-nums">{money(amounts.get(advisor.advisorId) ?? 0)}</p></div>
                       <p className="mt-1 text-xs text-muted-foreground">{origenLabel(advisor.origen)} · Venta base {money(advisor.ventaBase)}</p>
-                      <label className="mt-3 block text-xs font-medium text-muted-foreground">Participación (%)<Input aria-label={`Participación de ${advisor.advisor}`} type="number" min="0" max="100" step="0.01" value={Number.isFinite(share) ? share : 0} onChange={(event) => updateShare(currentRow, advisor, Number(event.target.value))} className="mt-1 text-right tabular-nums" /></label>
+                      <label className="mt-3 block text-xs font-medium text-muted-foreground">Participación (%)<PercentageInput aria-label={`Participación de ${advisor.advisor}`} value={Number.isFinite(share) ? share : 0} onValueChange={(value) => updateShare(currentRow, advisor, value)} className="mt-1 text-right tabular-nums" /></label>
                     </section>;
                   })}
                   <div className="flex justify-between border-t pt-3 text-sm font-semibold"><span>Participación total</span><span className={Math.abs(currentRow.asesores.reduce((sum, advisor) => sum + Number(draft[keyOf(currentRow, advisor.advisorId)] ?? advisor.participacion), 0) - 100) > 0.000005 ? "text-destructive" : "text-primary"}>{currentRow.asesores.reduce((sum, advisor) => sum + Number(draft[keyOf(currentRow, advisor.advisorId)] ?? advisor.participacion), 0).toFixed(2)} %</span></div>
@@ -634,6 +625,7 @@ export default function PresupuestoCoordinadorPage() {
           </AlertDialog>
         </CardContent>
       </Card>
+      <BudgetMixEditor year={year} />
     </div>
   );
 }

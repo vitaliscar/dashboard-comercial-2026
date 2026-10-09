@@ -31,7 +31,7 @@ export default function EmbudoPage() {
       .sort((a, b) => b.amount - a.amount);
   }, [query.data?.cotizaciones, selectedMonths]);
   const totals = query.data?.totales;
-  const relation = (value: number, base: number) => base > 0 ? `${(value / base * 100).toFixed(1)} %` : "—";
+  const relation = (value: number, base: number) => base > 0 ? `${(value / base * 100).toFixed(1)} %` : "–";
   const saldoPendiente = (totals?.facturado ?? 0) - (totals?.cobrado ?? 0);
 
   return <div className="ccv-funnel-page flex flex-col gap-6">
@@ -51,6 +51,7 @@ export default function EmbudoPage() {
       <p className="ccv-funnel-explainer rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         Los totales vienen de registros agregados distintos; la base no atribuye cada factura o cobro a una cotización específica. Los porcentajes muestran relación entre montos y no una tasa de conversión.
       </p>
+      <div className="ccv-funnel-analysis">
       <section className="card-elevated p-5 sm:p-6" aria-labelledby="embudo-etapas-title" data-testid="embudo-stage-chart">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -79,13 +80,15 @@ export default function EmbudoPage() {
         <div className="mb-4"><h3 className="font-semibold">Cotizaciones por etapa</h3><p className="text-sm text-muted-foreground">Cantidad y valor para comparar dónde se concentra el embudo.</p></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="border-b text-left"><th className="py-2 pr-4">Etapa</th><th className="px-4 py-2 text-right">Cotizaciones</th><th className="px-4 py-2 text-right">Monto</th><th className="py-2 pl-4 text-right">Participación del monto cotizado</th></tr></thead>
+            <caption className="sr-only">Cotizaciones, monto y participación en cada etapa del embudo</caption>
+            <thead><tr className="border-b text-left"><th scope="col" className="py-2 pr-4">Etapa</th><th scope="col" className="px-4 py-2 text-right">Cotizaciones</th><th scope="col" className="px-4 py-2 text-right">Monto</th><th scope="col" className="py-2 pl-4 text-right">Participación del monto cotizado</th></tr></thead>
             <tbody>{stages.map((stage) => <tr key={stage.name} className="border-b border-border/60"><th scope="row" className="py-3 pr-4 text-left font-medium">{stage.name}</th><td className="px-4 py-3 text-right tabular-nums">{stage.count}</td><td className="px-4 py-3 text-right tabular-nums">{money(stage.amount)}</td><td className="py-3 pl-4 text-right tabular-nums">{relation(stage.amount, Number(totals?.cotizado ?? 0))}</td></tr>)}
               {stages.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">No hay cotizaciones para los filtros seleccionados.</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
+      </div>
     </>}
   </div>;
 }

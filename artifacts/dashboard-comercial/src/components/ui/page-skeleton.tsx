@@ -1,7 +1,7 @@
 import { SkeletonBox } from "@/components/ui/skeleton-box";
 
 /**
- * Skeleton de página completa — reemplaza el patrón
+ * Skeleton de página completa – reemplaza el patrón
  * `{isLoading && <div>Cargando datos…</div>}` (que dejaba la página real
  * renderizando con ceros/vacío mientras tanto) por una forma que calca el
  * grid real de la página: tira de KPIs + bloques de N columnas.

@@ -28,7 +28,7 @@ type Props = {
 
 /**
  * Barras apiladas mensuales con atenuación de meses fuera del filtro activo.
- * ResponsiveContainer con height fijo en px — evita width/height -1 al montar.
+ * ResponsiveContainer con height fijo en px – evita width/height -1 al montar.
  */
 export const MercadeoStackedBarChart = memo(function MercadeoStackedBarChart({
   data,

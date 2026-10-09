@@ -6,21 +6,28 @@ export function CookieConsentBanner() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem("cookie_consent");
-    if (!consent) {
+    try {
+      if (!localStorage.getItem("cookie_consent")) {
+        setShowBanner(true);
+      }
+    } catch {
       setShowBanner(true);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem("cookie_consent", "accepted");
+    try {
+      localStorage.setItem("cookie_consent", "accepted");
+    } catch {
+      // El aviso puede cerrarse en esta sesión aunque el navegador no guarde la preferencia.
+    }
     setShowBanner(false);
   };
 
   if (!showBanner) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-md rounded-lg border border-border bg-card p-4 shadow-xl text-card-foreground">
+    <aside className="ccv-cookie-consent fixed bottom-4 right-4 z-50 max-w-md rounded-lg border border-border bg-card p-4 text-card-foreground" role="region" aria-label="Aviso sobre cookies" aria-live="polite">
       <div className="space-y-2">
         <h4 className="text-sm font-semibold">Política de Cookies & Privacidad</h4>
         <p className="text-xs text-muted-foreground">
@@ -29,21 +36,18 @@ export function CookieConsentBanner() {
         </p>
         <div className="flex items-center gap-2 pt-2">
           <button
+            type="button"
             onClick={handleAccept}
-            className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+            className="ccv-cookie-accept"
           >
             Aceptar
           </button>
-          <a
-            href="/docs/legal/POLITICA-COOKIES.md"
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-muted-foreground underline hover:text-foreground"
-          >
-            Saber más
-          </a>
+          <details className="ccv-cookie-details">
+            <summary>Detalles de almacenamiento</summary>
+            <p>Al aceptar, esta preferencia se guarda en el almacenamiento local del navegador para no volver a mostrar el aviso en este dispositivo.</p>
+          </details>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

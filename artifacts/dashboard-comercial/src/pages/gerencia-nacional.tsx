@@ -14,14 +14,13 @@ import { unidadLabelInfo } from "@/lib/unidad-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { BranchRanking } from "@/components/gerencia-nacional/BranchRanking";
 import { UnitMetaVsVenta } from "@/components/gerencia-nacional/UnitMetaVsVenta";
-import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import type { BranchSummaryRow } from "@/components/gerencia-nacional/BranchSummaryTable";
 import {
   UnitComplianceHeatmap,
   type BranchUnitMetric,
 } from "@/components/gerencia-nacional/UnitComplianceHeatmap";
 import { getAllowedMonths } from "@/lib/date-range";
-import { Shield } from "lucide-react";
+import { Shield } from "@/components/icons";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 type Acc = { meta: number; facturado: number };
@@ -67,7 +66,7 @@ export default function GerenciaNacionalPage() {
   );
 
   // Un solo fetch por año (meses=all trae todo lo disponible hasta el mes
-  // actual) — el filtrado por mes/sucursal/unidad ocurre en memoria abajo,
+  // actual) – el filtrado por mes/sucursal/unidad ocurre en memoria abajo,
   // así que cambiar esos filtros no dispara un nuevo round-trip.
   const { data: resumen, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["gerencia-nacional-resumen", anio],
@@ -183,11 +182,6 @@ export default function GerenciaNacionalPage() {
   }, [metrics]);
 
   const unitChartData = cross?.unitRows ?? [];
-  const unitDonutData = cross?.unitRows.map((unit) => ({
-    id: unit.id,
-    label: unit.label,
-    facturado: unit.facturado,
-  })) ?? [];
 
   const openSucursalResumen = useCallback(
     (sucursalId: string, unidadNegocioId?: string) => {
@@ -264,41 +258,41 @@ export default function GerenciaNacionalPage() {
         showAllMonths
       />
 
-      <section
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4 section-enter section-enter-1"
-        aria-label="Resultado comercial del período"
-      >
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Facturado</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{money(kpis.totalFacturado)}</div>
-        </div>
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Meta</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{money(kpis.totalPresupuesto)}</div>
-        </div>
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cumplimiento</div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{pct(kpis.cumplimiento, 1)}</div>
-        </div>
-        <div className="card-elevated p-4 sm:p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {kpis.totalPresupuesto <= 0
-              ? "Meta no asignada"
-              : kpis.totalFacturado >= kpis.totalPresupuesto
-                ? "Sobre meta"
-                : "Falta para meta"}
+      <section className="ccv-national-kpis section-enter section-enter-1" aria-label="Resultado comercial del período">
+        <article className="ccv-national-kpi">
+          <span>Facturado en el período</span>
+          <strong className="tabular-nums">{money(kpis.totalFacturado)}</strong>
+          <small>Venta consolidada</small>
+        </article>
+        <article className="ccv-national-kpi">
+          <span>Meta del período</span>
+          <strong className="tabular-nums">{money(kpis.totalPresupuesto)}</strong>
+          <small>Presupuesto asignado</small>
+        </article>
+        <article className="ccv-national-kpi">
+          <span>Cumplimiento</span>
+          <strong className="tabular-nums">{pct(kpis.cumplimiento, 1)}</strong>
+          <div
+            className="ccv-national-kpi-track"
+            role="progressbar"
+            aria-label="Cumplimiento de la meta comercial"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, Math.max(0, Number.isFinite(kpis.cumplimiento) ? kpis.cumplimiento : 0))}
+            aria-valuetext={`${pct(kpis.cumplimiento, 1)} de la meta del período`}
+          >
+            <span style={{ width: `${Math.min(100, Math.max(0, Number.isFinite(kpis.cumplimiento) ? kpis.cumplimiento : 0))}%` }} />
           </div>
-          <div className="mt-2 font-display text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
-            {kpis.totalPresupuesto <= 0
-              ? "—"
-              : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}
-          </div>
-        </div>
+        </article>
+        <article className="ccv-national-kpi">
+          <span>{kpis.totalPresupuesto <= 0 ? "Meta no asignada" : kpis.totalFacturado >= kpis.totalPresupuesto ? "Sobre meta" : "Falta para meta"}</span>
+          <strong className="tabular-nums">{kpis.totalPresupuesto <= 0 ? "—" : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}</strong>
+          <small>{kpis.totalPresupuesto <= 0 ? "Sin presupuesto configurado" : "Brecha frente al objetivo"}</small>
+        </article>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]" aria-label="Gráficos generales del período">
+      <section aria-label="Comparación de venta y meta por unidad">
         <UnitMetaVsVenta data={unitChartData} selectedIds={selectedUnidades} />
-        <UnitDonut data={unitDonutData} selectedIds={selectedUnidades} title="Distribución de facturación" />
       </section>
 
       <UnitComplianceHeatmap
