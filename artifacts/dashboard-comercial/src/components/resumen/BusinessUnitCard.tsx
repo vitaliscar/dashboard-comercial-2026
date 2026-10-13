@@ -71,25 +71,19 @@ export function BusinessUnitCard({
         </div>
 
         {/* Primary value */}
-        <div>
+        <div className={cn(projection && "flex min-w-0 items-baseline justify-between gap-2")}>
           <p className="font-mono text-xl font-bold text-foreground tabular-nums leading-tight">
             {money(monto)}
           </p>
+          {projection && (
+            <div className="min-w-0 text-right">
+              <p className="font-sans text-[10px] leading-tight text-muted-foreground">Proyección</p>
+              <p className={cn("font-mono text-xs font-semibold tabular-nums", textColors[projection.color ?? "default"])}>
+                {projection.value}
+              </p>
+            </div>
+          )}
         </div>
-
-        {projection && (
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="font-sans text-xs text-muted-foreground">Proy. cierre mes</p>
-            <p
-              className={cn(
-                "font-mono text-xs font-semibold tabular-nums shrink-0",
-                textColors[projection.color ?? "default"],
-              )}
-            >
-              {projection.value}
-            </p>
-          </div>
-        )}
 
         {/* Additional metrics with optional progress bars */}
         {additionalInfo.map((info, idx) => {

@@ -854,6 +854,8 @@ export default function ResumenPage() {
           <FacturadoSectionLegacy
             datos={resumenData.facturado}
             hideSucursalColumn={role === "coordinador" || role === "asesor"}
+            anio={filters.anio}
+            meses={filters.meses}
           />
 
           <VentasPerdidasSectionLegacy

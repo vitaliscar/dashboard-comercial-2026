@@ -4,10 +4,14 @@ import { DataTable } from "./DataTable";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { money } from "@/lib/format";
+import { getMonthlySalesProjection } from "@/lib/business-days";
+import type { MonthFilter } from "@/lib/date-range";
 
 interface FacturadoSectionLegacyProps {
   datos: FacturadoMetrica[];
   hideSucursalColumn?: boolean;
+  anio?: number;
+  meses?: MonthFilter;
 }
 
 type TipoCliente = "TODAS" | "CCV" | "XIB" | "EST";
@@ -31,6 +35,8 @@ function getCumplimientoColor(pct: number): "success" | "warning" | "danger" {
 export function FacturadoSectionLegacy({
   datos,
   hideSucursalColumn = false,
+  anio,
+  meses,
 }: FacturadoSectionLegacyProps) {
   const [tipoClienteFilters, setTipoClienteFilters] = useState<Record<string, TipoCliente>>({});
 
@@ -78,6 +84,10 @@ export function FacturadoSectionLegacy({
           }
 
           const cumColor = getCumplimientoColor(displayCumplimiento);
+          const projection = anio !== undefined && meses !== undefined
+            ? getMonthlySalesProjection(displayMonto, ppto, anio, meses)
+            : null;
+          const margenEstimadoSeleccionado = (displayMonto * unidad.margenEstimado) / 100;
 
           return (
             <div key={unidad.unidad} className="flex flex-col gap-2">
@@ -86,6 +96,14 @@ export function FacturadoSectionLegacy({
                 monto={displayMonto}
                 porcentaje={unidad.porcentaje}
                 presupuesto={unidad.presupuestoTotal}
+                projection={
+                  projection
+                    ? {
+                        value: money(projection.projectedSales),
+                        color: filter === "TODAS" ? projection.tone : "default",
+                      }
+                    : undefined
+                }
                 additionalInfo={[
                   {
                     label: "Cumpl. PPTO",
@@ -95,7 +113,7 @@ export function FacturadoSectionLegacy({
                   },
                   {
                     label: "Margen Est.",
-                    value: `${unidad.margenEstimado.toFixed(1)}%`,
+                    value: `${money(margenEstimadoSeleccionado)} · ${unidad.margenEstimado.toFixed(1)}%`,
                     color: "muted",
                   },
                 ]}

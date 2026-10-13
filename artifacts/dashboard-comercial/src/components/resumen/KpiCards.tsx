@@ -106,10 +106,10 @@ export function KpiCards({
                 labelFormatter={(label) => `${label} ${anio}`}
               />
               <Area type="monotone" dataKey="facturado" stroke="var(--color-chart-1)" strokeWidth={2.5} fill="url(#revenueFill)" connectNulls={false} activeDot={{ r: 4, fill: "var(--color-chart-1)", stroke: "#fff", strokeWidth: 2 }}>
-                <LabelList dataKey="facturado" position="top" offset={12} formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-1)" fontSize={10} />
+                <LabelList dataKey="facturado" position="top" offset={12} formatter={(value: unknown) => compactMoney(Number(value))} fill="var(--color-chart-1)" fontSize={10} />
               </Area>
               <Area type="monotone" dataKey="meta" stroke="var(--color-chart-2)" strokeWidth={1.75} strokeDasharray="5 4" fill="none" connectNulls={false} activeDot={false}>
-                <LabelList dataKey="meta" position="bottom" offset={12} formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-2)" fontSize={10} />
+                <LabelList dataKey="meta" position="bottom" offset={12} formatter={(value: unknown) => compactMoney(Number(value))} fill="var(--color-chart-2)" fontSize={10} />
               </Area>
             </AreaChart>
           </ResponsiveContainer>

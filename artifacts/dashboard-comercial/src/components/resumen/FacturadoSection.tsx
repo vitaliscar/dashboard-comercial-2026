@@ -106,6 +106,7 @@ export function FacturadoSection({
                 anio !== undefined && meses !== undefined
                   ? getMonthlySalesProjection(displayMonto, ppto, anio, meses)
                   : null;
+              const margenEstimadoSeleccionado = (displayMonto * unidad.margenEstimado) / 100;
 
               return (
                 <div key={unidad.unidad} className="flex flex-col gap-2">
@@ -116,7 +117,10 @@ export function FacturadoSection({
                     presupuesto={unidad.presupuestoTotal}
                     projection={
                       projection
-                        ? { value: money(projection.projectedSales), color: projection.tone }
+                        ? {
+                            value: money(projection.projectedSales),
+                            color: filter === "TODAS" ? projection.tone : "default",
+                          }
                         : undefined
                     }
                     additionalInfo={[
@@ -170,7 +174,7 @@ export function FacturadoSection({
                       className="text-xs font-bold text-muted-foreground tabular-nums"
                       title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio – no es un cálculo de costo real."
                     >
-                      {money(unidad.margenMonto)}
+                      {money(margenEstimadoSeleccionado)}
                     </p>
                   </div>
                 </div>
