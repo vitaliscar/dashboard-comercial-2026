@@ -95,14 +95,14 @@ export function FacturadoSectionLegacy({
                 label={unidad.unidad}
                 monto={displayMonto}
                 porcentaje={unidad.porcentaje}
-                presupuesto={unidad.presupuestoTotal}
+                presupuesto={ppto}
                 projection={
-                  projection
-                    ? {
-                        value: money(projection.projectedSales),
-                        color: filter === "TODAS" ? projection.tone : "default",
-                      }
-                    : undefined
+                  {
+                    value: projection ? money(projection.projectedSales) : "—",
+                    color: projection
+                      ? filter === "TODAS" ? projection.tone : "default"
+                      : "muted",
+                  }
                 }
                 additionalInfo={[
                   {
@@ -110,11 +110,6 @@ export function FacturadoSectionLegacy({
                     value: `${displayCumplimiento.toFixed(1)}%`,
                     color: cumColor,
                     progress: displayCumplimiento,
-                  },
-                  {
-                    label: "Margen Est.",
-                    value: `${money(margenEstimadoSeleccionado)} · ${unidad.margenEstimado.toFixed(1)}%`,
-                    color: "muted",
                   },
                 ]}
               />
@@ -154,7 +149,7 @@ export function FacturadoSectionLegacy({
                   className="text-xs font-bold text-muted-foreground tabular-nums"
                   title="Estimado con un porcentaje de margen fijo de referencia por unidad de negocio – no es un cálculo de costo real."
                 >
-                  {money(unidad.margenMonto)}
+                  {money(margenEstimadoSeleccionado)} · {unidad.margenEstimado.toFixed(1)}%
                 </p>
               </div>
             </div>

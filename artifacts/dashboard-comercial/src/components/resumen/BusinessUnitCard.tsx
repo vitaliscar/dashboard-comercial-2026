@@ -95,11 +95,6 @@ export function BusinessUnitCard({
               <strong className={cn("block truncate font-mono text-xs font-semibold tabular-nums", textColors[compliance?.color ?? "muted"])}>
                 {compliance?.value ?? "—"}
               </strong>
-              {compliance?.progress !== undefined && (
-                <div className="progress-track mt-1" aria-hidden="true">
-                  <div className={cn("progress-fill", barColors[compliance.color ?? "default"])} style={{ transform: `scaleX(${Math.min(Math.max(compliance.progress, 0), 150) / 100})` }} />
-                </div>
-              )}
             </div>
             <div className="min-w-0 text-right">
               <span className="block text-[10px] text-muted-foreground">Proyec.</span>
@@ -107,6 +102,19 @@ export function BusinessUnitCard({
                 {projection.value}
               </strong>
             </div>
+            {compliance?.progress !== undefined && (
+              <div
+                className="progress-track col-span-3"
+                role="progressbar"
+                aria-label={`Cumplimiento del presupuesto de ${label}`}
+                aria-valuemin={0}
+                aria-valuemax={150}
+                aria-valuenow={Math.round(Math.min(Math.max(compliance.progress, 0), 150))}
+                aria-valuetext={`${compliance.value} de la meta`}
+              >
+                <div className={cn("progress-fill", barColors[compliance.color ?? "default"])} style={{ transform: `scaleX(${Math.min(Math.max(compliance.progress, 0), 150) / 100})` }} />
+              </div>
+            )}
           </div>
         )}
 
