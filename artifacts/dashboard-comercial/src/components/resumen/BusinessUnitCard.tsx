@@ -72,17 +72,17 @@ export function BusinessUnitCard({
 
         {/* Primary value */}
         <div className={cn(projection && "grid min-w-0 grid-cols-3 items-center gap-2")}>
-          <p className="font-mono text-xl font-bold text-foreground tabular-nums leading-tight">
+          <p className={cn("font-mono text-xl font-bold text-foreground tabular-nums leading-tight", projection && "col-start-1 justify-self-start")}>
             {money(monto)}
           </p>
           {projection && (
-            <div className="flex flex-col items-center text-muted-foreground" aria-label={`Proyección ${projection.value}`}>
+            <div className="col-start-2 flex flex-col items-center justify-self-center text-center text-muted-foreground" aria-label={`Proyección ${projection.value}`}>
               <span className="font-sans text-[9px] leading-none">proyec.</span>
               <span aria-hidden="true" className="text-sm leading-tight">→</span>
             </div>
           )}
           {projection && (
-            <p className={cn("min-w-0 text-right font-mono text-xs font-semibold tabular-nums", textColors[projection.color ?? "default"])}>
+            <p className={cn("col-start-3 min-w-0 justify-self-end text-right font-mono text-xs font-semibold tabular-nums", textColors[projection.color ?? "default"])}>
               {projection.value}
             </p>
           )}
