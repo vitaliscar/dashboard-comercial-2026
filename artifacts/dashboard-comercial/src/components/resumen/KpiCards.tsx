@@ -46,7 +46,7 @@ export function KpiCards({
     month: month.slice(0, 3),
     facturado: facturadoMensual?.[index] ?? null,
     meta: metaMensual?.[index] ?? null,
-  }));
+  })).filter((point) => Number(point.facturado ?? 0) !== 0);
 
   return (
     <>
