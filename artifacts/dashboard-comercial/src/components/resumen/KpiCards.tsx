@@ -90,7 +90,7 @@ export function KpiCards({
         </header>
         <div className="ccv-revenue-chart" role="img" aria-label={`Facturación y meta mensual de enero a diciembre de ${anio}`}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 24, right: 30, left: 30, bottom: 10 }}>
               <defs>
                 <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.16} />
@@ -98,7 +98,7 @@ export function KpiCards({
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 5" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} tickMargin={9} />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} tickMargin={9} padding={{ left: 24, right: 24 }} />
               <Tooltip
                 cursor={{ stroke: "#98a2b3", strokeDasharray: "3 4" }}
                 contentStyle={{ border: "1px solid var(--color-border)", borderRadius: 7, background: "var(--color-card)", color: "var(--color-foreground)", fontSize: 12 }}
@@ -106,10 +106,10 @@ export function KpiCards({
                 labelFormatter={(label) => `${label} ${anio}`}
               />
               <Area type="monotone" dataKey="facturado" stroke="var(--color-chart-1)" strokeWidth={2.5} fill="url(#revenueFill)" connectNulls={false} activeDot={{ r: 4, fill: "var(--color-chart-1)", stroke: "#fff", strokeWidth: 2 }}>
-                <LabelList dataKey="facturado" position="top" formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-1)" fontSize={10} />
+                <LabelList dataKey="facturado" position="top" offset={12} formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-1)" fontSize={10} />
               </Area>
               <Area type="monotone" dataKey="meta" stroke="var(--color-chart-2)" strokeWidth={1.75} strokeDasharray="5 4" fill="none" connectNulls={false} activeDot={false}>
-                <LabelList dataKey="meta" position="bottom" formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-2)" fontSize={10} />
+                <LabelList dataKey="meta" position="bottom" offset={12} formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-2)" fontSize={10} />
               </Area>
             </AreaChart>
           </ResponsiveContainer>
