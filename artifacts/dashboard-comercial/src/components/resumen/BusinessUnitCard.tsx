@@ -71,7 +71,7 @@ export function BusinessUnitCard({
         </div>
 
         {/* Primary value */}
-        <div className={cn(projection && "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2")}>
+        <div className={cn(projection && "grid min-w-0 grid-cols-3 items-center gap-2")}>
           <p className="font-mono text-xl font-bold text-foreground tabular-nums leading-tight">
             {money(monto)}
           </p>
@@ -83,7 +83,7 @@ export function BusinessUnitCard({
           )}
           {projection && (
             <p className={cn("min-w-0 text-right font-mono text-xs font-semibold tabular-nums", textColors[projection.color ?? "default"])}>
-                {projection.value}
+              {projection.value}
             </p>
           )}
         </div>
