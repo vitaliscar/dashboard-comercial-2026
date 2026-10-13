@@ -55,6 +55,7 @@ export function KpiCards({
           <span>Facturado</span>
           <strong>{money(facturado)}</strong>
           <small>{periodoLabel}</small>
+          {facturadoProjection && <small className={`ccv-summary-projection tone-${facturadoProjection.tone}`}>Proyección: {facturadoProjection.value}</small>}
         </article>
         <article className="ccv-summary-kpi">
           <span>Meta y cumplimiento</span>
@@ -62,7 +63,6 @@ export function KpiCards({
           <small>
             {metaMes > 0 ? `${cumplimientoMetaPorcentaje.toFixed(1)}% · ${reached ? `superada por ${money(facturado - metaMes)}` : `faltan ${money(gap)}`}` : "Sin meta configurada"}
           </small>
-          {facturadoProjection && <small className={`ccv-summary-projection tone-${facturadoProjection.tone}`}>Proyección: {facturadoProjection.value}</small>}
         </article>
         <article className="ccv-summary-kpi">
           <span>Cotizado</span>

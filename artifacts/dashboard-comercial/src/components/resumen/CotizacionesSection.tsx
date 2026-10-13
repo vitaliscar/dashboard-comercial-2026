@@ -72,8 +72,9 @@ export function CotizacionesSection({
                   label={unidad.unidad}
                   monto={unidad.monto}
                   porcentaje={unidad.porcentaje}
-                  additionalInfo={
-                    showVariacion
+                  additionalInfo={[
+                    { label: "Participación", value: `${unidad.porcentaje.toFixed(1)}%`, progress: unidad.porcentaje, color: "default" as const },
+                    ...(showVariacion
                       ? [
                           {
                             label: "vs. mes anterior",
@@ -83,22 +84,22 @@ export function CotizacionesSection({
                                 : `${variacion > 0 ? "+" : ""}${variacion.toFixed(1)}%`,
                             color:
                               variacion === null
-                                ? "muted"
+                                ? "muted" as const
                                 : variacion > 0
-                                  ? "success"
+                                  ? "success" as const
                                   : variacion < 0
-                                    ? "danger"
-                                    : "muted",
+                                    ? "danger" as const
+                                    : "muted" as const,
                             bidirectionalProgress: variacion === null ? 0 : variacion,
                           },
                           {
                             label: "Monto mes anterior",
                             value: money(unidad.montoMesAnterior ?? 0),
-                            color: "muted",
+                            color: "muted" as const,
                           },
                         ]
-                      : []
-                  }
+                      : []),
+                  ]}
                 />
               );
 

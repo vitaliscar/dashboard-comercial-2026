@@ -49,6 +49,7 @@ export function CotizacionesSectionLegacy({
             label={unidad.unidad}
             monto={unidad.monto}
             porcentaje={unidad.porcentaje}
+            additionalInfo={[{ label: "Del total cotizado", value: `${unidad.porcentaje.toFixed(1)}%`, progress: unidad.porcentaje, color: "default" }]}
           />
         ))}
       </div>

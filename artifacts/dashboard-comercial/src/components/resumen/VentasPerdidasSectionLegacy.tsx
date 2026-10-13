@@ -68,6 +68,7 @@ export function VentasPerdidasSectionLegacy({
             label={unidad.unidad}
             monto={unidad.monto}
             porcentaje={unidad.porcentaje}
+            additionalInfo={[{ label: "Del total perdido", value: `${unidad.porcentaje.toFixed(1)}%`, progress: unidad.porcentaje, color: "danger" }]}
           />
         ))}
       </div>
