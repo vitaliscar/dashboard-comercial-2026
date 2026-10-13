@@ -17,6 +17,7 @@ interface KpiCardsProps {
   ventasPerdidasPorcentaje: number;
   facturadoProjection?: { value: string; tone: "success" | "warning" | "danger" };
   unitRows: FacturadoMetrica[];
+  showUnitPerformance?: boolean;
 }
 
 const compactMoney = (value: number) => {
@@ -39,6 +40,7 @@ export function KpiCards({
   ventasPerdidasPorcentaje,
   facturadoProjection,
   unitRows,
+  showUnitPerformance = true,
 }: KpiCardsProps) {
   const gap = Math.max(0, metaMes - facturado);
   const reached = metaMes > 0 && cumplimientoMetaPorcentaje >= 100;
@@ -115,7 +117,7 @@ export function KpiCards({
           </ResponsiveContainer>
         </div>
       </section>
-      <UnitPerformance rows={unitRows} />
+      {showUnitPerformance && <UnitPerformance rows={unitRows} />}
       </div>
     </>
   );

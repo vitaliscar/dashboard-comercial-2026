@@ -821,6 +821,7 @@ export default function ResumenPage() {
         ventasPerdidas={resumenData.kpis.ventasPerdidas}
         ventasPerdidasPorcentaje={resumenData.kpis.ventasPerdidasPorcentaje}
         unitRows={resumenData.facturado}
+        showUnitPerformance={isSingleUnitView}
       />
 
       {isSingleUnitView ? (
