@@ -9,7 +9,6 @@ interface KpiCardsProps {
   facturado: number;
   facturadoMensual?: number[];
   metaMensual?: number[];
-  periodoLabel: string;
   anio: number;
   facturadoVsCotizadoPorcentaje: number;
   cumplimientoMetaPorcentaje: number;
@@ -32,7 +31,6 @@ export function KpiCards({
   facturado,
   facturadoMensual,
   metaMensual,
-  periodoLabel,
   anio,
   facturadoVsCotizadoPorcentaje,
   cumplimientoMetaPorcentaje,
@@ -56,7 +54,6 @@ export function KpiCards({
         <article className="ccv-summary-kpi">
           <span>Facturado</span>
           <strong>{money(facturado)}</strong>
-          <small>{periodoLabel}</small>
           {facturadoProjection && <small className={`ccv-summary-projection tone-${facturadoProjection.tone}`}>Proyección: {facturadoProjection.value}</small>}
         </article>
         <article className="ccv-summary-kpi">

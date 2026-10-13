@@ -809,7 +809,6 @@ export default function ResumenPage() {
         facturado={resumenData.kpis.facturado}
         facturadoMensual={resumenData.kpis.facturadoMensual}
         metaMensual={resumenData.kpis.metaMensual}
-        periodoLabel={`${filters.meses === "all" ? "año completo" : filters.meses.map((m) => MESES[m - 1]).join(", ")} ${filters.anio}`}
         anio={filters.anio}
         facturadoVsCotizadoPorcentaje={resumenData.kpis.facturadoVsCotizadoPorcentaje}
         cumplimientoMetaPorcentaje={resumenData.kpis.cumplimientoMetaPorcentaje}
