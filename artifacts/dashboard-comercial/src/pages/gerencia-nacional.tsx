@@ -258,18 +258,18 @@ export default function GerenciaNacionalPage() {
         showAllMonths
       />
 
-      <section className="ccv-national-kpis section-enter section-enter-1" aria-label="Resultado comercial del período">
-        <article className="ccv-national-kpi">
+      <section className="ccv-summary-kpis section-enter section-enter-1" aria-label="Resultado comercial del período">
+        <article className="ccv-summary-kpi">
           <span>Facturado en el período</span>
           <strong className="tabular-nums">{money(kpis.totalFacturado)}</strong>
           <small>Venta consolidada</small>
         </article>
-        <article className="ccv-national-kpi">
+        <article className="ccv-summary-kpi">
           <span>Meta del período</span>
           <strong className="tabular-nums">{money(kpis.totalPresupuesto)}</strong>
           <small>Presupuesto asignado</small>
         </article>
-        <article className="ccv-national-kpi">
+        <article className="ccv-summary-kpi">
           <span>Cumplimiento</span>
           <strong className="tabular-nums">{pct(kpis.cumplimiento, 1)}</strong>
           <div
@@ -284,7 +284,7 @@ export default function GerenciaNacionalPage() {
             <span style={{ width: `${Math.min(100, Math.max(0, Number.isFinite(kpis.cumplimiento) ? kpis.cumplimiento : 0))}%` }} />
           </div>
         </article>
-        <article className="ccv-national-kpi">
+        <article className="ccv-summary-kpi ccv-summary-kpi-lost">
           <span>{kpis.totalPresupuesto <= 0 ? "Meta no asignada" : kpis.totalFacturado >= kpis.totalPresupuesto ? "Sobre meta" : "Falta para meta"}</span>
           <strong className="tabular-nums">{kpis.totalPresupuesto <= 0 ? "—" : money(Math.abs(kpis.totalPresupuesto - kpis.totalFacturado))}</strong>
           <small>{kpis.totalPresupuesto <= 0 ? "Sin presupuesto configurado" : "Brecha frente al objetivo"}</small>
