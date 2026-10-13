@@ -50,6 +50,10 @@ export function BusinessUnitCard({
   additionalInfo = [],
   projection,
 }: BusinessUnitCardProps) {
+  const compliance = projection
+    ? additionalInfo.find((info) => info.label === "Cumpl. PPTO")
+    : undefined;
+
   return (
     <Card className="ring-0 card-elevated hover:card-elevated-hover section-enter" size="sm">
       <CardContent className="flex flex-col gap-3">
@@ -58,7 +62,7 @@ export function BusinessUnitCard({
           <h3 className="font-display text-[11px] font-bold tracking-[0.08em] uppercase text-muted-foreground truncate">
             {label}
           </h3>
-          <span
+          {(!projection || presupuesto === undefined) && <span
             className={cn(
               "font-mono text-xs tabular-nums shrink-0",
               presupuesto !== undefined
@@ -67,29 +71,47 @@ export function BusinessUnitCard({
             )}
           >
             {presupuesto !== undefined ? money(presupuesto) : `${porcentaje.toFixed(1)}%`}
-          </span>
+          </span>}
         </div>
 
         {/* Primary value */}
-        <div className={cn(projection && "grid min-w-0 grid-cols-3 items-center gap-2")}>
-          <p className={cn("font-mono text-xl font-bold text-foreground tabular-nums leading-tight", projection && "col-start-1 justify-self-start")}>
+        <div>
+          {projection && <span className="mb-1 block text-[10px] text-muted-foreground">Facturado</span>}
+          <p className="font-mono text-xl font-bold text-foreground tabular-nums leading-tight">
             {money(monto)}
           </p>
-          {projection && (
-            <div className="col-start-2 flex flex-col items-center justify-self-center text-center text-muted-foreground" aria-label={`Proyección ${projection.value}`}>
-              <span className="font-sans text-[9px] leading-none">proyec.</span>
-              <span aria-hidden="true" className="text-sm leading-tight">→</span>
-            </div>
-          )}
-          {projection && (
-            <p className={cn("col-start-3 min-w-0 justify-self-end text-right font-mono text-xs font-semibold tabular-nums", textColors[projection.color ?? "default"])}>
-              {projection.value}
-            </p>
-          )}
         </div>
 
+        {projection && presupuesto !== undefined && (
+          <div className="grid grid-cols-3 gap-2 border-t border-border pt-2">
+            <div className="min-w-0">
+              <span className="block text-[10px] text-muted-foreground">Meta</span>
+              <strong className="block truncate font-mono text-xs font-semibold tabular-nums text-foreground" title={presupuesto > 0 ? money(presupuesto) : "Sin meta"}>
+                {presupuesto > 0 ? money(presupuesto) : "—"}
+              </strong>
+            </div>
+            <div className="min-w-0 text-center">
+              <span className="block text-[10px] text-muted-foreground">Cumpl.</span>
+              <strong className={cn("block truncate font-mono text-xs font-semibold tabular-nums", textColors[compliance?.color ?? "muted"])}>
+                {compliance?.value ?? "—"}
+              </strong>
+              {compliance?.progress !== undefined && (
+                <div className="progress-track mt-1" aria-hidden="true">
+                  <div className={cn("progress-fill", barColors[compliance.color ?? "default"])} style={{ transform: `scaleX(${Math.min(Math.max(compliance.progress, 0), 150) / 100})` }} />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 text-right">
+              <span className="block text-[10px] text-muted-foreground">Proyec.</span>
+              <strong className={cn("block truncate font-mono text-xs font-semibold tabular-nums", textColors[projection.color ?? "default"])} title={projection.value}>
+                {projection.value}
+              </strong>
+            </div>
+          </div>
+        )}
+
         {/* Additional metrics with optional progress bars */}
-        {additionalInfo.map((info, idx) => {
+        {additionalInfo.filter((info) => !(projection && info.label === "Cumpl. PPTO")).map((info, idx) => {
           const color: InfoColor = info.color ?? "default";
           return (
             <div key={idx} className="flex flex-col gap-1">
