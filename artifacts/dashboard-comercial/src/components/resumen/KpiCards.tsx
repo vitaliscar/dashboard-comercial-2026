@@ -1,7 +1,7 @@
 import { money, MESES } from "@/lib/format";
 import type { FacturadoMetrica } from "@/lib/resumen-types";
 import { UnitPerformance } from "@/components/resumen/UnitPerformance";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 
 interface KpiCardsProps {
   cotizado: number;
@@ -99,15 +99,18 @@ export function KpiCards({
               </defs>
               <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 5" />
               <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} tickMargin={9} />
-              <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} tickFormatter={compactMoney} />
               <Tooltip
                 cursor={{ stroke: "#98a2b3", strokeDasharray: "3 4" }}
                 contentStyle={{ border: "1px solid var(--color-border)", borderRadius: 7, background: "var(--color-card)", color: "var(--color-foreground)", fontSize: 12 }}
                 formatter={(value, name) => [value == null ? "Sin dato" : money(Number(value)), name === "meta" ? "Meta" : "Facturado"]}
                 labelFormatter={(label) => `${label} ${anio}`}
               />
-              <Area type="monotone" dataKey="facturado" stroke="var(--color-chart-1)" strokeWidth={2.5} fill="url(#revenueFill)" connectNulls={false} activeDot={{ r: 4, fill: "var(--color-chart-1)", stroke: "#fff", strokeWidth: 2 }} />
-              <Area type="monotone" dataKey="meta" stroke="var(--color-chart-2)" strokeWidth={1.75} strokeDasharray="5 4" fill="none" connectNulls={false} activeDot={false} />
+              <Area type="monotone" dataKey="facturado" stroke="var(--color-chart-1)" strokeWidth={2.5} fill="url(#revenueFill)" connectNulls={false} activeDot={{ r: 4, fill: "var(--color-chart-1)", stroke: "#fff", strokeWidth: 2 }}>
+                <LabelList dataKey="facturado" position="top" formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-1)" fontSize={10} />
+              </Area>
+              <Area type="monotone" dataKey="meta" stroke="var(--color-chart-2)" strokeWidth={1.75} strokeDasharray="5 4" fill="none" connectNulls={false} activeDot={false}>
+                <LabelList dataKey="meta" position="bottom" formatter={(value) => compactMoney(Number(value))} fill="var(--color-chart-2)" fontSize={10} />
+              </Area>
             </AreaChart>
           </ResponsiveContainer>
         </div>
