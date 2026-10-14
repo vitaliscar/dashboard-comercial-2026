@@ -25,9 +25,9 @@ export type CarteraIntegralData = {
   asignaciones: number;
 };
 export type CarteraVentasData = {
-  resumen: Array<{ tipo: "cartera" | "esporadico" | "sin_codigo"; monto: string | number; clientes: number }>;
+  resumen: Array<{ tipo: "cartera" | "esporadico" | "sin_codigo" | "sin_sucursal"; monto: string | number; clientes: number }>;
   clientes: CarteraVentasCliente[];
-  calidad: { ventasSinCodigoCliente: string | number; ventasSinCodigoAsesor: string | number };
+  calidad: { ventasSinCodigoCliente: string | number; ventasSinCodigoAsesor: string | number; ventasSinSucursal: string | number };
 };
 export type CarteraVentasCliente = {
   codigoCliente: string;

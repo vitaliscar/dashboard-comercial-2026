@@ -143,17 +143,27 @@ router.get("/cliente-360/cartera-ventas", async (req: Request, res: Response): P
            UNION ALL
            SELECT fecha, sucursal_id, unidad_negocio_id, codigo_cliente, codigo_asesor, NULL::uuid AS asesor_id, asesor, cliente, monto, 'servicio'::text AS fuente
            FROM servicios WHERE fecha >= $1::date AND fecha < $2::date AND EXTRACT(MONTH FROM fecha)::int = ANY($3::int[]) AND ${EXCLURE_CONSORCIO}
+         ), base AS (
+           SELECT v.* FROM ventas v WHERE ${where}
+         ), sin_sucursal AS (
+           SELECT COALESCE(SUM(monto), 0)::numeric AS monto,
+                  COUNT(*)::int AS filas,
+                  COUNT(DISTINCT codigo_cliente)::int AS clientes
+           FROM base WHERE sucursal_id IS NULL
          ), alcance AS (
            SELECT v.*,
              EXISTS (SELECT 1 FROM cartera_integral ci
                WHERE ci.compania_codigo = 32 AND ci.codigo_cliente = v.codigo_cliente AND ci.sucursal_id = v.sucursal_id
                  AND (${session.role === "asesor" ? "(ci.codigo_asesor = v.codigo_asesor OR (v.asesor_id = $7::uuid AND v.codigo_asesor IS NULL AND ci.codigo_asesor = ANY($6::text[])) OR (v.fuente = 'servicio' AND v.codigo_asesor IS NULL AND servicio_cartera_tiene_asesor_unico(32, v.codigo_cliente, v.sucursal_id, $7::uuid)))" : "TRUE"})) AS es_cartera
-           FROM ventas v WHERE ${where} AND v.sucursal_id IS NOT NULL
+           FROM base v WHERE v.sucursal_id IS NOT NULL
          ), resumen AS (
            SELECT CASE WHEN codigo_cliente IS NULL OR btrim(codigo_cliente) = '' THEN 'sin_codigo'
                        WHEN es_cartera THEN 'cartera' ELSE 'esporadico' END AS tipo,
                   SUM(monto)::numeric AS monto, COUNT(DISTINCT codigo_cliente)::int AS clientes
            FROM alcance GROUP BY 1
+           UNION ALL
+           SELECT 'sin_sucursal'::text, monto, clientes
+           FROM sin_sucursal WHERE filas > 0
          ), unidad AS (
            SELECT a.codigo_cliente, a.sucursal_id, a.unidad_negocio_id,
                   COALESCE(MAX(u.nombre), 'Sin unidad') AS unidad,
@@ -183,7 +193,8 @@ router.get("/cliente-360/cartera-ventas", async (req: Request, res: Response): P
            GROUP BY a.codigo_cliente, a.sucursal_id, mu."desgloseUnidad"
          ), calidad AS (
            SELECT COALESCE(SUM(monto) FILTER (WHERE codigo_cliente IS NULL OR btrim(codigo_cliente) = ''), 0)::numeric AS "ventasSinCodigoCliente",
-                  COALESCE(SUM(monto) FILTER (WHERE codigo_asesor IS NULL OR btrim(codigo_asesor) = ''), 0)::numeric AS "ventasSinCodigoAsesor"
+                  COALESCE(SUM(monto) FILTER (WHERE codigo_asesor IS NULL OR btrim(codigo_asesor) = ''), 0)::numeric AS "ventasSinCodigoAsesor",
+                  (SELECT monto FROM sin_sucursal) AS "ventasSinSucursal"
            FROM alcance
          )
          SELECT jsonb_build_object(
@@ -193,7 +204,7 @@ router.get("/cliente-360/cartera-ventas", async (req: Request, res: Response): P
          ) AS data`,
         params,
       );
-      return rows.rows[0]?.data ?? { resumen: [], clientes: [], calidad: { ventasSinCodigoCliente: 0, ventasSinCodigoAsesor: 0 } };
+      return rows.rows[0]?.data ?? { resumen: [], clientes: [], calidad: { ventasSinCodigoCliente: 0, ventasSinCodigoAsesor: 0, ventasSinSucursal: 0 } };
     });
     res.json(result);
   } catch (error) {

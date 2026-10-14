@@ -282,7 +282,7 @@ export default function Cliente360Page() {
   return <div className="ccv-client-list-page flex flex-col gap-5">
     <PageHeader eyebrow="Gestión comercial" title="Facturación por cliente" description="Una fila por código de cliente; expande cada cliente para ver sucursales, asesores y unidades." />
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de facturación por cliente">
-      <ClientMetric label="Facturado en el período" value={money(currentTotal)} detail={`${rows.filter((row) => row.current > 0).length} clientes con compra`} />
+      <ClientMetric label="Facturado en el período" value={money(currentTotal)} detail={`${rows.filter((row) => row.current > 0).length} clientes con sucursal identificada`} />
       <ClientMetric label="Venta a clientes cartera" value={money(assignedSales)} detail={`${classifiedSales > 0 ? percent(assignedSales / classifiedSales * 100) : "0%"} de la venta identificada`} tone="positive" />
       <ClientMetric label="Cartera activa" value={`${activeAssigned} / ${assignedCount}`} detail="Clientes cartera con compra / total en cartera" />
       <ClientMetric label="Clientes cartera sin compra" value={String(noPurchase)} detail="Alerta de actividad en el período" tone={noPurchase ? "warning" : "default"} />
@@ -309,6 +309,7 @@ export default function Cliente360Page() {
 
     {loading ? <p className="text-sm text-muted-foreground">Cargando facturación por cliente…</p> : error ? <QueryErrorNotice error={error} onRetry={() => { void Promise.all([currentQuery.refetch(), portfolioQuery.refetch(), quoteQuery.refetch(), lostQuery.refetch()]); }} fallback="No se pudo cargar el análisis de clientes." /> : <>
       {(Number(currentQuery.data?.calidad.ventasSinCodigoCliente ?? 0) > 0) && <p role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">{money(Number(currentQuery.data?.calidad.ventasSinCodigoCliente ?? 0))} de venta no tiene código de cliente y queda fuera de la tabla por cliente.</p>}
+      {(Number(currentQuery.data?.calidad.ventasSinSucursal ?? 0) !== 0) && <p role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-foreground">{money(Number(currentQuery.data?.calidad.ventasSinSucursal ?? 0))} de venta no tiene sucursal identificada. Está incluido en el total, pero queda fuera del detalle por cliente y del reparto entre cartera y esporádicos.</p>}
       <div className="ccv-client-table overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
         <table className="w-full min-w-[1050px] text-sm">
           <caption className="sr-only">Facturación por cliente, identificado por código. Expande una fila para el detalle de sucursales y asesores.</caption>
