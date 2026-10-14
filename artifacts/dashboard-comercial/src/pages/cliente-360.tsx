@@ -289,7 +289,7 @@ export default function Cliente360Page() {
     </section>
     <section className="rounded-lg border border-border bg-card p-4" aria-label="Participación de ventas por tipo de cliente">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div><h2 className="font-semibold">Clientes cartera y esporádicos</h2><p className="text-xs text-muted-foreground">Cartera comercial; separada de las cuentas por cobrar.</p></div>
+        <div><h2 className="font-semibold">Clientes cartera y esporádicos</h2><p className="text-xs text-muted-foreground">Cartera comercial 2026, distinta de cuentas por cobrar. En 2024–2025 la clasificación es retrospectiva.</p></div>
         <div className="flex flex-wrap gap-4 text-sm"><span>Cartera <strong className="tabular-nums">{classifiedSales > 0 ? percent(assignedSales / classifiedSales * 100) : "0%"}</strong></span><span>Esporádicos <strong className="tabular-nums">{classifiedSales > 0 ? percent(sporadicSales / classifiedSales * 100) : "0%"}</strong></span><span>Top 5 <strong className="tabular-nums">{percent(topFiveShare)}</strong></span></div>
       </div>
       <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted" aria-label={`Cartera ${percent(classifiedSales > 0 ? assignedSales / classifiedSales * 100 : 0)}, esporádicos ${percent(classifiedSales > 0 ? sporadicSales / classifiedSales * 100 : 0)}`}>
