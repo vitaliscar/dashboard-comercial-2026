@@ -96,6 +96,16 @@ export default function CoordinadorPage() {
     ),
     [scorecard.data],
   );
+  const advisorTargetStats = useMemo(() => {
+    const withQuota = (scorecard.data?.asesores ?? []).filter((advisor) => Number(advisor.presupuesto) > 0);
+    return {
+      withQuota: withQuota.length,
+      aboveTarget: withQuota.filter((advisor) => Number(advisor.venta) >= Number(advisor.presupuesto)).length,
+      averageAttainment: withQuota.length
+        ? withQuota.reduce((sum, advisor) => sum + Number(advisor.pctCumplimiento), 0) / withQuota.length
+        : 0,
+    };
+  }, [scorecard.data]);
   const openReceivables = useMemo(
     () =>
       [...(receivables.data ?? [])]
@@ -137,7 +147,7 @@ export default function CoordinadorPage() {
         showAllMonths
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label={filters.meses === "all" ? "Facturado del año" : "Facturado del período"}
           value={yearLoading || yearError ? "–" : money(sales)}
@@ -149,11 +159,16 @@ export default function CoordinadorPage() {
           hint={yearLoading || yearError ? "Sin datos disponibles" : `${budget ? ((sales / budget) * 100).toFixed(1) : "0.0"}% cumplimiento`}
         />
         <KpiCard
-          label="Asesores con cuota"
-          value={yearLoading || yearError ? "–" : String(
-            (scorecard.data?.asesores ?? []).filter((advisor) => Number(advisor.presupuesto) > 0).length,
+          label="Asesores sobre meta"
+          value={scorecard.isLoading || scorecard.isError ? "–" : String(
+            advisorTargetStats.aboveTarget,
           )}
-          hint="En tus sucursales asignadas"
+          hint={scorecard.isLoading || scorecard.isError ? "Cargando cumplimiento…" : `de ${advisorTargetStats.withQuota} asesores con cuota`}
+        />
+        <KpiCard
+          label="Cumplimiento promedio asesor"
+          value={scorecard.isLoading || scorecard.isError || advisorTargetStats.withQuota === 0 ? "–" : pct(advisorTargetStats.averageAttainment, 1)}
+          hint={scorecard.isLoading || scorecard.isError ? "Cargando cumplimiento…" : `promedio simple · ${advisorTargetStats.withQuota} con cuota`}
         />
       </div>
 

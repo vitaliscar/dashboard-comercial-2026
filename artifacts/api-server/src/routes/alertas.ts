@@ -201,6 +201,25 @@ async function reconcileClientAlerts(tx: Queryable, session: SessionPayload) {
   );
 }
 
+router.get("/alertas/count", async (req: Request, res: Response): Promise<void> => {
+  const session = await authenticated(req, res); if (!session) return;
+  try {
+    const count = await withScopedTransaction(session, async (tx) => {
+      const visible = alertScope(session, "a");
+      const result = await tx.query(
+        `SELECT COUNT(*)::int AS count FROM alertas a
+         WHERE a.estado = 'abierta' AND ${visible.sql}`,
+        visible.values,
+      );
+      return Number(result.rows[0]?.count ?? 0);
+    });
+    res.json({ count });
+  } catch (error) {
+    req.log?.error?.({ error }, "open alert count failed");
+    res.status(500).json({ message: "No se pudo cargar el conteo de alertas." });
+  }
+});
+
 router.get("/alertas", async (req: Request, res: Response): Promise<void> => {
   const session = await authenticated(req, res); if (!session) return;
   const estado = String(req.query.estado ?? "abierta");

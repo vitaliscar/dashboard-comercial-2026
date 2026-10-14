@@ -19,6 +19,8 @@ export type MonthlyMarcaRow = {
   Lubricantes: number;
   Filtros: number;
   Otros: number;
+  MetaLubricantes?: number;
+  MetaFiltros?: number;
 };
 
 type Props = {
@@ -141,6 +143,42 @@ export const MarcasMonthlyChart = memo(function MarcasMonthlyChart({
                     />
                   </Line>
                 ))}
+                {data.some((row) => row.MetaLubricantes !== undefined) && (
+                  <Line
+                    type="monotone"
+                    dataKey="MetaLubricantes"
+                    name="Meta · Chronus"
+                    stroke={MARCA_COLORS.Lubricantes}
+                    strokeWidth={1.5}
+                    strokeDasharray="5 4"
+                    dot={false}
+                    activeDot={false}
+                    {...chartAnimation}
+                  >
+                    <LabelList
+                      dataKey="MetaLubricantes"
+                      content={createLastPointLabel(data.length, (value) => money(value), MARCA_COLORS.Lubricantes, 3)}
+                    />
+                  </Line>
+                )}
+                {data.some((row) => row.MetaFiltros !== undefined) && (
+                  <Line
+                    type="monotone"
+                    dataKey="MetaFiltros"
+                    name="Meta · Donaldson"
+                    stroke={MARCA_COLORS.Filtros}
+                    strokeWidth={1.5}
+                    strokeDasharray="5 4"
+                    dot={false}
+                    activeDot={false}
+                    {...chartAnimation}
+                  >
+                    <LabelList
+                      dataKey="MetaFiltros"
+                      content={createLastPointLabel(data.length, (value) => money(value), MARCA_COLORS.Filtros, 4)}
+                    />
+                  </Line>
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>

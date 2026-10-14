@@ -1,11 +1,12 @@
 import { isFullAccessRole } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "@/components/icons";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { useSharedFilters } from "@/hooks/use-shared-filters";
 import { useSucursales } from "@/hooks/use-catalogos";
-import { money } from "@/lib/format";
+import { money, moneyShort } from "@/lib/format";
 import { diasVencidosDesde, getAllMonthsCap, getHighlightMonthLabels } from "@/lib/date-range";
 import { MESES } from "@/lib/format";
 import { getMonthlySalesProjection } from "@/lib/business-days";
@@ -19,6 +20,8 @@ import { ReceivablesTable } from "@/components/coordinador/ReceivablesTable";
 import { SucursalPerformanceChart } from "@/components/servicios/SucursalPerformanceChart";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const PRECIO_PROMEDIO_CHRONUS_POR_LITRO = 5.2;
 
 const UNIT_COPY: Record<UnidadKey, { title: string; description: string }> = {
   repuestos: {
@@ -99,6 +102,142 @@ function SectionTitle({ title, description }: { title: string; description: stri
   );
 }
 
+function ServiceMonthlyChart({
+  title,
+  total,
+  data,
+  color,
+  highlightMonths,
+  loading,
+  kind,
+  dashed = false,
+}: {
+  title: string;
+  total: number;
+  data: { mes: string; monto: number }[];
+  color: string;
+  highlightMonths: string[];
+  loading: boolean;
+  kind: "area" | "line" | "bar";
+  dashed?: boolean;
+}) {
+  const hasHighlight = highlightMonths.length > 0;
+  const hasData = data.some((row) => row.monto !== 0);
+  const selectedPoints = data.filter((row) => highlightMonths.includes(row.mes));
+  const guides = selectedPoints.map((row) => (
+    <Fragment key={row.mes}>
+      <ReferenceLine x={row.mes} stroke={color} strokeDasharray="3 4" strokeOpacity={0.35} />
+      <ReferenceDot x={row.mes} y={row.monto} r={4} fill={color} stroke="var(--color-card)" strokeWidth={2} />
+    </Fragment>
+  ));
+
+  return (
+    <article className="min-w-0 rounded-xl border bg-card p-4 card-elevated">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-display text-sm font-semibold">{title}</h3>
+        <strong className="font-mono text-base tabular-nums">{money(total)}</strong>
+      </div>
+      {loading ? <p className="mt-3 flex h-40 items-center justify-center text-sm text-muted-foreground">Cargando tendencia anual…</p> : hasData ? <div className="mt-2 h-48 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          {kind === "bar" ? (
+            <BarChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={10} />
+              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+              <Tooltip formatter={(value) => money(Number(value))} />
+              <Bar dataKey="monto" name={title} fill={color} radius={[3, 3, 0, 0]}>
+                {data.map((row) => (
+                  <Cell key={row.mes} fill={color} opacity={!hasHighlight || highlightMonths.includes(row.mes) ? 1 : 0.24} />
+                ))}
+              <LabelList dataKey="monto" position="top" formatter={(value: number) => moneyShort(value)} fill={color} fontSize={9} />
+              </Bar>
+            </BarChart>
+          ) : kind === "line" ? (
+            <LineChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={10} />
+              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+              <Tooltip formatter={(value) => money(Number(value))} />
+              {guides}
+              <Line type="monotone" dataKey="monto" name={title} stroke={color} strokeWidth={2.5} strokeDasharray={dashed ? "5 4" : undefined} dot={{ r: 2, fill: color, strokeWidth: 0 }} activeDot={{ r: 4 }}>
+                <LabelList dataKey="monto" position="top" formatter={(value: number) => moneyShort(value)} fill={color} fontSize={9} />
+              </Line>
+            </LineChart>
+          ) : (
+            <AreaChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={10} />
+              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+              <Tooltip formatter={(value) => money(Number(value))} />
+              {guides}
+              <Area type="monotone" dataKey="monto" name={title} stroke={color} strokeWidth={2.5} strokeDasharray={dashed ? "5 4" : undefined} fill={color} fillOpacity={0.14} activeDot={{ r: 4 }}>
+                <LabelList dataKey="monto" position="top" formatter={(value: number) => moneyShort(value)} fill={color} fontSize={9} />
+              </Area>
+            </AreaChart>
+          )}
+        </ResponsiveContainer>
+      </div> : <p className="mt-3 flex h-40 items-center justify-center text-sm text-muted-foreground">Sin datos mensuales para graficar.</p>}
+    </article>
+  );
+}
+
+function WorkshopSalesTypeChart({
+  data,
+  highlightMonths,
+  loading,
+}: {
+  data: { mes: string; internas: number; externas: number; sinTipo: number }[];
+  highlightMonths: string[];
+  loading: boolean;
+}) {
+  const hasData = data.some((row) => row.internas || row.externas || row.sinTipo);
+  const areas = [
+    { key: "internas" as const, name: "Internas · tipo distinto de 4", color: "var(--color-chart-1)" },
+    { key: "externas" as const, name: "Externas · tipo 4", color: "var(--color-chart-2)" },
+    { key: "sinTipo" as const, name: "Sin tipo registrado", color: "var(--color-chart-3)" },
+  ];
+
+  return (
+    <article className="min-w-0 rounded-xl border bg-card p-4 card-elevated">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-display text-sm font-semibold">Talleres · ventas por tipo</h3>
+        <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          {areas.map((area) => (
+            <span key={area.key} className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full" style={{ backgroundColor: area.color }} />
+              {area.name}
+            </span>
+          ))}
+        </div>
+      </div>
+      {loading ? (
+        <p className="mt-3 flex h-40 items-center justify-center text-sm text-muted-foreground">Cargando tendencia anual…</p>
+      ) : hasData ? (
+        <div className="mt-2 h-48 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={10} />
+              <YAxis tick={false} axisLine={false} tickLine={false} width={0} />
+              <Tooltip formatter={(value, name) => [money(Number(value)), String(name)]} />
+              {highlightMonths.map((month) => (
+                <ReferenceLine key={month} x={month} stroke="var(--color-foreground)" strokeDasharray="3 4" strokeOpacity={0.35} />
+              ))}
+              {areas.map((area) => (
+                <Area key={area.key} type="monotone" dataKey={area.key} name={area.name} stackId="ventas" stroke={area.color} fill={area.color} fillOpacity={0.82} strokeWidth={1.5}>
+                  <LabelList dataKey={area.key} position="insideTop" formatter={(value: number) => value > 0 ? moneyShort(value) : ""} fill="var(--color-card)" fontSize={8} />
+                </Area>
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <p className="mt-3 flex h-40 items-center justify-center text-sm text-muted-foreground">Sin datos mensuales para graficar.</p>
+      )}
+    </article>
+  );
+}
+
 function etiquetaLineaLubFiltros(value: string) {
   const normalized = value.trim().toLowerCase();
   if (normalized === "lubricantes") return "Lubricantes · Chronus / CO";
@@ -114,7 +253,23 @@ function familiaMarcaLubFiltros(value: string): "Lubricantes" | "Filtros" | "Otr
   return "Otros";
 }
 
-function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: UnidadKey; role: AppRole | null }) {
+function DetailSection({
+  data,
+  annualData,
+  trendLoading,
+  keyName,
+  role,
+  year,
+  selectedMonths,
+}: {
+  data: UnidadData;
+  annualData?: UnidadData;
+  trendLoading: boolean;
+  keyName: UnidadKey;
+  role: AppRole | null;
+  year: number;
+  selectedMonths: FilterState["meses"];
+}) {
   const brands = useMemo(() => {
     const rows = data.detallesMarcas ?? [];
     const totals = new Map<string, { marca: string; monto: number; sucursales: Map<string, { nombre: string; monto: number }> }>();
@@ -224,6 +379,31 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
     return { talleres, csa, interno, estrategico };
   }, [data.detallesEstrategicos, data.servicios, data.serviciosInterno]);
 
+  const serviceTrends = useMemo(() => {
+    const rows = MESES.map((mes) => ({ mes: mes.slice(0, 3), talleres: 0, talleresInternas: 0, talleresExternas: 0, talleresSinTipo: 0, csa: 0, interno: 0, estrategico: 0 }));
+    (annualData?.servicios ?? []).forEach((row) => {
+      const month = new Date(String(row.fecha)).getUTCMonth();
+      if (!Number.isInteger(month) || month < 0 || month >= rows.length) return;
+      const amount = num(row.monto);
+      if (row.taller && row.taller !== "X") {
+        rows[month].talleres += amount;
+        if (row.tipoVentaReporte == null || String(row.tipoVentaReporte).trim() === "") rows[month].talleresSinTipo += amount;
+        else if (num(row.tipoVentaReporte) === 4) rows[month].talleresExternas += amount;
+        else rows[month].talleresInternas += amount;
+      }
+      if (row.csa === "CSA") rows[month].csa += amount;
+    });
+    (annualData?.serviciosInterno ?? []).forEach((row) => {
+      const month = Number(row.mes) - 1;
+      if (month >= 0 && month < rows.length) rows[month].interno += num(row.monto);
+    });
+    (annualData?.detallesEstrategicos ?? []).forEach((row) => {
+      const month = Number(row.mes) - 1;
+      if (month >= 0 && month < rows.length) rows[month].estrategico += num(row.monto);
+    });
+    return rows;
+  }, [annualData?.detallesEstrategicos, annualData?.servicios, annualData?.serviciosInterno]);
+
   const lostSales = useMemo(
     () =>
       (data.ventasPerdidas ?? [])
@@ -238,21 +418,20 @@ function DetailSection({ data, keyName, role }: { data: UnidadData; keyName: Uni
     return (
       <section className="flex flex-col gap-3 section-enter section-enter-3">
         <SectionTitle
-          title="Detalle operativo de Servicios"
-          description="La distribución usa las fuentes de talleres, CSA, servicios internos y estratégicos."
+          title="Detalles comerciales de Servicios"
+          description={`Evolución mensual de las fuentes comerciales de Servicios · ${year}.`}
         />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[
-            ["Talleres", serviceTotals.talleres],
-            ["CSA", serviceTotals.csa],
-            ["Servicios internos", serviceTotals.interno],
-            ["Estratégicos", serviceTotals.estrategico],
-          ].map(([name, amount]) => (
-            <div key={String(name)} className="rounded-xl border bg-card p-4 card-elevated">
-              <p className="text-xs text-muted-foreground">{name}</p>
-              <p className="mt-2 font-mono text-lg font-semibold tabular-nums">{money(num(amount))}</p>
-            </div>
-          ))}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ServiceMonthlyChart kind="area" title="Talleres" total={serviceTotals.talleres} data={serviceTrends.map(({ mes, talleres }) => ({ mes, monto: talleres }))} color="var(--color-chart-1)" highlightMonths={getHighlightMonthLabels(selectedMonths)} loading={trendLoading} />
+          <ServiceMonthlyChart kind="line" title="CSA" total={serviceTotals.csa} data={serviceTrends.map(({ mes, csa }) => ({ mes, monto: csa }))} color="var(--color-chart-2)" highlightMonths={getHighlightMonthLabels(selectedMonths)} loading={trendLoading} />
+          <ServiceMonthlyChart kind="bar" title="Servicios internos" total={serviceTotals.interno} data={serviceTrends.map(({ mes, interno }) => ({ mes, monto: interno }))} color="var(--color-chart-3)" highlightMonths={getHighlightMonthLabels(selectedMonths)} loading={trendLoading} />
+          <ServiceMonthlyChart kind="line" dashed title="Estratégicos" total={serviceTotals.estrategico} data={serviceTrends.map(({ mes, estrategico }) => ({ mes, monto: estrategico }))} color="var(--color-chart-4)" highlightMonths={getHighlightMonthLabels(selectedMonths)} loading={trendLoading} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Las fuentes de Servicios internos y Estratégicos no guardan el año en PostgreSQL; sus gráficos muestran la distribución mensual registrada, no una comparación histórica anual.
+        </p>
+        <div className="grid gap-3">
+          <WorkshopSalesTypeChart data={serviceTrends.map(({ mes, talleresInternas, talleresExternas, talleresSinTipo }) => ({ mes, internas: talleresInternas, externas: talleresExternas, sinTipo: talleresSinTipo }))} highlightMonths={getHighlightMonthLabels(selectedMonths)} loading={trendLoading} />
         </div>
       </section>
     );
@@ -497,13 +676,51 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
     queryKey: ["unidad-http", unitKey, anio, JSON.stringify(meses), branch, role, profile?.id],
     queryFn: () => getUnidadData(unitKey, { anio, meses, sucursalId: branch }),
   });
+  const serviceTrendQuery = useQuery({
+    queryKey: ["unidad-servicios-tendencia", anio, branch, role, profile?.id],
+    queryFn: () => getUnidadData("servicios", { anio, meses: "all", sucursalId: branch }),
+    enabled: unitKey === "servicios",
+  });
+  const lubFiltrosPlanQuery = useQuery({
+    queryKey: ["unidad-lubfiltros-presupuesto-lineas", anio, role, profile?.id],
+    queryFn: () => getUnidadData("lubfiltros", { anio, meses: Array.from({ length: 12 }, (_, index) => index + 1) }),
+    enabled: unitKey === "lubfiltros" && anio === 2026,
+  });
 
   const selectedBudgets = data?.presupuestos ?? [];
   const sales = selectedBudgets.reduce(
     (sum, row) => sum + num(row.ventasCcv) + num(row.ventasXibi) + num(row.ventasEstrategicas),
     0,
   );
-  const target = selectedBudgets.reduce((sum, row) => sum + num(row.monto), 0);
+  const planBranchIds = sucursales?.map((item) => item.id) ?? [];
+  const plannedMonths = useMemo(() => {
+    const lineBudgets = lubFiltrosPlanQuery.data?.presupuestosLineas;
+    if (unitKey !== "lubfiltros" || anio !== 2026 || !lineBudgets?.length) return null;
+    const months = new Map<number, NonNullable<UnidadData["presupuestosLineas"]>>();
+    for (const row of lineBudgets) {
+      const rows = months.get(row.mes) ?? [];
+      rows.push(row);
+      months.set(row.mes, rows);
+    }
+    return new Map([...months.entries()].map(([month, rows]) => [month, { branches: rows }]));
+  }, [unitKey, anio, lubFiltrosPlanQuery.data?.presupuestosLineas]);
+  const selectedPlanBranchIds = branch ? [branch] : planBranchIds;
+  const selectedPlanMonths = meses === "all" ? Array.from({ length: 12 }, (_, index) => index + 1) : meses;
+  const plannedLineTotals = useMemo(() => {
+    if (!plannedMonths) return null;
+    return selectedPlanMonths.reduce((total, month) => {
+      const distribution = plannedMonths.get(month);
+      const branches = distribution?.branches.filter((row) => selectedPlanBranchIds.includes(row.sucursalId)) ?? [];
+      return {
+        chronusUsd: total.chronusUsd + branches.reduce((sum, row) => sum + row.chronusUsd, 0),
+        chronusLitros: total.chronusLitros + branches.reduce((sum, row) => sum + row.chronusLitros, 0),
+        donaldsonUsd: total.donaldsonUsd + branches.reduce((sum, row) => sum + row.donaldsonUsd, 0),
+      };
+    }, { chronusUsd: 0, chronusLitros: 0, donaldsonUsd: 0 });
+  }, [plannedMonths, selectedPlanMonths.join(","), selectedPlanBranchIds.join("|")]);
+  const target = plannedLineTotals
+    ? plannedLineTotals.chronusUsd + plannedLineTotals.donaldsonUsd
+    : selectedBudgets.reduce((sum, row) => sum + num(row.monto), 0);
   const compliance = target > 0 ? (sales / target) * 100 : 0;
   const projection = getMonthlySalesProjection(sales, target, anio, meses);
   const monthly = useMemo(() => {
@@ -518,17 +735,33 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
       rows[position].presupuesto += num(row.monto);
       rows[position].venta += num(row.ventasCcv) + num(row.ventasXibi) + num(row.ventasEstrategicas);
     });
+    if (plannedMonths) {
+      rows.forEach((row, index) => {
+        const distribution = plannedMonths.get(index + 1);
+        const branches = distribution?.branches.filter((item) => selectedPlanBranchIds.includes(item.sucursalId)) ?? [];
+        row.presupuesto = branches.reduce((sum, item) => sum + item.montoTotal, 0);
+      });
+    }
     return rows;
-  }, [anio, data?.presupuestosYtd]);
+  }, [anio, data?.presupuestosYtd, plannedMonths, selectedPlanBranchIds.join("|")]);
   const monthlyBrandLines = useMemo<MonthlyMarcaRow[]>(() => {
-    const rows = Array.from({ length: 12 }, (_, index) => ({ mes: MESES[index].slice(0, 3), Lubricantes: 0, Filtros: 0, Otros: 0 }));
-    (data?.detallesMarcas ?? []).forEach((row) => {
+    const rows: MonthlyMarcaRow[] = Array.from({ length: getAllMonthsCap(anio) }, (_, index) => ({ mes: MESES[index].slice(0, 3), Lubricantes: 0, Filtros: 0, Otros: 0 }));
+    const brandRows = plannedMonths ? lubFiltrosPlanQuery.data?.detallesMarcas ?? [] : data?.detallesMarcas ?? [];
+    brandRows.filter((row) => !branch || String(row.sucursalId ?? "") === branch).forEach((row) => {
       const month = Number(row.mes) - 1;
       if (month < 0 || month >= rows.length) return;
       rows[month][familiaMarcaLubFiltros(label(row.marca))] += num(row.montoTotal ?? row.monto);
     });
+    if (plannedMonths) {
+      rows.forEach((row, index) => {
+        const distribution = plannedMonths.get(index + 1);
+        const branches = distribution?.branches.filter((item) => selectedPlanBranchIds.includes(item.sucursalId)) ?? [];
+        row.MetaLubricantes = branches.reduce((sum, item) => sum + item.chronusUsd, 0);
+        row.MetaFiltros = branches.reduce((sum, item) => sum + item.donaldsonUsd, 0);
+      });
+    }
     return rows;
-  }, [data?.detallesMarcas]);
+  }, [anio, data?.detallesMarcas, lubFiltrosPlanQuery.data?.detallesMarcas, plannedMonths, branch, selectedPlanBranchIds.join("|")]);
   const companies = useMemo(() => {
     const totals: [string, number][] = [
       ["Consorcio Venequip", selectedBudgets.reduce((sum, row) => sum + num(row.ventasCcv), 0)],
@@ -539,18 +772,26 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
   }, [selectedBudgets]);
   const performance = useMemo(() => {
     const map = new Map<string, { nombre: string; monto: number; presupuesto: number }>();
-    (sucursales ?? []).forEach((item) => map.set(item.id, { nombre: item.nombre, monto: 0, presupuesto: 0 }));
+    (sucursales ?? []).filter((item) => !branch || item.id === branch).forEach((item) => map.set(item.id, { nombre: item.nombre, monto: 0, presupuesto: 0 }));
     selectedBudgets.forEach((row) => {
       if (!row.sucursalId || !map.has(row.sucursalId)) return;
       const item = map.get(row.sucursalId)!;
       item.monto += num(row.ventasCcv) + num(row.ventasXibi) + num(row.ventasEstrategicas);
       item.presupuesto += num(row.monto);
     });
+    if (plannedMonths) {
+      map.forEach((item, id) => {
+        item.presupuesto = selectedPlanMonths.reduce((sum, month) => {
+          const plan = plannedMonths.get(month)?.branches.find((row) => row.sucursalId === id);
+          return sum + (plan?.montoTotal ?? 0);
+        }, 0);
+      });
+    }
     return [...map.values()]
       .filter((item) => item.monto > 0 || item.presupuesto > 0)
       .map((item) => ({ ...item, pctCumplimiento: item.presupuesto ? (item.monto / item.presupuesto) * 100 : 0 }))
       .sort((a, b) => b.monto - a.monto);
-  }, [selectedBudgets, sucursales]);
+  }, [selectedBudgets, sucursales, plannedMonths, selectedPlanMonths.join(","), branch]);
   const receivables = useMemo(
     () =>
       (data?.cobranzas ?? [])
@@ -558,6 +799,17 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         .sort((a, b) => num(b.saldo) - num(a.saldo)),
     [data?.cobranzas, search],
   );
+  const lubFiltrosActuals = useMemo(() => {
+    const totals = { chronusUsd: 0, donaldsonUsd: 0 };
+    (data?.detallesMarcas ?? []).forEach((row) => {
+      const amount = num(row.montoTotal ?? row.monto);
+      const family = familiaMarcaLubFiltros(label(row.marca));
+      if (family === "Lubricantes") totals.chronusUsd += amount;
+      if (family === "Filtros") totals.donaldsonUsd += amount;
+    });
+    return totals;
+  }, [data?.detallesMarcas]);
+  const litersNumber = (value: number) => new Intl.NumberFormat("es-VE", { maximumFractionDigits: 0 }).format(Math.round(value));
 
   const handleApplyFilters = (next: FilterState) => {
     setFilters({ anio: next.anio, meses: next.meses, sucursales: next.sucursal ? [next.sucursal] : [] });
@@ -618,11 +870,65 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         </div>
       </section>
 
+      {unitKey === "lubfiltros" && (
+        <section className="flex flex-col gap-3 section-enter section-enter-1" aria-label="Resultado por línea de Lubricantes y Filtros">
+          <SectionTitle
+            title="Lubricantes y filtros por línea"
+            description={anio === 2026
+              ? "Meta 2026 distribuida por sucursal y mes, conservando el presupuesto vigente de la base de datos. Chronus usa $5,20 por litro."
+              : `Venta por línea. Los litros de Chronus se estiman a $5,20 por litro; no hay metas de línea cargadas para ${anio}.`}
+          />
+          <div className="overflow-x-auto rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Línea</TableHead>
+                  <TableHead className="text-right">Facturado</TableHead>
+                  <TableHead className="text-right">Meta</TableHead>
+                  <TableHead className="text-right">Cumplimiento</TableHead>
+                  <TableHead className="text-right">Litros vendidos</TableHead>
+                  <TableHead className="text-right">Meta litros</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Chronus · Lubricantes</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{money(lubFiltrosActuals.chronusUsd)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{anio === 2026 ? plannedLineTotals ? money(plannedLineTotals.chronusUsd) : "—" : "—"}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {anio === 2026 && plannedLineTotals?.chronusUsd
+                      ? `${(lubFiltrosActuals.chronusUsd / plannedLineTotals.chronusUsd * 100).toLocaleString("es-VE", { maximumFractionDigits: 1 })}%`
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{litersNumber(lubFiltrosActuals.chronusUsd / PRECIO_PROMEDIO_CHRONUS_POR_LITRO)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{anio === 2026 ? plannedLineTotals ? litersNumber(plannedLineTotals.chronusLitros) : "—" : "—"}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Donaldson · Filtros</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{money(lubFiltrosActuals.donaldsonUsd)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{anio === 2026 ? plannedLineTotals ? money(plannedLineTotals.donaldsonUsd) : "—" : "—"}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {anio === 2026 && plannedLineTotals?.donaldsonUsd
+                      ? `${(lubFiltrosActuals.donaldsonUsd / plannedLineTotals.donaldsonUsd * 100).toLocaleString("es-VE", { maximumFractionDigits: 1 })}%`
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            {anio === 2026 && !plannedLineTotals && (
+              <p className="border-t px-4 py-2 text-xs text-muted-foreground" role="status">Cargando la distribución mensual por línea…</p>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="flex flex-col gap-3 section-enter section-enter-1">
         <SectionTitle title="Evolución mensual" description={`Venta real vs. presupuesto, año a la fecha · ${getHighlightMonthLabels(meses).join(", ") || "todos los meses"} en revisión.`} />
         <div className={unitKey === "lubfiltros" ? "grid gap-4 xl:grid-cols-2" : ""}>
           <GlobalMonthlyCombo data={monthly} highlightMonths={getHighlightMonthLabels(meses)} />
-          {unitKey === "lubfiltros" && <MarcasMonthlyChart data={monthlyBrandLines} highlightMonths={getHighlightMonthLabels(meses)} />}
+          {unitKey === "lubfiltros" && <MarcasMonthlyChart data={monthlyBrandLines} title={plannedMonths ? "Ventas y metas mensuales por línea" : "Ventas mensuales por línea"} highlightMonths={getHighlightMonthLabels(meses)} />}
         </div>
       </section>
 
@@ -630,7 +936,7 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         <SectionTitle title="Desempeño por sucursal" description="Facturación por compañía y cumplimiento de las sucursales." />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
           <div className="lg:col-span-2">
-            <UnitDonut data={companies} title="Facturación por compañía" />
+            <UnitDonut data={companies} title="Facturación por compañía" variant="donut" />
           </div>
           <div className="lg:col-span-4">
             <SucursalPerformanceChart data={performance} />
@@ -638,7 +944,15 @@ export default function UnidadLivePage({ unitKey }: { unitKey: UnidadKey }) {
         </div>
       </section>
 
-      <DetailSection data={data!} keyName={unitKey} role={role} />
+      <DetailSection
+        data={data!}
+        annualData={serviceTrendQuery.data}
+        trendLoading={unitKey === "servicios" && serviceTrendQuery.isLoading}
+        keyName={unitKey}
+        role={role}
+        year={anio}
+        selectedMonths={meses}
+      />
 
       <section className="flex flex-col gap-3 section-enter section-enter-4">
         <div className="flex flex-wrap items-end justify-between gap-3">

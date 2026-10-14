@@ -46,6 +46,15 @@ export default function AsesorPanelPage() {
   }, [allowedUnitIds, setFilters]);
 
   const billed = Number(metrics.data?.facturacion.totalMonto ?? 0);
+  const invoiceCount = Number(metrics.data?.facturacion.cantidad ?? 0);
+  const quoteCount = Number(metrics.data?.cotizaciones?.cantidad ?? 0);
+  const conversion = quoteCount > 0 ? (invoiceCount / quoteCount) * 100 : null;
+  const averageTicket = invoiceCount > 0 ? billed / invoiceCount : null;
+  const commitmentTotal = (metrics.data?.minutas ?? []).reduce((sum, item) => sum + Number(item.cantidad ?? 0), 0);
+  const completedCommitments = (metrics.data?.minutas ?? [])
+    .filter((item) => /^(cumplid[oa]s?)$/i.test(item.estado.trim()))
+    .reduce((sum, item) => sum + Number(item.cantidad ?? 0), 0);
+  const commitmentCompletion = commitmentTotal > 0 ? (completedCommitments / commitmentTotal) * 100 : null;
   const budgets = Array.isArray(metrics.data?.presupuestos) ? metrics.data.presupuestos : [];
   const budget = budgets.reduce((sum, row) => sum + Number(row.presupuesto ?? 0), 0);
   const attainment = budget > 0 ? (billed / budget) * 100 : 0;
@@ -147,6 +156,24 @@ export default function AsesorPanelPage() {
             {overdueCommitments > 0 && <span className="mt-1 block text-xs text-[#f0b6a8]">{overdueCommitments} vencidos</span>}
           </div>
         </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-3" aria-label="Indicadores de actividad comercial">
+        <article className="card-elevated p-4">
+          <span className="text-xs font-medium text-muted-foreground">Facturas / cotizaciones</span>
+          <strong className="mt-2 block font-mono text-xl font-semibold tabular-nums">{conversion === null ? "—" : pct(conversion, 1)}</strong>
+          <span className="mt-1 block text-xs text-muted-foreground">Operaciones del período</span>
+        </article>
+        <article className="card-elevated p-4">
+          <span className="text-xs font-medium text-muted-foreground">Ticket promedio</span>
+          <strong className="mt-2 block font-mono text-xl font-semibold tabular-nums">{averageTicket === null ? "—" : money(averageTicket)}</strong>
+          <span className="mt-1 block text-xs text-muted-foreground">Venta por factura emitida</span>
+        </article>
+        <article className="card-elevated p-4">
+          <span className="text-xs font-medium text-muted-foreground">Compromisos cumplidos</span>
+          <strong className="mt-2 block font-mono text-xl font-semibold tabular-nums">{commitmentCompletion === null ? "—" : pct(commitmentCompletion, 1)}</strong>
+          <span className="mt-1 block text-xs text-muted-foreground">{completedCommitments} de {commitmentTotal} registrados</span>
+        </article>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.7fr)]">

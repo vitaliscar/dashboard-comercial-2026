@@ -23,10 +23,21 @@ export interface UnidadReceivableRow {
   sucursalId: string | null;
 }
 
+export interface UnidadBudgetLineRow {
+  mes: number;
+  sucursalId: string;
+  sucursal: string;
+  montoTotal: number;
+  chronusUsd: number;
+  chronusLitros: number;
+  donaldsonUsd: number;
+}
+
 export interface UnidadData {
   unit: { key: UnidadKey; id: string; nombre: string };
   presupuestos: UnidadBudgetRow[];
   presupuestosYtd: UnidadBudgetRow[];
+  presupuestosLineas?: UnidadBudgetLineRow[];
   cobranzas: UnidadReceivableRow[];
   cotizado: { montoTotal: string | number | null; cantidad: number | string | null };
   detallesMarcas?: Array<Record<string, unknown>>;

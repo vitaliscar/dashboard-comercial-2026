@@ -21,12 +21,26 @@ const IDLE_MS = 8 * 60 * 1000;
 /** Gracia tras el aviso (sigue en wall-clock / segundo plano). */
 const GRACE_MS = 30 * 1000;
 
+function SessionCountdown({ deadline }: { deadline: number | null }) {
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  useEffect(() => {
+    if (deadline == null) return;
+    const update = () => setTimeLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    update();
+    const id = window.setInterval(update, 1000);
+    return () => window.clearInterval(id);
+  }, [deadline]);
+
+  return <span className="font-bold text-destructive font-mono text-base">{timeLeft}</span>;
+}
+
 export function ProtectedShell({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
   const { session, loading, signOut, mustChangePassword, clearMustChangePassword } = useAuth();
 
   const [isWarningOpen, setIsWarningOpen] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [logoutDeadline, setLogoutDeadline] = useState<number | null>(null);
 
   const lastActiveRef = useRef<number>(Date.now());
   /** Deadline absoluta de cierre (Date.now()); null = aún no en fase de cierre. */
@@ -48,6 +62,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
     loggingOutRef.current = true;
     clearHiddenTimer();
     logoutAtRef.current = null;
+    setLogoutDeadline(null);
     warningOpenRef.current = false;
     setIsWarningOpen(false);
     try {
@@ -90,9 +105,6 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
         void doLogout();
         return;
       }
-      if (warningOpenRef.current) {
-        setTimeLeft(Math.ceil(remainingMs / 1000));
-      }
       if (document.visibilityState === "hidden") scheduleHiddenDeadline();
       return;
     }
@@ -111,7 +123,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
 
     logoutAtRef.current = now + GRACE_MS;
     warningOpenRef.current = true;
-    setTimeLeft(Math.ceil(GRACE_MS / 1000));
+    setLogoutDeadline(logoutAtRef.current);
     setIsWarningOpen(true);
   }, [session, doLogout, scheduleHiddenDeadline]);
 
@@ -147,6 +159,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
     if (!session) {
       clearHiddenTimer();
       logoutAtRef.current = null;
+      setLogoutDeadline(null);
       warningOpenRef.current = false;
       setIsWarningOpen(false);
       return;
@@ -183,9 +196,9 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
     clearHiddenTimer();
     lastActiveRef.current = Date.now();
     logoutAtRef.current = null;
+    setLogoutDeadline(null);
     warningOpenRef.current = false;
     setIsWarningOpen(false);
-    setTimeLeft(0);
     // Liberar el flag en el siguiente tick (tras onOpenChange del cierre del diálogo).
     window.setTimeout(() => {
       keepingAliveRef.current = false;
@@ -239,7 +252,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
             <AlertDialogDescription className="text-muted-foreground text-sm max-w-xs">
               Llevas 8 minutos inactivo. ¿Quieres mantener la sesión abierta? Si no respondes se
               cerrará en{" "}
-              <span className="font-bold text-destructive font-mono text-base">{timeLeft}</span>{" "}
+              <SessionCountdown deadline={logoutDeadline} />{" "}
               segundos (también si la pestaña está en segundo plano).
             </AlertDialogDescription>
           </AlertDialogHeader>

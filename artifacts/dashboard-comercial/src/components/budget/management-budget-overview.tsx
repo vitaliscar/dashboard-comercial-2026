@@ -10,6 +10,7 @@ type AdvisorAllocation = {
   codigoAsesor: string;
   participacion: number;
   monto: number;
+  clientesCartera?: number;
   origen: string;
   activoEnAnio: boolean;
 };
@@ -493,7 +494,7 @@ export function ManagementBudgetOverview({
                             (advisor) => advisor.origen === "guardado",
                           ) && monthRow.asesores.length > 0
                             ? "Distribución guardada"
-                            : "Los importes no guardados son sugerencias, no metas aprobadas."}
+                            : "Los importes no guardados son sugerencias, no metas aprobadas."} La cantidad de clientes en cartera integral es un dato de referencia; no cambia los porcentajes.
                         </p>
                       </div>
                       {monthRow.requiereAsignacionAsesores && (
@@ -508,8 +509,11 @@ export function ManagementBudgetOverview({
                           className="rounded-lg border"
                         >
                           <summary className="flex cursor-pointer flex-wrap justify-between gap-2 px-3 py-3 text-sm">
-                            <span className="font-medium">
-                              {advisor.advisor}
+                            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                              <span className="font-medium">{advisor.advisor}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {advisor.clientesCartera ?? 0} clientes en cartera integral
+                              </span>
                             </span>
                             <span className="text-muted-foreground">
                               {sourceLabel(advisor.origen)}

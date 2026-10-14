@@ -1,12 +1,14 @@
 import { memo } from "react";
 import { money } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
 type Props = {
   /** `id` is used by callers that dim unselected business units. */
   data: { id?: string; label: string; facturado: number }[];
   title?: string;
   selectedIds?: string[];
+  variant?: "list" | "donut";
 };
 
 const UNIT_COLORS = [
@@ -40,6 +42,7 @@ export const UnitDonut = memo(function UnitDonut({
   data,
   title = "Distribución por unidad",
   selectedIds = [],
+  variant = "list",
 }: Props) {
   const total = data.reduce((sum, row) => sum + Math.max(0, Number.isFinite(row.facturado) ? row.facturado : 0), 0);
 
@@ -51,6 +54,39 @@ export const UnitDonut = memo(function UnitDonut({
       <CardContent className="flex-1">
         {data.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para el período.</p>
+        ) : variant === "donut" ? (
+          <div className="grid min-h-[220px] grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(150px,0.9fr)_minmax(0,1.1fr)]">
+            <div className="relative mx-auto h-[210px] w-full max-w-[230px]" role="img" aria-label={`${title}: total ${money(total)}`}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={data} dataKey="facturado" nameKey="label" innerRadius="66%" outerRadius="90%" paddingAngle={2} stroke="var(--color-card)">
+                    {data.map((row, index) => (
+                      <Cell key={row.id ?? row.label} fill={colorFor(row.label, index)} fillOpacity={selectedIds.length === 0 || (!!row.id && selectedIds.includes(row.id)) ? 1 : 0.35} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-[11px] text-muted-foreground">Total facturado</span>
+                <strong className="font-mono text-sm tabular-nums">{money(total)}</strong>
+              </div>
+            </div>
+            <ul className="space-y-3" aria-label={`${title}, desglose`}>
+              {data.map((row, index) => {
+                const amount = Number.isFinite(row.facturado) ? Math.max(0, row.facturado) : 0;
+                const share = total > 0 ? amount / total * 100 : 0;
+                return (
+                  <li key={row.id ?? row.label} className="flex min-w-0 items-start gap-2">
+                    <span aria-hidden="true" className="mt-1 size-2 shrink-0 rounded-full" style={{ backgroundColor: colorFor(row.label, index) }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-medium">{row.label}</span>
+                      <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{money(amount)} · {share.toFixed(1)}%</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ) : (
           <ul className="space-y-3" aria-label={title || "Distribución por categoría"}>
             {data.map((row, index) => {

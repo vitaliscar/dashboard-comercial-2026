@@ -305,7 +305,9 @@ export interface FacturaNueva {
   fecha: string | null;
   numero: string;
   cliente: string;
+  codigoCliente?: string;
   asesor: string;
+  codigoAsesor?: string;
   sucursal: string;
   unidadNegocio: string | null;
   monto: number;
@@ -1397,7 +1399,9 @@ export class ExcelParser {
         fecha: this.excelDateToISO(row["Fecha Documento"]),
         numero: factura || this.normalizarTexto(row["Nro. Documento"]),
         cliente: this.determinarCliente(row),
+        codigoCliente: this.normalizarTexto(row["Cód. Cuenta"] || row["Código Cliente"] || row["Cód. Cliente"]),
         asesor: this.normalizarTexto(row["Nombre Asesor"]),
+        codigoAsesor: this.normalizarTexto(row["Código Asesor"]),
         sucursal: this.normalizarSucursal(row["Sucursal"]),
         unidadNegocio,
         monto,
@@ -1425,7 +1429,9 @@ export class ExcelParser {
           fecha: this.excelDateToISO(row["Fecha Factura"]),
           numero: this.normalizarTexto(row["N° Factura"]),
           cliente: this.normalizarTexto(row["Cliente VNQ"]) || "Cliente S/N",
+          codigoCliente: this.normalizarTexto(row["Cód. Cliente VNQ"] || row["Cód. Cliente"] || row["Código Cliente"] || row["Cód. Cuenta"]),
           asesor: this.normalizarTexto(nombreVendedor),
+          codigoAsesor: this.normalizarTexto(row["Cód. Vendedor"] || row["Código Asesor"]),
           sucursal: this.normalizarSucursal(row["Sucursal"]),
           unidadNegocio: UNIDAD_LUBFILTROS,
           monto: this.parseNumber(row["P.V.P. Total $ Extendido"]),

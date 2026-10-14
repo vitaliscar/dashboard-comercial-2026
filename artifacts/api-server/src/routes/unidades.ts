@@ -19,6 +19,19 @@ type SessionPayload = NonNullable<Awaited<ReturnType<typeof currentSession>>>;
 type QueryResult = { rows: Record<string, unknown>[] };
 type Queryable = { query: (text: string, values?: unknown[]) => Promise<QueryResult> };
 
+function allocateByWeight(total: number, weights: Array<{ key: string; weight: number }>) {
+  const cents = Math.max(0, Math.round(total * 100));
+  const totalWeight = weights.reduce((sum, row) => sum + Math.max(0, row.weight), 0);
+  const portions = weights.map((row) => {
+    const raw = totalWeight > 0 ? cents * Math.max(0, row.weight) / totalWeight : 0;
+    const floor = Math.floor(raw);
+    return { key: row.key, cents: floor, remainder: raw - floor };
+  });
+  const remaining = cents - portions.reduce((sum, row) => sum + row.cents, 0);
+  for (const row of [...portions].sort((a, b) => b.remainder - a.remainder || a.key.localeCompare(b.key)).slice(0, remaining)) row.cents += 1;
+  return new Map(portions.map((row) => [row.key, row.cents / 100]));
+}
+
 function isUnitKey(value: string): value is UnitKey {
   return value in UNIT_NAMES;
 }
@@ -255,6 +268,57 @@ async function loadUnitData(
     ]);
     response.detallesMarcas = detalles.rows;
     response.inventario = inventario.rows;
+
+    if (year === 2026 && months.length) {
+      const weights = await tx.query(
+        `SELECT w.mes, w.sucursal_id AS "sucursalId", s.nombre AS sucursal,
+                w.peso_chronus AS "pesoChronus", w.peso_litros AS "pesoLitros",
+                w.peso_donaldson AS "pesoDonaldson"
+         FROM presupuestos_lubfiltros_ponderadores w
+         JOIN sucursales s ON s.id = w.sucursal_id
+         WHERE w.anio = $1 AND w.unidad_negocio_id = $2::uuid
+           AND w.mes = ANY($3::int[])
+           AND ($4::uuid IS NULL OR w.sucursal_id = $4::uuid)
+           AND ($5::uuid[] IS NULL OR w.sucursal_id = ANY($5::uuid[]))
+         ORDER BY w.mes, s.nombre`,
+        [year, unitId, months, scope.branch, scope.branchScope],
+      );
+      const monthlyTotals = new Map<number, number>();
+      for (const row of response.presupuestos as Array<{ mes: number; monto: string | number }>) {
+        monthlyTotals.set(row.mes, (monthlyTotals.get(row.mes) ?? 0) + Number(row.monto ?? 0));
+      }
+      const linesByMonth = new Map<number, typeof weights.rows>();
+      for (const row of weights.rows) {
+        const rows = linesByMonth.get(Number(row.mes)) ?? [];
+        rows.push(row);
+        linesByMonth.set(Number(row.mes), rows);
+      }
+      response.presupuestosLineas = [...linesByMonth.entries()].flatMap(([mes, rows]) => {
+        const branchAmounts = allocateByWeight(monthlyTotals.get(mes) ?? 0, rows.map((row) => ({
+          key: String(row.sucursalId),
+          weight: Number(row.pesoChronus) + Number(row.pesoDonaldson),
+        })));
+        return rows.map((row) => {
+          const sucursalId = String(row.sucursalId);
+          const branchTotal = branchAmounts.get(sucursalId) ?? 0;
+          const lineAmounts = allocateByWeight(branchTotal, [
+            { key: "chronus", weight: Number(row.pesoChronus) },
+            { key: "donaldson", weight: Number(row.pesoDonaldson) },
+          ]);
+          const chronus = lineAmounts.get("chronus") ?? 0;
+          const chronusScale = Number(row.pesoChronus) > 0 ? chronus / Number(row.pesoChronus) : 0;
+          return {
+            mes,
+            sucursalId,
+            sucursal: String(row.sucursal),
+            montoTotal: branchTotal,
+            chronusUsd: chronus,
+            chronusLitros: Number(row.pesoLitros) * chronusScale,
+            donaldsonUsd: lineAmounts.get("donaldson") ?? 0,
+          };
+        });
+      });
+    }
   }
 
   if (key === "servicios") {
@@ -265,6 +329,7 @@ async function loadUnitData(
                 s.monto,
                 s.tipo_servicio AS "tipoServicio",
                 s.categoria_venta AS "categoriaVenta",
+                s.tipo_venta_reporte AS "tipoVentaReporte",
                 s.compania,
                 s.taller,
                 s.csa,

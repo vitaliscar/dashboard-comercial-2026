@@ -249,7 +249,7 @@ export function FilterHeader({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
-              {Array.from({ length: 5 }, (_, i) => defaultAnio - 2 + i).map((y) => (
+              {Array.from({ length: Math.max(1, new Date().getFullYear() - 2024 + 1) }, (_, i) => 2024 + i).map((y) => (
                 <SelectItem key={y} value={String(y)}>
                   {y}
                 </SelectItem>

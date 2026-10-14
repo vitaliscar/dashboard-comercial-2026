@@ -199,7 +199,9 @@ export const facturas = pgTable(
     fecha: date("fecha").notNull(),
     numero: text("numero"),
     cliente: text("cliente").notNull(),
+    codigoCliente: text("codigo_cliente"),
     asesor: text("asesor"),
+    codigoAsesor: text("codigo_asesor"),
     asesorId: uuid("asesor_id"),
     sucursalId: uuid("sucursal_id").references(() => sucursales.id),
     unidadNegocioId: uuid("unidad_negocio_id").references(() => unidadesNegocio.id),
@@ -210,6 +212,7 @@ export const facturas = pgTable(
     index("facturas_fecha_idx").on(t.fecha),
     index("facturas_sucursal_id_fecha_idx").on(t.sucursalId, t.fecha),
     index("facturas_asesor_id_idx").on(t.asesorId),
+    index("facturas_codigo_cliente_sucursal_fecha_idx").on(t.codigoCliente, t.sucursalId, t.fecha),
   ],
 );
 
@@ -239,11 +242,13 @@ export const servicios = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     fecha: date("fecha").notNull(),
     cliente: text("cliente").notNull(),
+    codigoCliente: text("codigo_cliente"),
     monto: numeric("monto", { precision: 14, scale: 2 }).notNull().default("0"),
     tipoServicio: text("tipo_servicio"),
     categoriaVenta: text("categoria_venta"),
     compania: text("compania"),
     asesor: text("asesor"),
+    codigoAsesor: text("codigo_asesor"),
     taller: text("taller"),
     csa: text("csa"),
     sucursalId: uuid("sucursal_id").references(() => sucursales.id),
@@ -253,6 +258,7 @@ export const servicios = pgTable(
   (t) => [
     index("servicios_fecha_idx").on(t.fecha),
     index("servicios_sucursal_id_fecha_idx").on(t.sucursalId, t.fecha),
+    index("servicios_codigo_cliente_sucursal_fecha_idx").on(t.codigoCliente, t.sucursalId, t.fecha),
   ],
 );
 

@@ -8,6 +8,12 @@ import {
   type DistribucionPresupuesto,
   type FilaBasePresupuesto,
 } from "../lib/distribucion-presupuesto";
+import {
+  calcularPresupuesto2027,
+  configPresupuesto2027,
+  type ConfigPresupuesto2027,
+  type HistoricoPresupuesto2027,
+} from "../lib/presupuesto-2027";
 
 type Queryable = { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, any>[] }> };
 type SessionLoader = (req: Request) => Promise<SessionPayload | null>;
@@ -64,8 +70,12 @@ async function contextoPresupuesto(tx: Queryable, anioBase: number, anioObjetivo
   const base = await tx.query(`
     SELECT l.mes, l.sucursal_id AS "sucursalId", s.nombre AS sucursal,
       l.unidad_negocio_id AS "unidadNegocioId", u.nombre AS unidad,
-      l.monto::numeric AS "basePresupuesto", COALESCE(r.real_base, 0)::numeric AS "realBase"
-    FROM presupuestos_versiones_lineas l
+      l."basePresupuesto"::numeric AS "basePresupuesto", COALESCE(r.real_base, 0)::numeric AS "realBase"
+    FROM (
+      SELECT mes, sucursal_id, unidad_negocio_id, SUM(monto)::numeric AS "basePresupuesto"
+      FROM presupuestos_versiones_lineas WHERE version_id = $1::uuid
+      GROUP BY mes, sucursal_id, unidad_negocio_id
+    ) l
     LEFT JOIN sucursales s ON s.id = l.sucursal_id
     LEFT JOIN unidades_negocio u ON u.id = l.unidad_negocio_id
     LEFT JOIN (
@@ -75,7 +85,7 @@ async function contextoPresupuesto(tx: Queryable, anioBase: number, anioObjetivo
       GROUP BY mes, sucursal_id, unidad_negocio_id
     ) r ON r.mes = l.mes AND r.sucursal_id IS NOT DISTINCT FROM l.sucursal_id
       AND r.unidad_negocio_id IS NOT DISTINCT FROM l.unidad_negocio_id
-    WHERE l.version_id = $1::uuid ORDER BY l.mes, sucursal, unidad`,
+    ORDER BY l.mes, sucursal, unidad`,
     [versionBaseId, anioObjetivo],
   );
   const filas: FilaBasePresupuesto[] = base.rows.map((row) => ({
@@ -305,6 +315,180 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
   function anioValido(anio: number) {
     return Number.isInteger(anio) && anio >= 2000 && anio <= 2200;
   }
+
+  async function cargarBase2027(tx: Queryable, mesCierre = 9) {
+    const [units, history] = await Promise.all([
+      tx.query("SELECT id, nombre FROM unidades_negocio ORDER BY nombre"),
+      tx.query(`SELECT p.anio, p.mes, u.id AS "unidadNegocioId", u.nombre AS unidad,
+          p.sucursal_id AS "sucursalId", s.nombre AS sucursal,
+          SUM(COALESCE(p.ventas_ccv, 0))::numeric AS ccv,
+          SUM(COALESCE(p.ventas_xibi, 0))::numeric AS xibi,
+          SUM(COALESCE(p.ventas_estrategicas, 0))::numeric AS estrategicas
+        FROM presupuestos p
+        JOIN unidades_negocio u ON u.id = p.unidad_negocio_id
+        LEFT JOIN sucursales s ON s.id = p.sucursal_id
+        WHERE p.anio BETWEEN 2024 AND 2026 AND (p.anio < 2026 OR p.mes <= $1)
+        GROUP BY p.anio, p.mes, u.id, u.nombre, p.sucursal_id, s.nombre
+        ORDER BY u.nombre, p.anio, p.mes, s.nombre`, [mesCierre]),
+    ]);
+    return {
+      units: units.rows.map((row) => ({ id: String(row.id), nombre: String(row.nombre) })),
+      history: history.rows.map((row): HistoricoPresupuesto2027 => ({
+        anio: Number(row.anio), mes: Number(row.mes), unidadNegocioId: String(row.unidadNegocioId), unidad: String(row.unidad),
+        sucursalId: row.sucursalId ? String(row.sucursalId) : null, sucursal: row.sucursal ? String(row.sucursal) : null,
+        ccv: Number(row.ccv ?? 0), xibi: Number(row.xibi ?? 0), estrategicas: Number(row.estrategicas ?? 0),
+      })),
+    };
+  }
+
+  function parseConfig2027(value: unknown, units: Array<{ id: string; nombre: string }>): ConfigPresupuesto2027 | null {
+    if (!value || typeof value !== "object") return null;
+    const input = value as Record<string, unknown>;
+    const record = (value: unknown) => value && typeof value === "object" ? value as Record<string, unknown> : {};
+    const annual = record(input.pesosAnio);
+    const trend = record(input.pesosTendencia);
+    if (!Array.isArray(input.premisas)) return null;
+    const rows: ConfigPresupuesto2027["premisas"] = [];
+    for (const value of input.premisas) {
+      if (!value || typeof value !== "object") return null;
+      const row = value as Record<string, unknown>;
+      const unit = units.find((item) => item.id === row.unidadNegocioId);
+      if (!unit) return null;
+      const nullableTrend = row.gTendenciaOverride === null || row.gTendenciaOverride === "" ? null : Number(row.gTendenciaOverride);
+      const pctDirectorio = Number(row.pctDirectorio);
+      const pctGestion = Number(row.pctGestion);
+      const incrementalUsd = Number(row.incrementalUsd);
+      if ((nullableTrend !== null && !Number.isFinite(nullableTrend)) || !Number.isFinite(pctDirectorio) || !Number.isFinite(pctGestion) || !Number.isFinite(incrementalUsd)) return null;
+      rows.push({ unidadNegocioId: unit.id, unidad: unit.nombre, gTendenciaOverride: nullableTrend, pctDirectorio, pctGestion, incrementalUsd });
+    }
+    if (rows.length !== units.length || new Set(rows.map((row) => row.unidadNegocioId)).size !== units.length) return null;
+    const config: ConfigPresupuesto2027 = {
+      mesCierre: Number(input.mesCierre), topeAtipico: Number(input.topeAtipico),
+      pesosAnio: { 2024: Number(annual["2024"]), 2025: Number(annual["2025"]), 2026: Number(annual["2026"]) },
+      pesosTendencia: { g25: Number(trend.g25), g26: Number(trend.g26) }, premisas: rows,
+    };
+    const weights = Object.values(config.pesosAnio);
+    if (!Number.isInteger(config.mesCierre) || config.mesCierre < 1 || config.mesCierre > 12 || !Number.isFinite(config.topeAtipico) || config.topeAtipico <= 0 || weights.some((weight) => !Number.isFinite(weight) || weight < 0) || Math.abs(weights.reduce((sum, weight) => sum + weight, 0) - 1) > 0.00001 || !Number.isFinite(config.pesosTendencia.g25) || config.pesosTendencia.g25 < 0 || !Number.isFinite(config.pesosTendencia.g26) || config.pesosTendencia.g26 < 0 || Math.abs(config.pesosTendencia.g25 + config.pesosTendencia.g26 - 1) > 0.00001) return null;
+    return config;
+  }
+
+  async function configBase2027(tx: Queryable, units: Array<{ id: string; nombre: string }>) {
+    const latest = await tx.query(`SELECT premisas FROM presupuestos_versiones WHERE anio = 2027 AND premisas->>'tipo' = 'metodologia_2027'
+      ORDER BY CASE estado WHEN 'borrador' THEN 0 WHEN 'propuesto' THEN 1 WHEN 'aprobado' THEN 2 ELSE 3 END, updated_at DESC LIMIT 1`);
+    if (!latest.rows[0]) return configPresupuesto2027(units);
+    const config = parseConfig2027((latest.rows[0].premisas as Record<string, unknown>).config, units);
+    if (!config) throw new Error("PRESUPUESTO_INVALIDO:La configuración guardada no cubre las unidades actuales. Completa sus premisas antes de continuar.");
+    return config;
+  }
+
+  async function preview2027(tx: Queryable, rawConfig?: unknown) {
+    const initial = await cargarBase2027(tx);
+    const saved = await configBase2027(tx, initial.units);
+    const config = rawConfig === undefined ? saved : parseConfig2027(rawConfig, initial.units);
+    if (!config) throw new Error("PRESUPUESTO_INVALIDO:La configuración del presupuesto 2027 no es válida.");
+    const history = config.mesCierre === 9 ? initial.history : (await cargarBase2027(tx, config.mesCierre)).history;
+    return { config, calculation: calcularPresupuesto2027(history, config), units: initial.units };
+  }
+
+  function alcance2027(session: SessionPayload, config: ConfigPresupuesto2027, calculation: ReturnType<typeof calcularPresupuesto2027>) {
+    if (session.role !== "gerente_comercial") return { config, calculation };
+    const ids = new Set(unidadesAsignadas(session));
+    const rows = config.premisas.filter((row) => ids.has(row.unidadNegocioId));
+    const summary = calculation.summary.filter((row) => ids.has(String(row.unidadNegocioId)));
+    const detail = calculation.detail.filter((row) => ids.has(String(row.unidadNegocioId)));
+    return { config: { ...config, premisas: rows }, calculation: { ...calculation, summary, detail, total2027: summary.reduce((sum, row) => sum + Number(row.ppto2027), 0), monthTotals: calculation.monthTotals.map((month) => ({ ...month, monto: detail.filter((row) => row.mes === month.mes).reduce((sum, row) => sum + Number(row.monto), 0) })) } };
+  }
+
+  router.get("/presupuestos/2027", async (req, res) => {
+    const session = await scopedSession(req, res); if (!session) return;
+    const result = await run(res, session, async (tx) => {
+      const preview = await preview2027(tx);
+      const versions = await tx.query(`SELECT id, nombre, estado, created_at AS "createdAt", aprobado_at AS "aprobadoAt",
+          premisas->>'total2027' AS "total2027" FROM presupuestos_versiones
+        WHERE anio = 2027 AND premisas->>'tipo' = 'metodologia_2027' ORDER BY created_at DESC`);
+      return { ...preview, versions: session.role === "gerente_comercial" ? [] : versions.rows };
+    });
+    if (result) {
+      const scoped = alcance2027(session, result.config, result.calculation);
+      res.json({ config: scoped.config, calculation: scoped.calculation, versions: result.versions });
+    }
+  });
+
+  router.put("/presupuestos/2027/premisas", async (req, res) => {
+    const session = await scopedSession(req, res); if (!session) return;
+    if (!["administrador", "director", "gerencia"].includes(session.role ?? "")) { res.status(403).json({ message: "Tu rol no puede editar las premisas del presupuesto 2027." }); return; }
+    const result = await run(res, session, async (tx) => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext('presupuesto-2027-config'), 2027)");
+      const base = await cargarBase2027(tx);
+      const saved = await configBase2027(tx, base.units);
+      const incoming = parseConfig2027(req.body?.config, base.units);
+      if (!incoming) throw new Error("PRESUPUESTO_INVALIDO:La configuración enviada no es válida.");
+      const editor = session.role;
+      const next: ConfigPresupuesto2027 = {
+        ...saved,
+        ...(editor === "administrador" ? {
+          mesCierre: incoming.mesCierre, topeAtipico: incoming.topeAtipico,
+          pesosAnio: incoming.pesosAnio, pesosTendencia: incoming.pesosTendencia,
+        } : {}),
+        premisas: saved.premisas.map((old: ConfigPresupuesto2027["premisas"][number]) => {
+          const updated = incoming.premisas.find((row) => row.unidadNegocioId === old.unidadNegocioId)!;
+          return {
+            ...old,
+            ...(editor === "administrador" || editor === "director" ? { gTendenciaOverride: updated.gTendenciaOverride, pctDirectorio: updated.pctDirectorio } : {}),
+            ...(editor === "administrador" || editor === "gerencia" ? { pctGestion: updated.pctGestion, incrementalUsd: updated.incrementalUsd } : {}),
+          };
+        }),
+      };
+      const preview = await preview2027(tx, next);
+      const current = await tx.query(`SELECT id FROM presupuestos_versiones WHERE anio = 2027
+        AND estado = 'borrador' AND premisas->>'tipo' = 'metodologia_2027'
+        ORDER BY updated_at DESC LIMIT 1 FOR UPDATE`);
+      let versionId = current.rows[0]?.id as string | undefined;
+      const snapshot = JSON.stringify({ tipo: "metodologia_2027", config: next, total2027: preview.calculation.total2027 });
+      if (versionId) {
+        await tx.query("UPDATE presupuestos_versiones SET premisas = $1::jsonb, updated_at = now() WHERE id = $2::uuid", [snapshot, versionId]);
+      } else {
+        const created = await tx.query(`INSERT INTO presupuestos_versiones (anio, nombre, escenario, estado, descripcion, premisas, creado_por)
+          VALUES (2027, 'Presupuesto 2027 · Proyección histórica', 'base', 'borrador', 'Metodología histórica con crecimiento Directorio y Gestión', $1::jsonb, $2::uuid) RETURNING id`, [snapshot, session.user.id]);
+        versionId = String(created.rows[0].id);
+      }
+      return { versionId, ...preview };
+    });
+    if (result) {
+      const scoped = alcance2027(session, result.config, result.calculation);
+      res.json({ versionId: result.versionId, config: scoped.config, calculation: scoped.calculation });
+    }
+  });
+
+  router.post("/presupuestos/2027/generar", async (req, res) => {
+    const session = await scopedSession(req, res); if (!session) return;
+    if (!["administrador", "director", "gerencia"].includes(session.role ?? "")) { res.status(403).json({ message: "Tu rol no puede generar el presupuesto 2027." }); return; }
+    const result = await run(res, session, async (tx) => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext('presupuesto-2027-config'), 2027)");
+      const draft = await tx.query(`SELECT id, premisas FROM presupuestos_versiones WHERE anio = 2027 AND estado = 'borrador'
+        AND premisas->>'tipo' = 'metodologia_2027' ORDER BY updated_at DESC LIMIT 1 FOR UPDATE`);
+      const row = draft.rows[0];
+      if (!row) throw new Error("PRESUPUESTO_INVALIDO:Guarda las premisas antes de generar una propuesta.");
+      const preview = await preview2027(tx, (row.premisas as Record<string, unknown>).config);
+      await tx.query("DELETE FROM presupuestos_versiones_lineas WHERE version_id = $1::uuid", [row.id]);
+      const detail = preview.calculation.detail;
+      for (let offset = 0; offset < detail.length; offset += 200) {
+        const batch = detail.slice(offset, offset + 200);
+        const values: unknown[] = [];
+        const tuples = batch.map((item) => {
+          const start = values.length;
+          values.push(row.id, item.mes, item.sucursalId, item.unidadNegocioId, item.historico2026, item.monto, item.monto, item.canal, item.peso, item.ie);
+          return `($${start + 1}::uuid, $${start + 2}, $${start + 3}::uuid, $${start + 4}::uuid, $${start + 5}, $${start + 6}, $${start + 7}, 'metodologia_2027', $${start + 8}, $${start + 9}, $${start + 10})`;
+        });
+        await tx.query(`INSERT INTO presupuestos_versiones_lineas (version_id, mes, sucursal_id, unidad_negocio_id, historico, sugerido, monto, fuente, canal, peso, indice_estacional)
+          VALUES ${tuples.join(",")}`, values);
+      }
+      const snapshot = { ...(row.premisas as Record<string, unknown>), resumen: preview.calculation.summary, total2027: preview.calculation.total2027, tipo: "metodologia_2027" };
+      await tx.query("UPDATE presupuestos_versiones SET estado = 'propuesto', premisas = $1::jsonb, updated_at = now() WHERE id = $2::uuid", [JSON.stringify(snapshot), row.id]);
+      return { id: row.id, lineas: detail.length, ...preview.calculation };
+    });
+    if (result) res.json(result);
+  });
 
   router.get("/presupuestos/historico", async (req, res) => {
     const value = await scopedSession(req, res); if (!value) return;
@@ -585,7 +769,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         [req.params.id],
       );
       if (!candidate.rows[0]) throw new Error("NOT_FOUND");
-      if (value.role === "gerencia" && candidate.rows[0].creadorRol === "director") {
+      if (value.role === "gerencia" && candidate.rows[0].creadorRol === "director" && (candidate.rows[0].premisas as Record<string, unknown> | null)?.tipo === "participacion") {
         throw new Error("PRESUPUESTO_INVALIDO:Gerencia Nacional debe completar la propuesta del Director antes de aprobarla.");
       }
       if ((candidate.rows[0].premisas as Record<string, unknown> | null)?.tipo === "plan_comercial_unidad") {
@@ -605,6 +789,59 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         `SELECT COALESCE(SUM(l.monto), 0)::numeric AS total FROM presupuestos_versiones_lineas l WHERE l.version_id = $1::uuid`,
         [req.params.id],
       );
+      const mixPendiente = premisasSnapshot?.tipo === "metodologia_2027" ? { rows: [{ pendientes: 0 }] } : await tx.query(
+        `WITH unit_targets AS (
+           SELECT l.unidad_negocio_id, u.nombre, SUM(l.monto)::numeric AS monto
+           FROM presupuestos_versiones_lineas l
+           JOIN unidades_negocio u ON u.id = l.unidad_negocio_id
+           WHERE l.version_id = $1::uuid
+           GROUP BY l.unidad_negocio_id, u.nombre
+           HAVING SUM(l.monto) > 0
+         ), unit_mix AS (
+           SELECT unidad_negocio_id, COUNT(DISTINCT item_key) AS items,
+                  SUM(participacion)::numeric AS participacion, SUM(monto)::numeric AS monto
+           FROM presupuestos_mix WHERE version_id = $1::uuid AND nivel = 'unidad'
+           GROUP BY unidad_negocio_id
+         ), branch_targets AS (
+           SELECT l.unidad_negocio_id, u.nombre, l.sucursal_id, l.mes, SUM(l.monto)::numeric AS monto
+           FROM presupuestos_versiones_lineas l
+           JOIN unidades_negocio u ON u.id = l.unidad_negocio_id
+           WHERE l.version_id = $1::uuid
+           GROUP BY l.unidad_negocio_id, u.nombre, l.sucursal_id, l.mes
+           HAVING SUM(l.monto) > 0
+         ), branch_mix AS (
+           SELECT unidad_negocio_id, sucursal_id, mes, COUNT(DISTINCT item_key) AS items,
+                  SUM(participacion)::numeric AS participacion, SUM(monto)::numeric AS monto
+           FROM presupuestos_mix WHERE version_id = $1::uuid AND nivel = 'sucursal_mes'
+           GROUP BY unidad_negocio_id, sucursal_id, mes
+         ), missing AS (
+           SELECT 1 FROM unit_targets t LEFT JOIN unit_mix m USING (unidad_negocio_id)
+           WHERE COALESCE(m.items, 0) <> CASE
+             WHEN lower(t.nombre) LIKE '%repuesto%' THEN 3
+             WHEN lower(t.nombre) LIKE '%lub%' OR lower(t.nombre) LIKE '%filtro%' THEN 2
+             WHEN lower(t.nombre) LIKE '%servicio%' THEN 2
+             WHEN lower(t.nombre) LIKE '%equipo%' THEN 4
+             WHEN lower(t.nombre) LIKE '%alquiler%' THEN 3 ELSE 0 END
+             OR abs(COALESCE(m.participacion, 0) - 100) > 0.00001
+             OR abs(COALESCE(m.monto, 0) - t.monto) > 0.01
+           UNION ALL
+           SELECT 1 FROM branch_targets t LEFT JOIN branch_mix m
+             ON m.unidad_negocio_id = t.unidad_negocio_id AND m.sucursal_id IS NOT DISTINCT FROM t.sucursal_id AND m.mes = t.mes
+           WHERE COALESCE(m.items, 0) <> CASE
+             WHEN lower(t.nombre) LIKE '%repuesto%' THEN 3
+             WHEN lower(t.nombre) LIKE '%lub%' OR lower(t.nombre) LIKE '%filtro%' THEN 2
+             WHEN lower(t.nombre) LIKE '%servicio%' THEN 2
+             WHEN lower(t.nombre) LIKE '%equipo%' THEN 4
+             WHEN lower(t.nombre) LIKE '%alquiler%' THEN 3 ELSE 0 END
+             OR abs(COALESCE(m.participacion, 0) - 100) > 0.00001
+             OR abs(COALESCE(m.monto, 0) - t.monto) > 0.01
+         )
+         SELECT COUNT(*)::int AS pendientes FROM missing`,
+        [req.params.id],
+      );
+      if (Number(mixPendiente.rows[0]?.pendientes ?? 0) > 0) {
+        throw new Error(`PRESUPUESTO_INVALIDO:No se puede aprobar. Completa el mix por unidad y sucursal/mes en ${mixPendiente.rows[0].pendientes} asignación(es); cada reparto debe sumar 100 % y cuadrar con su monto padre.`);
+      }
       const totalAprobadoVersiones = await tx.query(
         `SELECT COALESCE(SUM(l.monto), 0)::numeric AS total
          FROM presupuestos_versiones v JOIN presupuestos_versiones_lineas l ON l.version_id = v.id
@@ -635,7 +872,9 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
       }
       const anio = version.rows[0].anio;
       const lineas = await tx.query(
-        `SELECT mes, sucursal_id AS "sucursalId", unidad_negocio_id AS "unidadNegocioId", monto FROM presupuestos_versiones_lineas WHERE version_id = $1::uuid`,
+        `SELECT mes, sucursal_id AS "sucursalId", unidad_negocio_id AS "unidadNegocioId", SUM(monto)::numeric AS monto
+         FROM presupuestos_versiones_lineas WHERE version_id = $1::uuid
+         GROUP BY mes, sucursal_id, unidad_negocio_id`,
         [req.params.id],
       );
       // The table has no unique constraint for year/month/branch/unit and can

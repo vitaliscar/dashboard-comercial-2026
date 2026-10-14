@@ -25,6 +25,7 @@ import { ManagementBudgetOverview } from "@/components/budget/management-budget-
 import { BudgetMixEditor } from "@/components/budget/budget-mix-editor";
 import { PercentageInput } from "@/components/budget/percentage-input";
 import { BulkPercentageEditor } from "@/components/budget/bulk-percentage-editor";
+import { Presupuesto2027Methodology } from "@/components/budget/presupuesto-2027-methodology";
 import { MESES, descripcionMetaBase, repartoEquitativo, sumaParticipacion, validarDistribucion } from "@/lib/budget-calculations";
 
 interface ParticipacionUnidad {
@@ -572,6 +573,7 @@ function PresupuestoGerenciaPage() {
 
   return (
     <div className="ccv-budget-page ccv-budget-national-view space-y-6">
+      {role !== "coordinador" && <Presupuesto2027Methodology />}
       <PageHeader
         eyebrow="Planeación"
         title={`Presupuesto ${targetAnio}`}

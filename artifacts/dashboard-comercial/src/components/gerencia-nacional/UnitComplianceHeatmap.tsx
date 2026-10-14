@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import { Grid2X2 } from "@/components/icons";
-import { abbreviateSucursal, money, pct, statusFromPct90 } from "@/lib/format";
+import { money, pct, statusFromPct90 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { BranchSummaryRow } from "./BranchSummaryTable";
 import type { UnitChartRow } from "./UnitMetaVsVenta";
@@ -36,7 +36,7 @@ function CellValue({
     return (
       <span
         role="img"
-        className="flex min-h-9 items-center justify-center rounded-md bg-muted/60 px-2 text-xs text-muted-foreground"
+        className="flex min-h-10 items-center justify-center rounded-md bg-muted/60 px-2 text-sm text-muted-foreground"
         aria-label={`${label}: sin datos`}
         title={`${label}: sin datos para este período`}
       >
@@ -51,7 +51,7 @@ function CellValue({
         type="button"
         onClick={onClick}
         disabled={!onClick}
-        className="flex min-h-9 w-full items-center justify-center rounded-md border border-danger/30 bg-danger/5 px-2 font-mono text-xs font-semibold tabular-nums text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground"
+        className="flex min-h-10 w-full items-center justify-center rounded-md border border-danger/30 bg-danger/5 px-2 font-mono text-sm font-semibold tabular-nums text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground"
         aria-label={`${label}: ajuste negativo ${money(value.facturado)}${value.meta > 0 ? ` de ${money(value.meta)} de meta` : ", sin meta asignada"}`}
         title={`${label}: ajuste negativo ${money(value.facturado)}${value.meta > 0 ? ` frente a ${money(value.meta)} de meta` : " · sin meta"}`}
       >
@@ -62,7 +62,7 @@ function CellValue({
 
   if (value.meta <= 0) {
     const content = "S/M";
-    const className = "flex min-h-9 w-full items-center justify-center rounded-md bg-muted/60 px-2 text-[10px] font-semibold text-muted-foreground";
+    const className = "flex min-h-10 w-full items-center justify-center rounded-md bg-muted/60 px-2 text-sm font-semibold text-muted-foreground";
     if (onClick && value.facturado > 0) {
       return (
         <button
@@ -97,7 +97,7 @@ function CellValue({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "flex min-h-9 w-full items-center justify-center rounded-md px-2 font-mono text-xs font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground",
+        "flex min-h-10 w-full items-center justify-center rounded-md px-2 font-mono text-sm font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground",
         onClick && "cursor-pointer hover:brightness-95",
         !onClick && "cursor-default",
         HEAT_CLASS[status],
@@ -189,7 +189,7 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
                 <tr className="bg-muted/45">
                   <th
                     scope="col"
-                    className="sticky left-0 z-10 min-w-40 border-b border-border bg-muted/95 px-4 py-3 text-left font-display text-[10px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur"
+                    className="sticky left-0 z-10 w-56 min-w-56 border-b border-border bg-muted/95 px-4 py-3 text-left font-display text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur"
                   >
                     Sucursal
                   </th>
@@ -221,10 +221,10 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
                     <tr key={branch.id} className="group">
                       <th
                         scope="row"
-                        className="sticky left-0 z-[1] border-b border-border/70 bg-card px-4 py-2.5 text-left font-medium text-foreground group-hover:bg-muted/40"
+                        className="sticky left-0 z-[1] w-56 min-w-56 whitespace-nowrap border-b border-border/70 bg-card px-4 py-2.5 text-left text-sm font-medium text-foreground group-hover:bg-muted/40"
                         title={branch.label}
                       >
-                        {abbreviateSucursal(branch.label)}
+                        {branch.label}
                       </th>
                       {visibleUnits.map((unit) => (
                           <td key={unit.id} className="border-b border-border/70 p-1.5">
@@ -255,7 +255,7 @@ export const UnitComplianceHeatmap = memo(function UnitComplianceHeatmap({
               return (
                 <article key={branch.id} className="space-y-3 p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="truncate text-xs font-semibold text-foreground" title={branch.label}>
+                    <h3 className="min-w-0 break-words text-sm font-semibold leading-tight text-foreground" title={branch.label}>
                       {branch.label}
                     </h3>
                     <div className="w-24 shrink-0">

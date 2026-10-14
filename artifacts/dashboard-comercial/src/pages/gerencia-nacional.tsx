@@ -14,6 +14,7 @@ import { unidadLabelInfo } from "@/lib/unidad-labels";
 import { FilterHeader, FilterState } from "@/components/resumen/FilterHeader";
 import { BranchRanking } from "@/components/gerencia-nacional/BranchRanking";
 import { UnitMetaVsVenta } from "@/components/gerencia-nacional/UnitMetaVsVenta";
+import { UnitDonut } from "@/components/gerencia-nacional/UnitDonut";
 import type { BranchSummaryRow } from "@/components/gerencia-nacional/BranchSummaryTable";
 import {
   UnitComplianceHeatmap,
@@ -182,6 +183,33 @@ export default function GerenciaNacionalPage() {
   }, [metrics]);
 
   const unitChartData = cross?.unitRows ?? [];
+  const unitDonutData = unitChartData.map((unit) => ({
+    id: unit.id,
+    label: unit.label,
+    facturado: unit.facturado,
+  }));
+  const branchHighlights = useMemo(() => {
+    const branches = cross?.branchRows ?? [];
+    const units = cross?.unitRows ?? [];
+    const belowTarget = branches.filter((branch) => branch.pct < 70);
+    return {
+      bestBranch: branches.reduce<typeof branches[number] | null>(
+        (best, branch) => !best || branch.pct > best.pct ? branch : best,
+        null,
+      ),
+      belowTargetCount: belowTarget.length,
+      belowTargetTotal: branches.length,
+      belowTargetGap: belowTarget.reduce((sum, branch) => sum + Math.max(0, branch.meta - branch.facturado), 0),
+      weakestUnit: units.reduce<typeof units[number] | null>(
+        (weakest, unit) => !weakest || unit.pct < weakest.pct ? unit : weakest,
+        null,
+      ),
+      strongestUnit: units.reduce<typeof units[number] | null>(
+        (strongest, unit) => !strongest || unit.pct > strongest.pct ? unit : strongest,
+        null,
+      ),
+    };
+  }, [cross]);
 
   const openSucursalResumen = useCallback(
     (sucursalId: string, unidadNegocioId?: string) => {
@@ -291,8 +319,42 @@ export default function GerenciaNacionalPage() {
         </article>
       </section>
 
-      <section aria-label="Comparación de venta y meta por unidad">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de atención comercial">
+        <article className="card-elevated min-w-0 p-4">
+          <span className="text-xs font-medium text-muted-foreground">Mejor sucursal</span>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <strong className="truncate text-lg font-semibold text-success">{branchHighlights.bestBranch?.label ?? "—"}</strong>
+            <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-success">{branchHighlights.bestBranch ? pct(branchHighlights.bestBranch.pct, 1) : "—"}</span>
+          </div>
+        </article>
+        <article className="card-elevated min-w-0 p-4">
+          <span className="text-xs font-medium text-muted-foreground">Sucursales bajo 70%</span>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <strong className={`font-mono text-lg font-semibold tabular-nums ${branchHighlights.belowTargetCount ? "text-danger" : "text-success"}`}>
+              {branchHighlights.belowTargetCount} <span className="text-sm text-muted-foreground">/ {branchHighlights.belowTargetTotal}</span>
+            </strong>
+            <span className="truncate text-xs text-muted-foreground">{branchHighlights.belowTargetCount ? `${money(branchHighlights.belowTargetGap)} por alcanzar` : "Todas sobre el umbral"}</span>
+          </div>
+        </article>
+        <article className="card-elevated min-w-0 p-4">
+          <span className="text-xs font-medium text-muted-foreground">Unidad con menor avance</span>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <strong className="truncate text-lg font-semibold text-danger">{branchHighlights.weakestUnit?.label ?? "—"}</strong>
+            <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-danger">{branchHighlights.weakestUnit ? pct(branchHighlights.weakestUnit.pct, 1) : "—"}</span>
+          </div>
+        </article>
+        <article className="card-elevated min-w-0 p-4">
+          <span className="text-xs font-medium text-muted-foreground">Unidad con mayor avance</span>
+          <div className="mt-2 flex items-baseline justify-between gap-2">
+            <strong className="truncate text-lg font-semibold text-success">{branchHighlights.strongestUnit?.label ?? "—"}</strong>
+            <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-success">{branchHighlights.strongestUnit ? pct(branchHighlights.strongestUnit.pct, 1) : "—"}</span>
+          </div>
+        </article>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(19rem,0.85fr)]" aria-label="Venta por unidad de negocio">
         <UnitMetaVsVenta data={unitChartData} selectedIds={selectedUnidades} />
+        <UnitDonut data={unitDonutData} selectedIds={selectedUnidades} variant="donut" title="Composición de ventas" />
       </section>
 
       <UnitComplianceHeatmap

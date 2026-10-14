@@ -16,6 +16,71 @@ type Queryable = {
   query: (text: string, values?: unknown[]) => Promise<QueryResult>;
 };
 
+type PendingQuery = {
+  text: string;
+  values?: unknown[];
+  resolve: (result: QueryResult) => void;
+  reject: (error: unknown) => void;
+};
+
+function summaryQueryGroup(text: string) {
+  const sql = text.toLowerCase();
+  if (sql.includes("cotizaciones") || sql.includes("facturas")) return "comercial";
+  if (sql.includes("ventas_perdidas")) return "ventas_perdidas";
+  if (sql.includes("cumplimiento_asesores") || sql.includes("presupuestos_asesores")) return "asesores";
+  return "presupuestos";
+}
+
+/**
+ * Queries issued together by the summary endpoint share one scoped connection
+ * per query group. pg queues concurrent queries on a single client, so the
+ * old Promise.all inside one transaction still ran the 15 aggregate queries
+ * serially. Each group keeps the same RLS role/user settings in its own scoped
+ * transaction while independent tables execute concurrently.
+ */
+function createScopedQueryBatcher(session: SessionPayload): Queryable {
+  let pending: PendingQuery[] = [];
+  let scheduled = false;
+
+  const flush = async () => {
+    scheduled = false;
+    const batch = pending;
+    pending = [];
+    const groups = new Map<string, PendingQuery[]>();
+    for (const job of batch) {
+      const key = summaryQueryGroup(job.text);
+      const group = groups.get(key) ?? [];
+      group.push(job);
+      groups.set(key, group);
+    }
+
+    await Promise.all([...groups.values()].map(async (jobs) => {
+      try {
+        const results = await withScopedTransaction(session, (tx) =>
+          Promise.all(jobs.map((job) => tx.query(job.text, job.values))),
+        );
+        results.forEach((result, index) => jobs[index].resolve(result));
+      } catch (error) {
+        jobs.forEach((job) => job.reject(error));
+      }
+    }));
+    if (pending.length > 0 && !scheduled) {
+      scheduled = true;
+      queueMicrotask(() => void flush());
+    }
+  };
+
+  return {
+    query: (text, values) => new Promise((resolve, reject) => {
+      pending.push({ text, values, resolve, reject });
+      if (!scheduled) {
+        scheduled = true;
+        queueMicrotask(() => void flush());
+      }
+    }),
+  };
+}
+
 function asUuid(value: unknown) {
   return typeof value === "string" && UUID_RE.test(value) ? value : null;
 }
@@ -295,7 +360,8 @@ router.get("/resumen", async (req: Request, res: Response) => {
   const budgetMonthlyWhere = whereFor("p", scope, undefined, false, false);
 
   try {
-    const result = await withScopedTransaction(session, async (tx) => {
+    const tx = createScopedQueryBatcher(session);
+    const result = await (async () => {
       const [
         cotizaciones,
         cotizacionesMensual,
@@ -504,7 +570,7 @@ router.get("/resumen", async (req: Request, res: Response) => {
         }),
         cumplimientoAsesor: cumplimientoAsesor.rows,
       };
-    });
+    })();
     res.json(result);
   } catch (error) {
     req.log?.error?.({ error }, "resumen query failed");
