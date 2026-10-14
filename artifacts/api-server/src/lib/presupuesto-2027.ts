@@ -108,7 +108,21 @@ export function calcularPresupuesto2027(history: HistoricoPresupuesto2027[], con
     const total25 = byYear.get(2025) ?? 0;
     const ytd26 = byYear.get(2026) ?? 0;
     if (total24 <= 0 || total25 <= 0 || ytd26 < 0) throw new Error(`PRESUPUESTO_INVALIDO:Histórico incompleto para ${unitName}.`);
+    const backtestMesCorte = Math.min(config.mesCierre, 11);
+    const backtestYtd25 = monthKeys(unitId, 2025)
+      .slice(0, backtestMesCorte)
+      .reduce((sum, key) => sum + (monthUnitYear.get(key) ?? 0), 0);
+    const backtestIndiceCerrado = annualIE.get(2024)!
+      .slice(0, backtestMesCorte)
+      .reduce((sum, value) => sum + value, 0);
+    const backtest2025Proyeccion = backtestIndiceCerrado > 0
+      ? backtestYtd25 * 12 / backtestIndiceCerrado
+      : null;
+    const backtest2025ErrorPct = backtest2025Proyeccion === null
+      ? null
+      : backtest2025Proyeccion / total25 - 1;
     const closedSeasonality = indices.slice(0, config.mesCierre).reduce((sum, value) => sum + value, 0);
+    if (closedSeasonality <= 0) throw new Error(`PRESUPUESTO_INVALIDO:No hay base estacional para proyectar ${unitName} hasta el mes ${config.mesCierre}.`);
     const projection2026 = ytd26 * 12 / closedSeasonality;
     const g25 = total25 / total24 - 1;
     const g26 = projection2026 / total25 - 1;
@@ -172,6 +186,7 @@ export function calcularPresupuesto2027(history: HistoricoPresupuesto2027[], con
     detail.push(...raw.map((row) => ({ unidadNegocioId: unitId, unidad: unitName, ...row })));
     summary.push({
       unidadNegocioId: unitId, unidad: unitName, real2024: roundMoney(total24), real2025: roundMoney(total25), real2026Ytd: roundMoney(ytd26),
+      backtestMesCorte, backtest2025Proyeccion: backtest2025Proyeccion === null ? null : roundMoney(backtest2025Proyeccion), backtest2025ErrorPct,
       proyeccion2026: roundMoney(projection2026), g25, g26, gTendencia: trend, gUsada: growth, base2027: roundMoney(base),
       conDirectorio: roundMoney(withDirector), conGestion: roundMoney(withManagement), ppto2027: roundMoney(budget),
       premisa: premise, indiceEstacional: indices,

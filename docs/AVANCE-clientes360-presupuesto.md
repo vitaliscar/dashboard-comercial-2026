@@ -59,8 +59,8 @@ Fases terminadas: ~~tachadas~~ y con fecha. Cada cambio deja su evidencia (archi
 
 ## Plan 2 — Presupuesto y crecimiento 2027
 
-1. [ ] Cerrar las anomalías de origen (Servicios 2026, facturas sin unidad, último mes cerrado)
-2. [ ] Completar la proyección 2026 (estacionalidad 2024–2025, backtest 2025 con error y sesgo)
+1. [x] Corregir el parseo de Servicios 2026 y los duplicados de facturas sin unidad. Los 11 cursos únicos siguen pendientes de clasificación; no se imputaron artificialmente a Servicios.
+2. [x] Calcular la proyección 2026 con estacionalidad 2024–2025 y mostrar un backtest 2025 por unidad, con error y dirección del sesgo.
 3. [ ] Definir la meta 2027 por causas comerciales
 4. [ ] Extender versiones y escenarios (rutas con año como parámetro)
 5. [ ] Reorganizar la página en cuatro vistas (Crecimiento, Plan 2027, Escenarios, Seguimiento)
@@ -76,3 +76,5 @@ Fases terminadas: ~~tachadas~~ y con fecha. Cada cambio deja su evidencia (archi
 | 2026-10-14 | Build Vite de 4174 actualizado con la corrección ya existente de Cliente 360. Se confirmó que el servidor entrega el nuevo asset y responde HTTP 200; la prueba de clics con sesión real sigue pendiente. | `dist/public/index.html` 17:23; asset `cliente-360-qIJSZbBd.js`; `dashboard-vite-web.service` activo. |
 | 2026-10-14 | Backfill de códigos históricos 2024–2025 completado en Servicios, CRM y Lubricantes/Filtros. Los importes de Servicios y de todas las unidades conocidas de facturas quedaron idénticos; se retiraron $47.645,85 de duplicados históricos sin unidad. | Dry runs por año y unidad; respaldo adicional `antes_backfill_codigos.dump`; consultas PostgreSQL de filas, importes y códigos después de cada recarga. |
 | 2026-10-14 | Cliente 360 publicado en 4174 con bucket «Sin sucursal» para totales globales y aviso de calidad. API y frontend compilados; comprobación de tipos local en ambos paquetes; servicios API/web activos y nueva versión servida. La prueba interactiva autenticada sigue pendiente porque este entorno no dispone de navegador conectado. | `cliente-360.ts` de API, `cliente-360-http.ts`, `pages/cliente-360.tsx`; asset `cliente-360-CaDz19jU.js`; API reiniciada y HTTP 401 esperado sin sesión; web HTTP 200. |
+| 2026-10-14 | Backtest del método 2027: se proyectó 2025 con enero–septiembre 2025 y estacionalidad 2024. Alquiler +4,4 %, Equipos +9,1 %, Lubricantes/Filtros −21,1 %, Repuestos −7,5 % y Servicios +12,9 % frente al cierre real. Lubricantes/Filtros y Servicios superan 10 % de desvío y quedan destacados en pantalla; la estimación exige revisión comercial antes de aprobar una meta. | `calcularPresupuesto2027()` y tabla «Precisión de la proyección» en el componente 2027. |
+| 2026-10-14 | Se detectó que la metodología 2027 ya estaba integrada en la página local, pero el componente y su importación faltaban en el servidor 4174. Se publicó el componente junto con el cálculo de backtest y la integración de la página; el cambio no altera metas aprobadas ni presupuestos vigentes. Tipos API/web sin errores, build servido como `presupuestos-D1gZSlwd.js`, web HTTP 200, API reiniciada y HTTP 401 esperado sin sesión. Falta la prueba autenticada en navegador. | `pages/presupuestos.tsx`, `components/budget/presupuesto-2027-methodology.tsx`, `lib/presupuesto-2027.ts`; respaldo previo en `budget_before_backtest/`. |

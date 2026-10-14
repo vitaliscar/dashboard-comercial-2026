@@ -573,12 +573,12 @@ function PresupuestoGerenciaPage() {
 
   return (
     <div className="ccv-budget-page ccv-budget-national-view space-y-6">
-      {role !== "coordinador" && <Presupuesto2027Methodology />}
       <PageHeader
         eyebrow="Planeación"
-        title={`Presupuesto ${targetAnio}`}
+        title={targetAnio === 2026 ? "Presupuesto 2026 y plan 2027" : `Presupuesto ${targetAnio}`}
           description={esDirector ? "Define el crecimiento y revisa o corrige la distribución general por unidad y sucursal." : "Define pesos por unidad y Gestión Comercial; revisa y corrige el reparto general por sucursal."}
       />
+      {role !== "coordinador" && targetAnio === 2026 && <Presupuesto2027Methodology />}
 
       {proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status">Calculando la propuesta inicial…</p>}
       {calculoPendiente && !proyeccion.isLoading && <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Recalculando el impacto de los cambios…</p>}
