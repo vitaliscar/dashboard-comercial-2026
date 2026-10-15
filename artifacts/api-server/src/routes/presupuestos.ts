@@ -14,6 +14,7 @@ import {
   type ConfigPresupuesto2027,
   type HistoricoPresupuesto2027,
 } from "../lib/presupuesto-2027";
+import { cargarAjustesManuales, sumaAjuste } from "../lib/ajustes-manuales";
 
 type Queryable = { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, any>[] }> };
 type SessionLoader = (req: Request) => Promise<SessionPayload | null>;
@@ -317,7 +318,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
   }
 
   async function cargarBase2027(tx: Queryable, mesCierre = 9) {
-    const [units, history] = await Promise.all([
+    const [units, history, ajustes2026] = await Promise.all([
       tx.query("SELECT id, nombre FROM unidades_negocio ORDER BY nombre"),
       tx.query(`SELECT p.anio, p.mes, u.id AS "unidadNegocioId", u.nombre AS unidad,
           p.sucursal_id AS "sucursalId", s.nombre AS sucursal,
@@ -330,14 +331,26 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         WHERE p.anio BETWEEN 2024 AND 2026 AND (p.anio < 2026 OR p.mes <= $1)
         GROUP BY p.anio, p.mes, u.id, u.nombre, p.sucursal_id, s.nombre
         ORDER BY u.nombre, p.anio, p.mes, s.nombre`, [mesCierre]),
+      cargarAjustesManuales(tx, 2026),
     ]);
     return {
       units: units.rows.map((row) => ({ id: String(row.id), nombre: String(row.nombre) })),
-      history: history.rows.map((row): HistoricoPresupuesto2027 => ({
-        anio: Number(row.anio), mes: Number(row.mes), unidadNegocioId: String(row.unidadNegocioId), unidad: String(row.unidad),
-        sucursalId: row.sucursalId ? String(row.sucursalId) : null, sucursal: row.sucursal ? String(row.sucursal) : null,
-        ccv: Number(row.ccv ?? 0), xibi: Number(row.xibi ?? 0), estrategicas: Number(row.estrategicas ?? 0),
-      })),
+      history: history.rows.map((row): HistoricoPresupuesto2027 => {
+        const anio = Number(row.anio);
+        const mes = Number(row.mes);
+        const unidadNegocioId = String(row.unidadNegocioId);
+        const sucursalId = row.sucursalId ? String(row.sucursalId) : null;
+        const ajuste = (columna: "ccv" | "xibi" | "estrategico" | "total") => anio === 2026
+          ? sumaAjuste(ajustes2026, { mes, sucursalId, unidadNegocioId, columna })
+          : 0;
+        return {
+          anio, mes, unidadNegocioId, unidad: String(row.unidad), sucursalId,
+          sucursal: row.sucursal ? String(row.sucursal) : null,
+          ccv: Number(row.ccv ?? 0) + ajuste("ccv") + ajuste("total"),
+          xibi: Number(row.xibi ?? 0) + ajuste("xibi"),
+          estrategicas: Number(row.estrategicas ?? 0) + ajuste("estrategico"),
+        };
+      }),
     };
   }
 
