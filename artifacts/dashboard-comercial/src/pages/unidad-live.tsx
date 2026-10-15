@@ -404,6 +404,21 @@ function DetailSection({
     return rows;
   }, [annualData?.detallesEstrategicos, annualData?.servicios, annualData?.serviciosInterno]);
 
+  const externalWorkshopServices = useMemo(() => {
+    const orders = new Map<string, { id: string; numero: string; taller: string; cliente: string; monto: number }>();
+    for (const row of data.servicios ?? []) {
+      if (!row.taller || row.taller === "X" || num(row.tipoVentaReporte) !== 4) continue;
+      const numero = String(row.numeroServicio ?? "").trim();
+      if (!numero) continue;
+      const taller = label(row.taller);
+      const key = `${String(row.sucursalId ?? "")}:${numero}:${taller}`;
+      const order = orders.get(key) ?? { id: key, numero, taller, cliente: label(row.cliente), monto: 0 };
+      order.monto += num(row.monto);
+      orders.set(key, order);
+    }
+    return [...orders.values()].sort((a, b) => b.monto - a.monto);
+  }, [data.servicios]);
+
   const lostSales = useMemo(
     () =>
       (data.ventasPerdidas ?? [])
@@ -433,6 +448,19 @@ function DetailSection({
         <div className="grid gap-3">
           <WorkshopSalesTypeChart data={serviceTrends.map(({ mes, talleresInternas, talleresExternas, talleresSinTipo }) => ({ mes, internas: talleresInternas, externas: talleresExternas, sinTipo: talleresSinTipo }))} highlightMonths={getHighlightMonthLabels(selectedMonths)} loading={trendLoading} />
         </div>
+        <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Servicios externos de talleres · {externalWorkshopServices.length} órdenes</summary>
+          <div className="max-h-96 overflow-auto border-t border-border">
+            <Table>
+              <caption className="sr-only">Servicios de taller con tipo de venta 4 en el período seleccionado</caption>
+              <TableHeader><TableRow><TableHead>N.º de servicio</TableHead><TableHead>Taller</TableHead><TableHead>Cliente</TableHead><TableHead className="text-right">Monto</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {externalWorkshopServices.map((order) => <TableRow key={order.id}><TableCell className="font-mono text-xs">{order.numero}</TableCell><TableCell>{order.taller}</TableCell><TableCell className="max-w-64 truncate" title={order.cliente}>{order.cliente}</TableCell><TableCell className="text-right tabular-nums">{money(order.monto)}</TableCell></TableRow>)}
+                {externalWorkshopServices.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No hay servicios externos de talleres con número en este período.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </div>
+        </details>
       </section>
     );
   }

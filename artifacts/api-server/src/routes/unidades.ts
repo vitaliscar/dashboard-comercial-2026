@@ -330,6 +330,7 @@ async function loadUnitData(
                 s.tipo_servicio AS "tipoServicio",
                 s.categoria_venta AS "categoriaVenta",
                 s.tipo_venta_reporte AS "tipoVentaReporte",
+                s.numero_servicio AS "numeroServicio",
                 s.compania,
                 s.taller,
                 s.csa,
