@@ -5,12 +5,6 @@ import { useState, useMemo, memo } from "react";
 import { cn, exportCSV } from "@/lib/utils";
 import { ArrowUpDown, ArrowUp, ArrowDown, Download, Search } from "@/components/icons";
 import {
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type ColumnDef,
-} from "@tanstack/react-table";
-import {
   Table,
   TableHeader,
   TableBody,
@@ -117,32 +111,23 @@ export const DataTable = memo(function DataTable({
     );
   }, [data, search, columns]);
 
-  const tableColumns = useMemo<ColumnDef<Record<string, unknown>>[]>(
-    () =>
-      columns.map((column) => ({
-        accessorKey: column.key,
-        sortingFn: (rowA, rowB, columnId) => {
-          const aVal = getRawValue(rowA.original[columnId]);
-          const bVal = getRawValue(rowB.original[columnId]);
-          if (typeof aVal === "number" && typeof bVal === "number") {
-            return aVal - bVal;
-          }
-          return String(aVal).localeCompare(String(bVal), "es");
-        },
-      })),
-    [columns],
-  );
+  // This table has no pagination and only renders a small client summary.
+  // Sorting locally avoids TanStack's auto-reset state loop when a parent
+  // filter (such as CCV/Xibi/Est.) rerenders tables with fresh column arrays.
+  const sortedData = useMemo(() => {
+    if (!sortKey || !sortDir) return filteredData;
 
-  const table = useReactTable({
-    data: filteredData,
-    columns: tableColumns,
-    state: {
-      sorting: sortKey && sortDir ? [{ id: sortKey, desc: sortDir === "desc" }] : [],
-    },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
-  const sortedData = table.getRowModel().rows.map((row) => row.original);
+    return [...filteredData].sort((rowA, rowB) => {
+      const aValue = getRawValue(rowA[sortKey]);
+      const bValue = getRawValue(rowB[sortKey]);
+      const comparison =
+        typeof aValue === "number" && typeof bValue === "number"
+          ? aValue - bValue
+          : String(aValue).localeCompare(String(bValue), "es");
+
+      return sortDir === "desc" ? -comparison : comparison;
+    });
+  }, [filteredData, sortKey, sortDir]);
 
   const displayData = expanded ? sortedData : sortedData.slice(0, maxRows);
 

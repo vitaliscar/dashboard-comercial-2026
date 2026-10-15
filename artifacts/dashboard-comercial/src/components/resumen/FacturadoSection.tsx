@@ -146,7 +146,7 @@ export function FacturadoSection({
                         size="sm"
                         className="h-6 px-1 text-[10px] truncate"
                         onClick={() =>
-                          setTipoClienteFilters({ ...tipoClienteFilters, [unidad.unidad]: tipo })
+                          setTipoClienteFilters((current) => ({ ...current, [unidad.unidad]: tipo }))
                         }
                       >
                         {TIPO_LABELS[tipo]}
