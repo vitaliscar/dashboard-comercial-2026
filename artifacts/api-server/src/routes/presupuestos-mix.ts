@@ -9,7 +9,7 @@ const CATALOG: Record<string, Array<{ key: string; label: string }>> = {
   repuestos: [{ key: "caterpillar", label: "Caterpillar" }, { key: "blumaq", label: "Blumaq" }, { key: "otros", label: "Otros" }],
   lubfiltros: [{ key: "chronus", label: "Chronus · Lubricantes" }, { key: "donaldson", label: "Donaldson · Filtros" }],
   servicios: [{ key: "csa", label: "CSA" }, { key: "otras", label: "Otras" }],
-  equipos: [{ key: "generac", label: "Generac" }, { key: "weichai", label: "Weichai" }, { key: "ep_equipment", label: "EP Equipment" }, { key: "otras", label: "Otras" }],
+  equipos: [{ key: "generac", label: "Generac" }, { key: "weichai", label: "Weichai" }, { key: "ep_equipment", label: "EP Equipment" }, { key: "xcmg", label: "XCMG · Construcción" }, { key: "otras", label: "Otras" }],
   alquiler: [{ key: "comercial", label: "Comercial" }, { key: "industrial", label: "Industrial" }, { key: "residencial", label: "Residencial" }],
 };
 function unitKey(name: string) {
@@ -35,7 +35,7 @@ function salesItem(kind: string, rawName: unknown) {
   const value = String(rawName ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
   if (kind === "repuestos") return value.includes("caterpillar") || value === "cat" ? "caterpillar" : value.includes("blumaq") ? "blumaq" : "otros";
   if (kind === "lubfiltros") return ["co", "chronus"].includes(value) || value.includes("chronus") ? "chronus" : ["dn", "d1", "gf", "nc", "donaldson"].includes(value) || value.includes("donaldson") ? "donaldson" : null;
-  if (kind === "equipos") return value.includes("generac") ? "generac" : value.includes("weichai") ? "weichai" : value.includes("ep") ? "ep_equipment" : "otras";
+  if (kind === "equipos") return value.includes("generac") ? "generac" : value.includes("weichai") ? "weichai" : value.includes("xcmg") ? "xcmg" : value.includes("ep") ? "ep_equipment" : "otras";
   if (kind === "servicios") return value ? "csa" : "otras";
   return null;
 }
