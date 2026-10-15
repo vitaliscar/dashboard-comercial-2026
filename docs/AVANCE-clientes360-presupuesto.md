@@ -75,7 +75,10 @@ Fases terminadas: ~~tachadas~~ y con fecha. Cada cambio deja su evidencia (archi
 5. [x] Reorganizar la página en cuatro vistas — 2026-10-15
    - Crecimiento (trayectoria comparativa y backtest), Plan (metas mensuales, mezcla por marcas/segmentos y litros Chronus a $5,20/L; XCMG agregado), Escenarios (supuestos, factores y fuentes) y Seguimiento (versiones, estados y aprobación).
    - Se mantienen los permisos existentes: Directorio/Administración editan supuestos de Dirección; Gerencia/Administración editan Gestión y AOP; solo Administración configura el método; Administración, Dirección y Gerencia generan/aprueban.
-6. [ ] Validar con datos del servidor, publicar en 4174 y comprobar la carga en navegador.
+6. [ ] Cerrar validación autenticada de la metodología
+   - [x] Typecheck y build de API y Vite en local; typecheck y build de producción de API/web en el servidor.
+   - [x] Publicado en `/opt/dashboard-comercial-2026-vite`; `dashboard-vite-api.service` y `dashboard-vite-web.service` activos; 4174 responde 200 y la ruta de metodología exige sesión (401 sin credenciales).
+   - [ ] Abrir con sesión real y verificar los cuatro paneles, el guardado de factores, el mix/monto de litros y comparación de escenarios con datos del servidor.
 
 ## Bitácora
 
@@ -95,3 +98,5 @@ Fases terminadas: ~~tachadas~~ y con fecha. Cada cambio deja su evidencia (archi
 | 2026-10-15 | La brecha de Lubricantes/Filtros 2026 ene–sep no se debe al parser del Sheet: sus 4.259 filas actuales tienen importes como `1.223,88`, que el parser lee correctamente. El Sheet y `facturas` coinciden por mes; el oficial ajustado supera ese origen en $840.728,89. No se igualaron cifras de fuentes distintas. | `CONCILIACION-lubfiltros-2026.md`; dump del Sheet actual y consultas PostgreSQL de `facturas`, `presupuestos` y detalles por marca. |
 
 | 2026-10-15 | Presupuesto 2027: se incorporaron factores comerciales, notas de fundamento, ponderación AOP con validación al 100 %, escenarios nombrados, cálculo/rutas por año objetivo y cuatro vistas con mix por marcas/segmentos. API y frontend pasan typecheck y build local; pendiente verificar escenarios con datos reales, desplegar API + Vite en 4174 y comprobar con sesión de usuario. | `artifacts/api-server/src/lib/presupuesto-2027.ts`, `artifacts/api-server/src/routes/presupuestos.ts`, `artifacts/dashboard-comercial/src/components/budget/presupuesto-2027-methodology.tsx` |
+
+| 2026-10-15 | Implementación de Presupuesto 2027 sincronizada en local y 4174. Backup previo en `/home/ubuntu/backups/presupuesto2027_20261015_1530/`; API reiniciada por systemd y web sirve build nuevo. API/web typecheck y build pasaron en local; builds de producción pasaron en servidor. Web HTTP 200; método HTTP 401 sin sesión, que confirma autenticación. La comprobación con una sesión real sigue pendiente porque no hay navegador disponible en esta sesión. | Local commit `f4d7165`; servidor commit `cc53df1`; ramas `replit-migration` y `sync-server-audit-20261001`. |
