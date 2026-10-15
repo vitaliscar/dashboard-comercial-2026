@@ -317,8 +317,10 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     return Number.isInteger(anio) && anio >= 2000 && anio <= 2200;
   }
 
-  async function cargarBase2027(tx: Queryable, mesCierre = 9) {
-    const [units, history, ajustes2026] = await Promise.all([
+  async function cargarBase2027(tx: Queryable, mesCierre = 9, anioObjetivo = 2027) {
+    const primerAnio = anioObjetivo - 3;
+    const ultimoAnio = anioObjetivo - 1;
+    const [units, history, ajustesPeriodo] = await Promise.all([
       tx.query("SELECT id, nombre FROM unidades_negocio ORDER BY nombre"),
       tx.query(`SELECT p.anio, p.mes, u.id AS "unidadNegocioId", u.nombre AS unidad,
           p.sucursal_id AS "sucursalId", s.nombre AS sucursal,
@@ -328,10 +330,10 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         FROM presupuestos p
         JOIN unidades_negocio u ON u.id = p.unidad_negocio_id
         LEFT JOIN sucursales s ON s.id = p.sucursal_id
-        WHERE p.anio BETWEEN 2024 AND 2026 AND (p.anio < 2026 OR p.mes <= $1)
+        WHERE p.anio BETWEEN $2 AND $3 AND (p.anio < $3 OR p.mes <= $1)
         GROUP BY p.anio, p.mes, u.id, u.nombre, p.sucursal_id, s.nombre
-        ORDER BY u.nombre, p.anio, p.mes, s.nombre`, [mesCierre]),
-      cargarAjustesManuales(tx, 2026),
+        ORDER BY u.nombre, p.anio, p.mes, s.nombre`, [mesCierre, primerAnio, ultimoAnio]),
+      cargarAjustesManuales(tx, ultimoAnio),
     ]);
     return {
       units: units.rows.map((row) => ({ id: String(row.id), nombre: String(row.nombre) })),
@@ -340,8 +342,8 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         const mes = Number(row.mes);
         const unidadNegocioId = String(row.unidadNegocioId);
         const sucursalId = row.sucursalId ? String(row.sucursalId) : null;
-        const ajuste = (columna: "ccv" | "xibi" | "estrategico" | "total") => anio === 2026
-          ? sumaAjuste(ajustes2026, { mes, sucursalId, unidadNegocioId, columna })
+        const ajuste = (columna: "ccv" | "xibi" | "estrategico" | "total") => anio === ultimoAnio
+          ? sumaAjuste(ajustesPeriodo, { mes, sucursalId, unidadNegocioId, columna })
           : 0;
         return {
           anio, mes, unidadNegocioId, unidad: String(row.unidad), sucursalId,
@@ -354,7 +356,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     };
   }
 
-  function parseConfig2027(value: unknown, units: Array<{ id: string; nombre: string }>): ConfigPresupuesto2027 | null {
+  function parseConfig2027(value: unknown, units: Array<{ id: string; nombre: string }>, anioObjetivo = 2027): ConfigPresupuesto2027 | null {
     if (!value || typeof value !== "object") return null;
     const input = value as Record<string, unknown>;
     const record = (value: unknown) => value && typeof value === "object" ? value as Record<string, unknown> : {};
@@ -369,37 +371,47 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
       if (!unit) return null;
       const nullableTrend = row.gTendenciaOverride === null || row.gTendenciaOverride === "" ? null : Number(row.gTendenciaOverride);
       const pctDirectorio = Number(row.pctDirectorio);
+      const pesoAop = row.pesoAop === null || row.pesoAop === undefined || row.pesoAop === "" ? null : Number(row.pesoAop);
       const pctGestion = Number(row.pctGestion);
       const incrementalUsd = Number(row.incrementalUsd);
-      if ((nullableTrend !== null && !Number.isFinite(nullableTrend)) || !Number.isFinite(pctDirectorio) || !Number.isFinite(pctGestion) || !Number.isFinite(incrementalUsd)) return null;
-      rows.push({ unidadNegocioId: unit.id, unidad: unit.nombre, gTendenciaOverride: nullableTrend, pctDirectorio, pctGestion, incrementalUsd });
+      const sourceFactors = record(row.factoresGestion);
+      const hasFactors = ["inversionAop", "dropSize", "cartera", "portafolio"].every((key) => Number.isFinite(Number(sourceFactors[key])));
+      const factoresGestion = hasFactors ? {
+        inversionAop: Number(sourceFactors.inversionAop), dropSize: Number(sourceFactors.dropSize),
+        cartera: Number(sourceFactors.cartera), portafolio: Number(sourceFactors.portafolio),
+      } : undefined;
+      const fuentesInput = record(row.fuentes);
+      const fuentes = { directorio: String(fuentesInput.directorio ?? ""), gestion: String(fuentesInput.gestion ?? "") };
+      if ((nullableTrend !== null && !Number.isFinite(nullableTrend)) || !Number.isFinite(pctDirectorio) || (pesoAop !== null && !Number.isFinite(pesoAop)) || !Number.isFinite(pctGestion) || !Number.isFinite(incrementalUsd) || (factoresGestion && Object.values(factoresGestion).some((value) => !Number.isFinite(value)))) return null;
+      rows.push({ unidadNegocioId: unit.id, unidad: unit.nombre, gTendenciaOverride: nullableTrend, pctDirectorio, pesoAop, pctGestion: factoresGestion ? Object.values(factoresGestion).reduce((sum, value) => sum + value, 0) : pctGestion, ...(factoresGestion ? { factoresGestion } : {}), fuentes, incrementalUsd });
     }
     if (rows.length !== units.length || new Set(rows.map((row) => row.unidadNegocioId)).size !== units.length) return null;
+    const years = [anioObjetivo - 3, anioObjetivo - 2, anioObjetivo - 1];
     const config: ConfigPresupuesto2027 = {
-      mesCierre: Number(input.mesCierre), topeAtipico: Number(input.topeAtipico),
-      pesosAnio: { 2024: Number(annual["2024"]), 2025: Number(annual["2025"]), 2026: Number(annual["2026"]) },
+      anioObjetivo: Number(input.anioObjetivo ?? anioObjetivo), nombreEscenario: String(input.nombreEscenario ?? "Base recomendada").slice(0, 80), mesCierre: Number(input.mesCierre), topeAtipico: Number(input.topeAtipico),
+      pesosAnio: Object.fromEntries(years.map((year) => [year, Number(annual[String(year)])])) ,
       pesosTendencia: { g25: Number(trend.g25), g26: Number(trend.g26) }, premisas: rows,
     };
     const weights = Object.values(config.pesosAnio);
-    if (!Number.isInteger(config.mesCierre) || config.mesCierre < 1 || config.mesCierre > 12 || !Number.isFinite(config.topeAtipico) || config.topeAtipico <= 0 || weights.some((weight) => !Number.isFinite(weight) || weight < 0) || Math.abs(weights.reduce((sum, weight) => sum + weight, 0) - 1) > 0.00001 || !Number.isFinite(config.pesosTendencia.g25) || config.pesosTendencia.g25 < 0 || !Number.isFinite(config.pesosTendencia.g26) || config.pesosTendencia.g26 < 0 || Math.abs(config.pesosTendencia.g25 + config.pesosTendencia.g26 - 1) > 0.00001) return null;
+    if (config.anioObjetivo !== anioObjetivo || !Number.isInteger(config.mesCierre) || config.mesCierre < 1 || config.mesCierre > 12 || !Number.isFinite(config.topeAtipico) || config.topeAtipico <= 0 || weights.some((weight) => !Number.isFinite(weight) || weight < 0) || Math.abs(weights.reduce((sum, weight) => sum + weight, 0) - 1) > 0.00001 || !Number.isFinite(config.pesosTendencia.g25) || config.pesosTendencia.g25 < 0 || !Number.isFinite(config.pesosTendencia.g26) || config.pesosTendencia.g26 < 0 || Math.abs(config.pesosTendencia.g25 + config.pesosTendencia.g26 - 1) > 0.00001) return null;
     return config;
   }
 
-  async function configBase2027(tx: Queryable, units: Array<{ id: string; nombre: string }>) {
-    const latest = await tx.query(`SELECT premisas FROM presupuestos_versiones WHERE anio = 2027 AND premisas->>'tipo' = 'metodologia_2027'
-      ORDER BY CASE estado WHEN 'borrador' THEN 0 WHEN 'propuesto' THEN 1 WHEN 'aprobado' THEN 2 ELSE 3 END, updated_at DESC LIMIT 1`);
-    if (!latest.rows[0]) return configPresupuesto2027(units);
-    const config = parseConfig2027((latest.rows[0].premisas as Record<string, unknown>).config, units);
+  async function configBase2027(tx: Queryable, units: Array<{ id: string; nombre: string }>, anioObjetivo = 2027) {
+    const latest = await tx.query(`SELECT premisas FROM presupuestos_versiones WHERE anio = $1 AND premisas->>'tipo' = $2
+      ORDER BY CASE estado WHEN 'borrador' THEN 0 WHEN 'propuesto' THEN 1 WHEN 'aprobado' THEN 2 ELSE 3 END, updated_at DESC LIMIT 1`, [anioObjetivo, `metodologia_2027`]);
+    if (!latest.rows[0]) return configPresupuesto2027(units, anioObjetivo);
+    const config = parseConfig2027((latest.rows[0].premisas as Record<string, unknown>).config, units, anioObjetivo);
     if (!config) throw new Error("PRESUPUESTO_INVALIDO:La configuración guardada no cubre las unidades actuales. Completa sus premisas antes de continuar.");
     return config;
   }
 
-  async function preview2027(tx: Queryable, rawConfig?: unknown) {
-    const initial = await cargarBase2027(tx);
-    const saved = await configBase2027(tx, initial.units);
-    const config = rawConfig === undefined ? saved : parseConfig2027(rawConfig, initial.units);
+  async function preview2027(tx: Queryable, rawConfig?: unknown, anioObjetivo = 2027) {
+    const initial = await cargarBase2027(tx, 9, anioObjetivo);
+    const saved = await configBase2027(tx, initial.units, anioObjetivo);
+    const config = rawConfig === undefined ? saved : parseConfig2027(rawConfig, initial.units, anioObjetivo);
     if (!config) throw new Error("PRESUPUESTO_INVALIDO:La configuración del presupuesto 2027 no es válida.");
-    const history = config.mesCierre === 9 ? initial.history : (await cargarBase2027(tx, config.mesCierre)).history;
+    const history = config.mesCierre === 9 ? initial.history : (await cargarBase2027(tx, config.mesCierre, anioObjetivo)).history;
     return { config, calculation: calcularPresupuesto2027(history, config), units: initial.units };
   }
 
@@ -409,36 +421,41 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
     const rows = config.premisas.filter((row) => ids.has(row.unidadNegocioId));
     const summary = calculation.summary.filter((row) => ids.has(String(row.unidadNegocioId)));
     const detail = calculation.detail.filter((row) => ids.has(String(row.unidadNegocioId)));
-    return { config: { ...config, premisas: rows }, calculation: { ...calculation, summary, detail, total2027: summary.reduce((sum, row) => sum + Number(row.ppto2027), 0), monthTotals: calculation.monthTotals.map((month) => ({ ...month, monto: detail.filter((row) => row.mes === month.mes).reduce((sum, row) => sum + Number(row.monto), 0) })) } };
+    return { config: { ...config, premisas: rows }, calculation: { ...calculation, summary, detail, totalObjetivo: summary.reduce((sum, row) => sum + Number(row.pptoObjetivo), 0), ...(calculation.anioObjetivo === 2027 ? { total2027: summary.reduce((sum, row) => sum + Number(row.pptoObjetivo), 0) } : {}), monthTotals: calculation.monthTotals.map((month) => ({ ...month, monto: detail.filter((row) => row.mes === month.mes).reduce((sum, row) => sum + Number(row.monto), 0) })) } };
   }
 
-  router.get("/presupuestos/2027", async (req, res) => {
+  router.get(["/presupuestos/2027", "/presupuestos/metodologia/:anio"], async (req, res) => {
+    const anioObjetivo = Number(req.params.anio ?? 2027);
+    if (!Number.isInteger(anioObjetivo) || anioObjetivo < 2027 || anioObjetivo > 2200) { res.status(400).json({ message: "El año objetivo no es válido." }); return; }
     const session = await scopedSession(req, res); if (!session) return;
     const result = await run(res, session, async (tx) => {
-      const preview = await preview2027(tx);
+      const preview = await preview2027(tx, undefined, anioObjetivo);
       const versions = await tx.query(`SELECT id, nombre, estado, created_at AS "createdAt", aprobado_at AS "aprobadoAt",
-          premisas->>'total2027' AS "total2027" FROM presupuestos_versiones
-        WHERE anio = 2027 AND premisas->>'tipo' = 'metodologia_2027' ORDER BY created_at DESC`);
+          COALESCE(premisas->>'totalObjetivo', premisas->>'total2027') AS "total2027" FROM presupuestos_versiones
+        WHERE anio = $1 AND premisas->>'tipo' = 'metodologia_2027' ORDER BY created_at DESC`, [anioObjetivo]);
       return { ...preview, versions: session.role === "gerente_comercial" ? [] : versions.rows };
     });
     if (result) {
       const scoped = alcance2027(session, result.config, result.calculation);
-      res.json({ config: scoped.config, calculation: scoped.calculation, versions: result.versions });
+      res.json({ anioObjetivo, config: scoped.config, calculation: scoped.calculation, versions: result.versions });
     }
   });
 
-  router.put("/presupuestos/2027/premisas", async (req, res) => {
+  router.put(["/presupuestos/2027/premisas", "/presupuestos/metodologia/:anio/premisas"], async (req, res) => {
+    const anioObjetivo = Number(req.params.anio ?? 2027);
+    if (!Number.isInteger(anioObjetivo) || anioObjetivo < 2027 || anioObjetivo > 2200) { res.status(400).json({ message: "El año objetivo no es válido." }); return; }
     const session = await scopedSession(req, res); if (!session) return;
-    if (!["administrador", "director", "gerencia"].includes(session.role ?? "")) { res.status(403).json({ message: "Tu rol no puede editar las premisas del presupuesto 2027." }); return; }
+    if (!["administrador", "director", "gerencia"].includes(session.role ?? "")) { res.status(403).json({ message: "Tu rol no puede editar estas premisas." }); return; }
     const result = await run(res, session, async (tx) => {
-      await tx.query("SELECT pg_advisory_xact_lock(hashtext('presupuesto-2027-config'), 2027)");
-      const base = await cargarBase2027(tx);
-      const saved = await configBase2027(tx, base.units);
-      const incoming = parseConfig2027(req.body?.config, base.units);
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext('presupuesto-metodologia-config'), $1)", [anioObjetivo]);
+      const base = await cargarBase2027(tx, 9, anioObjetivo);
+      const saved = await configBase2027(tx, base.units, anioObjetivo);
+      const incoming = parseConfig2027(req.body?.config, base.units, anioObjetivo);
       if (!incoming) throw new Error("PRESUPUESTO_INVALIDO:La configuración enviada no es válida.");
       const editor = session.role;
       const next: ConfigPresupuesto2027 = {
         ...saved,
+        nombreEscenario: incoming.nombreEscenario?.trim() || `Presupuesto ${anioObjetivo}`,
         ...(editor === "administrador" ? {
           mesCierre: incoming.mesCierre, topeAtipico: incoming.topeAtipico,
           pesosAnio: incoming.pesosAnio, pesosTendencia: incoming.pesosTendencia,
@@ -448,41 +465,48 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
           return {
             ...old,
             ...(editor === "administrador" || editor === "director" ? { gTendenciaOverride: updated.gTendenciaOverride, pctDirectorio: updated.pctDirectorio } : {}),
-            ...(editor === "administrador" || editor === "gerencia" ? { pctGestion: updated.pctGestion, incrementalUsd: updated.incrementalUsd } : {}),
+            ...(editor === "administrador" || editor === "gerencia" ? { pesoAop: updated.pesoAop, pctGestion: updated.pctGestion, factoresGestion: updated.factoresGestion, incrementalUsd: updated.incrementalUsd } : {}),
+            fuentes: {
+              ...old.fuentes,
+              ...(editor === "administrador" || editor === "director" ? { directorio: updated.fuentes?.directorio ?? "" } : {}),
+              ...(editor === "administrador" || editor === "gerencia" ? { gestion: updated.fuentes?.gestion ?? "" } : {}),
+            },
           };
         }),
       };
-      const preview = await preview2027(tx, next);
-      const current = await tx.query(`SELECT id FROM presupuestos_versiones WHERE anio = 2027
+      const preview = await preview2027(tx, next, anioObjetivo);
+      const current = await tx.query(`SELECT id FROM presupuestos_versiones WHERE anio = $1
         AND estado = 'borrador' AND premisas->>'tipo' = 'metodologia_2027'
-        ORDER BY updated_at DESC LIMIT 1 FOR UPDATE`);
+        ORDER BY updated_at DESC LIMIT 1 FOR UPDATE`, [anioObjetivo]);
       let versionId = current.rows[0]?.id as string | undefined;
-      const snapshot = JSON.stringify({ tipo: "metodologia_2027", config: next, total2027: preview.calculation.total2027 });
+      const snapshot = JSON.stringify({ tipo: "metodologia_2027", config: next, totalObjetivo: preview.calculation.totalObjetivo });
       if (versionId) {
-        await tx.query("UPDATE presupuestos_versiones SET premisas = $1::jsonb, updated_at = now() WHERE id = $2::uuid", [snapshot, versionId]);
+        await tx.query("UPDATE presupuestos_versiones SET nombre = $3, premisas = $1::jsonb, updated_at = now() WHERE id = $2::uuid", [snapshot, versionId, next.nombreEscenario ?? `Presupuesto ${anioObjetivo}`]);
       } else {
         const created = await tx.query(`INSERT INTO presupuestos_versiones (anio, nombre, escenario, estado, descripcion, premisas, creado_por)
-          VALUES (2027, 'Presupuesto 2027 · Proyección histórica', 'base', 'borrador', 'Metodología histórica con crecimiento Directorio y Gestión', $1::jsonb, $2::uuid) RETURNING id`, [snapshot, session.user.id]);
+          VALUES ($1, $2, 'base', 'borrador', 'Metodología histórica con crecimiento Directorio y Gestión', $3::jsonb, $4::uuid) RETURNING id`, [anioObjetivo, next.nombreEscenario ?? `Presupuesto ${anioObjetivo} · Proyección histórica`, snapshot, session.user.id]);
         versionId = String(created.rows[0].id);
       }
       return { versionId, ...preview };
     });
     if (result) {
       const scoped = alcance2027(session, result.config, result.calculation);
-      res.json({ versionId: result.versionId, config: scoped.config, calculation: scoped.calculation });
+      res.json({ anioObjetivo, versionId: result.versionId, config: scoped.config, calculation: scoped.calculation });
     }
   });
 
-  router.post("/presupuestos/2027/generar", async (req, res) => {
+  router.post(["/presupuestos/2027/generar", "/presupuestos/metodologia/:anio/generar"], async (req, res) => {
+    const anioObjetivo = Number(req.params.anio ?? 2027);
+    if (!Number.isInteger(anioObjetivo) || anioObjetivo < 2027 || anioObjetivo > 2200) { res.status(400).json({ message: "El año objetivo no es válido." }); return; }
     const session = await scopedSession(req, res); if (!session) return;
-    if (!["administrador", "director", "gerencia"].includes(session.role ?? "")) { res.status(403).json({ message: "Tu rol no puede generar el presupuesto 2027." }); return; }
+    if (!["administrador", "director", "gerencia"].includes(session.role ?? "")) { res.status(403).json({ message: "Tu rol no puede generar este presupuesto." }); return; }
     const result = await run(res, session, async (tx) => {
-      await tx.query("SELECT pg_advisory_xact_lock(hashtext('presupuesto-2027-config'), 2027)");
-      const draft = await tx.query(`SELECT id, premisas FROM presupuestos_versiones WHERE anio = 2027 AND estado = 'borrador'
-        AND premisas->>'tipo' = 'metodologia_2027' ORDER BY updated_at DESC LIMIT 1 FOR UPDATE`);
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext('presupuesto-metodologia-config'), $1)", [anioObjetivo]);
+      const draft = await tx.query(`SELECT id, premisas FROM presupuestos_versiones WHERE anio = $1 AND estado = 'borrador'
+        AND premisas->>'tipo' = 'metodologia_2027' ORDER BY updated_at DESC LIMIT 1 FOR UPDATE`, [anioObjetivo]);
       const row = draft.rows[0];
       if (!row) throw new Error("PRESUPUESTO_INVALIDO:Guarda las premisas antes de generar una propuesta.");
-      const preview = await preview2027(tx, (row.premisas as Record<string, unknown>).config);
+      const preview = await preview2027(tx, (row.premisas as Record<string, unknown>).config, anioObjetivo);
       await tx.query("DELETE FROM presupuestos_versiones_lineas WHERE version_id = $1::uuid", [row.id]);
       const detail = preview.calculation.detail;
       for (let offset = 0; offset < detail.length; offset += 200) {
@@ -496,7 +520,7 @@ export default function presupuestosRouter(currentSession: SessionLoader, withSc
         await tx.query(`INSERT INTO presupuestos_versiones_lineas (version_id, mes, sucursal_id, unidad_negocio_id, historico, sugerido, monto, fuente, canal, peso, indice_estacional)
           VALUES ${tuples.join(",")}`, values);
       }
-      const snapshot = { ...(row.premisas as Record<string, unknown>), resumen: preview.calculation.summary, total2027: preview.calculation.total2027, tipo: "metodologia_2027" };
+      const snapshot = { ...(row.premisas as Record<string, unknown>), resumen: preview.calculation.summary, totalObjetivo: preview.calculation.totalObjetivo, tipo: "metodologia_2027" };
       await tx.query("UPDATE presupuestos_versiones SET estado = 'propuesto', premisas = $1::jsonb, updated_at = now() WHERE id = $2::uuid", [JSON.stringify(snapshot), row.id]);
       return { id: row.id, lineas: detail.length, ...preview.calculation };
     });

@@ -65,10 +65,17 @@ Fases terminadas: ~~tachadas~~ y con fecha. Cada cambio deja su evidencia (archi
 
 1. [x] Corregir el parseo de Servicios 2026 y los duplicados de facturas sin unidad. Los 11 cursos únicos siguen pendientes de clasificación; no se imputaron artificialmente a Servicios.
 2. [x] Calcular la proyección 2026 con estacionalidad 2024–2025 y mostrar un backtest 2025 por unidad, con error y dirección del sesgo.
-3. [ ] Definir la meta 2027 por causas comerciales
-4. [ ] Extender versiones y escenarios (rutas con año como parámetro)
-5. [ ] Reorganizar la página en cuatro vistas (Crecimiento, Plan 2027, Escenarios, Seguimiento)
-6. [ ] Validar y publicar
+3. [x] Definir la meta por causas comerciales — 2026-10-15
+   - Proyección de cierre del año más reciente, tendencia histórica ponderada, porcentaje Directorio y factores de Gestión separados: inversión/AOP, *drop size*, cartera y portafolio.
+   - Permite ponderadores AOP por unidad; todos deben sumar 100 %. Si no se capturan, conserva el peso derivado del histórico y no inventa AOP.
+   - Permite registrar fuente/fundamento de Directorio y Gestión, más un monto incremental de portafolio separado. Las tasas arrancan en 0 y son premisas manuales, no índices macroeconómicos inventados.
+4. [x] Extender versiones y escenarios (rutas con año como parámetro) — 2026-10-15
+   - Rutas: `GET /presupuestos/metodologia/:anio`, `PUT /presupuestos/metodologia/:anio/premisas`, `POST /presupuestos/metodologia/:anio/generar`. Se conservan las rutas `/presupuestos/2027...` como alias.
+   - La metodología usa los tres años anteriores al año objetivo y registra escenarios/versiones independientes por año; la versión vigente no cambia hasta aprobación.
+5. [x] Reorganizar la página en cuatro vistas — 2026-10-15
+   - Crecimiento (trayectoria comparativa y backtest), Plan (metas mensuales, mezcla por marcas/segmentos y litros Chronus a $5,20/L; XCMG agregado), Escenarios (supuestos, factores y fuentes) y Seguimiento (versiones, estados y aprobación).
+   - Se mantienen los permisos existentes: Directorio/Administración editan supuestos de Dirección; Gerencia/Administración editan Gestión y AOP; solo Administración configura el método; Administración, Dirección y Gerencia generan/aprueban.
+6. [ ] Validar con datos del servidor, publicar en 4174 y comprobar la carga en navegador.
 
 ## Bitácora
 
@@ -86,3 +93,5 @@ Fases terminadas: ~~tachadas~~ y con fecha. Cada cambio deja su evidencia (archi
 | 2026-10-15 | Servicio nº S incorporado a PostgreSQL y a los cargadores históricos/cron. Reproceso por año sin variar filas ni importes: 2024 21.424/$2.581.433,79; 2025 21.436/$2.792.945,09; 2026 20.187/$3.006.899,93. Con nº de servicio: 21.424, 21.436 y 20.180. Todas las 1.310 filas tipo 4 de los tres años tienen número. Servicios muestra las órdenes externas de talleres agrupadas por número bajo el gráfico. | Migración `0042_servicios_numero_servicio.sql`; parser y loaders del cron activo; `unidades.ts` y `unidad-live.tsx`. Respaldo `/home/ubuntu/backups/conciliacion_clientes_presupuesto_20261014_171658/servicios_numero_20261015/`. |
 | 2026-10-15 | CRM de Servicios: 1.839 pares número de documento + código de cliente coinciden con `numero_servicio` + `codigo_cliente`; 0 tienen asesores distintos. La cascada atribuye 2026 a CRM 12.600 filas/$1.797.576,15, cartera única de CCV 553/$159.682,50 y Casa 7.034/$1.049.641,28. Se publicó `atribuir-servicios-crm.ts` después de la carga de Servicios en el cron, con `origen_asesor` y reinicio idempotente. Los importes y filas de 2024–2026 siguen idénticos. | `/opt/dashboard-comercial-2026/scripts/atribuir-servicios-crm.ts`, migraciones `0031` (Next) y `0043` (Vite), respaldo `servicios_crm_20261015/servicios_before.dump`; `tsc --noEmit` del cron activo. |
 | 2026-10-15 | La brecha de Lubricantes/Filtros 2026 ene–sep no se debe al parser del Sheet: sus 4.259 filas actuales tienen importes como `1.223,88`, que el parser lee correctamente. El Sheet y `facturas` coinciden por mes; el oficial ajustado supera ese origen en $840.728,89. No se igualaron cifras de fuentes distintas. | `CONCILIACION-lubfiltros-2026.md`; dump del Sheet actual y consultas PostgreSQL de `facturas`, `presupuestos` y detalles por marca. |
+
+| 2026-10-15 | Presupuesto 2027: se incorporaron factores comerciales, notas de fundamento, ponderación AOP con validación al 100 %, escenarios nombrados, cálculo/rutas por año objetivo y cuatro vistas con mix por marcas/segmentos. API y frontend pasan typecheck y build local; pendiente verificar escenarios con datos reales, desplegar API + Vite en 4174 y comprobar con sesión de usuario. | `artifacts/api-server/src/lib/presupuesto-2027.ts`, `artifacts/api-server/src/routes/presupuestos.ts`, `artifacts/dashboard-comercial/src/components/budget/presupuesto-2027-methodology.tsx` |
